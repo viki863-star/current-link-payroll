@@ -9,6 +9,17 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='hr-2027.js', v='20260818') }}"></script>
+<style>
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .5; transform: scale(1.3); }
+}
+.counter-num { animation: countFadeIn .8s ease-out; }
+@keyframes countFadeIn {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+</style>
 
 <div class="db-shell">
     <div class="hr-wrap">
@@ -199,56 +210,109 @@
             </form>
         </div>
 
-        {# ─── Salary Overview (Premium Chart) ─── #}
-        <div class="hr-card" style="margin-bottom:0">
-            <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-green)"></span> Salary Overview — {{ "%04d-%02d"|format(_prev_year, _prev_month) }}</div>
-            <div style="display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:center;padding:12px 0">
-                {# ── Left: Donut Gauge ── #}
-                <div style="position:relative;width:240px;height:240px;margin:0 auto">
-                    <canvas id="salaryGauge"></canvas>
-                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-                        <div style="font-size:2rem;font-weight:800;color:#1c568b;line-height:1">{{ salary_paid_count + salary_unpaid_count }}</div>
-                        <div style="font-size:.7rem;color:#64748b;margin-top:2px">Total Employees</div>
+        {# ─── Salary Overview (Ultra Premium) ─── #}
+        <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 40%,#1c568b 100%);border-radius:20px;padding:28px 32px;margin-bottom:0;position:relative;overflow:hidden;box-shadow:0 20px 60px rgba(28,86,139,.35)">
+            {# ── Decorative bg elements ── #}
+            <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.03)"></div>
+            <div style="position:absolute;bottom:-60px;left:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.02)"></div>
+            <div style="position:absolute;top:50%;right:15%;width:80px;height:80px;border-radius:50%;background:rgba(34,197,94,.08);filter:blur(30px)"></div>
+
+            {# ── Header ── #}
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;position:relative;z-index:1">
+                <div>
+                    <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.25);border-radius:20px;padding:4px 12px;margin-bottom:10px">
+                        <div style="width:6px;height:6px;border-radius:50%;background:#22c55e;animation:pulse-dot 2s infinite"></div>
+                        <span style="font-size:.65rem;font-weight:600;color:#4ade80;letter-spacing:.5px;text-transform:uppercase">Live Dashboard</span>
+                    </div>
+                    <h2 style="margin:0;font-size:1.3rem;font-weight:800;color:#fff;letter-spacing:-.3px">Salary Overview</h2>
+                    <p style="margin:4px 0 0;font-size:.78rem;color:rgba(255,255,255,.5)">Last completed month &middot; {{ "%04d-%02d"|format(_prev_year, _prev_month) }}</p>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:.65rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Total Workforce</div>
+                    <div style="font-size:2.8rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-1px" class="counter-num">{{ salary_paid_count + salary_unpaid_count }}</div>
+                </div>
+            </div>
+
+            {# ── Main Content Grid ── #}
+            <div style="display:grid;grid-template-columns:260px 1fr;gap:28px;align-items:start;position:relative;z-index:1">
+
+                {# ── Left: Radial Progress + Stats ── #}
+                <div>
+                    {# Radial gauge #}
+                    <div style="position:relative;width:220px;height:130px;margin:0 auto 16px">
+                        <canvas id="salaryGauge" style="width:220px!important;height:130px!important"></canvas>
+                        <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);text-align:center">
+                            <div style="font-size:1.8rem;font-weight:900;color:#fff;line-height:1" id="paidPercent">
+                                {% if salary_paid_count + salary_unpaid_count > 0 %}{{ ((salary_paid_count / (salary_paid_count + salary_unpaid_count)) * 100)|int }}{% else %}0{% endif %}%
+                            </div>
+                            <div style="font-size:.6rem;color:rgba(255,255,255,.5);margin-top:2px;text-transform:uppercase;letter-spacing:.5px">Completion Rate</div>
+                        </div>
+                    </div>
+
+                    {# Mini stat pills #}
+                    <div style="display:flex;gap:8px;justify-content:center">
+                        <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:8px 14px;text-align:center;flex:1">
+                            <div style="font-size:.55rem;color:#4ade80;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Paid</div>
+                            <div style="font-size:1.1rem;font-weight:800;color:#22c55e;line-height:1.3">{{ salary_paid_count }}</div>
+                        </div>
+                        <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:8px 14px;text-align:center;flex:1">
+                            <div style="font-size:.55rem;color:#f87171;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Unpaid</div>
+                            <div style="font-size:1.1rem;font-weight:800;color:#ef4444;line-height:1.3">{{ salary_unpaid_count }}</div>
+                        </div>
                     </div>
                 </div>
-                {# ── Right: Stats + Bars ── #}
+
+                {# ── Right: Detail Cards + Trend ── #}
                 <div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-                        <div style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:12px;padding:16px 18px;border:1px solid #a7f3d0">
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                                <div style="width:36px;height:36px;border-radius:10px;background:#22c55e;display:flex;align-items:center;justify-content:center">
-                                    <svg viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2.2" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+                    {# Top: Amount cards #}
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+                        {# Paid card #}
+                        <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.15);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;backdrop-filter:blur(10px);transition:all .3s ease" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(34,197,94,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                            <div style="position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle,rgba(34,197,94,.12) 0%,transparent 70%);border-radius:0 14px 0 50%"></div>
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#22c55e,#16a34a);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(34,197,94,.3)">
+                                    <svg viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2.2" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>
                                 </div>
                                 <div>
-                                    <div style="font-size:.65rem;color:#166534;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Paid</div>
-                                    <div style="font-size:1.4rem;font-weight:800;color:#15803d;line-height:1">{{ salary_paid_count }}</div>
+                                    <div style="font-size:.6rem;color:#4ade80;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Total Paid</div>
+                                    <div style="font-size:.7rem;color:rgba(255,255,255,.4)">{{ salary_paid_count }} employees</div>
                                 </div>
                             </div>
-                            <div style="font-size:1.1rem;font-weight:700;color:#166534">AED {{ "{:,.0f}".format(salary_paid_amount) }}</div>
-                            <div style="width:100%;height:6px;background:#bbf7d0;border-radius:3px;margin-top:8px;overflow:hidden">
-                                <div style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_paid_count / (salary_paid_count + salary_unpaid_count) * 100)|int }}{% else %}0{% endif %}%;height:100%;background:#22c55e;border-radius:3px;transition:width .8s ease"></div>
+                            <div style="font-size:1.5rem;font-weight:900;color:#4ade80;letter-spacing:-.5px">AED {{ "{:,.0f}".format(salary_paid_amount) }}</div>
+                            <div style="height:4px;background:rgba(34,197,94,.15);border-radius:2px;margin-top:12px;overflow:hidden">
+                                <div style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_paid_count / (salary_paid_count + salary_unpaid_count) * 100)|int }}{% else %}0{% endif %}%;height:100%;background:linear-gradient(90deg,#22c55e,#4ade80);border-radius:2px;transition:width 1.2s cubic-bezier(.4,0,.2,1)"></div>
                             </div>
                         </div>
-                        <div style="background:linear-gradient(135deg,#fef2f2,#fecaca);border-radius:12px;padding:16px 18px;border:1px solid #fca5a5">
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                                <div style="width:36px;height:36px;border-radius:10px;background:#ef4444;display:flex;align-items:center;justify-content:center">
-                                    <svg viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2.2" width="18" height="18"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2 2"/></svg>
+
+                        {# Unpaid card #}
+                        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.15);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;backdrop-filter:blur(10px);transition:all .3s ease" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(239,68,68,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+                            <div style="position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle,rgba(239,68,68,.12) 0%,transparent 70%);border-radius:0 14px 0 50%"></div>
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#ef4444,#dc2626);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(239,68,68,.3)">
+                                    <svg viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2.2" width="20" height="20"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2 2"/></svg>
                                 </div>
                                 <div>
-                                    <div style="font-size:.65rem;color:#991b1b;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Unpaid</div>
-                                    <div style="font-size:1.4rem;font-weight:800;color:#dc2626;line-height:1">{{ salary_unpaid_count }}</div>
+                                    <div style="font-size:.6rem;color:#f87171;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Total Unpaid</div>
+                                    <div style="font-size:.7rem;color:rgba(255,255,255,.4)">{{ salary_unpaid_count }} employees</div>
                                 </div>
                             </div>
-                            <div style="font-size:1.1rem;font-weight:700;color:#991b1b">AED {{ "{:,.0f}".format(salary_unpaid_amount) }}</div>
-                            <div style="width:100%;height:6px;background:#fecaca;border-radius:3px;margin-top:8px;overflow:hidden">
-                                <div style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_unpaid_count / (salary_paid_count + salary_unpaid_count) * 100)|int }}{% else %}0{% endif %}%;height:100%;background:#ef4444;border-radius:3px;transition:width .8s ease"></div>
+                            <div style="font-size:1.5rem;font-weight:900;color:#f87171;letter-spacing:-.5px">AED {{ "{:,.0f}".format(salary_unpaid_amount) }}</div>
+                            <div style="height:4px;background:rgba(239,68,68,.15);border-radius:2px;margin-top:12px;overflow:hidden">
+                                <div style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_unpaid_count / (salary_paid_count + salary_unpaid_count) * 100)|int }}{% else %}0{% endif %}%;height:100%;background:linear-gradient(90deg,#ef4444,#f87171);border-radius:2px;transition:width 1.2s cubic-bezier(.4,0,.2,1)"></div>
                             </div>
                         </div>
                     </div>
-                    {# ── Mini bar chart ── #}
-                    <div style="background:#f8fafc;border-radius:10px;padding:14px 16px;border:1px solid #e2e8f0">
-                        <div style="font-size:.72rem;font-weight:600;color:#475569;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Last 6 Months Trend</div>
-                        <div style="height:120px"><canvas id="paidUnpaidTrend"></canvas></div>
+
+                    {# Bottom: 6-Month Trend #}
+                    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px;backdrop-filter:blur(10px)">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                            <div style="font-size:.68rem;font-weight:600;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.5px">6-Month Trend</div>
+                            <div style="display:flex;gap:12px">
+                                <span style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:rgba(255,255,255,.4)"><span style="width:8px;height:8px;border-radius:2px;background:#4ade80;display:inline-block"></span>Paid</span>
+                                <span style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:rgba(255,255,255,.4)"><span style="width:8px;height:8px;border-radius:2px;background:rgba(248,113,113,.6);display:inline-block"></span>Unpaid</span>
+                            </div>
+                        </div>
+                        <div style="height:100px"><canvas id="paidUnpaidTrend"></canvas></div>
                     </div>
                 </div>
             </div>
@@ -334,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var colorRed = '#ef4444';
     var colorViolet = '#8b5cf6';
 
-    // ── Salary Gauge (Doughnut) ──
+    // ── Salary Gauge (Semi-Doughnut) ──
     var gaugeCtx = document.getElementById('salaryGauge');
     if (gaugeCtx) {
         new Chart(gaugeCtx, {
@@ -343,30 +407,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: ['Paid', 'Unpaid'],
                 datasets: [{
                     data: [{{ salary_paid_count }}, {{ salary_unpaid_count }}],
-                    backgroundColor: ['#22c55e', '#ef4444'],
+                    backgroundColor: [
+                        'rgba(34,197,94,0.9)',
+                        'rgba(239,68,68,0.4)'
+                    ],
                     borderWidth: 0,
-                    hoverOffset: 8,
-                    borderRadius: 6,
-                    spacing: 3
+                    hoverOffset: 6,
+                    borderRadius: 8,
+                    spacing: 4
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
-                cutout: '72%',
+                maintainAspectRatio: false,
+                cutout: '75%',
                 rotation: -90,
                 circumference: 180,
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: '#1e293b',
+                        backgroundColor: 'rgba(15,23,42,0.95)',
                         titleFont: { size: 12, weight: '600' },
                         bodyFont: { size: 11 },
-                        padding: 10,
-                        cornerRadius: 8,
+                        padding: 12,
+                        cornerRadius: 10,
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
                         callbacks: {
                             label: function(ctx) {
-                                return ctx.label + ': ' + ctx.raw + ' employees';
+                                return ' ' + ctx.label + ': ' + ctx.raw + ' employees';
                             }
                         }
                     }
@@ -386,16 +455,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     {
                         label: 'Paid',
                         data: [{% for v in paid_trend_paid %}{{ v }},{% endfor %}],
-                        backgroundColor: '#22c55e',
-                        borderRadius: 4,
-                        maxBarThickness: 22
+                        backgroundColor: 'rgba(74,222,128,0.8)',
+                        borderRadius: { topLeft: 4, topRight: 4 },
+                        maxBarThickness: 20
                     },
                     {
                         label: 'Unpaid',
                         data: [{% for v in paid_trend_unpaid %}{{ v }},{% endfor %}],
-                        backgroundColor: '#fca5a5',
-                        borderRadius: 4,
-                        maxBarThickness: 22
+                        backgroundColor: 'rgba(248,113,113,0.5)',
+                        borderRadius: { topLeft: 4, topRight: 4 },
+                        maxBarThickness: 20
                     }
                 ]
             },
@@ -403,17 +472,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
-                    y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: '#f1f5f9' } }
+                    x: {
+                        stacked: true,
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 9 } },
+                        border: { display: false }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: { stepSize: 1, color: 'rgba(255,255,255,0.3)', font: { size: 9 } },
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        border: { display: false }
+                    }
                 },
                 plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10 } } },
+                    legend: { display: false },
                     tooltip: {
-                        backgroundColor: '#1e293b',
+                        backgroundColor: 'rgba(15,23,42,0.95)',
                         titleFont: { size: 11 },
                         bodyFont: { size: 10 },
-                        padding: 8,
-                        cornerRadius: 6
+                        padding: 10,
+                        cornerRadius: 8,
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1
                     }
                 }
             }
