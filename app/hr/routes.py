@@ -209,6 +209,45 @@ def hr_dashboard():
         ).fetchone()
         payroll_amount = payroll_row["total"] if payroll_row else 0
 
+        # ── Salary Paid vs Unpaid (current month) ──
+        cm = _current_month_value()
+        paid_slips = db.execute(
+            "SELECT COUNT(DISTINCT driver_id) AS c, COALESCE(SUM(actual_paid_amount), 0) AS total FROM salary_slips WHERE salary_month = ?",
+            (cm,),
+        ).fetchone()
+        salary_paid_count = paid_slips["c"] if paid_slips else 0
+        salary_paid_amount = float(paid_slips["total"] if paid_slips else 0)
+
+        stored_total = db.execute(
+            "SELECT COUNT(DISTINCT driver_id) AS c FROM salary_store WHERE salary_month = ?",
+            (cm,),
+        ).fetchone()["c"] or 0
+        salary_unpaid_count = max(stored_total - salary_paid_count, 0)
+        salary_unpaid_amount = max(payroll_amount - salary_paid_amount, 0)
+
+        # ── Monthly paid/unpaid trend (last 6 months) ──
+        paid_trend_months = []
+        paid_trend_paid = []
+        paid_trend_unpaid = []
+        for i in range(5, -1, -1):
+            m = today.month - i
+            y = today.year
+            if m < 1:
+                m += 12
+                y -= 1
+            ym = f"{y:04d}-{m:02d}"
+            p_row = db.execute(
+                "SELECT COUNT(DISTINCT driver_id) AS c FROM salary_slips WHERE salary_month = ?", (ym,)
+            ).fetchone()
+            s_row = db.execute(
+                "SELECT COUNT(DISTINCT driver_id) AS c FROM salary_store WHERE salary_month = ?", (ym,)
+            ).fetchone()
+            p_cnt = p_row["c"] if p_row else 0
+            s_cnt = s_row["c"] if s_row else 0
+            paid_trend_months.append(ym)
+            paid_trend_paid.append(p_cnt)
+            paid_trend_unpaid.append(max(s_cnt - p_cnt, 0))
+
         # ── Recent employees ──
         recent = db.execute(
             "SELECT employee_id, full_name, employee_type, department, join_date, status FROM employees ORDER BY id DESC LIMIT 5"
@@ -232,6 +271,13 @@ def hr_dashboard():
             employee_types=employee_types_dict,
             trend_months=trend_months,
             trend_counts=trend_counts,
+            salary_paid_count=salary_paid_count,
+            salary_paid_amount=salary_paid_amount,
+            salary_unpaid_count=salary_unpaid_count,
+            salary_unpaid_amount=salary_unpaid_amount,
+            paid_trend_months=paid_trend_months,
+            paid_trend_paid=paid_trend_paid,
+            paid_trend_unpaid=paid_trend_unpaid,
             recent_employees=recent,
             employees=employees,
             today=date.today().isoformat(),
