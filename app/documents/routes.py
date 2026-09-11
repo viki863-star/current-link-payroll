@@ -19,13 +19,15 @@ def _generate_thumbnail(file_data_b64, file_type):
         if file_type == "application/pdf":
             try:
                 from pdf2image import convert_from_bytes
-                images = convert_from_bytes(raw, first_page=1, last_page=1, dpi=200)
+                images = convert_from_bytes(raw, first_page=1, last_page=1, dpi=150)
                 if images:
                     img = images[0]
                     w, h = img.size
-                    if h > w:
+                    if w > 3000 and h > 4000:
+                        img = img.crop((1154, 1633, 2842, 2689))
+                    elif h > w:
                         img = img.crop((0, 0, w, h // 2))
-                    img.thumbnail((400, 560))
+                    img.thumbnail((400, 280))
                     buf = BytesIO()
                     img.save(buf, format="JPEG", quality=85)
                     thumb_bytes = buf.getvalue()
@@ -37,7 +39,7 @@ def _generate_thumbnail(file_data_b64, file_type):
                     text = page.extract_text()
                     if text:
                         from PIL import Image, ImageDraw
-                        img = Image.new("RGB", (500, 350), "white")
+                        img = Image.new("RGB", (400, 280), "white")
                         draw = ImageDraw.Draw(img)
                         y = 20
                         for line in text.split("\n")[:18]:
