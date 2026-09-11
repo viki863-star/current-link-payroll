@@ -44,7 +44,7 @@
 .cat-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 16px; border-radius:10px; font-size:0.72rem; font-weight:600; cursor:pointer; transition:all .12s; border:1.5px solid transparent; }
 .cat-chip:hover { transform:translateY(-1px); }
 .cat-chip.active { border-color:currentColor; }
-.doc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:14px; }
+.doc-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
 .doc-card { background:#fff; border-radius:14px; border:1px solid #edf2f7; overflow:hidden; transition:all .15s; }
 .doc-card:hover { box-shadow:0 8px 25px rgba(0,0,0,.07); transform:translateY(-2px); }
 .doc-card-head { padding:16px 18px 12px; display:flex; align-items:flex-start; gap:12px; }
@@ -74,22 +74,57 @@
 @media (max-width:820px) { .doc-stats { grid-template-columns:1fr 1fr; } .doc-grid { grid-template-columns:1fr; } }
 @media (max-width:600px) { .doc-stats { grid-template-columns:1fr; } }
 
-.doc-card.mulkiya { display:grid; grid-template-columns:110px 1fr; }
-.doc-card.mulkiya .doc-card-thumb { width:110px; height:100%; min-height:130px; overflow:hidden; background:#f1f5f9; position:relative; border-radius:14px 0 0 14px; }
-.doc-card.mulkiya .doc-card-thumb img { width:100%; height:100%; object-fit:cover; object-position:center; }
-.doc-card.mulkiya .doc-card-head { padding:14px 16px 10px; }
+@keyframes ringRotate { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
+@keyframes statusPulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.12) } }
+@keyframes ringGlow { 0%,100% { filter:drop-shadow(0 0 3px var(--ring-color)) } 50% { filter:drop-shadow(0 0 10px var(--ring-color)) } }
+
+.doc-card.mulkiya { display:flex; flex-direction:column; align-items:center; padding:20px 16px 14px; text-align:center; }
+.doc-card.mulkiya .doc-card-head { padding:0; display:none; }
 .doc-card.mulkiya .doc-card-badge { display:none; }
-.doc-card.mulkiya .doc-card-status { position:absolute; top:8px; left:8px; z-index:2; padding:2px 8px; border-radius:5px; font-size:0.55rem; font-weight:700; backdrop-filter:blur(6px); letter-spacing:0.4px; text-transform:uppercase; }
-.doc-card.mulkiya .doc-card-status.expired { background:rgba(239,68,68,0.9); color:#fff; }
-.doc-card.mulkiya .doc-card-status.soon { background:rgba(245,158,11,0.9); color:#fff; }
-.doc-card.mulkiya .doc-card-status.ok { background:rgba(34,197,94,0.9); color:#fff; }
-.doc-card.mulkiya .doc-card-title { font-size:0.8rem; font-weight:700; margin-bottom:4px; }
-.doc-card.mulkiya .doc-card-meta { font-size:0.68rem; gap:4px 10px; }
+
+.doc-ring-wrap {
+  position:relative; width:140px; height:140px; margin-bottom:14px;
+  --ring-color:#22c55e;
+}
+.doc-ring-border {
+  position:absolute; inset:0; border-radius:50%;
+  border:3.5px dashed var(--ring-color);
+  animation: ringRotate 8s linear infinite, ringGlow 3s ease-in-out infinite;
+  opacity:0.7;
+}
+.doc-card.mulkiya:hover .doc-ring-border { opacity:1; animation-duration:4s,1.5s; }
+.doc-ring-img {
+  position:absolute; inset:8px; border-radius:50%; overflow:hidden;
+  background:#f1f5f9; box-shadow:inset 0 2px 8px rgba(0,0,0,0.08);
+}
+.doc-ring-img img { width:100%; height:100%; object-fit:cover; object-position:center; }
+.doc-ring-status {
+  position:absolute; bottom:2px; left:50%; transform:translateX(-50%);
+  width:28px; height:28px; border-radius:50%; display:grid; place-items:center;
+  font-size:0.7rem; font-weight:800; color:#fff; z-index:2;
+  border:2.5px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.12);
+  animation: statusPulse 2.5s ease-in-out infinite;
+}
+.doc-ring-status.valid { background:#22c55e; }
+.doc-ring-status.soon { background:#f59e0b; }
+.doc-ring-status.expired { background:#ef4444; }
+
+.doc-card.mulkiya .doc-card-plate {
+  font-family:monospace; font-size:0.9rem; font-weight:800; color:#0f172a;
+  background:linear-gradient(135deg,#f8fafc,#f1f5f9);
+  padding:4px 14px; border-radius:8px; display:inline-block; margin-bottom:6px;
+  border:1px solid #e2e8f0; letter-spacing:0.5px;
+}
+.doc-card.mulkiya .doc-card-title { font-size:0.78rem; font-weight:600; color:#64748b; margin-bottom:2px; }
+.doc-card.mulkiya .doc-card-cat { display:none; }
+.doc-card.mulkiya .doc-card-meta { font-size:0.68rem; gap:3px 12px; justify-content:center; margin-top:4px; }
 .doc-card.mulkiya .doc-card-meta-item { font-size:0.66rem; }
-.doc-card.mulkiya .doc-card-foot { padding:6px 16px 10px; }
-.doc-card.mulkiya .doc-card-divider { margin:0 16px; }
-.doc-card.mulkiya .doc-card-plate { font-family:monospace; font-size:0.82rem; font-weight:800; color:#0f172a; background:linear-gradient(135deg,#f8fafc,#f1f5f9); padding:3px 10px; border-radius:6px; display:inline-block; margin-bottom:4px; border:1px solid #e2e8f0; }
-@media(max-width:820px){ .doc-card.mulkiya { grid-template-columns:90px 1fr; } .doc-card.mulkiya .doc-card-thumb { width:90px; } }
+.doc-card.mulkiya .doc-card-divider { width:60%; margin:10px auto; }
+.doc-card.mulkiya .doc-card-foot { width:100%; padding:8px 0 0; }
+.doc-card.mulkiya .doc-card-ref { display:none; }
+
+.doc-card.mulkiya:hover { transform:translateY(-4px); box-shadow:0 12px 30px rgba(0,0,0,0.08); }
+@media(max-width:820px){ .doc-card.mulkiya { padding:16px 12px 12px; } .doc-ring-wrap { width:120px; height:120px; } }
 </style>
 
 <script>
@@ -214,27 +249,44 @@ function filterByCat(cat) {
   {% set es = d._status %}
   <div class="doc-card{% if d.doc_category == 'Mulkiya' and d.thumbnail_data %} mulkiya{% endif %}">
     {% if d.doc_category == 'Mulkiya' and d.thumbnail_data %}
-    <div class="doc-card-thumb">
-      <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="{{ d.doc_name }}" loading="lazy">
-      <span class="doc-card-status {{ es }}">{% if es == 'expired' %}EXPIRED{% elif es == 'soon' %}SOON{% else %}VALID{% endif %}</span>
+    <div class="doc-ring-wrap" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}">
+      <div class="doc-ring-border"></div>
+      <div class="doc-ring-img">
+        <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="{{ d.doc_name }}" loading="lazy">
+      </div>
+      <div class="doc-ring-status {{ es }}">{% if es == 'expired' %}✗{% elif es == 'soon' %}!{% else %}✓{% endif %}</div>
     </div>
-    {% endif %}
-    <div>
-    <div class="doc-card-head">
-      {% if not d.thumbnail_data or d.doc_category != 'Mulkiya' %}
-      <div class="doc-card-badge" style="background:{{ clr }}10;color:{{ clr }}">{{ icon }}</div>
+    <div class="doc-card-plate">{{ d.entity_id }}</div>
+    <div class="doc-card-title">{{ d.doc_name }}</div>
+    <div class="doc-card-meta">
+      {% if d.expiry_date %}
+      <span class="doc-card-meta-item">
+        <span class="expiry-tag" style="{% if es == 'expired' %}background:#ffebee;color:#c62828{% elif es == 'soon' %}background:#fff3e0;color:#e65100{% else %}background:#e8f5e9;color:#2e7d32{% endif %}">{{ d.expiry_date }}</span>
+      </span>
       {% endif %}
+    </div>
+    <div class="doc-card-divider"></div>
+    <div class="doc-card-foot">
+      <span class="doc-card-date">{{ d.uploaded_at_formatted }}</span>
+      <div class="doc-card-actions">
+        <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-action-btn download" title="Download">⬇</a>
+        <a href="{{ url_for('documents.document_edit', doc_id=d.id) }}" class="doc-action-btn edit" title="Edit">✏️</a>
+        <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" class="doc-action-btn delete-form" onsubmit="return confirm('Delete this document?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="doc-action-btn delete" title="Delete">🗑</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="doc-card-head">
+      <div class="doc-card-badge" style="background:{{ clr }}10;color:{{ clr }}">{{ icon }}</div>
       <div class="doc-card-head-body">
-        {% if d.doc_category == 'Mulkiya' and d.entity_type == 'vehicle' %}
-        <div class="doc-card-plate">{{ d.entity_id }}</div>
-        {% endif %}
         <div class="doc-card-title">
           {{ d.doc_name }}
           <span class="doc-card-cat" style="color:{{ clr }};background:{{ clr }}12">{{ d.doc_category }}</span>
         </div>
         {% if d.doc_ref_no %}<div class="doc-card-ref">Ref #{{ d.doc_ref_no }}</div>{% endif %}
         <div class="doc-card-meta">
-          {% if d.doc_category != 'Mulkiya' %}
           <span class="doc-card-meta-item">
             {{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}:
             {% if d.entity_type == 'vehicle' %}
@@ -245,32 +297,28 @@ function filterByCat(cat) {
             <strong>{{ d.entity_id }}</strong>
             {% endif %}
           </span>
-          {% endif %}
           {% if d.expiry_date %}
           <span class="doc-card-meta-item">
             Exp:
             <span class="expiry-tag" style="{% if es == 'expired' %}background:#ffebee;color:#c62828{% elif es == 'soon' %}background:#fff3e0;color:#e65100{% else %}background:#e8f5e9;color:#2e7d32{% endif %}">{{ d.expiry_date }}</span>
           </span>
           {% endif %}
-          {% if d.notes %}
-          <span class="doc-card-meta-item" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📌 {{ d.notes }}</span>
-          {% endif %}
         </div>
       </div>
     </div>
     <div class="doc-card-divider"></div>
     <div class="doc-card-foot">
-      <span class="doc-card-date">📅 {{ d.uploaded_at_formatted }}</span>
+      <span class="doc-card-date">{{ d.uploaded_at_formatted }}</span>
       <div class="doc-card-actions">
         <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-action-btn download" title="Download">⬇</a>
         <a href="{{ url_for('documents.document_edit', doc_id=d.id) }}" class="doc-action-btn edit" title="Edit">✏️</a>
-        <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" class="doc-action-btn delete-form" onsubmit="return confirm('Delete {{ d.doc_name|e }}?')">
+        <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" class="doc-action-btn delete-form" onsubmit="return confirm('Delete this document?')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="doc-action-btn delete" title="Delete">🗑</button>
         </form>
       </div>
     </div>
-    </div>
+    {% endif %}
   </div>
   {% endfor %}
 </div>
