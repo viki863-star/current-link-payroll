@@ -25,7 +25,7 @@ def _generate_thumbnail(file_data_b64, file_type):
                     w, h = img.size
                     if h > w:
                         img = img.crop((0, 0, w, h // 2))
-                    img.thumbnail((500, 350))
+                    img.thumbnail((400, 560))
                     buf = BytesIO()
                     img.save(buf, format="JPEG", quality=85)
                     thumb_bytes = buf.getvalue()
