@@ -87,23 +87,23 @@
 
 .mk-flip-front {
   backface-visibility:hidden; -webkit-backface-visibility:hidden;
-  display:flex; flex-direction:column; align-items:center;
+  display:flex; flex-direction:column; align-items:stretch;
+  width:100%; border-radius:14px; overflow:hidden;
 }
 .mk-flip-back {
   position:absolute; top:0; left:0; width:100%; height:100%;
   transform:rotateY(180deg); overflow:hidden;
-  background:#f1f5f9; border-radius:inherit;
+  background:#f1f5f9; border-radius:14px;
   backface-visibility:hidden; -webkit-backface-visibility:hidden;
   display:flex; align-items:center; justify-content:center;
-  padding:6px;
+  padding:0;
 }
 .mk-flip-back img {
   width:100%; height:100%; object-fit:cover; object-position:top center;
-  border-radius:4px;
 }
 
 .doc-card.mulkiya {
-  display:flex; flex-direction:column; align-items:center; padding:0; text-align:center;
+  display:block; padding:0; text-align:center;
   transition:all 0.3s cubic-bezier(0.4,0,0.2,1); position:relative; overflow:hidden;
   border:1px solid #e8ecf1;
 }
@@ -116,7 +116,7 @@
   background:linear-gradient(90deg,var(--ring-color),transparent 80%);
 }
 .mk-pattern {
-  width:100%; position:relative; overflow:hidden; flex:1;
+  width:100%; position:relative; overflow:hidden;
   background:repeating-linear-gradient(135deg,transparent,transparent 6px,rgba(0,0,0,0.012) 6px,rgba(0,0,0,0.012) 7px);
 }
 .mk-pattern::after {
@@ -302,7 +302,7 @@ function filterByCat(cat) {
   {% set icon = cat_icons.get(d.doc_category, '📄') %}
   {% set clr = cat_colors.get(d.doc_category, '#64748b') %}
   {% set es = d._status %}
-  <div class="doc-card{% if d.doc_category == 'Mulkiya' and d.thumbnail_data %} mulkiya{% if es == 'expired' %} expired-card{% endif %}{% endif %}">
+  <div class="doc-card{% if d.doc_category == 'Mulkiya' and d.thumbnail_data %} mulkiya{% endif %}">
     {% if d.doc_category == 'Mulkiya' and d.thumbnail_data %}
     <div class="mk-flip-container" onclick="this.classList.toggle('flipped')">
       <div class="mk-flip-card">
