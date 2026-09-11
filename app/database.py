@@ -882,6 +882,7 @@ CREATE TABLE IF NOT EXISTS documents (
     file_type TEXT NOT NULL DEFAULT 'application/octet-stream',
     file_size INTEGER DEFAULT 0,
     thumbnail_data TEXT,
+    thumbnail_back_data TEXT,
     notes TEXT,
     uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -1781,6 +1782,7 @@ CREATE TABLE IF NOT EXISTS documents (
     file_type TEXT NOT NULL DEFAULT 'application/octet-stream',
     file_size INTEGER DEFAULT 0,
     thumbnail_data TEXT,
+    thumbnail_back_data TEXT,
     notes TEXT,
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -2093,6 +2095,7 @@ REQUIRED_COLUMNS = {
         "expiry_date": "TEXT",
         "file_size": "INTEGER DEFAULT 0",
         "thumbnail_data": "TEXT",
+        "thumbnail_back_data": "TEXT",
     },
 }
 
