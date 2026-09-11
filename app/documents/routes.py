@@ -19,12 +19,15 @@ def _generate_thumbnail(file_data_b64, file_type):
         if file_type == "application/pdf":
             try:
                 from pdf2image import convert_from_bytes
-                images = convert_from_bytes(raw, first_page=1, last_page=1, dpi=150)
+                images = convert_from_bytes(raw, first_page=1, last_page=1, dpi=200)
                 if images:
                     img = images[0]
-                    img.thumbnail((400, 560))
+                    w, h = img.size
+                    if h > w:
+                        img = img.crop((0, 0, w, h // 2))
+                    img.thumbnail((500, 350))
                     buf = BytesIO()
-                    img.save(buf, format="JPEG", quality=80)
+                    img.save(buf, format="JPEG", quality=85)
                     thumb_bytes = buf.getvalue()
             except Exception:
                 try:
@@ -33,15 +36,15 @@ def _generate_thumbnail(file_data_b64, file_type):
                     page = reader.pages[0]
                     text = page.extract_text()
                     if text:
-                        from PIL import Image, ImageDraw, ImageFont
-                        img = Image.new("RGB", (400, 560), "white")
+                        from PIL import Image, ImageDraw
+                        img = Image.new("RGB", (500, 350), "white")
                         draw = ImageDraw.Draw(img)
                         y = 20
-                        for line in text.split("\n")[:25]:
+                        for line in text.split("\n")[:18]:
                             draw.text((20, y), line.strip(), fill="black")
-                            y += 20
+                            y += 18
                         buf = BytesIO()
-                        img.save(buf, format="JPEG", quality=80)
+                        img.save(buf, format="JPEG", quality=85)
                         thumb_bytes = buf.getvalue()
                 except Exception:
                     pass
@@ -50,11 +53,14 @@ def _generate_thumbnail(file_data_b64, file_type):
             try:
                 from PIL import Image
                 img = Image.open(BytesIO(raw))
-                img.thumbnail((400, 560))
+                w, h = img.size
+                if h > w * 1.3:
+                    img = img.crop((0, 0, w, int(h * 0.55)))
+                img.thumbnail((500, 350))
                 if img.mode == "RGBA":
                     img = img.convert("RGB")
                 buf = BytesIO()
-                img.save(buf, format="JPEG", quality=80)
+                img.save(buf, format="JPEG", quality=85)
                 thumb_bytes = buf.getvalue()
             except Exception:
                 pass
