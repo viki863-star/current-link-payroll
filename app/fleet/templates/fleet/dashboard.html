@@ -18,6 +18,8 @@
 @keyframes rowFadeIn { from { opacity:0; transform:translateX(-16px) } to { opacity:1; transform:translateX(0) } }
 @keyframes rankPop { from { opacity:0; transform:scale(0) rotate(-20deg) } to { opacity:1; transform:scale(1) rotate(0deg) } }
 @keyframes barGlow { 0%,100% { box-shadow:0 0 4px rgba(255,138,31,0.3) } 50% { box-shadow:0 0 14px rgba(255,138,31,0.6) } }
+@keyframes barGrow { from { width:0% } to { width:var(--bar-w) } }
+@keyframes rowSlideIn { from { opacity:0; transform:translateX(-12px) } to { opacity:1; transform:translateX(0) } }
 @keyframes navCardIn { from { opacity:0; transform:scale(0.85) translateY(12px) } to { opacity:1; transform:scale(1) translateY(0) } }
 
 .fd-container { max-width:1100px; margin:0 auto; }
@@ -165,80 +167,20 @@
 .fd-panel-head a { font-size:0.72rem; font-weight:600; color:var(--primary); text-decoration:none; }
 .fd-panel-head a:hover { text-decoration:underline; }
 
-/* ─── TOP VEHICLES PREMIUM ─── */
-.tv-row {
-  display:flex; align-items:center; gap:12px;
-  padding:10px 16px; border-bottom:1px solid var(--line);
-  text-decoration:none; color:inherit;
-  animation: rowFadeIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
-  transition: background 0.2s, transform 0.15s;
-  position:relative;
-}
-.tv-row:hover { background:rgba(15,43,82,0.04); transform:translateX(4px) }
-.tv-row:last-child { border-bottom:none }
-.tv-rank {
-  width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
-  font-size:0.65rem; font-weight:800; flex-shrink:0;
-  animation: rankPop 0.4s cubic-bezier(0.22,1,0.36,1) both;
-  font-family:monospace;
-}
-.tv-rank.gold { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#78350f; box-shadow:0 2px 8px rgba(245,158,11,0.4) }
-.tv-rank.silver { background:linear-gradient(135deg,#d1d5db,#9ca3af); color:#374151; box-shadow:0 2px 8px rgba(156,163,175,0.4) }
-.tv-rank.bronze { background:linear-gradient(135deg,#f59e0b,#d97706); color:#78350f; box-shadow:0 2px 8px rgba(217,119,6,0.3) }
-.tv-rank.plain { background:rgba(0,0,0,0.06); color:var(--muted); }
-.tv-info { flex:1; min-width:0 }
-.tv-plate {
-  font-family:monospace; font-size:0.82rem; font-weight:700; color:var(--text);
-  display:flex; align-items:center; gap:6px;
-}
-.tv-plate .badge { font-size:0.58rem; font-weight:600; padding:1px 6px; border-radius:6px; background:rgba(0,0,0,0.05); color:var(--muted) }
-.tv-meta { font-size:0.65rem; color:var(--muted); margin-top:2px }
-.tv-bar-wrap {
-  width:140px; height:8px; background:rgba(0,0,0,0.06); border-radius:4px;
-  overflow:hidden; flex-shrink:0;
-}
-.tv-bar {
-  height:100%; border-radius:4px; transition:width 1s cubic-bezier(0.22,1,0.36,1);
-  animation: barGrow 1s cubic-bezier(0.22,1,0.36,1) both;
-}
-.tv-bar.c0 { background:linear-gradient(90deg,#ff8a1f,#e65100) }
-.tv-bar.c1 { background:linear-gradient(90deg,#3b82f6,#2563eb) }
-.tv-bar.c2 { background:linear-gradient(90deg,#22c55e,#16a34a) }
-.tv-bar.c3 { background:linear-gradient(90deg,#7c3aed,#6d28d9) }
-.tv-bar.c4 { background:linear-gradient(90deg,#ef4444,#dc2626) }
-.tv-bar.c5 { background:linear-gradient(90deg,#14b8a6,#0d9488) }
-.tv-bar.c6 { background:linear-gradient(90deg,#ec4899,#db2777) }
-.tv-amount {
-  font-family:monospace; font-size:0.78rem; font-weight:700;
-  color:var(--text); white-space:nowrap; min-width:80px; text-align:right;
-}
-.tv-jobs { font-size:0.6rem; color:var(--muted); white-space:nowrap }
-.tv-row:first-child .tv-bar { animation: barGrow 1.2s cubic-bezier(0.22,1,0.36,1) both, barGlow 2s 1.2s ease-in-out infinite }
-
-/* ─── TABLE ─── */
-.fd-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
-.fd-table th { text-align:left; padding:8px 12px; font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); background:rgba(0,0,0,0.02); border-bottom:1px solid var(--line); }
-.fd-table td { padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
-.fd-table tr:last-child td { border-bottom:none; }
-.fd-table tr.clickable { cursor:pointer; transition:background 0.1s; }
-.fd-table tr.clickable:hover { background:rgba(15,43,82,0.04); }
-
-/* ─── ALERT ─── */
-.fd-alert { border-radius:14px; padding:14px 18px; margin-bottom:24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; border:1px solid; }
-.fd-alert-orange { background:rgba(255,138,31,0.06); border-color:rgba(255,138,31,0.25); color:#e67600; }
-.fd-alert-orange strong { color:#d45c00; }
-.fd-alert a { margin-left:auto; }
-
-/* ─── STATUS ─── */
-.status-badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:0.68rem; font-weight:600; }
-.status-badge.active { background:rgba(34,197,94,0.1); color:#16a34a }
-.status-badge.inactive { background:rgba(239,68,68,0.1); color:#dc2626 }
-
 /* ─── CHARTS ─── */
 .fd-chart { padding:16px 18px; }
-.fd-chart-bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.fd-chart-bar-wrap {
+  display:flex; align-items:center; gap:10px; margin-bottom:6px;
+  animation: rowSlideIn 0.35s cubic-bezier(0.22,1,0.36,1) both;
+}
 .fd-chart-label { font-size:0.72rem; font-weight:600; min-width:80px; color:var(--text); }
-.fd-chart-bar { height:24px; border-radius:6px; transition:width 0.6s ease; display:flex; align-items:center; padding:0 8px; font-size:0.68rem; font-weight:700; color:#fff; min-width:fit-content; }
+.fd-chart-bar {
+  height:24px; border-radius:6px; display:flex; align-items:center;
+  padding:0 8px; font-size:0.68rem; font-weight:700; color:#fff; min-width:fit-content;
+  animation: barGrow 0.9s cubic-bezier(0.22,1,0.36,1) both;
+  transition: filter 0.2s, box-shadow 0.2s;
+}
+.fd-chart-bar:hover { filter:brightness(1.15); box-shadow:0 2px 12px rgba(0,0,0,0.15) }
 .fd-chart-bar.orange { background:linear-gradient(90deg,#ff8a1f,#e65100); }
 .fd-chart-bar.blue { background:linear-gradient(90deg,#1a3d6e,#0F2B52); }
 .fd-chart-bar.green { background:linear-gradient(90deg,#22c55e,#16a34a); }
@@ -384,32 +326,26 @@
         <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Top Vehicles by Expense</h3>
         <a href="{{ url_for('fleet.vehicle_list') }}">View all</a>
       </div>
-      {% if top_vehicles %}
-      {% set max_spent = top_vehicles[0].total_spent if top_vehicles else 1 %}
-      {% if max_spent == 0 %}{% set max_spent = 1 %}{% endif %}
-      {% set rank_classes = ['gold','silver','bronze'] %}
-      {% set bar_colors = ['c0','c1','c2','c3','c4','c5','c6'] %}
-      {% for v in top_vehicles %}
-      {% set pct = (v.total_spent / max_spent * 100)|round|int %}
-      {% set rc = rank_classes[loop.index0] if loop.index0 < 3 else 'plain' %}
-      {% set bc = bar_colors[loop.index0 % bar_colors|length] %}
-      <a href="{{ vehicle_url(v.plate_no) }}" class="tv-row" style="animation-delay:{{ 0.1 + loop.index0 * 0.08 }}s">
-        <div class="tv-rank {{ rc }}" style="animation-delay:{{ 0.2 + loop.index0 * 0.08 }}s">{{ loop.index }}</div>
-        <div class="tv-info">
-          <div class="tv-plate">{{ v.plate_no }}{% if v.vehicle_type %}<span class="badge">{{ v.vehicle_type }}</span>{% endif %}</div>
-          <div class="tv-meta">{{ v.job_count }} jobs completed</div>
-        </div>
-        <div class="tv-bar-wrap">
-          <div class="tv-bar {{ bc }}" style="--bar-pct:{{ pct }}%;width:{{ pct }}%;animation-delay:{{ 0.3 + loop.index0 * 0.1 }}s"></div>
-        </div>
-        <div>
-          <div class="tv-amount">AED {{ "%.0f"|format(v.total_spent) }}</div>
-        </div>
-      </a>
-      {% endfor %}
-      {% else %}
-      <div style="padding:30px;text-align:center;color:var(--muted);font-size:0.85rem">No approved jobs yet.</div>
-      {% endif %}
+      <div class="fd-chart">
+        {% set max_spent = top_vehicles[0].total_spent if top_vehicles else 1 %}
+        {% if max_spent == 0 %}{% set max_spent = 1 %}{% endif %}
+        {% set colors = ['orange','blue','green','purple','red'] %}
+        {% for v in top_vehicles %}
+        {% set pct = (v.total_spent / max_spent * 100)|round|int %}
+        {% set ci = loop.index0 % colors|length %}
+        <a href="{{ vehicle_url(v.plate_no) }}" style="text-decoration:none;color:inherit">
+          <div class="fd-chart-bar-wrap" style="animation-delay:{{ loop.index0 * 0.08 }}s">
+            <span class="fd-chart-label">{{ v.plate_no }}</span>
+            <div class="fd-chart-bar {{ colors[ci] }}" style="--bar-w:{{ pct }}%;width:0%;animation-delay:{{ 0.3 + loop.index0 * 0.1 }}s">
+              AED {{ "%.0f"|format(v.total_spent) }}
+            </div>
+            <span style="font-size:0.6rem;color:var(--muted);white-space:nowrap">({{ v.job_count }} jobs)</span>
+          </div>
+        </a>
+        {% else %}
+        <div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem">No approved jobs yet.</div>
+        {% endfor %}
+      </div>
     </div>
     <div class="fd-panel">
       <div class="fd-panel-head">
