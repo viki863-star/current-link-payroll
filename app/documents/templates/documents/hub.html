@@ -262,13 +262,13 @@ function filterByCat(cat) {
   {% set es = d._status %}
   <div class="doc-card{% if d.doc_category == 'Mulkiya' and d.thumbnail_data %} mulkiya{% if es == 'expired' %} expired-card{% endif %}{% endif %}">
     {% if d.doc_category == 'Mulkiya' and d.thumbnail_data %}
-    <div class="doc-ring-wrap" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}">
+    <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-ring-wrap" style="text-decoration:none;cursor:pointer" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}">
       <div class="doc-ring-border"></div>
       <div class="doc-ring-img">
         <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="{{ d.doc_name }}" loading="lazy">
       </div>
       <div class="doc-ring-status {{ es }}">{% if es == 'expired' %}✗{% elif es == 'soon' %}!{% else %}✓{% endif %}</div>
-    </div>
+    </a>
     <div class="doc-card-plate">{{ d.entity_id }}</div>
     <div class="doc-card-title">{{ d.doc_name }}</div>
     <div class="doc-card-meta">
