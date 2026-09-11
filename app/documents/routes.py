@@ -193,13 +193,23 @@ def document_bulk():
                 file_size = len(file_data)
 
             if existing:
-                db.execute(
-                    """UPDATE documents SET doc_name=?, doc_ref_no=?, expiry_date=?,
-                       file_data=?, file_type=?, file_size=?, uploaded_at=CURRENT_TIMESTAMP
-                       WHERE id=?""",
-                    (doc_name, doc_ref_no, expiry_date, file_data, file_type, file_size, existing["id"]),
-                )
+                if file_data:
+                    db.execute(
+                        """UPDATE documents SET doc_name=?, doc_ref_no=?, expiry_date=?,
+                           file_data=?, file_type=?, file_size=?, uploaded_at=CURRENT_TIMESTAMP
+                           WHERE id=?""",
+                        (doc_name, doc_ref_no, expiry_date, file_data, file_type, file_size, existing["id"]),
+                    )
+                else:
+                    db.execute(
+                        """UPDATE documents SET doc_name=?, doc_ref_no=?, expiry_date=?,
+                           uploaded_at=CURRENT_TIMESTAMP WHERE id=?""",
+                        (doc_name, doc_ref_no, expiry_date, existing["id"]),
+                    )
             else:
+                if not file_data:
+                    idx += 1
+                    continue
                 db.execute(
                     """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
                        expiry_date, file_data, file_type, file_size)
