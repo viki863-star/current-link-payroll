@@ -293,6 +293,17 @@ def fleet_dashboard():
         ORDER BY fs.full_name
     """).fetchall()
 
+    # Fuel stats
+    from datetime import date as _date
+    _today = _date.today()
+    _cm = f"{_today.year:04d}-{_today.month:02d}"
+    fuel_row = db.execute(
+        "SELECT COUNT(*) AS entries, COALESCE(SUM(total_amount),0) AS total FROM fuel_entries WHERE strftime('%Y-%m', entry_date) = ?",
+        (_cm,),
+    ).fetchone()
+    fuel_entries_count = fuel_row["entries"] if fuel_row else 0
+    fuel_total_amount = float(fuel_row["total"] if fuel_row else 0)
+
     return render_template(
         "fleet/dashboard.html",
         vehicles=vehicles,
@@ -307,6 +318,8 @@ def fleet_dashboard():
         top_vehicles=top_vehicles,
         total_pending_cost=float(total_pending_cost),
         staff_balances=staff_balances,
+        fuel_entries_count=fuel_entries_count,
+        fuel_total_amount=fuel_total_amount,
     )
 
 
