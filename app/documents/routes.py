@@ -145,6 +145,18 @@ def document_hub():
             d["uploaded_at_formatted"] = str(ua)[:10]
         else:
             d["uploaded_at_formatted"] = ""
+        exp = d.get("expiry_date")
+        if exp:
+            try:
+                if isinstance(exp, str):
+                    exp_dt = date.fromisoformat(exp[:10])
+                else:
+                    exp_dt = exp
+                d["_days_left"] = (exp_dt - date.today()).days
+            except Exception:
+                d["_days_left"] = None
+        else:
+            d["_days_left"] = None
 
     return render_template("documents/hub.html", docs=docs, ENTITY_LABELS=ENTITY_LABELS,
         q=q, entity_type=entity_type, expiry=expiry, cat=cat, sort=sort, order=order, today=date.today())

@@ -75,69 +75,126 @@
 @media (max-width:600px) { .doc-stats { grid-template-columns:1fr; } }
 
 @keyframes ringRotate { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
-@keyframes statusPulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.12) } }
+@keyframes statusPulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.15) } }
 @keyframes ringGlow { 0%,100% { filter:drop-shadow(0 0 4px var(--ring-color)) } 50% { filter:drop-shadow(0 0 14px var(--ring-color)) } }
-@keyframes expiredPulse { 0%,100% { opacity:0.6 } 50% { opacity:1 } }
+@keyframes ledBlink { 0%,100% { opacity:1; box-shadow:0 0 4px var(--ring-color),0 0 8px var(--ring-color) } 50% { opacity:0.5; box-shadow:0 0 2px var(--ring-color) } }
+@keyframes countdownPulse { 0%,100% { opacity:0.8 } 50% { opacity:1 } }
+@keyframes shimmerSlide { 0% { left:-100% } 100% { left:200% } }
 
-.doc-card.mulkiya { display:flex; flex-direction:column; align-items:center; padding:22px 16px 14px; text-align:center; transition:all 0.25s ease; }
-.doc-card.mulkiya:hover { transform:translateY(-4px); box-shadow:0 14px 35px rgba(0,0,0,0.08); }
+.doc-card.mulkiya {
+  display:flex; flex-direction:column; align-items:center; padding:0; text-align:center;
+  transition:all 0.3s cubic-bezier(0.4,0,0.2,1); position:relative; overflow:hidden;
+  border:1px solid #e8ecf1;
+}
+.doc-card.mulkiya:hover { transform:translateY(-6px); box-shadow:0 20px 50px rgba(0,0,0,0.1); border-color:#cbd5e1; }
 .doc-card.mulkiya .doc-card-head { padding:0; display:none; }
 .doc-card.mulkiya .doc-card-badge { display:none; }
 
+.mk-topbar {
+  width:100%; height:3px;
+  background:linear-gradient(90deg,var(--ring-color),transparent 80%);
+}
+.mk-pattern {
+  width:100%; position:relative; overflow:hidden;
+  background:repeating-linear-gradient(135deg,transparent,transparent 6px,rgba(0,0,0,0.015) 6px,rgba(0,0,0,0.015) 7px);
+}
+.mk-pattern::after {
+  content:''; position:absolute; top:0; left:-100%; width:60%; height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent);
+  animation:shimmerSlide 4s ease-in-out infinite;
+}
+.doc-card.mulkiya:hover .mk-pattern::after { animation-duration:2s; }
+
+.mk-body { display:flex; flex-direction:column; align-items:center; padding:22px 16px 14px; width:100%; }
+
 .doc-ring-wrap {
-  position:relative; width:130px; height:130px; margin-bottom:14px;
-  --ring-color:#22c55e;
+  position:relative; width:120px; height:120px; margin-bottom:12px;
+  --ring-color:#22c55e; flex-shrink:0;
 }
 .doc-ring-border {
   position:absolute; inset:0; border-radius:50%;
-  border:3px solid var(--ring-color);
-  opacity:0.35;
-  transition:all 0.3s ease;
+  border:2.5px solid var(--ring-color);
+  opacity:0.3; transition:all 0.3s ease;
 }
-.doc-card.mulkiya:hover .doc-ring-border { opacity:0.55; }
+.doc-card.mulkiya:hover .doc-ring-border { opacity:0.5; }
 .doc-card.mulkiya.expired-card .doc-ring-border {
-  border-style:dashed; border-width:3.5px; opacity:0.7;
+  border-style:dashed; border-width:3px; opacity:0.7;
   animation: ringRotate 8s linear infinite, ringGlow 3s ease-in-out infinite;
 }
 .doc-card.mulkiya.expired-card:hover .doc-ring-border { opacity:1; animation-duration:4s,1.5s; }
 
 .doc-ring-img {
-  position:absolute; inset:7px; border-radius:50%; overflow:hidden;
-  background:#f1f5f9; box-shadow:inset 0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
-  transition:box-shadow 0.3s ease;
+  position:absolute; inset:6px; border-radius:50%; overflow:hidden;
+  background:#f1f5f9; box-shadow:inset 0 2px 6px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+  transition:all 0.3s ease;
 }
-.doc-card.mulkiya:hover .doc-ring-img { box-shadow:inset 0 2px 10px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.08); }
+.doc-card.mulkiya:hover .doc-ring-img { box-shadow:inset 0 2px 8px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06); }
 .doc-ring-img img { width:100%; height:100%; object-fit:cover; object-position:center; }
 
 .doc-ring-status {
   position:absolute; bottom:0; left:50%; transform:translateX(-50%);
-  width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
-  font-size:0.65rem; font-weight:800; color:#fff; z-index:2;
-  border:2.5px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.15);
+  width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
+  font-size:0.6rem; font-weight:800; color:#fff; z-index:2;
+  border:2.5px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.12);
   transition:all 0.3s ease;
 }
 .doc-ring-status.valid { background:#22c55e; }
 .doc-ring-status.soon { background:#f59e0b; }
-.doc-ring-status.expired { background:#ef4444; animation: statusPulse 2.5s ease-in-out infinite; }
+.doc-ring-status.expired { background:#ef4444; animation:statusPulse 2.5s ease-in-out infinite; }
 
-.doc-card.mulkiya .doc-card-plate {
-  font-family:'SF Mono',monospace; font-size:0.88rem; font-weight:800; color:#0f172a;
+.mk-info { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.mk-plate {
+  font-family:'SF Mono',monospace; font-size:0.85rem; font-weight:800; color:#0f172a;
   background:linear-gradient(135deg,#fff,#f8fafc);
-  padding:5px 16px; border-radius:8px; display:inline-block; margin-bottom:6px;
+  padding:5px 14px; border-radius:8px; display:inline-block;
   border:1px solid #e2e8f0; letter-spacing:0.8px;
-  box-shadow:0 1px 2px rgba(0,0,0,0.04);
+  box-shadow:0 1px 2px rgba(0,0,0,0.03);
 }
-.doc-card.mulkiya .doc-card-title { font-size:0.76rem; font-weight:600; color:#94a3b8; margin-bottom:2px; letter-spacing:0.2px; }
-.doc-card.mulkiya .doc-card-cat { display:none; }
-.doc-card.mulkiya .doc-card-meta { font-size:0.68rem; gap:3px 12px; justify-content:center; margin-top:4px; }
-.doc-card.mulkiya .doc-card-meta-item { font-size:0.66rem; }
-.doc-card.mulkiya .doc-card-divider { width:50%; margin:10px auto; background:#f1f5f9; }
-.doc-card.mulkiya .doc-card-foot { width:100%; padding:8px 0 0; }
-.doc-card.mulkiya .doc-card-ref { display:none; }
-.doc-card.mulkiya .doc-card-date { font-size:0.62rem; color:#cbd5e1; }
+.mk-led {
+  width:8px; height:8px; border-radius:50%; flex-shrink:0;
+  background:var(--ring-color);
+  animation:ledBlink 2s ease-in-out infinite;
+}
+.mk-led.valid { --ring-color:#22c55e; }
+.mk-led.soon { --ring-color:#f59e0b; }
+.mk-led.expired { --ring-color:#ef4444; animation:ledBlink 1s ease-in-out infinite; }
 
-.doc-card.mulkiya:hover { transform:translateY(-4px); box-shadow:0 12px 30px rgba(0,0,0,0.08); }
-@media(max-width:820px){ .doc-card.mulkiya { padding:16px 12px 12px; } .doc-ring-wrap { width:120px; height:120px; } }
+.mk-cat { font-size:0.72rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:1.2px; margin-bottom:4px; }
+
+.mk-countdown {
+  font-size:0.7rem; font-weight:600; padding:4px 12px; border-radius:20px;
+  margin-bottom:6px; display:inline-flex; align-items:center; gap:5px;
+  animation:countdownPulse 3s ease-in-out infinite;
+}
+.mk-countdown.valid { background:#ecfdf5; color:#047857; }
+.mk-countdown.soon { background:#fef3c7; color:#b45309; }
+.mk-countdown.expired { background:#fef2f2; color:#b91c1c; }
+.mk-countdown .mk-cd-icon { font-size:0.8rem; }
+
+.mk-expiry { font-size:0.68rem; color:#94a3b8; margin-bottom:2px; }
+.mk-docname { font-size:0.72rem; color:#a0aec0; margin-bottom:8px; font-style:italic; }
+
+.doc-card.mulkiya .doc-card-divider { width:40%; margin:0 auto 8px; background:#f1f5f9; height:1px; }
+.doc-card.mulkiya .doc-card-foot { width:100%; padding:8px 14px 0; }
+.doc-card.mulkiya .doc-card-date { font-size:0.6rem; color:#cbd5e1; }
+.doc-card.mulkiya .doc-card-meta { display:none; }
+
+.mk-ribbon {
+  position:absolute; top:14px; right:-28px; z-index:3;
+  background:var(--ring-color); color:#fff;
+  font-size:0.52rem; font-weight:800; text-transform:uppercase; letter-spacing:1.5px;
+  padding:3px 30px; transform:rotate(45deg);
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+.mk-ribbon.valid { background:#059669; }
+.mk-ribbon.soon { background:#d97706; }
+.mk-ribbon.expired { background:#dc2626; }
+
+@media(max-width:820px){
+  .doc-card.mulkiya { }
+  .doc-ring-wrap { width:110px; height:110px; }
+  .mk-ribbon { font-size:0.48rem; padding:2px 26px; top:12px; right:-32px; }
+}
 </style>
 
 <script>
@@ -262,21 +319,31 @@ function filterByCat(cat) {
   {% set es = d._status %}
   <div class="doc-card{% if d.doc_category == 'Mulkiya' and d.thumbnail_data %} mulkiya{% if es == 'expired' %} expired-card{% endif %}{% endif %}">
     {% if d.doc_category == 'Mulkiya' and d.thumbnail_data %}
-    <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-ring-wrap" style="text-decoration:none;cursor:pointer" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}">
-      <div class="doc-ring-border"></div>
-      <div class="doc-ring-img">
-        <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="{{ d.doc_name }}" loading="lazy">
+    <div class="mk-ribbon {{ es }}">{{ d.doc_category }}</div>
+    <div class="mk-topbar" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}"></div>
+    <div class="mk-pattern">
+      <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-ring-wrap" style="text-decoration:none;cursor:pointer;--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}">
+        <div class="doc-ring-border"></div>
+        <div class="doc-ring-img">
+          <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="{{ d.doc_name }}" loading="lazy">
+        </div>
+        <div class="doc-ring-status {{ es }}">{% if es == 'expired' %}✗{% elif es == 'soon' %}!{% else %}✓{% endif %}</div>
+      </a>
+      <div class="mk-body">
+        <div class="mk-info">
+          <div class="mk-plate">{{ d.entity_id }}</div>
+          <div class="mk-led {{ es }}"></div>
+        </div>
+        <div class="mk-cat">{{ d.doc_category }}</div>
+        {% if d._days_left is not none %}
+        <div class="mk-countdown {{ es }}">
+          <span class="mk-cd-icon">{% if es == 'expired' %}&#9888;{% elif es == 'soon' %}&#9200;{% else %}&#9203;{% endif %}</span>
+          {% if d._days_left < 0 %}Expired {{ (d._days_left * -1) }}d ago{% elif d._days_left == 0 %}Expires today!{% else %}{{ d._days_left }} days left{% endif %}
+        </div>
+        {% endif %}
+        {% if d.expiry_date %}<div class="mk-expiry">Exp: {{ d.expiry_date }}</div>{% endif %}
+        <div class="mk-docname">{{ d.doc_name }}</div>
       </div>
-      <div class="doc-ring-status {{ es }}">{% if es == 'expired' %}✗{% elif es == 'soon' %}!{% else %}✓{% endif %}</div>
-    </a>
-    <div class="doc-card-plate">{{ d.entity_id }}</div>
-    <div class="doc-card-title">{{ d.doc_name }}</div>
-    <div class="doc-card-meta">
-      {% if d.expiry_date %}
-      <span class="doc-card-meta-item">
-        <span class="expiry-tag" style="{% if es == 'expired' %}background:#ffebee;color:#c62828{% elif es == 'soon' %}background:#fff3e0;color:#e65100{% else %}background:#e8f5e9;color:#2e7d32{% endif %}">{{ d.expiry_date }}</span>
-      </span>
-      {% endif %}
     </div>
     <div class="doc-card-divider"></div>
     <div class="doc-card-foot">
