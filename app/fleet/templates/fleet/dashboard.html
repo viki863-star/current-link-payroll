@@ -1,288 +1,385 @@
 {% extends "base.html" %}
-{% block title %}Fleet Ops — Current Link{% endblock %}
+{% block title %}Fleet Dashboard — Current Link ERP{% endblock %}
 {% block body_class %}dashboard-body{% endblock %}
-{% block page_title %}{% endblock %}
+{% block page_title %}Fleet Management{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
-@keyframes bFadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-@keyframes bCountUp { from{opacity:0} to{opacity:1} }
-@keyframes bBarGrow { from{width:0} to{width:var(--bar-w)} }
-@keyframes bPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.fd-container { max-width:1100px; margin:0 auto; }
+.fd-hero { background:linear-gradient(145deg,#0F2B52,#1a3d6e); border-radius:20px; padding:28px 30px; margin-bottom:24px; position:relative; overflow:hidden; }
+.fd-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:55%; background:linear-gradient(180deg,rgba(255,255,255,0.08) 0%,transparent 100%); border-radius:20px 20px 0 0; }
+.fd-hero h1 { margin:0; font-size:1.4rem; font-weight:700; color:#fff; position:relative; }
+.fd-hero p { margin:4px 0 0; font-size:0.88rem; color:rgba(255,255,255,0.7); position:relative; }
+.fd-hero-badges { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; position:relative; }
+.fd-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:20px; font-size:0.72rem; font-weight:600; background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.9); border:1px solid rgba(255,255,255,0.1); }
+.fd-badge strong { color:#fff; }
 
-.bento { max-width:1200px; margin:0 auto; padding:20px 16px; display:flex; flex-direction:column; gap:12px; }
+.fd-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:14px; margin-bottom:26px; }
+.fd-kpi { border-radius:18px; padding:18px 16px; position:relative; overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer; border:none; text-decoration:none; display:block; color:inherit; }
+.fd-kpi:active { transform:scale(0.96); }
+.fd-kpi:hover { transform:translateY(-3px); box-shadow:0 12px 30px rgba(0,0,0,0.15); }
+.fd-kpi-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0) 100%); border-radius:18px 18px 0 0; }
+.fd-kpi-icon { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; margin-bottom:10px; position:relative; z-index:1; }
+.fd-kpi-label { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; position:relative; z-index:1; }
+.fd-kpi-label.light { color:rgba(255,255,255,0.8); }
+.fd-kpi-val { font-size:1.35rem; font-weight:800; position:relative; z-index:1; }
+.fd-kpi-val.light { color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.fd-kpi-sub { font-size:0.64rem; position:relative; z-index:1; margin-top:2px; }
+.fd-kpi-sub.light { color:rgba(255,255,255,0.65); }
 
-/* ── Bento Grid ── */
-.bento-grid { display:grid; grid-template-columns:2fr 1fr 1fr; grid-template-rows:auto auto auto; gap:12px; }
-.bento-grid > * { min-width:0; }
+.fd-nav { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:26px; }
+.fd-nav-card { display:flex; flex-direction:column; align-items:center; gap:6px; padding:16px 12px 14px; background:var(--surface); border:1px solid var(--line); border-radius:14px; text-decoration:none; color:var(--text); font-size:0.75rem; font-weight:600; transition:all 0.15s; text-align:center; }
+.fd-nav-card:hover { border-color:var(--primary); color:var(--primary); box-shadow:0 4px 15px rgba(15,43,82,0.1); transform:translateY(-2px); }
+.fd-nav-card svg { color:var(--primary); width:20px; height:20px; }
+.fd-nav-card.highlight { border-color:#ff8a1f; background:linear-gradient(145deg,rgba(255,138,31,0.06),rgba(255,138,31,0.02)); }
+.fd-nav-card.highlight:hover { border-color:#e67600; color:#e67600; }
 
-/* ── Card Base ── */
-.bc { background:#111827; border:1px solid #1E293B; border-radius:16px; padding:20px; position:relative; overflow:hidden; animation:bFadeUp .5s ease-out both; }
-.bc:nth-child(1){animation-delay:.05s} .bc:nth-child(2){animation-delay:.1s} .bc:nth-child(3){animation-delay:.15s}
-.bc:nth-child(4){animation-delay:.2s} .bc:nth-child(5){animation-delay:.25s} .bc:nth-child(6){animation-delay:.3s}
-.bc:nth-child(7){animation-delay:.35s} .bc:nth-child(8){animation-delay:.4s}
+.fd-panels { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px; }
+.fd-panel { background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.04); }
+.fd-panel-head { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
+.fd-panel-head h3 { margin:0; font-size:0.85rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+.fd-panel-head a { font-size:0.72rem; font-weight:600; color:var(--primary); text-decoration:none; }
+.fd-panel-head a:hover { text-decoration:underline; }
 
-/* ── Accent Borders ── */
-.bc-accent-blue { border-left:3px solid #3B82F6; }
-.bc-accent-green { border-left:3px solid #22C55E; }
-.bc-accent-red { border-left:3px solid #EF4444; }
-.bc-accent-amber { border-left:3px solid #F59E0B; }
-.bc-accent-purple { border-left:3px solid #A855F7; }
+.fd-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+.fd-table th { text-align:left; padding:8px 12px; font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); background:rgba(0,0,0,0.02); border-bottom:1px solid var(--line); }
+.fd-table td { padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.fd-table tr:last-child td { border-bottom:none; }
+.fd-table tr.clickable { cursor:pointer; transition:background 0.1s; }
+.fd-table tr.clickable:hover { background:rgba(15,43,82,0.04); }
 
-/* ── Card Label ── */
-.bc-label { font-family:'JetBrains Mono','Fira Code',monospace; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:#64748B; margin-bottom:12px; }
+.fd-alert { border-radius:14px; padding:14px 18px; margin-bottom:24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; border:1px solid; }
+.fd-alert-orange { background:rgba(255,138,31,0.06); border-color:rgba(255,138,31,0.25); color:#e67600; }
+.fd-alert-orange strong { color:#d45c00; }
+.fd-alert a { margin-left:auto; }
 
-/* ── Big Number ── */
-.bc-num { font-family:'JetBrains Mono','Fira Code',monospace; font-size:40px; font-weight:800; color:#F1F5F9; line-height:1; letter-spacing:-1px; animation:bCountUp .6s ease-out; }
-.bc-num.sm { font-size:28px; }
-.bc-num.green { color:#22C55E; }
-.bc-num.red { color:#EF4444; }
-.bc-num.amber { color:#F59E0B; }
-.bc-num.blue { color:#3B82F6; }
+.fd-chart { padding:16px 18px; }
+.fd-chart-bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.fd-chart-label { font-size:0.72rem; font-weight:600; min-width:80px; color:var(--text); }
+.fd-chart-bar { height:24px; border-radius:6px; transition:width 0.6s ease; display:flex; align-items:center; padding:0 8px; font-size:0.68rem; font-weight:700; color:#fff; min-width:fit-content; }
+.fd-chart-bar.orange { background:linear-gradient(90deg,#ff8a1f,#e65100); }
+.fd-chart-bar.blue { background:linear-gradient(90deg,#1a3d6e,#0F2B52); }
+.fd-chart-bar.green { background:linear-gradient(90deg,#22c55e,#16a34a); }
+.fd-chart-bar.purple { background:linear-gradient(90deg,#7c3aed,#6d28d9); }
+.fd-chart-bar.red { background:linear-gradient(90deg,#ef4444,#dc2626); }
+.fd-chart-bar.teal { background:linear-gradient(90deg,#14b8a6,#0d9488); }
+.fd-chart-bar.pink { background:linear-gradient(90deg,#ec4899,#db2777); }
+.fd-chart-colors { display:flex; gap:4px; }
+.chart-color-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
 
-/* ── Sub Text ── */
-.bc-sub { font-size:12px; color:#64748B; margin-top:4px; }
-.bc-sub strong { color:#94A3B8; font-weight:600; }
-
-/* ── Divider ── */
-.bc-divider { height:1px; background:#1E293B; margin:12px 0; }
-
-/* ── Inline Stats ── */
-.bc-inline { display:flex; gap:16px; font-size:12px; color:#64748B; }
-.bc-inline strong { color:#94A3B8; }
-
-/* ── Nav List ── */
-.bnav { list-style:none; margin:0; padding:0; }
-.bnav li { border-bottom:1px solid #1E293B; }
-.bnav li:last-child { border-bottom:none; }
-.bnav a { display:flex; align-items:center; gap:10px; padding:10px 0; text-decoration:none; color:#94A3B8; font-size:13px; font-weight:500; transition:color .15s; }
-.bnav a:hover { color:#F1F5F9; }
-.bnav a svg { width:16px; height:16px; flex-shrink:0; }
-
-/* ── Horizontal Bars ── */
-.hbar-row { display:flex; align-items:center; gap:10px; padding:6px 0; }
-.hbar-plate { font-family:'JetBrains Mono','Fira Code',monospace; font-size:12px; font-weight:600; color:#94A3B8; min-width:72px; }
-.hbar-track { flex:1; height:6px; background:#1E293B; border-radius:3px; overflow:hidden; }
-.hbar-fill { height:100%; background:#3B82F6; border-radius:3px; animation:bBarGrow .8s ease-out both; }
-.hbar-amt { font-family:'JetBrains Mono','Fira Code',monospace; font-size:11px; color:#64748B; min-width:60px; text-align:right; }
-.hbar-jobs { font-size:10px; color:#475569; min-width:30px; text-align:right; }
-
-/* ── Job List ── */
-.job-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #1E293B; text-decoration:none; color:inherit; transition:background .1s; }
-.job-row:last-child { border-bottom:none; }
-.job-row:hover { background:rgba(59,130,246,.03); }
-.job-icon { width:32px; height:32px; border-radius:8px; background:#1E293B; display:grid; place-items:center; flex-shrink:0; }
-.job-icon svg { width:14px; height:14px; }
-.job-meta { flex:1; min-width:0; }
-.job-plate { font-family:'JetBrains Mono','Fira Code',monospace; font-size:12px; font-weight:600; color:#F1F5F9; }
-.job-staff { font-size:11px; color:#64748B; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.job-right { text-align:right; }
-.job-amt { font-family:'JetBrains Mono','Fira Code',monospace; font-size:13px; font-weight:700; color:#F1F5F9; }
-.job-cat { font-size:10px; font-weight:600; color:#3B82F6; background:rgba(59,130,246,.08); padding:2px 6px; border-radius:3px; display:inline-block; margin-top:2px; }
-
-/* ── Staff Grid ── */
-.staff-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.staff-mini { background:#0B1120; border:1px solid #1E293B; border-radius:10px; padding:14px; text-decoration:none; color:inherit; transition:border-color .15s; }
-.staff-mini:hover { border-color:#3B82F6; }
-.staff-name { font-size:13px; font-weight:600; color:#F1F5F9; margin-bottom:2px; }
-.staff-phone { font-size:11px; color:#64748B; font-family:'JetBrains Mono','Fira Code',monospace; }
-.staff-bal { font-family:'JetBrains Mono','Fira Code',monospace; font-size:14px; font-weight:700; margin-top:8px; }
-.staff-bal.pos { color:#22C55E; }
-.staff-bal.neg { color:#EF4444; }
-
-/* ── Table ── */
-.btable { width:100%; border-collapse:collapse; font-size:12px; }
-.btable th { text-align:left; padding:10px 14px; font-family:'JetBrains Mono','Fira Code',monospace; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:#475569; border-bottom:1px solid #1E293B; }
-.btable td { padding:12px 14px; border-bottom:1px solid #1E293B; color:#94A3B8; }
-.btable tr:last-child td { border-bottom:none; }
-.btable tr { transition:background .1s; cursor:pointer; }
-.btable tr:hover { background:rgba(59,130,246,.03); }
-.btable .mono { font-family:'JetBrains Mono','Fira Code',monospace; font-weight:600; color:#F1F5F9; }
-.status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
-.status-dot.active { background:#22C55E; }
-.status-dot.inactive { background:#475569; }
-.status-dot.pending { background:#F59E0B; }
-.partner-tag { font-size:11px; font-weight:600; color:#A855F7; }
-.btable-link { font-size:11px; font-weight:600; color:#3B82F6; text-decoration:none; }
-
-/* ── Responsive ── */
-@media(max-width:900px) {
-  .bento-grid { grid-template-columns:1fr 1fr; }
-  .bento-grid > .bento-hero { grid-column:1/-1; }
-  .bento-grid > .bento-full { grid-column:1/-1; }
+@media(max-width:768px){
+  .fd-panels { grid-template-columns:1fr; }
+  .fd-kpi-grid { grid-template-columns:repeat(3,1fr); }
+  .fd-nav { grid-template-columns:repeat(3,1fr); }
+  .fd-chart-bar-wrap { gap:6px; }
+  .fd-chart-label { min-width:60px; font-size:0.65rem; }
+  .fd-charts-row { grid-template-columns:1fr !important; }
 }
-@media(max-width:600px) {
-  .bento-grid { grid-template-columns:1fr; }
-  .bento-grid > * { grid-column:1/-1; }
-  .staff-grid { grid-template-columns:1fr; }
+@media(max-width:480px){
+  .fd-kpi-grid { grid-template-columns:repeat(2,1fr); }
+  .fd-nav { grid-template-columns:repeat(2,1fr); }
 }
 </style>
 
-<div class="bento">
-  <div class="bento-grid">
+<div class="fd-container">
+  {# ═════ HERO ═════ #}
+  <div class="fd-hero">
+    <h1>Fleet Management</h1>
+    <p>Vehicles, assignments, field staff, approvals &amp; maintenance — all in one place</p>
+    <div class="fd-hero-badges">
+      <span class="fd-badge">Total &#9654; <strong>{{ total }}</strong></span>
+      <span class="fd-badge">Standard &#9654; <strong>{{ standard_count }}</strong></span>
+      <span class="fd-badge">Partnership &#9654; <strong>{{ partnership_count }}</strong></span>
+      <span class="fd-badge">Pending &#9654; <strong>{{ pending_count }}</strong></span>
+    </div>
+  </div>
 
-    {# ═══ HERO CARD (2fr wide) ═══ #}
-    <div class="bc bc-accent-blue bento-hero" style="grid-column:1;grid-row:1;display:flex;flex-direction:column;justify-content:space-between">
-      <div>
-        <div class="bc-label">Fleet Ops</div>
-        <div style="display:flex;align-items:flex-end;justify-content:space-between">
-          <div class="bc-num">{{ total }}</div>
-          <div style="text-align:right">
-            <div style="font-family:'JetBrains Mono','Fira Code',monospace;font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.5px">Active</div>
-            <div class="bc-num sm green" style="line-height:1">{{ active_count }}</div>
+  {# ═════ KPI GRID ═════ #}
+  <div class="fd-kpi-grid">
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#1a3d6e,#0F2B52);box-shadow:0 8px 25px rgba(15,43,82,0.35)">
+      <div class="fd-kpi-shine"></div>
+      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.12)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><path d="M7 3V1"/><path d="M13 3V1"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg></div>
+      <div class="fd-kpi-label light">Total Vehicles</div>
+      <div class="fd-kpi-val light">{{ total }}</div>
+    </a>
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Standard') }}" style="background:linear-gradient(145deg,#ff8a1f,#e67600);box-shadow:0 8px 25px rgba(230,118,0,0.3)">
+      <div class="fd-kpi-shine"></div>
+      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
+      <div class="fd-kpi-label light">Standard</div>
+      <div class="fd-kpi-val light">{{ standard_count }}</div>
+    </a>
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Partnership') }}" style="background:linear-gradient(145deg,#7c3aed,#6d28d9);box-shadow:0 8px 25px rgba(124,58,237,0.3)">
+      <div class="fd-kpi-shine"></div>
+      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></div>
+      <div class="fd-kpi-label light">Partnership</div>
+      <div class="fd-kpi-val light">{{ partnership_count }}</div>
+    </a>
+    <a class="fd-kpi" href="{{ url_for('fleet.fleet_approvals') }}" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 25px rgba(239,68,68,0.3)">
+      <div class="fd-kpi-shine"></div>
+      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <div class="fd-kpi-label light">Pending Jobs</div>
+      <div class="fd-kpi-val light">{{ pending_count }}</div>
+      <div class="fd-kpi-sub light">awaiting approval</div>
+    </a>
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#e65100,#d84315);box-shadow:0 8px 25px rgba(230,81,0,0.3)">
+      <div class="fd-kpi-shine"></div>
+      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <div class="fd-kpi-label light">Maintenance Cost</div>
+      <div class="fd-kpi-val light" style="font-size:1rem">AED {{ "%.0f"|format(total_maintenance_cost) }}</div>
+      <div class="fd-kpi-sub light">{{ pending_count }} pending AED {{ "%.0f"|format(total_pending_cost) }}</div>
+    </a>
+  </div>
+
+  {# ═════ QUICK NAV ═════ #}
+  <div class="fd-nav">
+    <a class="fd-nav-card" href="{{ url_for('fleet.vehicle_list') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg>
+      Vehicle Registry
+    </a>
+    <a class="fd-nav-card" href="{{ url_for('fleet.vehicle_add') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+      Add Vehicle
+    </a>
+    <a class="fd-nav-card" href="{{ url_for('fleet.vehicle_list') }}?status=active">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M5 3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2"/><path d="M8 2v4"/><path d="M12 2v4"/><path d="M2 9h16"/></svg>
+      Active Vehicles
+    </a>
+    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_approvals') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Pending Approvals
+    </a>
+    <a class="fd-nav-card highlight" href="{{ url_for('fleet.vat_quick') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="#ff8a1f" stroke-width="1.8" width="20" height="20"><path d="M6.5 20a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/><path d="M11 4 14 8 6 11l-3-4z"/><circle cx="13" cy="15.5" r="2.5"/></svg>
+      Quick VAT Editor
+    </a>
+    <a class="fd-nav-card highlight" href="{{ url_for('fleet.vat_pending') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="#d97706" stroke-width="1.8" width="20" height="20"><path d="M10 2v6"/><path d="M10 8 14 6"/><path d="M10 8 6 6"/><path d="M3 8a7 7 0 1 1 14 0v9a14 14 0 0 1-14 0z"/></svg>
+      Pending VAT Conversion
+    </a>
+    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_staff_list') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
+      Field Staff
+    </a>
+    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_staff_papers_report') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v3"/><path d="M9 17v-5h5"/><path d="M9 17v-5H4"/><circle cx="16" cy="15" r="2"/><circle cx="13" cy="17" r="2"/><path d="M16 13v2"/></svg>
+      Papers Report
+    </a>
+    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_maintenance_suppliers') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="5" r="3"/><path d="M18 11v6"/><path d="M21 14h-6"/><path d="M4 12V9"/><path d="M4 12"/></svg>
+      Maintenance Suppliers
+    </a>
+    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_maintenance_entry') }}">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Maintenance Entry
+    </a>
+    <a class="fd-nav-card" href="{{ url_for('fleet.fuel_list') }}">
+      <svg viewBox="0 0 20 20" fill="#e65100" stroke="none" width="20" height="20"><path d="M3.5 14.5a5.5 5.5 0 0 1 0-11h4.7a4.5 4.5 0 0 1 7.6-2.5 4.5 4.5 0 0 1 .7 5.5 5.5 5.5 0 0 1-6 8.5H3.5z"/><path d="M8 17.5v.5h6v-.5a3 3 0 0 0-3-3h0a3 3 0 0 0-3 3z" fill="#e65100"/></svg>
+      Fuel Entries
+    </a>
+    <a class="fd-nav-card highlight" href="/technician-login">
+      <svg viewBox="0 0 20 20" fill="none" stroke="#ff8a1f" stroke-width="1.8" width="20" height="20"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="10 17 10 10 17 10"/><line x1="10" y1="10" x2="21" y2="21"/></svg>
+      Staff Login Portal
+    </a>
+  </div>
+
+  {# ═════ PENDING APPROVALS ALERT ═════ #}
+  {% if pending_jobs %}
+  <div class="fd-alert fd-alert-orange">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span><strong>{{ pending_jobs|length }} pending {{ 'job' if pending_jobs|length == 1 else 'jobs' }}</strong> awaiting approval — AED {{ "%.0f"|format(total_pending_cost) }}</span>
+    <a href="{{ url_for('fleet.fleet_approvals') }}" style="font-size:0.82rem;font-weight:600;color:#e67600;text-decoration:none">Review now &rarr;</a>
+  </div>
+  {% endif %}
+
+  {# ═════ TOP VEHICLES CHART + PANELS ═════ #}
+  <div class="fd-panels">
+    <div class="fd-panel">
+      <div class="fd-panel-head">
+        <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Top Vehicles by Expense</h3>
+        <a href="{{ url_for('fleet.vehicle_list') }}">View all</a>
+      </div>
+      <div class="fd-chart">
+        {% set max_spent = top_vehicles[0].total_spent if top_vehicles else 1 %}
+        {% if max_spent == 0 %}{% set max_spent = 1 %}{% endif %}
+        {% set colors = ['orange','blue','green','purple','red'] %}
+        {% for v in top_vehicles %}
+        {% set pct = (v.total_spent / max_spent * 100)|round|int %}
+        {% set ci = loop.index0 % colors|length %}
+        <a href="{{ vehicle_url(v.plate_no) }}" style="text-decoration:none;color:inherit">
+          <div class="fd-chart-bar-wrap">
+            <span class="fd-chart-label">{{ v.plate_no }}</span>
+            <div class="fd-chart-bar {{ colors[ci] }}" style="width:{{ pct }}%">
+              AED {{ "%.0f"|format(v.total_spent) }}
+            </div>
+            <span style="font-size:0.6rem;color:var(--muted);white-space:nowrap">({{ v.job_count }} jobs)</span>
           </div>
-        </div>
-        <div class="bc-sub" style="margin-top:8px">vehicles in fleet</div>
-      </div>
-      <div>
-        <div class="bc-divider"></div>
-        <div class="bc-inline">
-          <span>Standard: <strong>{{ standard_count }}</strong></span>
-          <span>Partnership: <strong>{{ partnership_count }}</strong></span>
-        </div>
-      </div>
-    </div>
-
-    {# ═══ PENDING CARD ═══ #}
-    <div class="bc bc-accent-red" style="grid-column:2;grid-row:1;display:flex;flex-direction:column;justify-content:space-between">
-      <div>
-        <div class="bc-label">Pending</div>
-        <div class="bc-num red">{{ pending_count }}</div>
-        <div class="bc-sub">jobs awaiting approval</div>
-      </div>
-      <div>
-        <div class="bc-divider"></div>
-        <div style="font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;color:#F59E0B;font-weight:600">AED {{ "%.0f"|format(total_pending_cost) }}</div>
-        <a href="{{ url_for('fleet.fleet_approvals') }}" style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#3B82F6;text-decoration:none;margin-top:6px">Review <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M5 10h10 M12 7l3 3-3 3"/></svg></a>
-      </div>
-    </div>
-
-    {# ═══ NAV CARD (tall, 1fr) ═══ #}
-    <div class="bc" style="grid-column:3;grid-row:1/3">
-      <div class="bc-label">Shortcuts</div>
-      <ul class="bnav">
-        <li><a href="{{ url_for('fleet.vehicle_list') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg> Vehicle Registry</a></li>
-        <li><a href="{{ url_for('fleet.vehicle_add') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v8 M6 10h8"/></svg> Add Vehicle</a></li>
-        <li><a href="{{ url_for('fleet.fleet_approvals') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><path d="M20 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10"/></svg> Approvals</a></li>
-        <li><a href="{{ url_for('fleet.vat_quick') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> VAT Editor</a></li>
-        <li><a href="{{ url_for('fleet.vat_pending') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2.5 2.5"/></svg> VAT Pending</a></li>
-        <li><a href="{{ url_for('fleet.fleet_staff_list') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="8" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Field Staff</a></li>
-        <li><a href="{{ url_for('fleet.fleet_staff_papers_report') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v3"/><path d="M9 17v-5h5"/></svg> Papers Report</a></li>
-        <li><a href="{{ url_for('fleet.fleet_maintenance_suppliers') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Maintenance</a></li>
-        <li><a href="{{ url_for('fleet.fleet_maintenance_entry') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Maint. Entry</a></li>
-        <li><a href="{{ url_for('fleet.fuel_list') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 22V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M3 22h10"/><path d="M14 10h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2v0a2 2 0 0 0 2-2V9l-3-3"/></svg> Fuel Entries</a></li>
-        <li><a href="/technician-login" style="color:#F59E0B"><svg viewBox="0 0 20 20" fill="none" stroke="#F59E0B" stroke-width="1.5"><rect x="2" y="3" width="16" height="14" rx="2"/><polyline points="8 11 10 13 14 9"/></svg> Staff Portal</a></li>
-      </ul>
-    </div>
-
-    {# ═══ FUEL STATS ═══ #}
-    <div class="bc bc-accent-amber" style="grid-column:2;grid-row:2">
-      <div class="bc-label">Fuel</div>
-      <div class="bc-num sm amber">{{ fuel_entries_count }}</div>
-      <div class="bc-sub">entries this month</div>
-      <div class="bc-divider"></div>
-      <div style="font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;color:#F59E0B;font-weight:600">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
-    </div>
-
-    {# ═══ TOP VEHICLES (wide) ═══ #}
-    <div class="bc bento-full" style="grid-column:1/3;grid-row:3">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div class="bc-label" style="margin-bottom:0">Top Spenders</div>
-        <a href="{{ url_for('fleet.vehicle_list') }}" class="btable-link">View all</a>
-      </div>
-      {% set max_spent = top_vehicles[0].total_spent if top_vehicles else 1 %}
-      {% if max_spent == 0 %}{% set max_spent = 1 %}{% endif %}
-      {% for v in top_vehicles %}
-      {% set pct = (v.total_spent / max_spent * 100)|round|int %}
-      <a href="{{ vehicle_url(v.plate_no) }}" class="hbar-row" style="text-decoration:none;color:inherit">
-        <span class="hbar-plate">{{ v.plate_no }}</span>
-        <div class="hbar-track">
-          <div class="hbar-fill" style="width:{{ pct }}%;--bar-w:{{ pct }}%"></div>
-        </div>
-        <span class="hbar-amt">AED {{ "%.0f"|format(v.total_spent) }}</span>
-        <span class="hbar-jobs">({{ v.job_count }})</span>
-      </a>
-      {% else %}
-      <div style="padding:24px;text-align:center;color:#475569;font-size:13px">No approved jobs yet.</div>
-      {% endfor %}
-    </div>
-
-    {# ═══ STAFF GRID ═══ #}
-    <div class="bc" style="grid-column:1;grid-row:4">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="bc-label" style="margin-bottom:0">Field Staff</div>
-        <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btable-link">View all</a>
-      </div>
-      <div class="staff-grid">
-        {% for s in staff_balances[:4] %}
-        {% set bal = s.total_received|float - s.total_spent|float %}
-        <a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" class="staff-mini">
-          <div class="staff-name">{{ s.full_name }}</div>
-          <div class="staff-phone">{{ s.phone or '—' }}</div>
-          <div class="staff-bal {{ 'pos' if bal >= 0 else 'neg' }}">{{ '+' if bal >= 0 else '-' }}AED {{ "%.0f"|format(bal|abs) }}</div>
         </a>
         {% else %}
-        <div style="grid-column:1/-1;padding:20px;text-align:center;color:#475569;font-size:12px">No field staff.</div>
+        <div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem">No approved jobs yet.</div>
         {% endfor %}
       </div>
     </div>
-
-    {# ═══ RECENT JOBS ═══ #}
-    <div class="bc" style="grid-column:2;grid-row:4/6">
-      <div class="bc-label">Recent Jobs</div>
+    <div class="fd-panel">
+      <div class="fd-panel-head">
+        <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg> Recent Jobs</h3>
+      </div>
       {% if recent_jobs %}
-      {% for j in recent_jobs[:6] %}
-      <a href="{{ vehicle_url(j.plate_no) }}" class="job-row">
-        <div class="job-icon">
-          <svg viewBox="0 0 20 20" fill="none" stroke="#64748B" stroke-width="1.5"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg>
-        </div>
-        <div class="job-meta">
-          <div class="job-plate">{{ j.plate_no }}</div>
-          <div class="job-staff">{{ j.staff_name }}</div>
-        </div>
-        <div class="job-right">
-          <div class="job-amt">AED {{ "%.0f"|format(j.amount) }}</div>
-          <div class="job-cat">{{ j.category }}</div>
-        </div>
-      </a>
-      {% endfor %}
+      <table class="fd-table">
+        <thead><tr><th>Vehicle</th><th>Staff</th><th>Amount</th><th>Category</th></tr></thead>
+        <tbody>
+          {% for j in recent_jobs %}
+          <tr class="clickable" onclick="window.location='{{ vehicle_url(j.plate_no) }}'">
+            <td style="font-family:monospace">{{ j.plate_no }}</td>
+            <td>{{ j.staff_name }}</td>
+            <td style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
+            <td><span class="badge badge-type">{{ j.category }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
       {% else %}
-      <div style="padding:30px;text-align:center;color:#475569;font-size:13px">No completed jobs yet.</div>
+      <div style="padding:30px;text-align:center;color:var(--muted);font-size:0.85rem">No completed jobs yet.</div>
       {% endif %}
     </div>
+  </div>
 
-    {# ═══ ALL VEHICLES TABLE (full width) ═══ #}
-    <div class="bc bento-full" style="grid-column:1/4;grid-row:5">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div class="bc-label" style="margin-bottom:0">All Vehicles</div>
-        <a href="{{ url_for('fleet.vehicle_list') }}" class="btable-link">View all</a>
+  {# ═════ STAFF BALANCES ═════ #}
+  <div class="fd-panel" style="margin-bottom:18px">
+    <div class="fd-panel-head">
+      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg> Field Staff Balances</h3>
+      <a href="{{ url_for('fleet.fleet_staff_list') }}">View all</a>
+    </div>
+    <table class="fd-table">
+      <thead><tr><th>Staff</th><th>Phone</th><th>Received</th><th>Spent</th><th>Balance</th><th></th></tr></thead>
+      <tbody>
+        {% for s in staff_balances %}
+        {% set bal = s.total_received|float - s.total_spent|float %}
+        <tr class="clickable" onclick="window.location='{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}'">
+          <td style="font-weight:600">{{ s.full_name }}<br><span class="mono" style="font-size:0.65rem;color:var(--muted)">{{ s.staff_id }}</span></td>
+          <td style="font-size:0.72rem">{{ s.phone or '—' }}</td>
+          <td style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(s.total_received) }}</td>
+          <td style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(s.total_spent) }}</td>
+          <td style="font-weight:700;font-size:0.85rem;color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'Left' if bal >= 0 else 'Due' }}</td>
+          <td><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" class="btn btn-xs btn-primary">Profile</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">No field staff.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# ═════ CHARTS ROW ═════ #}
+  <div class="fd-charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px">
+    {# Monthly Maintenance Trend #}
+    <div class="fd-panel" style="margin:0">
+      <div class="fd-panel-head">
+        <h3>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M3 17V7l4 4 3-6 4 3 3-4v13z"/></svg>
+          Maintenance Trend (6 months)
+        </h3>
       </div>
-      <div style="overflow-x:auto">
-        <table class="btable">
-          <thead>
-            <tr>
-              <th>Plate</th>
-              <th>Type</th>
-              <th>Owner</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for v in vehicles[:8] %}
-            <tr onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
-              <td class="mono">{{ v.plate_no }}</td>
-              <td>{{ v.vehicle_type }}</td>
-              <td>{% if v.ownership_type == 'Partnership' %}<span class="partner-tag">{{ v.partner_name or 'Partner' }}</span>{% else %}Standard{% endif %}</td>
-              <td><span class="status-dot {{ v.status|lower }}"></span>{{ v.status }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="4" style="padding:30px;text-align:center;color:#475569">No vehicles yet.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div style="padding:12px 16px 16px">
+        {% if chart_months %}
+        <canvas id="maintTrendChart" height="160"></canvas>
+        {% else %}
+        <p style="text-align:center;padding:30px 0;color:var(--muted)">No data yet</p>
+        {% endif %}
       </div>
     </div>
 
+    {# Vehicle Status Donut #}
+    <div class="fd-panel" style="margin:0">
+      <div class="fd-panel-head">
+        <h3>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><circle cx="10" cy="10" r="8"/><path d="M10 2a8 8 0 0 1 0 16V2z"/></svg>
+          Fleet Composition
+        </h3>
+      </div>
+      <div style="padding:12px 16px 16px;display:flex;align-items:center;gap:20px">
+        <div style="width:130px;height:130px;flex-shrink:0">
+          <canvas id="fleetDonut"></canvas>
+        </div>
+        <div style="flex:1">
+          <div style="margin-bottom:10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:8px"></span><strong style="font-family:monospace">{{ chart_vehicle_status.Active }}</strong> Active</div>
+          <div style="margin-bottom:10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:8px"></span><strong style="font-family:monospace">{{ chart_vehicle_status.Standard }}</strong> Standard</div>
+          <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:8px"></span><strong style="font-family:monospace">{{ chart_vehicle_status.Partnership }}</strong> Partnership</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ═════ VEHICLES TABLE ═════ #}
+  <div class="fd-panel">
+    <div class="fd-panel-head">
+      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg> All Vehicles</h3>
+      <a href="{{ url_for('fleet.vehicle_list') }}">View all</a>
+    </div>
+    <table class="fd-table">
+      <thead><tr><th>Plate</th><th>Type</th><th>Owner</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for v in vehicles[:6] %}
+        <tr class="clickable" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
+          <td style="font-weight:600;font-family:monospace">{{ v.plate_no }}</td>
+          <td>{{ v.vehicle_type }}</td>
+          <td>{% if v.ownership_type == 'Partnership' %}{{ v.partner_name or 'Partner' }}{% else %}Standard{% endif %}</td>
+          <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="padding:30px;text-align:center;color:var(--muted)">No vehicles yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
+
+<script>
+(function(){
+  var months = {{ chart_months|tojson }};
+  var costs  = {{ chart_costs|tojson }};
+  var jobs   = {{ chart_job_counts|tojson }};
+
+  if (months.length && document.getElementById('maintTrendChart')) {
+    new Chart(document.getElementById('maintTrendChart'), {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          { label:'Cost (AED)', data:costs, backgroundColor:'rgba(34,197,94,0.7)', borderColor:'#22c55e', borderWidth:1, borderRadius:4, yAxisID:'y' },
+          { label:'Jobs', data:jobs, type:'line', borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.1)', tension:0.3, pointRadius:3, yAxisID:'y1' }
+        ]
+      },
+      options: {
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{ legend:{ position:'bottom', labels:{ font:{ size:11 }, boxWidth:12, padding:10 } } },
+        scales:{
+          x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } },
+          y:{ position:'left', grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{ size:10 } }, title:{ display:true, text:'AED', font:{ size:10 } } },
+          y1:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ font:{ size:10 }, stepSize:1 }, title:{ display:true, text:'Jobs', font:{ size:10 } } }
+        }
+      }
+    });
+  }
+
+  var vs = {{ chart_vehicle_status|tojson }};
+  if (document.getElementById('fleetDonut')) {
+    new Chart(document.getElementById('fleetDonut'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(vs),
+        datasets: [{ data: Object.values(vs), backgroundColor:['#22c55e','#3b82f6','#f59e0b'], borderWidth:0 }]
+      },
+      options: {
+        responsive:true,
+        maintainAspectRatio:false,
+        cutout:'65%',
+        plugins:{ legend:{ display:false } }
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

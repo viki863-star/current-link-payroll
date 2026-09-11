@@ -304,6 +304,28 @@ def fleet_dashboard():
     fuel_entries_count = fuel_row["entries"] if fuel_row else 0
     fuel_total_amount = float(fuel_row["total"] if fuel_row else 0)
 
+    # Chart data: monthly maintenance trend (last 6 months)
+    _monthly_maint = db.execute("""
+        SELECT TO_CHAR(created_at, 'YYYY-MM') AS ym,
+               COALESCE(SUM(amount),0) AS total,
+               COUNT(*) AS jobs
+        FROM maintenance_jobs
+        WHERE status = 'approved'
+          AND created_at >= (CURRENT_DATE - INTERVAL '6 months')
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+        ORDER BY ym
+    """).fetchall()
+    chart_months = [r["ym"] for r in _monthly_maint]
+    chart_costs = [float(r["total"]) for r in _monthly_maint]
+    chart_job_counts = [r["jobs"] for r in _monthly_maint]
+
+    # Chart data: vehicle status donut
+    chart_vehicle_status = {
+        "Active": sum(1 for v in vehicles if (v["status"] or "").lower() == "active"),
+        "Standard": standard,
+        "Partnership": partnership,
+    }
+
     return render_template(
         "fleet/dashboard.html",
         vehicles=vehicles,
@@ -320,6 +342,10 @@ def fleet_dashboard():
         staff_balances=staff_balances,
         fuel_entries_count=fuel_entries_count,
         fuel_total_amount=fuel_total_amount,
+        chart_months=chart_months,
+        chart_costs=chart_costs,
+        chart_job_counts=chart_job_counts,
+        chart_vehicle_status=chart_vehicle_status,
     )
 
 
