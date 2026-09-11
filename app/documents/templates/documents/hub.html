@@ -95,7 +95,7 @@
   background:linear-gradient(90deg,var(--ring-color),transparent 80%);
 }
 .mk-pattern {
-  width:100%; position:relative; overflow:hidden; min-height:280px;
+  width:100%; position:relative; overflow:hidden;
   background:repeating-linear-gradient(135deg,transparent,transparent 6px,rgba(0,0,0,0.015) 6px,rgba(0,0,0,0.015) 7px);
 }
 .mk-pattern::after {
@@ -105,20 +105,7 @@
 }
 .doc-card.mulkiya:hover .mk-pattern::after { animation-duration:2s; }
 
-.mk-back-blur {
-  position:absolute; inset:0; z-index:0; overflow:hidden; border-radius:inherit;
-}
-.mk-back-blur img {
-  width:100%; height:100%; object-fit:cover; object-position:center;
-  filter:blur(12px) brightness(0.65) saturate(0.6);
-  transform:scale(1.15);
-}
-.mk-back-blur::after {
-  content:''; position:absolute; inset:0;
-  background:linear-gradient(180deg,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.6) 100%);
-}
-
-.mk-body { display:flex; flex-direction:column; align-items:center; padding:22px 16px 14px; width:100%; position:relative; z-index:1; }
+.mk-body { display:flex; flex-direction:column; align-items:center; padding:22px 16px 14px; width:100%; }
 
 .doc-ring-wrap {
   position:relative; width:120px; height:120px; margin-bottom:12px;
@@ -335,11 +322,6 @@ function filterByCat(cat) {
     <div class="mk-ribbon {{ es }}">{{ d.doc_category }}</div>
     <div class="mk-topbar" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}"></div>
     <div class="mk-pattern">
-      {% if d.thumbnail_back_data %}
-      <div class="mk-back-blur">
-        <img src="data:image/jpeg;base64,{{ d.thumbnail_back_data }}" alt="" loading="lazy">
-      </div>
-      {% endif %}
       <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-ring-wrap" style="text-decoration:none;cursor:pointer;--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}">
         <div class="doc-ring-border"></div>
         <div class="doc-ring-img">
