@@ -81,12 +81,42 @@
 @keyframes countdownPulse { 0%,100% { opacity:0.8 } 50% { opacity:1 } }
 @keyframes shimmerSlide { 0% { left:-100% } 100% { left:200% } }
 
+.mk-flip-container {
+  perspective:1000px; cursor:pointer;
+}
+.mk-flip-card {
+  position:relative; width:100%; transition:transform 0.7s cubic-bezier(0.4,0,0.2,1);
+  transform-style:preserve-3d;
+}
+.mk-flip-container.flipped .mk-flip-card { transform:rotateY(180deg); }
+.mk-flip-front, .mk-flip-back {
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  display:flex; flex-direction:column; align-items:center;
+}
+.mk-flip-back {
+  position:absolute; top:0; left:0; width:100%; height:100%;
+  transform:rotateY(180deg); overflow:hidden;
+  background:#fff; border-radius:inherit;
+  display:flex; align-items:center; justify-content:center;
+  padding:12px;
+}
+.mk-flip-back img {
+  width:100%; height:100%; object-fit:contain; object-position:center;
+  border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,0.08);
+}
+.mk-flip-hint {
+  position:absolute; bottom:6px; right:8px; z-index:5;
+  font-size:0.55rem; color:#94a3b8; opacity:0; transition:opacity 0.3s;
+  display:flex; align-items:center; gap:3px; pointer-events:none;
+}
+.mk-flip-container:hover .mk-flip-hint { opacity:1; }
+
 .doc-card.mulkiya {
   display:flex; flex-direction:column; align-items:center; padding:0; text-align:center;
   transition:all 0.3s cubic-bezier(0.4,0,0.2,1); position:relative; overflow:hidden;
   border:1px solid #e8ecf1;
 }
-.doc-card.mulkiya:hover { transform:translateY(-6px); box-shadow:0 20px 50px rgba(0,0,0,0.1); border-color:#cbd5e1; }
+.doc-card.mulkiya:hover { border-color:#cbd5e1; }
 .doc-card.mulkiya .doc-card-head { padding:0; display:none; }
 .doc-card.mulkiya .doc-card-badge { display:none; }
 
@@ -319,42 +349,54 @@ function filterByCat(cat) {
   {% set es = d._status %}
   <div class="doc-card{% if d.doc_category == 'Mulkiya' and d.thumbnail_data %} mulkiya{% if es == 'expired' %} expired-card{% endif %}{% endif %}">
     {% if d.doc_category == 'Mulkiya' and d.thumbnail_data %}
-    <div class="mk-ribbon {{ es }}">{{ d.doc_category }}</div>
-    <div class="mk-topbar" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}"></div>
-    <div class="mk-pattern">
-      <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-ring-wrap" style="text-decoration:none;cursor:pointer;--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}">
-        <div class="doc-ring-border"></div>
-        <div class="doc-ring-img">
-          <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="{{ d.doc_name }}" loading="lazy">
+    <div class="mk-flip-container" onclick="this.classList.toggle('flipped')">
+      <div class="mk-flip-card">
+        <div class="mk-flip-front">
+          <div class="mk-ribbon {{ es }}">{{ d.doc_category }}</div>
+          <div class="mk-topbar" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}"></div>
+          <div class="mk-pattern">
+            <div class="doc-ring-wrap" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}">
+              <div class="doc-ring-border"></div>
+              <div class="doc-ring-img">
+                <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="{{ d.doc_name }}" loading="lazy">
+              </div>
+              <div class="doc-ring-status {{ es }}">{% if es == 'expired' %}✗{% elif es == 'soon' %}!{% else %}✓{% endif %}</div>
+            </div>
+            <div class="mk-body">
+              <div class="mk-info">
+                <div class="mk-plate">{{ d.entity_id }}</div>
+                <div class="mk-led {{ es }}"></div>
+              </div>
+              <div class="mk-cat">{{ d.doc_category }}</div>
+              {% if d._days_left is not none %}
+              <div class="mk-countdown {{ es }}">
+                <span class="mk-cd-icon">{% if es == 'expired' %}&#9888;{% elif es == 'soon' %}&#9200;{% else %}&#9203;{% endif %}</span>
+                {% if d._days_left < 0 %}Expired {{ (d._days_left * -1) }}d ago{% elif d._days_left == 0 %}Expires today!{% else %}{{ d._days_left }} days left{% endif %}
+              </div>
+              {% endif %}
+              {% if d.expiry_date %}<div class="mk-expiry">Exp: {{ d.expiry_date }}</div>{% endif %}
+              <div class="mk-docname">{{ d.doc_name }}</div>
+            </div>
+          </div>
+          <div class="doc-card-divider"></div>
+          <div class="doc-card-foot">
+            <span class="doc-card-date">{{ d.uploaded_at_formatted }}</span>
+            <div class="doc-card-actions">
+              <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-action-btn download" title="Download" onclick="event.stopPropagation()">⬇</a>
+              <a href="{{ url_for('documents.document_edit', doc_id=d.id) }}" class="doc-action-btn edit" title="Edit" onclick="event.stopPropagation()">✏️</a>
+              <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" class="doc-action-btn delete-form" onsubmit="event.stopPropagation(); return confirm('Delete this document?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="doc-action-btn delete" title="Delete">🗑</button>
+              </form>
+            </div>
+          </div>
+          <div class="mk-flip-hint">&#8634; Click to flip</div>
         </div>
-        <div class="doc-ring-status {{ es }}">{% if es == 'expired' %}✗{% elif es == 'soon' %}!{% else %}✓{% endif %}</div>
-      </a>
-      <div class="mk-body">
-        <div class="mk-info">
-          <div class="mk-plate">{{ d.entity_id }}</div>
-          <div class="mk-led {{ es }}"></div>
-        </div>
-        <div class="mk-cat">{{ d.doc_category }}</div>
-        {% if d._days_left is not none %}
-        <div class="mk-countdown {{ es }}">
-          <span class="mk-cd-icon">{% if es == 'expired' %}&#9888;{% elif es == 'soon' %}&#9200;{% else %}&#9203;{% endif %}</span>
-          {% if d._days_left < 0 %}Expired {{ (d._days_left * -1) }}d ago{% elif d._days_left == 0 %}Expires today!{% else %}{{ d._days_left }} days left{% endif %}
+        {% if d.pdf_preview_data %}
+        <div class="mk-flip-back">
+          <img src="data:image/jpeg;base64,{{ d.pdf_preview_data }}" alt="Mulkiya {{ d.entity_id }}" loading="lazy">
         </div>
         {% endif %}
-        {% if d.expiry_date %}<div class="mk-expiry">Exp: {{ d.expiry_date }}</div>{% endif %}
-        <div class="mk-docname">{{ d.doc_name }}</div>
-      </div>
-    </div>
-    <div class="doc-card-divider"></div>
-    <div class="doc-card-foot">
-      <span class="doc-card-date">{{ d.uploaded_at_formatted }}</span>
-      <div class="doc-card-actions">
-        <a href="{{ url_for('documents.document_download', doc_id=d.id) }}" class="doc-action-btn download" title="Download">⬇</a>
-        <a href="{{ url_for('documents.document_edit', doc_id=d.id) }}" class="doc-action-btn edit" title="Edit">✏️</a>
-        <form method="POST" action="{{ url_for('documents.document_delete', doc_id=d.id) }}" class="doc-action-btn delete-form" onsubmit="return confirm('Delete this document?')">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="doc-action-btn delete" title="Delete">🗑</button>
-        </form>
       </div>
     </div>
     {% else %}

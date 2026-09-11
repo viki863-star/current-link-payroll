@@ -11,10 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 def _generate_thumbnail(file_data_b64, file_type):
-    """Generate a thumbnail for Mulkiya documents. Returns base64 string or None."""
+    """Generate thumbnail + pdf_preview for Mulkiya documents.
+    Returns (thumb_b64, preview_b64) tuple or (None, None)."""
     try:
         raw = base64.b64decode(file_data_b64)
         thumb_bytes = None
+        preview_bytes = None
 
         if file_type == "application/pdf":
             try:
@@ -24,12 +26,21 @@ def _generate_thumbnail(file_data_b64, file_type):
                     img = images[0]
                     w, h = img.size
                     if w > 3000 and h > 4000:
-                        img = img.crop((1154, 1633, 2842, 2689))
+                        front = img.crop((1154, 1633, 2842, 2689))
                     elif h > w:
-                        img = img.crop((0, 0, w, h // 2))
-                    img.thumbnail((400, 280))
+                        front = img.crop((0, 0, w, h // 2))
+                    else:
+                        front = img
+                    preview = front.copy()
+                    preview.thumbnail((600, 420))
+                    if preview.mode == "RGBA":
+                        preview = preview.convert("RGB")
+                    buf_p = BytesIO()
+                    preview.save(buf_p, format="JPEG", quality=90)
+                    preview_bytes = buf_p.getvalue()
+                    front.thumbnail((400, 280))
                     buf = BytesIO()
-                    img.save(buf, format="JPEG", quality=85)
+                    front.save(buf, format="JPEG", quality=85)
                     thumb_bytes = buf.getvalue()
             except Exception:
                 try:
@@ -57,21 +68,31 @@ def _generate_thumbnail(file_data_b64, file_type):
                 img = Image.open(BytesIO(raw))
                 w, h = img.size
                 if h > w * 1.3:
-                    img = img.crop((0, 0, w, int(h * 0.55)))
-                img.thumbnail((500, 350))
-                if img.mode == "RGBA":
-                    img = img.convert("RGB")
+                    front = img.crop((0, 0, w, int(h * 0.55)))
+                else:
+                    front = img
+                preview = front.copy()
+                preview.thumbnail((600, 420))
+                if preview.mode == "RGBA":
+                    preview = preview.convert("RGB")
+                buf_p = BytesIO()
+                preview.save(buf_p, format="JPEG", quality=90)
+                preview_bytes = buf_p.getvalue()
+                front.thumbnail((500, 350))
+                if front.mode == "RGBA":
+                    front = front.convert("RGB")
                 buf = BytesIO()
-                img.save(buf, format="JPEG", quality=85)
+                front.save(buf, format="JPEG", quality=85)
                 thumb_bytes = buf.getvalue()
             except Exception:
                 pass
 
-        if thumb_bytes:
-            return base64.b64encode(thumb_bytes).decode("utf-8")
+        t = base64.b64encode(thumb_bytes).decode("utf-8") if thumb_bytes else None
+        p = base64.b64encode(preview_bytes).decode("utf-8") if preview_bytes else None
+        return t, p
     except Exception as e:
         logger.warning(f"Thumbnail generation failed: {e}")
-    return None
+    return None, None
 
 ENTITY_LABELS = {
     "vehicle": "Vehicle",
@@ -107,7 +128,7 @@ def document_hub():
     sort = request.args.get("sort", "uploaded_at")
     order = request.args.get("order", "desc")
 
-    sql = "SELECT id, entity_type, entity_id, doc_name, doc_category, doc_ref_no, issue_date, expiry_date, file_type, file_size, thumbnail_data, notes, uploaded_at FROM documents"
+    sql = "SELECT id, entity_type, entity_id, doc_name, doc_category, doc_ref_no, issue_date, expiry_date, file_type, file_size, thumbnail_data, pdf_preview_data, notes, uploaded_at FROM documents"
     where = []
     params = []
     if q:
@@ -201,42 +222,26 @@ def document_upload():
         file_size = len(file_data)
 
         thumbnail_data = None
+        pdf_preview_data = None
         if doc_category == "Mulkiya":
-            thumbnail_data = _generate_thumbnail(file_data, file_type)
+            thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, file_type)
 
         if existing:
-            if thumbnail_data:
-                db.execute(
-                    """UPDATE documents SET doc_name=?, doc_ref_no=?, issue_date=?, expiry_date=?,
-                       file_data=?, file_type=?, file_size=?, thumbnail_data=?, notes=?, uploaded_at=CURRENT_TIMESTAMP
-                       WHERE id=?""",
-                    (doc_name, doc_ref_no, issue_date, expiry_date, file_data, file_type, file_size, thumbnail_data, notes, existing["id"]),
-                )
-            else:
-                db.execute(
-                    """UPDATE documents SET doc_name=?, doc_ref_no=?, issue_date=?, expiry_date=?,
-                       file_data=?, file_type=?, file_size=?, notes=?, uploaded_at=CURRENT_TIMESTAMP
-                       WHERE id=?""",
-                    (doc_name, doc_ref_no, issue_date, expiry_date, file_data, file_type, file_size, notes, existing["id"]),
-                )
+            db.execute(
+                """UPDATE documents SET doc_name=?, doc_ref_no=?, issue_date=?, expiry_date=?,
+                   file_data=?, file_type=?, file_size=?, thumbnail_data=?, pdf_preview_data=?, notes=?, uploaded_at=CURRENT_TIMESTAMP
+                   WHERE id=?""",
+                (doc_name, doc_ref_no, issue_date, expiry_date, file_data, file_type, file_size, thumbnail_data, pdf_preview_data, notes, existing["id"]),
+            )
             msg = f"'{doc_name}' renewed (existing expired document updated)."
         else:
-            if thumbnail_data:
-                db.execute(
-                    """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                       issue_date, expiry_date, file_data, file_type, file_size, thumbnail_data, notes)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                     issue_date, expiry_date, file_data, file_type, file_size, thumbnail_data, notes),
-                )
-            else:
-                db.execute(
-                    """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                       issue_date, expiry_date, file_data, file_type, file_size, notes)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                    (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                     issue_date, expiry_date, file_data, file_type, file_size, notes),
-                )
+            db.execute(
+                """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                   issue_date, expiry_date, file_data, file_type, file_size, thumbnail_data, pdf_preview_data, notes)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                 issue_date, expiry_date, file_data, file_type, file_size, thumbnail_data, pdf_preview_data, notes),
+            )
             msg = f"Document '{doc_name}' uploaded."
 
         db.commit()
@@ -287,29 +292,22 @@ def document_bulk():
             file_type = None
             file_size = 0
             thumbnail_data = None
+            pdf_preview_data = None
             if file and file.filename:
                 file_data = base64.b64encode(file.read()).decode("utf-8")
                 file_type = file.content_type or "application/octet-stream"
                 file_size = len(file_data)
                 if doc_category == "Mulkiya":
-                    thumbnail_data = _generate_thumbnail(file_data, file_type)
+                    thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, file_type)
 
             if existing:
                 if file_data:
-                    if thumbnail_data:
-                        db.execute(
-                            """UPDATE documents SET doc_name=?, doc_ref_no=?, expiry_date=?,
-                               file_data=?, file_type=?, file_size=?, thumbnail_data=?, uploaded_at=CURRENT_TIMESTAMP
-                               WHERE id=?""",
-                            (doc_name, doc_ref_no, expiry_date, file_data, file_type, file_size, thumbnail_data, existing["id"]),
-                        )
-                    else:
-                        db.execute(
-                            """UPDATE documents SET doc_name=?, doc_ref_no=?, expiry_date=?,
-                               file_data=?, file_type=?, file_size=?, uploaded_at=CURRENT_TIMESTAMP
-                               WHERE id=?""",
-                            (doc_name, doc_ref_no, expiry_date, file_data, file_type, file_size, existing["id"]),
-                        )
+                    db.execute(
+                        """UPDATE documents SET doc_name=?, doc_ref_no=?, expiry_date=?,
+                           file_data=?, file_type=?, file_size=?, thumbnail_data=?, pdf_preview_data=?, uploaded_at=CURRENT_TIMESTAMP
+                           WHERE id=?""",
+                        (doc_name, doc_ref_no, expiry_date, file_data, file_type, file_size, thumbnail_data, pdf_preview_data, existing["id"]),
+                    )
                 else:
                     db.execute(
                         """UPDATE documents SET doc_name=?, doc_ref_no=?, expiry_date=?,
@@ -321,27 +319,13 @@ def document_bulk():
                     skipped.append(f"{entity_id} (no file attached)")
                     idx += 1
                     continue
-                if thumbnail_data:
-                    db.execute(
-                        """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                           expiry_date, file_data, file_type, file_size, thumbnail_data)
-                           VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                        (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                         expiry_date, file_data, file_type, file_size, thumbnail_data),
-                    )
-                else:
-                    db.execute(
-                        """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                           expiry_date, file_data, file_type, file_size)
-                           VALUES (?,?,?,?,?,?,?,?,?)""",
-                        (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                         expiry_date, file_data, file_type, file_size),
-                    )
-            uploaded += 1
-            idx += 1
-        db.commit()
-        db.close()
-        if uploaded:
+                db.execute(
+                    """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                       expiry_date, file_data, file_type, file_size, thumbnail_data, pdf_preview_data)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                    (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                     expiry_date, file_data, file_type, file_size, thumbnail_data, pdf_preview_data),
+                )
             msg = f"{uploaded} document(s) uploaded successfully."
             if skipped:
                 msg += f" Skipped {len(skipped)}: " + "; ".join(skipped)
@@ -440,24 +424,17 @@ def document_edit(doc_id):
             file_type = file.content_type or "application/octet-stream"
             file_size = len(file_data)
             thumbnail_data = None
+            pdf_preview_data = None
             if doc_category == "Mulkiya":
-                thumbnail_data = _generate_thumbnail(file_data, file_type)
-            if thumbnail_data:
-                db.execute(
-                    """UPDATE documents SET entity_type=?, entity_id=?, doc_name=?, doc_category=?,
-                       doc_ref_no=?, issue_date=?, expiry_date=?, notes=?, file_data=?, file_type=?, file_size=?, thumbnail_data=?
-                       WHERE id=?""",
-                    (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                     issue_date, expiry_date, notes, file_data, file_type, file_size, thumbnail_data, doc_id),
-                )
-            else:
-                db.execute(
-                    """UPDATE documents SET entity_type=?, entity_id=?, doc_name=?, doc_category=?,
-                       doc_ref_no=?, issue_date=?, expiry_date=?, notes=?, file_data=?, file_type=?, file_size=?
-                       WHERE id=?""",
-                    (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
-                     issue_date, expiry_date, notes, file_data, file_type, file_size, doc_id),
-                )
+                thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, file_type)
+            db.execute(
+                """UPDATE documents SET entity_type=?, entity_id=?, doc_name=?, doc_category=?,
+                   doc_ref_no=?, issue_date=?, expiry_date=?, notes=?, file_data=?, file_type=?, file_size=?,
+                   thumbnail_data=?, pdf_preview_data=?
+                   WHERE id=?""",
+                (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+                 issue_date, expiry_date, notes, file_data, file_type, file_size, thumbnail_data, pdf_preview_data, doc_id),
+            )
         else:
             db.execute(
                 """UPDATE documents SET entity_type=?, entity_id=?, doc_name=?, doc_category=?,
