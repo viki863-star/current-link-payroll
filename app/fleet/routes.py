@@ -298,7 +298,7 @@ def fleet_dashboard():
     _today = _date.today()
     _cm = f"{_today.year:04d}-{_today.month:02d}"
     fuel_row = db.execute(
-        "SELECT COUNT(*) AS entries, COALESCE(SUM(total_amount),0) AS total FROM fuel_entries WHERE TO_CHAR(entry_date, 'YYYY-MM') = %s",
+        "SELECT COUNT(*) AS entries, COALESCE(SUM(total_amount),0) AS total FROM fuel_entries WHERE LEFT(entry_date, 7) = %s",
         (_cm,),
     ).fetchone()
     fuel_entries_count = fuel_row["entries"] if fuel_row else 0
