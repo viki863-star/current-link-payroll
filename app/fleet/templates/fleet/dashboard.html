@@ -7,35 +7,158 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
+/* ═══════════════════════════════════════════
+   PREMIUM FLEET COMMAND CENTER
+   ═══════════════════════════════════════════ */
+@keyframes heroReveal { from { opacity:0; transform:translateY(24px) } to { opacity:1; transform:translateY(0) } }
+@keyframes shimmerSweep { 0% { left:-40% } 100% { left:140% } }
+@keyframes badgeCount { from { opacity:0; transform:scale(0.5) } 60% { transform:scale(1.15) } to { opacity:1; transform:scale(1) } }
+@keyframes cardSlideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
+@keyframes iconFloat { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-4px) } }
+@keyframes borderSweep { 0% { background-position:200% 0 } 100% { background-position:-200% 0 } }
+@keyframes dotDrift { 0%,100% { transform:translate(0,0); opacity:0.3 } 50% { transform:translate(8px,-12px); opacity:0.6 } }
+@keyframes pulseRing { 0% { box-shadow:0 0 0 0 rgba(255,255,255,0.3) } 70% { box-shadow:0 0 0 8px rgba(255,255,255,0) } 100% { box-shadow:0 0 0 0 rgba(255,255,255,0) } }
+@keyframes navCardIn { from { opacity:0; transform:scale(0.85) translateY(12px) } to { opacity:1; transform:scale(1) translateY(0) } }
+@keyframes glowPulse { 0%,100% { box-shadow:0 0 8px rgba(255,138,31,0.3) } 50% { box-shadow:0 0 20px rgba(255,138,31,0.6) } }
+
 .fd-container { max-width:1100px; margin:0 auto; }
-.fd-hero { background:linear-gradient(145deg,#0F2B52,#1a3d6e); border-radius:20px; padding:28px 30px; margin-bottom:24px; position:relative; overflow:hidden; }
-.fd-hero::before { content:''; position:absolute; top:0; left:0; right:0; height:55%; background:linear-gradient(180deg,rgba(255,255,255,0.08) 0%,transparent 100%); border-radius:20px 20px 0 0; }
-.fd-hero h1 { margin:0; font-size:1.4rem; font-weight:700; color:#fff; position:relative; }
-.fd-hero p { margin:4px 0 0; font-size:0.88rem; color:rgba(255,255,255,0.7); position:relative; }
-.fd-hero-badges { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; position:relative; }
-.fd-badge { display:inline-flex; align-items:center; gap:6px; padding:5px 14px; border-radius:20px; font-size:0.72rem; font-weight:600; background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.9); border:1px solid rgba(255,255,255,0.1); }
-.fd-badge strong { color:#fff; }
 
+/* ─── HERO ─── */
+.fd-hero {
+  background: linear-gradient(145deg,#0a1628 0%,#0F2B52 40%,#162d50 100%);
+  border-radius:22px; padding:36px 34px 30px; margin-bottom:28px;
+  position:relative; overflow:hidden;
+  animation: heroReveal 0.7s cubic-bezier(0.22,1,0.36,1) both;
+}
+.fd-hero::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 100%);
+  border-radius:22px 22px 0 0; pointer-events:none;
+}
+.fd-hero::after {
+  content:''; position:absolute; top:-50%; width:40%; height:200%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);
+  transform:skewX(-15deg); pointer-events:none;
+  animation: shimmerSweep 4s ease-in-out infinite;
+}
+.fd-hero-dots {
+  position:absolute; top:0; right:0; bottom:0; width:200px;
+  background-image:radial-gradient(circle,rgba(255,255,255,0.07) 1px,transparent 1px);
+  background-size:18px 18px; pointer-events:none;
+}
+.fd-hero-content { position:relative; z-index:2; }
+.fd-hero h1 {
+  margin:0; font-size:1.55rem; font-weight:800; color:#fff;
+  letter-spacing:-0.3px;
+  animation: heroReveal 0.6s 0.15s cubic-bezier(0.22,1,0.36,1) both;
+}
+.fd-hero p {
+  margin:5px 0 0; font-size:0.85rem; color:rgba(255,255,255,0.55);
+  animation: heroReveal 0.6s 0.3s cubic-bezier(0.22,1,0.36,1) both;
+}
+.fd-hero-badges { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; position:relative; z-index:2; }
+.fd-badge {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:6px 16px; border-radius:22px; font-size:0.72rem; font-weight:600;
+  background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.85);
+  border:1px solid rgba(255,255,255,0.08);
+  backdrop-filter:blur(6px);
+  animation: badgeCount 0.5s cubic-bezier(0.22,1,0.36,1) both;
+  transition: transform 0.2s, background 0.2s;
+}
+.fd-badge:nth-child(1) { animation-delay:0.4s }
+.fd-badge:nth-child(2) { animation-delay:0.5s }
+.fd-badge:nth-child(3) { animation-delay:0.6s }
+.fd-badge:nth-child(4) { animation-delay:0.7s }
+.fd-badge:hover { background:rgba(255,255,255,0.14); transform:translateY(-2px) }
+.fd-badge strong { color:#fff; font-weight:800; font-family:monospace; font-size:0.8rem }
+
+/* ─── KPI GRID ─── */
 .fd-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:14px; margin-bottom:26px; }
-.fd-kpi { border-radius:18px; padding:18px 16px; position:relative; overflow:hidden; transition:transform 0.2s, box-shadow 0.2s; cursor:pointer; border:none; text-decoration:none; display:block; color:inherit; }
-.fd-kpi:active { transform:scale(0.96); }
-.fd-kpi:hover { transform:translateY(-3px); box-shadow:0 12px 30px rgba(0,0,0,0.15); }
-.fd-kpi-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.18) 0%,rgba(255,255,255,0) 100%); border-radius:18px 18px 0 0; }
-.fd-kpi-icon { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; margin-bottom:10px; position:relative; z-index:1; }
-.fd-kpi-label { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; position:relative; z-index:1; }
-.fd-kpi-label.light { color:rgba(255,255,255,0.8); }
-.fd-kpi-val { font-size:1.35rem; font-weight:800; position:relative; z-index:1; }
-.fd-kpi-val.light { color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.2); }
-.fd-kpi-sub { font-size:0.64rem; position:relative; z-index:1; margin-top:2px; }
-.fd-kpi-sub.light { color:rgba(255,255,255,0.65); }
+.fd-kpi {
+  border-radius:18px; padding:18px 16px; position:relative; overflow:hidden;
+  cursor:pointer; border:none; text-decoration:none; display:block; color:inherit;
+  animation: cardSlideUp 0.5s cubic-bezier(0.22,1,0.36,1) both;
+  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s;
+}
+.fd-kpi:nth-child(1) { animation-delay:0.2s }
+.fd-kpi:nth-child(2) { animation-delay:0.3s }
+.fd-kpi:nth-child(3) { animation-delay:0.4s }
+.fd-kpi:nth-child(4) { animation-delay:0.5s }
+.fd-kpi:nth-child(5) { animation-delay:0.6s }
+.fd-kpi::before {
+  content:''; position:absolute; inset:0; border-radius:18px; padding:2px;
+  background:linear-gradient(135deg,rgba(255,255,255,0.25),rgba(255,255,255,0));
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none;
+  opacity:0; transition:opacity 0.3s;
+}
+.fd-kpi:hover::before { opacity:1 }
+.fd-kpi:active { transform:scale(0.97) }
+.fd-kpi:hover { transform:translateY(-5px) scale(1.02); box-shadow:0 16px 40px rgba(0,0,0,0.2) }
+.fd-kpi-shine {
+  position:absolute; top:0; left:0; right:0; height:50%;
+  background:linear-gradient(180deg,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0) 100%);
+  border-radius:18px 18px 0 0; pointer-events:none;
+}
+.fd-kpi-icon {
+  width:36px; height:36px; border-radius:11px; display:grid; place-items:center;
+  margin-bottom:10px; position:relative; z-index:1;
+  transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
+}
+.fd-kpi:hover .fd-kpi-icon { transform:translateY(-3px) rotate(-5deg) }
+.fd-kpi-label {
+  font-size:0.6rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:0.6px; margin-bottom:4px; position:relative; z-index:1;
+}
+.fd-kpi-label.light { color:rgba(255,255,255,0.75) }
+.fd-kpi-val {
+  font-size:1.4rem; font-weight:800; position:relative; z-index:1;
+  font-family:monospace; letter-spacing:-0.5px;
+}
+.fd-kpi-val.light { color:#fff; text-shadow:0 1px 4px rgba(0,0,0,0.25) }
+.fd-kpi-sub { font-size:0.62rem; position:relative; z-index:1; margin-top:3px }
+.fd-kpi-sub.light { color:rgba(255,255,255,0.55) }
 
+/* ─── NAV GRID ─── */
 .fd-nav { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:26px; }
-.fd-nav-card { display:flex; flex-direction:column; align-items:center; gap:6px; padding:16px 12px 14px; background:var(--surface); border:1px solid var(--line); border-radius:14px; text-decoration:none; color:var(--text); font-size:0.75rem; font-weight:600; transition:all 0.15s; text-align:center; }
-.fd-nav-card:hover { border-color:var(--primary); color:var(--primary); box-shadow:0 4px 15px rgba(15,43,82,0.1); transform:translateY(-2px); }
-.fd-nav-card svg { color:var(--primary); width:20px; height:20px; }
-.fd-nav-card.highlight { border-color:#ff8a1f; background:linear-gradient(145deg,rgba(255,138,31,0.06),rgba(255,138,31,0.02)); }
-.fd-nav-card.highlight:hover { border-color:#e67600; color:#e67600; }
+.fd-nav-card {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:16px 12px 14px; background:var(--surface); border:1px solid var(--line);
+  border-radius:14px; text-decoration:none; color:var(--text);
+  font-size:0.73rem; font-weight:600; text-align:center;
+  animation: navCardIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
+  transition: all 0.25s cubic-bezier(0.22,1,0.36,1);
+  position:relative; overflow:hidden;
+}
+.fd-nav-card::before {
+  content:''; position:absolute; top:0; left:0; width:4px; height:100%;
+  border-radius:0 4px 4px 0; background:var(--primary); opacity:0;
+  transition: opacity 0.2s;
+}
+.fd-nav-card:hover::before { opacity:1 }
+.fd-nav-card:hover { border-color:var(--primary); color:var(--primary); transform:translateY(-3px) scale(1.03); box-shadow:0 8px 24px rgba(15,43,82,0.12) }
+.fd-nav-card svg { color:var(--primary); width:20px; height:20px; transition: transform 0.3s }
+.fd-nav-card:hover svg { transform:rotate(-8deg) scale(1.1) }
+.fd-nav-card:nth-child(1) { animation-delay:0.15s }
+.fd-nav-card:nth-child(2) { animation-delay:0.2s }
+.fd-nav-card:nth-child(3) { animation-delay:0.25s }
+.fd-nav-card:nth-child(4) { animation-delay:0.3s }
+.fd-nav-card:nth-child(5) { animation-delay:0.35s }
+.fd-nav-card:nth-child(6) { animation-delay:0.4s }
+.fd-nav-card:nth-child(7) { animation-delay:0.45s }
+.fd-nav-card:nth-child(8) { animation-delay:0.5s }
+.fd-nav-card:nth-child(9) { animation-delay:0.55s }
+.fd-nav-card:nth-child(10) { animation-delay:0.6s }
+.fd-nav-card:nth-child(11) { animation-delay:0.65s }
+.fd-nav-card.highlight {
+  border-color:#ff8a1f; background:linear-gradient(145deg,rgba(255,138,31,0.06),rgba(255,138,31,0.02));
+  animation-name: navCardIn;
+}
+.fd-nav-card.highlight::before { background:#ff8a1f; opacity:1 }
+.fd-nav-card.highlight:hover { border-color:#e67600; color:#e67600; box-shadow:0 8px 24px rgba(255,138,31,0.15) }
 
+/* ─── PANELS ─── */
 .fd-panels { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px; }
 .fd-panel { background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.04); }
 .fd-panel-head { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
@@ -43,6 +166,7 @@
 .fd-panel-head a { font-size:0.72rem; font-weight:600; color:var(--primary); text-decoration:none; }
 .fd-panel-head a:hover { text-decoration:underline; }
 
+/* ─── TABLE ─── */
 .fd-table { width:100%; border-collapse:collapse; font-size:0.78rem; }
 .fd-table th { text-align:left; padding:8px 12px; font-size:0.65rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; color:var(--muted); background:rgba(0,0,0,0.02); border-bottom:1px solid var(--line); }
 .fd-table td { padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
@@ -50,11 +174,18 @@
 .fd-table tr.clickable { cursor:pointer; transition:background 0.1s; }
 .fd-table tr.clickable:hover { background:rgba(15,43,82,0.04); }
 
+/* ─── ALERT ─── */
 .fd-alert { border-radius:14px; padding:14px 18px; margin-bottom:24px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; border:1px solid; }
 .fd-alert-orange { background:rgba(255,138,31,0.06); border-color:rgba(255,138,31,0.25); color:#e67600; }
 .fd-alert-orange strong { color:#d45c00; }
 .fd-alert a { margin-left:auto; }
 
+/* ─── STATUS ─── */
+.status-badge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:0.68rem; font-weight:600; }
+.status-badge.active { background:rgba(34,197,94,0.1); color:#16a34a }
+.status-badge.inactive { background:rgba(239,68,68,0.1); color:#dc2626 }
+
+/* ─── CHARTS ─── */
 .fd-chart { padding:16px 18px; }
 .fd-chart-bar-wrap { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
 .fd-chart-label { font-size:0.72rem; font-weight:600; min-width:80px; color:var(--text); }
@@ -69,12 +200,11 @@
 .fd-chart-colors { display:flex; gap:4px; }
 .chart-color-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
 
+/* ─── RESPONSIVE ─── */
 @media(max-width:768px){
   .fd-panels { grid-template-columns:1fr; }
   .fd-kpi-grid { grid-template-columns:repeat(3,1fr); }
   .fd-nav { grid-template-columns:repeat(3,1fr); }
-  .fd-chart-bar-wrap { gap:6px; }
-  .fd-chart-label { min-width:60px; font-size:0.65rem; }
   .fd-charts-row { grid-template-columns:1fr !important; }
 }
 @media(max-width:480px){
@@ -86,48 +216,51 @@
 <div class="fd-container">
   {# ═════ HERO ═════ #}
   <div class="fd-hero">
-    <h1>Fleet Management</h1>
-    <p>Vehicles, assignments, field staff, approvals &amp; maintenance — all in one place</p>
-    <div class="fd-hero-badges">
-      <span class="fd-badge">Total &#9654; <strong>{{ total }}</strong></span>
-      <span class="fd-badge">Standard &#9654; <strong>{{ standard_count }}</strong></span>
-      <span class="fd-badge">Partnership &#9654; <strong>{{ partnership_count }}</strong></span>
-      <span class="fd-badge">Pending &#9654; <strong>{{ pending_count }}</strong></span>
+    <div class="fd-hero-dots"></div>
+    <div class="fd-hero-content">
+      <h1>Fleet Command Center</h1>
+      <p>Vehicles, assignments, field staff, approvals &amp; maintenance — all in one place</p>
+      <div class="fd-hero-badges">
+        <span class="fd-badge">Total &#9654; <strong data-count="{{ total }}">0</strong></span>
+        <span class="fd-badge">Standard &#9654; <strong data-count="{{ standard_count }}">0</strong></span>
+        <span class="fd-badge">Partnership &#9654; <strong data-count="{{ partnership_count }}">0</strong></span>
+        <span class="fd-badge">Pending &#9654; <strong data-count="{{ pending_count }}">0</strong></span>
+      </div>
     </div>
   </div>
 
   {# ═════ KPI GRID ═════ #}
   <div class="fd-kpi-grid">
-    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#1a3d6e,#0F2B52);box-shadow:0 8px 25px rgba(15,43,82,0.35)">
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#0c2340,#0F2B52);box-shadow:0 8px 28px rgba(15,43,82,0.4)">
       <div class="fd-kpi-shine"></div>
-      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.12)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><path d="M7 3V1"/><path d="M13 3V1"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg></div>
+      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.1)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><path d="M7 3V1"/><path d="M13 3V1"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg></div>
       <div class="fd-kpi-label light">Total Vehicles</div>
-      <div class="fd-kpi-val light">{{ total }}</div>
+      <div class="fd-kpi-val light" data-count="{{ total }}">0</div>
     </a>
-    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Standard') }}" style="background:linear-gradient(145deg,#ff8a1f,#e67600);box-shadow:0 8px 25px rgba(230,118,0,0.3)">
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Standard') }}" style="background:linear-gradient(145deg,#ff8a1f,#e67600);box-shadow:0 8px 28px rgba(230,118,0,0.3)">
       <div class="fd-kpi-shine"></div>
-      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
+      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg></div>
       <div class="fd-kpi-label light">Standard</div>
-      <div class="fd-kpi-val light">{{ standard_count }}</div>
+      <div class="fd-kpi-val light" data-count="{{ standard_count }}">0</div>
     </a>
-    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Partnership') }}" style="background:linear-gradient(145deg,#7c3aed,#6d28d9);box-shadow:0 8px 25px rgba(124,58,237,0.3)">
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Partnership') }}" style="background:linear-gradient(145deg,#7c3aed,#6d28d9);box-shadow:0 8px 28px rgba(124,58,237,0.3)">
       <div class="fd-kpi-shine"></div>
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></div>
       <div class="fd-kpi-label light">Partnership</div>
-      <div class="fd-kpi-val light">{{ partnership_count }}</div>
+      <div class="fd-kpi-val light" data-count="{{ partnership_count }}">0</div>
     </a>
-    <a class="fd-kpi" href="{{ url_for('fleet.fleet_approvals') }}" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 25px rgba(239,68,68,0.3)">
+    <a class="fd-kpi" href="{{ url_for('fleet.fleet_approvals') }}" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 28px rgba(239,68,68,0.3)">
       <div class="fd-kpi-shine"></div>
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
       <div class="fd-kpi-label light">Pending Jobs</div>
-      <div class="fd-kpi-val light">{{ pending_count }}</div>
+      <div class="fd-kpi-val light" data-count="{{ pending_count }}">0</div>
       <div class="fd-kpi-sub light">awaiting approval</div>
     </a>
-    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#e65100,#d84315);box-shadow:0 8px 25px rgba(230,81,0,0.3)">
+    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#e65100,#d84315);box-shadow:0 8px 28px rgba(230,81,0,0.3)">
       <div class="fd-kpi-shine"></div>
       <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
       <div class="fd-kpi-label light">Maintenance Cost</div>
-      <div class="fd-kpi-val light" style="font-size:1rem">AED {{ "%.0f"|format(total_maintenance_cost) }}</div>
+      <div class="fd-kpi-val light" style="font-size:1rem" data-count="{{ "%.0f"|format(total_maintenance_cost) }}">0</div>
       <div class="fd-kpi-sub light">{{ pending_count }} pending AED {{ "%.0f"|format(total_pending_cost) }}</div>
     </a>
   </div>
@@ -334,6 +467,33 @@
     </table>
   </div>
 </div>
+
+<script>
+/* ─── COUNTER ANIMATION ─── */
+(function(){
+  function animateCount(el, target, duration) {
+    var start = 0;
+    var startTime = null;
+    var isFloat = String(target).indexOf('.') !== -1;
+    function step(timestamp) {
+      if (!startTime) startTime = timestamp;
+      var progress = Math.min((timestamp - startTime) / duration, 1);
+      var ease = 1 - Math.pow(1 - progress, 3);
+      var current = Math.floor(ease * target);
+      el.textContent = isFloat ? current.toLocaleString() : current;
+      if (progress < 1) requestAnimationFrame(step);
+      else el.textContent = isFloat ? target.toLocaleString() : target;
+    }
+    requestAnimationFrame(step);
+  }
+  document.querySelectorAll('[data-count]').forEach(function(el, i) {
+    var raw = el.getAttribute('data-count');
+    var target = parseFloat(raw.replace(/,/g, ''));
+    if (isNaN(target)) return;
+    setTimeout(function() { animateCount(el, target, 1200 + i * 200); }, 600 + i * 100);
+  });
+})();
+</script>
 
 <script>
 (function(){
