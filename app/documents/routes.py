@@ -160,6 +160,7 @@ def document_bulk():
     if request.method == "POST":
         doc_category = request.form.get("doc_category", "Mulkiya").strip()
         uploaded = 0
+        skipped = []
         idx = 0
         while True:
             entity_type = request.form.get(f"entity_type_{idx}")
@@ -180,6 +181,7 @@ def document_bulk():
             ).fetchone()
 
             if existing and _expiry_status(existing["expiry_date"]) != "expired":
+                skipped.append(f"{entity_id} (already exists, not expired)")
                 idx += 1
                 continue
 
@@ -208,6 +210,7 @@ def document_bulk():
                     )
             else:
                 if not file_data:
+                    skipped.append(f"{entity_id} (no file attached)")
                     idx += 1
                     continue
                 db.execute(
@@ -222,9 +225,15 @@ def document_bulk():
         db.commit()
         db.close()
         if uploaded:
-            flash(f"{uploaded} document(s) uploaded successfully.", "success")
+            msg = f"{uploaded} document(s) uploaded successfully."
+            if skipped:
+                msg += f" Skipped {len(skipped)}: " + "; ".join(skipped)
+            flash(msg, "success")
         else:
-            flash("No valid entries to upload.", "error")
+            if skipped:
+                flash(f"No documents uploaded. Skipped {len(skipped)}: " + "; ".join(skipped), "error")
+            else:
+                flash("No valid entries to upload.", "error")
         return redirect(url_for("documents.document_hub"))
 
     return render_template("documents/bulk.html", ENTITY_LABELS=ENTITY_LABELS)
