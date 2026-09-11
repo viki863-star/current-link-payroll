@@ -74,17 +74,22 @@
 @media (max-width:820px) { .doc-stats { grid-template-columns:1fr 1fr; } .doc-grid { grid-template-columns:1fr; } }
 @media (max-width:600px) { .doc-stats { grid-template-columns:1fr; } }
 
-.doc-card.mulkiya { position:relative; }
-.doc-card.mulkiya .doc-card-thumb { width:100%; height:auto; max-height:260px; overflow:hidden; background:#f1f5f9; position:relative; border-radius:14px 14px 0 0; }
-.doc-card.mulkiya .doc-card-thumb img { width:100%; height:100%; object-fit:contain; object-position:center; background:#f8fafc; }
-.doc-card.mulkiya .doc-card-thumb::after { content:''; position:absolute; bottom:0; left:0; right:0; height:30px; background:linear-gradient(transparent,rgba(255,255,255,0.98)); pointer-events:none; }
-.doc-card.mulkiya .doc-card-head { padding-top:10px; padding-bottom:4px; }
-.doc-card.mulkiya .doc-card-status { position:absolute; top:10px; right:10px; z-index:2; padding:4px 12px; border-radius:8px; font-size:0.62rem; font-weight:700; backdrop-filter:blur(8px); letter-spacing:0.3px; }
+.doc-card.mulkiya { display:grid; grid-template-columns:110px 1fr; }
+.doc-card.mulkiya .doc-card-thumb { width:110px; height:100%; min-height:130px; overflow:hidden; background:#f1f5f9; position:relative; border-radius:14px 0 0 14px; }
+.doc-card.mulkiya .doc-card-thumb img { width:100%; height:100%; object-fit:cover; object-position:center; }
+.doc-card.mulkiya .doc-card-head { padding:14px 16px 10px; }
+.doc-card.mulkiya .doc-card-badge { display:none; }
+.doc-card.mulkiya .doc-card-status { position:absolute; top:8px; left:8px; z-index:2; padding:2px 8px; border-radius:5px; font-size:0.55rem; font-weight:700; backdrop-filter:blur(6px); letter-spacing:0.4px; text-transform:uppercase; }
 .doc-card.mulkiya .doc-card-status.expired { background:rgba(239,68,68,0.9); color:#fff; }
 .doc-card.mulkiya .doc-card-status.soon { background:rgba(245,158,11,0.9); color:#fff; }
 .doc-card.mulkiya .doc-card-status.ok { background:rgba(34,197,94,0.9); color:#fff; }
-.doc-card.mulkiya .doc-card-title { font-size:0.85rem; }
-.doc-card.mulkiya .doc-card-meta { font-size:0.7rem; }
+.doc-card.mulkiya .doc-card-title { font-size:0.8rem; font-weight:700; margin-bottom:4px; }
+.doc-card.mulkiya .doc-card-meta { font-size:0.68rem; gap:4px 10px; }
+.doc-card.mulkiya .doc-card-meta-item { font-size:0.66rem; }
+.doc-card.mulkiya .doc-card-foot { padding:6px 16px 10px; }
+.doc-card.mulkiya .doc-card-divider { margin:0 16px; }
+.doc-card.mulkiya .doc-card-plate { font-family:monospace; font-size:0.82rem; font-weight:800; color:#0f172a; background:linear-gradient(135deg,#f8fafc,#f1f5f9); padding:3px 10px; border-radius:6px; display:inline-block; margin-bottom:4px; border:1px solid #e2e8f0; }
+@media(max-width:820px){ .doc-card.mulkiya { grid-template-columns:90px 1fr; } .doc-card.mulkiya .doc-card-thumb { width:90px; } }
 </style>
 
 <script>
@@ -211,20 +216,25 @@ function filterByCat(cat) {
     {% if d.doc_category == 'Mulkiya' and d.thumbnail_data %}
     <div class="doc-card-thumb">
       <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="{{ d.doc_name }}" loading="lazy">
-      <span class="doc-card-status {{ es }}">{% if es == 'expired' %}EXPIRED{% elif es == 'soon' %}EXPIRING SOON{% else %}VALID{% endif %}</span>
+      <span class="doc-card-status {{ es }}">{% if es == 'expired' %}EXPIRED{% elif es == 'soon' %}SOON{% else %}VALID{% endif %}</span>
     </div>
     {% endif %}
+    <div>
     <div class="doc-card-head">
       {% if not d.thumbnail_data or d.doc_category != 'Mulkiya' %}
       <div class="doc-card-badge" style="background:{{ clr }}10;color:{{ clr }}">{{ icon }}</div>
       {% endif %}
       <div class="doc-card-head-body">
+        {% if d.doc_category == 'Mulkiya' and d.entity_type == 'vehicle' %}
+        <div class="doc-card-plate">{{ d.entity_id }}</div>
+        {% endif %}
         <div class="doc-card-title">
           {{ d.doc_name }}
           <span class="doc-card-cat" style="color:{{ clr }};background:{{ clr }}12">{{ d.doc_category }}</span>
         </div>
         {% if d.doc_ref_no %}<div class="doc-card-ref">Ref #{{ d.doc_ref_no }}</div>{% endif %}
         <div class="doc-card-meta">
+          {% if d.doc_category != 'Mulkiya' %}
           <span class="doc-card-meta-item">
             {{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}:
             {% if d.entity_type == 'vehicle' %}
@@ -235,6 +245,7 @@ function filterByCat(cat) {
             <strong>{{ d.entity_id }}</strong>
             {% endif %}
           </span>
+          {% endif %}
           {% if d.expiry_date %}
           <span class="doc-card-meta-item">
             Exp:
@@ -258,6 +269,7 @@ function filterByCat(cat) {
           <button class="doc-action-btn delete" title="Delete">🗑</button>
         </form>
       </div>
+    </div>
     </div>
   </div>
   {% endfor %}
