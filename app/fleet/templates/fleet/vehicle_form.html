@@ -166,98 +166,7 @@
         </form>
     </div>
 
-    {% if v.plate_no and (v.vehicle_category or 'Solo') == 'Head' %}
-    <div class="profile-card" style="margin-top:16px">
-        <h3 style="margin:0 0 12px;font-size:1rem;color:var(--primary)">Linked Vehicles</h3>
-        {% if linked_trailers %}
-        <table class="smart-table" style="margin-bottom:12px">
-            <thead>
-                <tr>
-                    <th>Plate No</th>
-                    <th>Type</th>
-                    <th>Sub Type</th>
-                    <th>Length</th>
-                    <th>Capacity</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in linked_trailers %}
-                <tr>
-                    <td class="mono" style="font-weight:600">{{ t.plate_no }}</td>
-                    <td>{{ t.vehicle_type }}</td>
-                    <td>{{ t.vehicle_sub_type or '-' }}</td>
-                    <td>{{ t.vehicle_length or '-' }}</td>
-                    <td>{{ t.tank_capacity_gal if t.tank_capacity_gal > 0 else '-' }}</td>
-                    <td>
-                        <a href="{{ url_for('fleet.vehicle_edit', plate_no=t.plate_no) }}" class="btn btn-sm btn-outline">Edit</a>
-                        <form method="POST" action="{{ url_for('fleet.vehicle_remove_trailer', plate_no=v.plate_no, trailer_plate=t.plate_no) }}" style="display:inline" onsubmit="return confirm('Remove trailer {{ t.plate_no }}?')">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-danger">Remove</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 12px">No linked vehicles yet.</p>
-        {% endif %}
-
-        <form method="POST" action="{{ url_for('fleet.vehicle_add_trailer', plate_no=v.plate_no) }}" class="smart-form" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group" style="flex:1;min-width:120px">
-                <label>Plate No *</label>
-                <input type="text" name="trailer_plate_no" class="form-control" required placeholder="e.g. T-1234">
-            </div>
-            <div class="form-group" style="flex:1;min-width:120px">
-                <label>Type *</label>
-                <select name="trailer_type" class="form-control" required>
-                    <option value="">Select...</option>
-                    {% for t in vehicle_types %}
-                    <option value="{{ t }}">{{ t }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group" style="flex:1;min-width:120px">
-                <label>Sub Type</label>
-                <select name="trailer_sub_type" class="form-control">
-                    <option value="">Select...</option>
-                    {% for s in vehicle_sub_types %}
-                    <option value="{{ s }}">{{ s }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group" style="min-width:80px">
-                <label>Length</label>
-                <select name="trailer_length" class="form-control">
-                    <option value="">—</option>
-                    <option value="12M">12M</option>
-                    <option value="24M">24M</option>
-                </select>
-            </div>
-            <div class="form-group" style="min-width:100px">
-                <label>Capacity (gal)</label>
-                <select name="trailer_capacity" class="form-control">
-                    <option value="0">—</option>
-                    <option value="3000">3000</option>
-                    <option value="5000">5000</option>
-                    <option value="10000">10000</option>
-                </select>
-            </div>
-            <div class="form-group" style="min-width:80px">
-                <label>Link Type</label>
-                <select name="trailer_link_type" class="form-control">
-                    <option value="Flat Link">Flat Link</option>
-                    <option value="Tanker Link">Tanker Link</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">+ Add Vehicle</button>
-        </form>
-    </div>
-    {% endif %}
-
-    {% if v.plate_no and v.vehicle_category != 'Head' and (not v.linked_plate_no or v.linked_plate_no == '') %}
+    {% if v.plate_no and (not v.linked_plate_no or v.linked_plate_no == '') %}
     <div class="profile-card" style="margin-top:16px;border:2px dashed var(--primary);background:rgba(79,70,229,0.03)">
         <h3 style="margin:0 0 8px;font-size:1rem;color:var(--primary)">Link to Head Vehicle</h3>
         <p style="color:var(--muted);font-size:0.85rem;margin:0 0 12px">Link this vehicle to a Head. It will be hidden from the main list.</p>
@@ -267,7 +176,7 @@
                 <label>Select Head Vehicle *</label>
                 <select name="head_plate_no" class="form-control" required>
                     <option value="">-- Choose Head --</option>
-                    {% for hv in vehicles_list if hv.vehicle_category == 'Head' %}
+                    {% for hv in vehicles_list %}
                     <option value="{{ hv.plate_no }}">{{ hv.plate_no }} — {{ hv.vehicle_type }}</option>
                     {% endfor %}
                 </select>
@@ -284,78 +193,11 @@
     </div>
     {% endif %}
 
-    {% if v.plate_no and v.vehicle_category != 'Head' and v.linked_plate_no and v.linked_plate_no != '' %}
+    {% if v.plate_no and v.linked_plate_no and v.linked_plate_no != '' %}
     <div class="profile-card" style="margin-top:16px;border:1px solid #10b981;background:rgba(16,185,129,0.03)">
         <h3 style="margin:0 0 8px;font-size:1rem;color:#10b981">Linked to Head</h3>
         <p style="color:var(--muted);font-size:0.85rem;margin:0 0 8px">This vehicle is linked to Head: <strong>{{ v.linked_plate_no }}</strong> ({{ v.link_type or 'N/A' }})</p>
         <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.linked_plate_no) }}" class="btn btn-sm btn-outline">View Head Vehicle</a>
-    </div>
-    {% endif %}
-
-    {% if v.plate_no and v.vehicle_category == 'Head' %}
-    <div class="profile-card" style="margin-top:16px">
-        <h3 style="margin:0 0 12px;font-size:1rem;color:var(--primary)">Mulkiya Documents</h3>
-        {% if existing_mulkiyas %}
-        <table class="smart-table" style="margin-bottom:12px">
-            <thead>
-                <tr>
-                    <th>Doc Name</th>
-                    <th>Ref No</th>
-                    <th>Expiry</th>
-                    <th>Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for doc in existing_mulkiyas %}
-                <tr>
-                    <td>{{ doc.doc_name }}</td>
-                    <td>{{ doc.doc_ref_no or '-' }}</td>
-                    <td>{{ doc.expiry_date or '-' }}</td>
-                    <td>
-                        {% if doc._status == 'valid' %}
-                        <span class="status-badge active">Valid</span>
-                        {% elif doc._status == 'expiring' %}
-                        <span class="status-badge" style="background:#FDEBD0;color:#D97706">Expiring</span>
-                        {% else %}
-                        <span class="status-badge inactive">Expired</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{{ url_for('documents.document_download', doc_id=doc.id) }}" class="btn btn-sm btn-outline" target="_blank">View</a>
-                        <form method="POST" action="{{ url_for('fleet.vehicle_remove_mulkiya', plate_no=v.plate_no, doc_id=doc.id) }}" style="display:inline" onsubmit="return confirm('Delete this Mulkiya?')">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 12px">No Mulkiya uploaded yet.</p>
-        {% endif %}
-
-        <form method="POST" action="{{ url_for('fleet.vehicle_upload_mulkiya', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group" style="flex:1;min-width:150px">
-                <label>Document Name *</label>
-                <input type="text" name="doc_name" class="form-control" required placeholder="e.g. Mulkiya - Head">
-            </div>
-            <div class="form-group" style="min-width:120px">
-                <label>Ref No</label>
-                <input type="text" name="doc_ref_no" class="form-control" placeholder="Optional">
-            </div>
-            <div class="form-group" style="min-width:120px">
-                <label>Expiry Date</label>
-                <input type="date" name="expiry_date" class="form-control">
-            </div>
-            <div class="form-group" style="min-width:150px">
-                <label>Mulkiya File *</label>
-                <input type="file" name="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">+ Add Mulkiya</button>
-        </form>
     </div>
     {% endif %}
 </div>
