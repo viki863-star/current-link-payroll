@@ -2245,6 +2245,16 @@ def _salary_dashboard_data(status_filter=""):
     ).fetchall()
     vehicle_by_emp = {r["driver_id"]: r["vehicle_id"] for r in va_rows}
 
+    dr_rows = db.execute(
+        "SELECT driver_id, vehicle_no, shift FROM drivers WHERE vehicle_no IS NOT NULL AND vehicle_no != '' AND vehicle_no != '0'"
+    ).fetchall()
+    shift_by_emp = {}
+    for r in dr_rows:
+        if r["driver_id"] not in vehicle_by_emp or not vehicle_by_emp[r["driver_id"]]:
+            vehicle_by_emp[r["driver_id"]] = r["vehicle_no"]
+        if r["shift"]:
+            shift_by_emp[r["driver_id"]] = r["shift"]
+
     store_rows = db.execute(
         "SELECT driver_id, salary_month, net_salary, ot_amount, monthly_basic_salary, basic_salary FROM salary_store"
     ).fetchall()
@@ -2329,7 +2339,7 @@ def _salary_dashboard_data(status_filter=""):
             "estimated": round(est, 0),
             "basic_salary": basic_val,
             "vehicle": vehicle_by_emp.get(eid, ""),
-            "shift": emp["shift"] or "",
+            "shift": shift_by_emp.get(eid, emp["shift"] or ""),
         })
 
     db.close()
