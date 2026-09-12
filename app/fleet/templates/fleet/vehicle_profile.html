@@ -121,8 +121,33 @@
                         <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Fuel Cost</div>
                         <div style="font-size:1.1rem;font-weight:700;color:#ff8a1f">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
                     </div>
-                </div>
-            </div>
+        </div>
+    </div>
+
+    {% if linked_vehicles %}
+    <div style="margin:12px 0;padding:10px 16px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1px solid #bae6fd;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <svg viewBox="0 0 20 20" fill="none" stroke="#0284c7" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
+        <span style="font-weight:600;color:#0284c7;font-size:0.9rem">Linked Vehicles:</span>
+        {% for lv in linked_vehicles %}
+        <a href="{{ url_for('fleet.vehicle_edit', plate_no=lv.plate_no) }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:#fff;border:1px solid #bae6fd;border-radius:6px;text-decoration:none;color:#0369a1;font-weight:600;font-size:0.85rem">
+            {{ lv.plate_no }}
+            <span style="font-weight:400;color:#64748b;font-size:0.78rem">{{ lv.vehicle_type }}</span>
+            {% if lv.link_type %}<span style="font-size:0.72rem;color:#94a3b8">({{ lv.link_type }})</span>{% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if v.linked_plate_no and v.linked_plate_no != '' %}
+    <div style="margin:12px 0;padding:10px 16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <svg viewBox="0 0 20 20" fill="none" stroke="#16a34a" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
+        <span style="font-weight:600;color:#16a34a;font-size:0.9rem">Linked to Head:</span>
+        <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.linked_plate_no) }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:#fff;border:1px solid #86efac;border-radius:6px;text-decoration:none;color:#15803d;font-weight:600;font-size:0.85rem">
+            {{ v.linked_plate_no }}
+            {% if v.link_type %}<span style="font-size:0.72rem;color:#94a3b8">({{ v.link_type }})</span>{% endif %}
+        </a>
+    </div>
+    {% endif %}
         </div>
     </div>
 
