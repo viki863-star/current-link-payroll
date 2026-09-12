@@ -1267,6 +1267,12 @@ def employee_salary_slip(employee_id):
                             driver_display["photo_data"] = dr["photo_data"] or ""
                             driver_display["photo_name"] = dr["photo_name"] or ""
 
+                        if not driver_display.get("photo_data"):
+                            emp_photo = employee.get("photo_data") or ""
+                            if emp_photo:
+                                driver_display["photo_data"] = emp_photo
+                                driver_display["photo_name"] = employee.get("photo_name") or ""
+
                         generated_dir = current_app.config["GENERATED_DIR"]
                         slip_output_dir = str(Path(generated_dir) / "salary_slips")
                         _ap = float(salary_after_deduction)
@@ -1284,8 +1290,8 @@ def employee_salary_slip(employee_id):
                                 "paid_by": values["paid_by"] or "",
                                 "net_payable": float(salary_after_deduction),
                                 "_vehicle_no": (dr["vehicle_no"] or "") if dr else "",
-                                "_photo_name": (dr["photo_name"] or "") if dr else "",
-                                "_photo_data": (dr["photo_data"] or "") if dr else "",
+                                "_photo_name": driver_display.get("photo_name", ""),
+                                "_photo_data": driver_display.get("photo_data", ""),
                             },
                             slip_output_dir,
                             current_app.config["STATIC_ASSETS_DIR"],
