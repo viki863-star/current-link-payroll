@@ -876,10 +876,11 @@ def vehicle_profile(plate_no):
         flash("Vehicle not found.", "error")
         return redirect(url_for("fleet.vehicle_list"))
 
-    # Only Head vehicles have profiles
-    if (v["vehicle_category"] or "Solo") != "Head":
-        flash(f"Vehicle {plate_no} is not a Head unit. Only Head vehicles have profiles.", "info")
-        return redirect(url_for("fleet.vehicle_list"))
+    # Linked vehicles (vehicles linked TO this Head)
+    linked_vehicles = db.execute(
+        "SELECT plate_no, vehicle_type, model, linked_plate_no, link_type FROM vehicles WHERE linked_plate_no = ? ORDER BY plate_no",
+        (plate_no,),
+    ).fetchall()
 
     active_tab = request.args.get("tab", "overview")
     highlight = request.args.get("highlight", "")
@@ -987,6 +988,7 @@ def vehicle_profile(plate_no):
         parts_total_vat=parts_total_vat,
         parts_total_net=parts_total_net,
         suppliers=suppliers,
+        linked_vehicles=linked_vehicles,
         date=date,
     )
 
