@@ -603,7 +603,7 @@ def vehicle_add():
 
         db.execute(
             "INSERT INTO vehicles (plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (plate_no, vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, notes, vehicle_category, vehicle_sub_type, vehicle_length, int(tank_capacity_gal) if tank_capacity_gal else 0, linked_plate_no if vehicle_category == "Trailer" else None, link_type if vehicle_category == "Trailer" else ''),
+            (plate_no, vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, "Active", notes, vehicle_category, vehicle_sub_type, vehicle_length, int(tank_capacity_gal) if tank_capacity_gal else 0, linked_plate_no if linked_plate_no else None, link_type if link_type else ''),
         )
         db.commit()
 
