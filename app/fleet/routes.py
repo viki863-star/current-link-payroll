@@ -841,6 +841,11 @@ def vehicle_profile(plate_no):
         flash("Vehicle not found.", "error")
         return redirect(url_for("fleet.vehicle_list"))
 
+    # Only Head vehicles have profiles
+    if (v["vehicle_category"] or "Solo") != "Head":
+        flash(f"Vehicle {plate_no} is not a Head unit. Only Head vehicles have profiles.", "info")
+        return redirect(url_for("fleet.vehicle_list"))
+
     active_tab = request.args.get("tab", "overview")
     highlight = request.args.get("highlight", "")
 

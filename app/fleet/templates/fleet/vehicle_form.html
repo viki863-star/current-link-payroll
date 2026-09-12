@@ -257,7 +257,7 @@
     </div>
     {% endif %}
 
-    {% if v.plate_no %}
+    {% if v.plate_no and v.vehicle_category == 'Head' %}
     <div class="profile-card" style="margin-top:16px">
         <h3 style="margin:0 0 12px;font-size:1rem;color:var(--primary)">Mulkiya Documents</h3>
         {% if existing_mulkiyas %}
