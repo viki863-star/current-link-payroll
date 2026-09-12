@@ -2401,6 +2401,18 @@ def salary_dashboard_excel():
     }
 
     row_idx = 2
+
+    def _vehicle_sort_key(emp):
+        v = emp.get("vehicle") or ""
+        import re
+        nums = re.findall(r'\d+', v)
+        num = int(nums[-1]) if nums else 0
+        shift_order = {"Morning": 0, "Day": 0, "Night": 1, "General": 2}
+        so = shift_order.get(emp.get("shift", ""), 2)
+        return (num, so, v)
+
+    emp_list.sort(key=_vehicle_sort_key)
+
     for emp in emp_list:
         st = emp["statuses"].get(selected_month, "No Record")
         if st == "No Record":
