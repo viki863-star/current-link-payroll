@@ -2237,8 +2237,13 @@ def _salary_dashboard_data(status_filter=""):
         where = "WHERE LOWER(status) = 'terminated'"
 
     employees = db.execute(
-        f"SELECT employee_id, full_name, department, status, termination_date FROM employees {where} ORDER BY full_name"
+        f"SELECT employee_id, full_name, department, status, termination_date, shift FROM employees {where} ORDER BY full_name"
     ).fetchall()
+
+    va_rows = db.execute(
+        "SELECT driver_id, vehicle_id FROM vehicle_assignments WHERE is_current = 1"
+    ).fetchall()
+    vehicle_by_emp = {r["driver_id"]: r["vehicle_id"] for r in va_rows}
 
     store_rows = db.execute(
         "SELECT driver_id, salary_month, net_salary, ot_amount, monthly_basic_salary, basic_salary FROM salary_store"
@@ -2323,6 +2328,8 @@ def _salary_dashboard_data(status_filter=""):
             "amounts": amounts,
             "estimated": round(est, 0),
             "basic_salary": basic_val,
+            "vehicle": vehicle_by_emp.get(eid, ""),
+            "shift": emp["shift"] or "",
         })
 
     db.close()
@@ -2381,7 +2388,7 @@ def salary_dashboard_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["#", "Employee Name", "Department", "Status", "Basic Salary", "Est. OT (AI)", "Total (Basic+OT)", "Salary Status"]
+    heads = ["#", "Employee Name", "Department", "Vehicle", "Shift", "Status", "Basic Salary", "Est. OT (AI)", "Total (Basic+OT)", "Salary Status"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
@@ -2402,11 +2409,11 @@ def salary_dashboard_excel():
         est = emp.get("estimated", 0)
         basic = emp.get("basic_salary", 0)
         total = basic + est
-        vals = [row_idx - 1, emp["name"], emp["department"], emp["emp_status"], basic, est, total if total > 0 else "", st]
+        vals = [row_idx - 1, emp["name"], emp["department"], emp.get("vehicle", ""), emp.get("shift", ""), emp["emp_status"], basic, est, total if total > 0 else "", st]
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=row_idx, column=ci, value=v)
             c.border = border
-            if ci in (5, 6, 7):
+            if ci in (7, 8, 9):
                 c.number_format = '#,##0.00'
                 c.alignment = right
             sf = status_fills.get(st)
@@ -2418,10 +2425,12 @@ def salary_dashboard_excel():
     ws.column_dimensions["B"].width = 32
     ws.column_dimensions["C"].width = 18
     ws.column_dimensions["D"].width = 14
-    ws.column_dimensions["E"].width = 16
-    ws.column_dimensions["F"].width = 16
-    ws.column_dimensions["G"].width = 18
-    ws.column_dimensions["H"].width = 18
+    ws.column_dimensions["E"].width = 12
+    ws.column_dimensions["F"].width = 14
+    ws.column_dimensions["G"].width = 16
+    ws.column_dimensions["H"].width = 16
+    ws.column_dimensions["I"].width = 18
+    ws.column_dimensions["J"].width = 18
 
     buf = BytesIO()
     wb.save(buf)
