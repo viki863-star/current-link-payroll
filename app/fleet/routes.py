@@ -611,6 +611,14 @@ def vehicle_edit(plate_no):
     vehicles_list = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category FROM vehicles WHERE status = 'Active' AND plate_no != ? ORDER BY plate_no", (plate_no,)).fetchall()
     linked_trailers = db.execute("SELECT plate_no, vehicle_type, vehicle_sub_type, vehicle_length, tank_capacity_gal FROM vehicles WHERE linked_plate_no = ? AND vehicle_category = 'Trailer' ORDER BY plate_no", (plate_no,)).fetchall()
 
+    existing_mulkiyas = db.execute(
+        "SELECT id, doc_name, doc_ref_no, expiry_date FROM documents WHERE entity_type = 'vehicle' AND entity_id = ? AND doc_category = 'Mulkiya' ORDER BY uploaded_at DESC",
+        (plate_no,)
+    ).fetchall()
+    from ..documents.routes import _expiry_status
+    for doc in existing_mulkiyas:
+        doc["_status"] = _expiry_status(doc["expiry_date"])
+
     if request.method == "POST":
         new_plate = request.form.get("plate_no", "").strip().upper()
         vehicle_type = request.form.get("vehicle_type", "").strip()
@@ -630,13 +638,13 @@ def vehicle_edit(plate_no):
 
         if not new_plate:
             flash("Plate number is required.", "error")
-            return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, page_title="Edit Vehicle", submit_label="Save Changes")
+            return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, page_title="Edit Vehicle", submit_label="Save Changes")
 
         if new_plate != plate_no:
             existing = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (new_plate,)).fetchone()
             if existing:
                 flash(f"Plate number {new_plate} already exists.", "error")
-                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, page_title="Edit Vehicle", submit_label="Save Changes")
+                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, page_title="Edit Vehicle", submit_label="Save Changes")
             try:
                 db.execute(
                     "INSERT INTO vehicles (plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type) SELECT ?, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type FROM vehicles WHERE plate_no=?",
@@ -653,7 +661,7 @@ def vehicle_edit(plate_no):
                 db.execute("DELETE FROM vehicles WHERE plate_no=?", (plate_no,))
             except Exception as e:
                 flash(f"Could not update plate number: {e}", "error")
-                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, page_title="Edit Vehicle", submit_label="Save Changes")
+                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, page_title="Edit Vehicle", submit_label="Save Changes")
         else:
             db.execute(
                 "UPDATE vehicles SET vehicle_type=?, model=?, year=?, ownership_type=?, partner_name=?, partner_percent=?, status=?, notes=?, vehicle_category=?, vehicle_sub_type=?, vehicle_length=?, tank_capacity_gal=?, linked_plate_no=?, link_type=? WHERE plate_no=?",
@@ -663,7 +671,7 @@ def vehicle_edit(plate_no):
         flash("Vehicle updated.", "success")
         return redirect(url_for("fleet.vehicle_profile", plate_no=new_plate))
 
-    return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, page_title="Edit Vehicle", submit_label="Save Changes")
+    return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, page_title="Edit Vehicle", submit_label="Save Changes")
 
 
 # ── Add Trailer to Head Vehicle ────────────────────────────────
@@ -722,6 +730,68 @@ def vehicle_remove_trailer(plate_no, trailer_plate):
     db.commit()
 
     flash(f"Trailer {trailer_plate} unlinked from {plate_no}.", "success")
+    return redirect(url_for("fleet.vehicle_edit", plate_no=plate_no))
+
+
+# ── Upload Mulkiya for Vehicle ──────────────────────────────────
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/upload-mulkiya", methods=["POST"])
+@_login_required("admin")
+def vehicle_upload_mulkiya(plate_no):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+
+    vehicle = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    if not vehicle:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+
+    import base64
+    doc_name = request.form.get("doc_name", "").strip()
+    doc_ref_no = request.form.get("doc_ref_no", "").strip() or None
+    expiry_date = request.form.get("expiry_date", "").strip() or None
+    file = request.files.get("file")
+
+    if not doc_name or not file:
+        flash("Document name and file are required.", "error")
+        return redirect(url_for("fleet.vehicle_edit", plate_no=plate_no))
+
+    file_data = base64.b64encode(file.read()).decode("utf-8")
+    file_type = file.content_type or "application/octet-stream"
+    file_size = len(file_data)
+
+    from ..documents.routes import _generate_thumbnail
+    thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, file_type)
+
+    db.execute(
+        """INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, doc_ref_no,
+           issue_date, expiry_date, file_data, file_type, file_size, thumbnail_data, pdf_preview_data)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+        ("vehicle", plate_no, doc_name, "Mulkiya", doc_ref_no,
+         None, expiry_date, file_data, file_type, file_size, thumbnail_data, pdf_preview_data),
+    )
+    db.commit()
+    db.close()
+
+    flash(f"Mulkiya '{doc_name}' uploaded for {plate_no}.", "success")
+    return redirect(url_for("fleet.vehicle_edit", plate_no=plate_no))
+
+
+# ── Remove Mulkiya from Vehicle ─────────────────────────────────
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/remove-mulkiya/<int:doc_id>", methods=["POST"])
+@_login_required("admin")
+def vehicle_remove_mulkiya(plate_no, doc_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+
+    db.execute("DELETE FROM documents WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?", (doc_id, plate_no))
+    db.commit()
+    db.close()
+
+    flash("Mulkiya deleted.", "success")
     return redirect(url_for("fleet.vehicle_edit", plate_no=plate_no))
 
 

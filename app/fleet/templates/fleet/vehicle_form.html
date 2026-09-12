@@ -256,6 +256,73 @@
         </form>
     </div>
     {% endif %}
+
+    {% if v.plate_no %}
+    <div class="profile-card" style="margin-top:16px">
+        <h3 style="margin:0 0 12px;font-size:1rem;color:var(--primary)">Mulkiya Documents</h3>
+        {% if existing_mulkiyas %}
+        <table class="smart-table" style="margin-bottom:12px">
+            <thead>
+                <tr>
+                    <th>Doc Name</th>
+                    <th>Ref No</th>
+                    <th>Expiry</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in existing_mulkiyas %}
+                <tr>
+                    <td>{{ doc.doc_name }}</td>
+                    <td>{{ doc.doc_ref_no or '-' }}</td>
+                    <td>{{ doc.expiry_date or '-' }}</td>
+                    <td>
+                        {% if doc._status == 'valid' %}
+                        <span class="status-badge active">Valid</span>
+                        {% elif doc._status == 'expiring' %}
+                        <span class="status-badge" style="background:#FDEBD0;color:#D97706">Expiring</span>
+                        {% else %}
+                        <span class="status-badge inactive">Expired</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('documents.document_download', doc_id=doc.id) }}" class="btn btn-sm btn-outline" target="_blank">View</a>
+                        <form method="POST" action="{{ url_for('fleet.vehicle_remove_mulkiya', plate_no=v.plate_no, doc_id=doc.id) }}" style="display:inline" onsubmit="return confirm('Delete this Mulkiya?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 12px">No Mulkiya uploaded yet.</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('fleet.vehicle_upload_mulkiya', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="flex:1;min-width:150px">
+                <label>Document Name *</label>
+                <input type="text" name="doc_name" class="form-control" required placeholder="e.g. Mulkiya - Head">
+            </div>
+            <div class="form-group" style="min-width:120px">
+                <label>Ref No</label>
+                <input type="text" name="doc_ref_no" class="form-control" placeholder="Optional">
+            </div>
+            <div class="form-group" style="min-width:120px">
+                <label>Expiry Date</label>
+                <input type="date" name="expiry_date" class="form-control">
+            </div>
+            <div class="form-group" style="min-width:150px">
+                <label>Mulkiya File *</label>
+                <input type="file" name="file" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">+ Add Mulkiya</button>
+        </form>
+    </div>
+    {% endif %}
 </div>
 
 <script>
