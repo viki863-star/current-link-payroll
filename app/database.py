@@ -831,6 +831,12 @@ CREATE TABLE IF NOT EXISTS vehicles (
     partner_percent REAL,
     status TEXT NOT NULL DEFAULT 'Active',
     notes TEXT,
+    vehicle_category TEXT DEFAULT 'Solo',
+    vehicle_sub_type TEXT DEFAULT '',
+    vehicle_length TEXT DEFAULT '',
+    tank_capacity_gal INTEGER DEFAULT 0,
+    linked_plate_no TEXT,
+    link_type TEXT DEFAULT '',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -1731,6 +1737,12 @@ CREATE TABLE IF NOT EXISTS vehicles (
     partner_percent DOUBLE PRECISION,
     status TEXT NOT NULL DEFAULT 'Active',
     notes TEXT,
+    vehicle_category TEXT DEFAULT 'Solo',
+    vehicle_sub_type TEXT DEFAULT '',
+    vehicle_length TEXT DEFAULT '',
+    tank_capacity_gal INTEGER DEFAULT 0,
+    linked_plate_no TEXT,
+    link_type TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -2087,6 +2099,14 @@ REQUIRED_COLUMNS = {
     "field_staff": {
         "photo_data": "TEXT",
         "photo_content_type": "TEXT",
+    },
+    "vehicles": {
+        "vehicle_category": "TEXT DEFAULT 'Solo'",
+        "vehicle_sub_type": "TEXT DEFAULT ''",
+        "vehicle_length": "TEXT DEFAULT ''",
+        "tank_capacity_gal": "INTEGER DEFAULT 0",
+        "linked_plate_no": "TEXT",
+        "link_type": "TEXT DEFAULT ''",
     },
     "documents": {
         "doc_category": "TEXT NOT NULL DEFAULT 'Other'",

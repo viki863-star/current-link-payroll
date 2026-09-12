@@ -34,12 +34,70 @@
             </div>
             <div class="form-row">
                 <div class="form-group">
+                    <label>Vehicle Category</label>
+                    <select name="vehicle_category" class="form-control" id="vehicleCategory" onchange="toggleTrailerFields(this.value)">
+                        {% for c in vehicle_categories %}
+                        <option value="{{ c }}" {% if (v.vehicle_category or 'Solo') == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Sub Type</label>
+                    <select name="vehicle_sub_type" class="form-control">
+                        <option value="">Select sub type</option>
+                        {% for s in vehicle_sub_types %}
+                        <option value="{{ s }}" {% if (v.vehicle_sub_type or '') == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" id="trailerFields" style="{% if (v.vehicle_category or 'Solo') != 'Trailer' %}display:none{% endif %}">
+                <div class="form-group">
+                    <label>Link to Head Vehicle</label>
+                    <select name="linked_plate_no" class="form-control">
+                        <option value="">— No link —</option>
+                        {% for veh in vehicles_list %}
+                        {% if veh.vehicle_category == 'Head' or veh.vehicle_category == 'Solo' %}
+                        <option value="{{ veh.plate_no }}" {% if (v.linked_plate_no or '') == veh.plate_no %}selected{% endif %}>{{ veh.plate_no }} - {{ veh.vehicle_type }}{% if veh.model %} ({{ veh.model }}){% endif %}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Link Type</label>
+                    <select name="link_type" class="form-control">
+                        {% for lt in link_types %}
+                        <option value="{{ lt }}" {% if (v.link_type or '') == lt %}selected{% endif %}>{{ lt or '— None —' }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
                     <label>Model</label>
                     <input type="text" name="model" value="{{ v.model or '' }}" class="form-control" placeholder="e.g. Volvo FH">
                 </div>
                 <div class="form-group">
                     <label>Year</label>
                     <input type="number" name="year" value="{{ v.year or '' }}" class="form-control" min="1990" max="2030">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Vehicle Length</label>
+                    <select name="vehicle_length" class="form-control">
+                        <option value="">— N/A —</option>
+                        <option value="12M" {% if (v.vehicle_length or '') == '12M' %}selected{% endif %}>12M</option>
+                        <option value="24M" {% if (v.vehicle_length or '') == '24M' %}selected{% endif %}>24M</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Tank Capacity (Gallons)</label>
+                    <select name="tank_capacity_gal" class="form-control">
+                        {% for cap in tank_capacities %}
+                        <option value="{{ cap }}" {% if (v.tank_capacity_gal or 0)|int == cap %}selected{% endif %}>{{ cap if cap > 0 else '— N/A —' }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
             <div class="form-row">
@@ -113,6 +171,9 @@
 function togglePartner(val) {
     document.getElementById('partnerNameGroup').style.display = val === 'Partnership' ? '' : 'none';
     document.getElementById('partnerPercentGroup').style.display = val === 'Partnership' ? '' : 'none';
+}
+function toggleTrailerFields(val) {
+    document.getElementById('trailerFields').style.display = val === 'Trailer' ? '' : 'none';
 }
 </script>
 {% endblock %}

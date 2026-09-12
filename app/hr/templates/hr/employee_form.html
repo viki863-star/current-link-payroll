@@ -46,13 +46,13 @@
 
             <div class="form-section">
                 <h3>Employment Details</h3>
-                    <div class="form-group" id="vehicleGroup" style="display:none">
+                <div class="form-group" id="vehicleGroup" style="display:none">
                         <label>Assigned Vehicle / Crane</label>
                     <select name="vehicle_id" class="form-control">
                         <option value="">No vehicle</option>
                         {% for v in vehicles %}
                         <option value="{{ v.plate_no }}" {% if assigned_vehicle == v.plate_no %}selected{% endif %}>
-                            {{ v.plate_no }}{% if v.model %} — {{ v.model }}{% endif %}{% if v.vehicle_type %} ({{ v.vehicle_type }}){% endif %}
+                            {{ v.plate_no }}{% if v.vehicle_sub_type %} - {{ v.vehicle_sub_type }}{% elif v.model %} - {{ v.model }}{% endif %}{% if v.vehicle_type %} ({{ v.vehicle_type }}){% endif %}
                         </option>
                         {% endfor %}
                     </select>

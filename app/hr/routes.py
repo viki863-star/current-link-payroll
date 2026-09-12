@@ -446,7 +446,7 @@ def employee_new():
 
     # Get vehicles if table exists, otherwise empty list
     try:
-        vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+        vehicles = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category, vehicle_sub_type FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
     except Exception:
         vehicles = []
 
