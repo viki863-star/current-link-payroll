@@ -257,6 +257,41 @@
     </div>
     {% endif %}
 
+    {% if v.plate_no and v.vehicle_category != 'Head' and (not v.linked_plate_no or v.linked_plate_no == '') %}
+    <div class="profile-card" style="margin-top:16px;border:2px dashed var(--primary);background:rgba(79,70,229,0.03)">
+        <h3 style="margin:0 0 8px;font-size:1rem;color:var(--primary)">Link to Head Vehicle</h3>
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 12px">Link this vehicle to a Head. It will be hidden from the main list.</p>
+        <form method="POST" action="{{ url_for('fleet.vehicle_link_to_head', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="flex:1;min-width:180px">
+                <label>Select Head Vehicle *</label>
+                <select name="head_plate_no" class="form-control" required>
+                    <option value="">-- Choose Head --</option>
+                    {% for hv in vehicles_list if hv.vehicle_category == 'Head' %}
+                    <option value="{{ hv.plate_no }}">{{ hv.plate_no }} — {{ hv.vehicle_type }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="min-width:140px">
+                <label>Link Type</label>
+                <select name="link_type" class="form-control">
+                    <option value="Flat Link">Flat Link</option>
+                    <option value="Tanker Link">Tanker Link</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Link this vehicle to a Head? It will be hidden from the main list.')">Link to Head</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if v.plate_no and v.vehicle_category != 'Head' and v.linked_plate_no and v.linked_plate_no != '' %}
+    <div class="profile-card" style="margin-top:16px;border:1px solid #10b981;background:rgba(16,185,129,0.03)">
+        <h3 style="margin:0 0 8px;font-size:1rem;color:#10b981">Linked to Head</h3>
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 8px">This vehicle is linked to Head: <strong>{{ v.linked_plate_no }}</strong> ({{ v.link_type or 'N/A' }})</p>
+        <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.linked_plate_no) }}" class="btn btn-sm btn-outline">View Head Vehicle</a>
+    </div>
+    {% endif %}
+
     {% if v.plate_no and v.vehicle_category == 'Head' %}
     <div class="profile-card" style="margin-top:16px">
         <h3 style="margin:0 0 12px;font-size:1rem;color:var(--primary)">Mulkiya Documents</h3>

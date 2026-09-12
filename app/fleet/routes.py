@@ -425,6 +425,7 @@ def vehicle_list():
                 LEFT JOIN vehicle_assignments va ON va.vehicle_id = v.plate_no AND va.is_current = 1
                 LEFT JOIN employees e ON e.employee_id = va.driver_id
                 WHERE {where_sql}
+                AND (v.linked_plate_no IS NULL OR v.linked_plate_no = '' OR v.vehicle_category = 'Head')
                 ORDER BY v.ownership_type, v.plate_no""",
             params,
 
@@ -826,6 +827,40 @@ def vehicle_remove_mulkiya(plate_no, doc_id):
 
     flash("Mulkiya deleted.", "success")
     return redirect(url_for("fleet.vehicle_edit", plate_no=plate_no))
+
+
+# ── Link Vehicle to Head ────────────────────────────────────────
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/link-to-head", methods=["POST"])
+@_login_required("admin")
+def vehicle_link_to_head(plate_no):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+
+    v = db.execute("SELECT plate_no, vehicle_category FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    if not v:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+
+    head_plate = request.form.get("head_plate_no", "").strip()
+    link_type = request.form.get("link_type", "").strip()
+
+    if not head_plate:
+        flash("Please select a Head vehicle.", "error")
+        return redirect(url_for("fleet.vehicle_edit", plate_no=plate_no))
+
+    head = db.execute("SELECT plate_no, vehicle_category FROM vehicles WHERE plate_no = ?", (head_plate,)).fetchone()
+    if not head:
+        flash("Head vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_edit", plate_no=plate_no))
+
+    db.execute("UPDATE vehicles SET linked_plate_no = ?, link_type = ? WHERE plate_no = ?", (head_plate, link_type, plate_no))
+    db.commit()
+    db.close()
+
+    flash(f"Vehicle {plate_no} linked to Head {head_plate}. It will no longer appear in the main list.", "success")
+    return redirect(url_for("fleet.vehicle_list"))
 
 
 # ── Vehicle Profile ─────────────────────────────────────────────
