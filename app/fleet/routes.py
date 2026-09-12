@@ -887,6 +887,16 @@ def vehicle_profile(plate_no):
         (plate_no,),
     ).fetchall()
 
+    # Current drivers (latest assignment per vehicle, is_current=1)
+    current_drivers = db.execute(
+        """SELECT DISTINCT ON (va.vehicle_id) va.vehicle_id, va.driver_id, va.assigned_from, e.full_name AS driver_name
+           FROM vehicle_assignments va
+           JOIN employees e ON e.employee_id = va.driver_id
+           WHERE va.vehicle_id = ? AND va.is_current = 1
+           ORDER BY va.vehicle_id, va.assigned_from DESC""",
+        (plate_no,),
+    ).fetchall()
+
     active_tab = request.args.get("tab", "overview")
     highlight = request.args.get("highlight", "")
 
@@ -994,6 +1004,7 @@ def vehicle_profile(plate_no):
         parts_total_net=parts_total_net,
         suppliers=suppliers,
         linked_vehicles=linked_vehicles,
+        current_drivers=current_drivers,
         date=date,
     )
 

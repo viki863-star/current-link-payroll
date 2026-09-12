@@ -40,7 +40,7 @@
                 <strong>{{ v.job_count }}</strong> jobs &middot; AED <strong>{{ "%.0f"|format(v.total_cost) }}</strong> total
                 {% if fuel_total_amount > 0 %} &middot; <span style="color:#e65100">Fuel AED {{ "%.0f"|format(fuel_total_amount) }}</span>{% endif %}
                 {% if parts_total_net > 0 %} &middot; <span style="color:#1565C0">Parts AED {{ "%.0f"|format(parts_total_net) }}</span>{% endif %}
-                {% if v.current_driver %} &middot; Driver: {{ v.current_driver.full_name }}{% endif %}
+                {% if current_drivers %} &middot; Driver: {{ current_drivers[0].driver_name }}{% if current_drivers|length > 1 %} +{{ current_drivers|length - 1 }} more{% endif %}{% endif %}
             </p>
         </div>
         <div class="profile-actions">
@@ -90,16 +90,18 @@
         </div>
         <div class="panel-half">
             <div class="profile-card">
-                <h3 style="margin:0 0 12px;font-size:0.95rem">Current Driver</h3>
-                {% if v.current_driver %}
-                <div style="display:flex;align-items:center;gap:12px">
-                    <div class="emp-avatar-letter" style="width:44px;height:44px;font-size:1rem">{{ v.current_driver.full_name[:1]|upper }}</div>
+                <h3 style="margin:0 0 12px;font-size:0.95rem">Current Driver{{ 's' if current_drivers|length > 1 else '' }}</h3>
+                {% if current_drivers %}
+                {% for cd in current_drivers %}
+                <div style="display:flex;align-items:center;gap:12px;{% if not loop.last %}margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eee{% endif %}">
+                    <div class="emp-avatar-letter" style="width:44px;height:44px;font-size:1rem">{{ cd.driver_name[:1]|upper }}</div>
                     <div>
-                        <div style="font-weight:600">{{ v.current_driver.full_name }}</div>
-                        <div class="mono" style="font-size:0.78rem;color:var(--muted)">{{ v.current_driver.employee_id }}</div>
-                        <div style="font-size:0.78rem;color:var(--muted)">Since {{ v.current_driver.assigned_from }}</div>
+                        <div style="font-weight:600">{{ cd.driver_name }}</div>
+                        <div class="mono" style="font-size:0.78rem;color:var(--muted)">{{ cd.driver_id }}</div>
+                        <div style="font-size:0.78rem;color:var(--muted)">Since {{ cd.assigned_from }}</div>
                     </div>
                 </div>
+                {% endfor %}
                 {% else %}
                 <p class="empty-state" style="padding:20px">No driver assigned.</p>
                 {% endif %}
