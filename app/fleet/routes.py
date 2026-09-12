@@ -897,6 +897,14 @@ def vehicle_profile(plate_no):
         (plate_no,),
     ).fetchall()
 
+    # Fallback: if no vehicle_assignments, check drivers table
+    if not current_drivers:
+        current_drivers = db.execute(
+            """SELECT vehicle_no AS vehicle_id, driver_id, NULL AS assigned_from, full_name AS driver_name
+               FROM drivers WHERE vehicle_no = ? AND status = 'Active'""",
+            (plate_no,),
+        ).fetchall()
+
     active_tab = request.args.get("tab", "overview")
     highlight = request.args.get("highlight", "")
 
