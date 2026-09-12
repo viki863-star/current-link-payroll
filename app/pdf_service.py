@@ -951,7 +951,7 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
         ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
         ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
     ]))
-    els.append(left_title)
+    els.extend(left_title)
     els.append(Spacer(1, 1.5*mm))
     els.append(txn_tbl)
 
