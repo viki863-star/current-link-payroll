@@ -422,7 +422,12 @@ def vehicle_list():
         vehicles = db.execute(
             f"""SELECT v.*, va.driver_id, e.full_name AS driver_name
                 FROM vehicles v
-                LEFT JOIN vehicle_assignments va ON va.vehicle_id = v.plate_no AND va.is_current = 1
+                LEFT JOIN (
+                    SELECT DISTINCT ON (vehicle_id) vehicle_id, driver_id
+                    FROM vehicle_assignments
+                    WHERE is_current = 1
+                    ORDER BY vehicle_id, assigned_from DESC
+                ) va ON va.vehicle_id = v.plate_no
                 LEFT JOIN employees e ON e.employee_id = va.driver_id
                 WHERE {where_sql}
                 AND (v.linked_plate_no IS NULL OR v.linked_plate_no = '' OR v.vehicle_category = 'Head')
