@@ -2136,8 +2136,8 @@ def fleet_staff_advances_pdf(staff_id):
                 where_adv += " AND substr(entry_date,1,10) <= ?"
                 date_params.append(date_to)
         if not date_params:
-            where_adv = " AND substr(entry_date,1,7) = ?"
-            date_params.append(date.today().isoformat()[:7])
+            where_adv = ""
+            jp_where = ""
         advances = db.execute(f"SELECT id, amount, funding_source, reference, notes, entry_date, created_at, staff_code FROM maintenance_staff_advances WHERE staff_code = ?{where_adv} ORDER BY entry_date DESC", (staff_id, *date_params)).fetchall()
         total = sum(a["amount"] for a in advances) if advances else 0
 
@@ -2155,8 +2155,7 @@ def fleet_staff_advances_pdf(staff_id):
                 jp_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
                 jp_params.append(date_to)
         if not jp_params:
-            jp_where = " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
-            jp_params.append(date.today().isoformat()[:7])
+            jp_where = ""
         jobs_data = db.execute(f"""
             SELECT mj.id, mj.vehicle_id, mj.amount, mj.created_at, v.plate_no
             FROM maintenance_jobs mj
