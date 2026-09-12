@@ -1043,7 +1043,12 @@ def vehicle_assign_driver(plate_no):
         flash("Please select a driver.", "error")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
 
-    # Close current assignment
+    # Remove driver from any other vehicle first
+    db.execute(
+        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+        (assigned_from, driver_id),
+    )
+    # Close current assignment for this vehicle
     db.execute(
         "UPDATE vehicle_assignments SET assigned_until = ?, is_current = 0 WHERE vehicle_id = ? AND is_current = 1",
         (assigned_from, plate_no),
