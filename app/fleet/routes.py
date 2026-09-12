@@ -27,7 +27,7 @@ from . import fleet_bp
 VEHICLE_TYPES = ["Tractor", "Flat Bed", "Tanker", "Box Truck", "Crane", "Forklift", "Other"]
 VEHICLE_CATEGORIES = ["Solo", "Head", "Trailer"]
 VEHICLE_SUB_TYPES = ["Tractor", "Flat Bed 12M", "Flat Bed 24M", "Tanker Drinking", "Tanker Non-Drinking", "Tanker Drainage", "Box Truck", "Crane", "Forklift", "Other"]
-LINK_TYPES = ["", "Tractor-Flat", "Tractor-Tanker"]
+LINK_TYPES = ["", "Flat Link", "Tanker Link"]
 TANK_CAPACITIES = [0, 3000, 5000, 10000]
 OWNERSHIP_TYPES = ["Standard", "Partnership"]
 MAINTENANCE_CATEGORIES = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
