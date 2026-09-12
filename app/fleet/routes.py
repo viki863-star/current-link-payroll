@@ -430,7 +430,7 @@ def vehicle_list():
                 ) va ON va.vehicle_id = v.plate_no
                 LEFT JOIN employees e ON e.employee_id = va.driver_id
                 WHERE {where_sql}
-                AND (v.linked_plate_no IS NULL OR v.linked_plate_no = '' OR v.vehicle_category = 'Head')
+                AND (v.linked_plate_no IS NULL OR v.linked_plate_no = '')
                 ORDER BY v.ownership_type, v.plate_no""",
             params,
 
