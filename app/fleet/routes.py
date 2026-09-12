@@ -24,7 +24,40 @@ from ..pdf_service import generate_fuel_report_pdf
 from . import fleet_bp
 
 
-VEHICLE_TYPES = ["Tractor", "Flat Bed", "Tanker", "Box Truck", "Crane", "Forklift", "Other"]
+VEHICLE_TYPES = [
+    "Tractor Unit",
+    "Flat Bed Trailer",
+    "Low Bed Trailer",
+    "Container Trailer",
+    "Curtain Side Trailer",
+    "Box Trailer",
+    "Tanker - Drinking Water",
+    "Tanker - Non-Drinking Water",
+    "Tanker - Drainage",
+    "Tanker - Fuel/Oil",
+    "Tanker - Chemical",
+    "Pickup Truck (Single Cab)",
+    "Pickup Truck (Double Cab)",
+    "Box Truck",
+    "Refrigerated Truck",
+    "Flat Deck Truck",
+    "Tipper Truck",
+    "Crane",
+    "Forklift",
+    "Concrete Mixer",
+    "Excavator",
+    "Bulldozer",
+    "Loader",
+    "Roller",
+    "Recovery / Tow Truck",
+    "Garbage Truck",
+    "Water Bowser",
+    "Light Bus",
+    "Heavy Bus",
+    "Van / Minibus",
+    "Car / SUV",
+    "Other",
+]
 VEHICLE_CATEGORIES = ["Solo", "Head", "Trailer"]
 VEHICLE_SUB_TYPES = ["Tractor", "Flat Bed 12M", "Flat Bed 24M", "Tanker Drinking", "Tanker Non-Drinking", "Tanker Drainage", "Box Truck", "Crane", "Forklift", "Other"]
 LINK_TYPES = ["", "Flat Link", "Tanker Link"]
