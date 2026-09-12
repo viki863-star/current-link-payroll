@@ -2423,6 +2423,16 @@ def salary_dashboard_excel():
 
     emp_list.sort(key=_vehicle_sort_key)
 
+    from collections import Counter
+    vehicle_driver_count = Counter()
+    for emp in emp_list:
+        v = emp.get("vehicle", "")
+        if v and v not in ("0", "0000"):
+            vehicle_driver_count[v] += 1
+
+    err_fill = PatternFill("solid", fgColor="FDEDEC")
+    err_font = Font(name="Calibri", bold=True, color="DC2626", size=11)
+
     for emp in emp_list:
         st = emp["statuses"].get(selected_month, "No Record")
         if st == "No Record":
@@ -2432,15 +2442,22 @@ def salary_dashboard_excel():
         basic = emp.get("basic_salary", 0)
         total = basic + est
         vals = [row_idx - 1, emp["name"], emp["department"], emp.get("vehicle", ""), emp.get("shift", ""), emp["emp_status"], basic, est, total if total > 0 else "", st]
+        veh = emp.get("vehicle", "")
+        is_overloaded = veh and veh not in ("0", "0000") and vehicle_driver_count.get(veh, 0) > 2
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=row_idx, column=ci, value=v)
             c.border = border
             if ci in (7, 8, 9):
                 c.number_format = '#,##0.00'
                 c.alignment = right
-            sf = status_fills.get(st)
-            if sf:
-                c.fill = sf
+            if is_overloaded:
+                c.fill = err_fill
+                if ci == 4:
+                    c.font = err_font
+            else:
+                sf = status_fills.get(st)
+                if sf:
+                    c.fill = sf
         row_idx += 1
 
     ws.column_dimensions["A"].width = 6
