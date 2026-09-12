@@ -3444,7 +3444,7 @@ def generate_field_staff_advances_pdf(staff, advances, jobs_data, papers_data, t
     els.append(Spacer(1, 4*mm))
 
     # Table header
-    colw = [40, 60, 45, 40, W - 40 - 60 - 45 - 40 - 55, 55]
+    colw = [38, 55, 40, 70, W - 38 - 55 - 40 - 70 - 50, 50]
     hdr = [
         Paragraph("<b>Date</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
         Paragraph("<b>Reference</b>", F("_h", fontSize=6.5, fontName="Helvetica-Bold", textColor=WH, leading=9)),
