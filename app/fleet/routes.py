@@ -1043,21 +1043,22 @@ def vehicle_assign_driver(plate_no):
         flash("Please select a driver.", "error")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
 
-    # Remove driver from any other vehicle first
+    # Remove driver from any OTHER vehicle (not this one) — allows day/night shift on same vehicle
     db.execute(
-        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
-        (assigned_from, driver_id),
+        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1 AND vehicle_id != ?",
+        (assigned_from, driver_id, plate_no),
     )
-    # Close current assignment for this vehicle
-    db.execute(
-        "UPDATE vehicle_assignments SET assigned_until = ?, is_current = 0 WHERE vehicle_id = ? AND is_current = 1",
-        (assigned_from, plate_no),
-    )
-    # Insert new assignment
-    db.execute(
-        "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?,?,?,1)",
-        (plate_no, driver_id, assigned_from),
-    )
+    # Check if this driver is already assigned to this vehicle
+    existing = db.execute(
+        "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
+        (plate_no, driver_id),
+    ).fetchone()
+    if not existing:
+        # Insert new assignment only if not already assigned
+        db.execute(
+            "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?,?,?,1)",
+            (plate_no, driver_id, assigned_from),
+        )
     db.commit()
 
     flash(f"Driver assigned to {plate_no}.", "success")
