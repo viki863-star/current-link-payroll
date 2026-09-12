@@ -165,6 +165,97 @@
             {% endif %}
         </form>
     </div>
+
+    {% if v.plate_no and (v.vehicle_category or 'Solo') == 'Head' %}
+    <div class="profile-card" style="margin-top:16px">
+        <h3 style="margin:0 0 12px;font-size:1rem;color:var(--primary)">Linked Trailers</h3>
+        {% if linked_trailers %}
+        <table class="smart-table" style="margin-bottom:12px">
+            <thead>
+                <tr>
+                    <th>Plate No</th>
+                    <th>Type</th>
+                    <th>Sub Type</th>
+                    <th>Length</th>
+                    <th>Capacity</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in linked_trailers %}
+                <tr>
+                    <td class="mono" style="font-weight:600">{{ t.plate_no }}</td>
+                    <td>{{ t.vehicle_type }}</td>
+                    <td>{{ t.vehicle_sub_type or '-' }}</td>
+                    <td>{{ t.vehicle_length or '-' }}</td>
+                    <td>{{ t.tank_capacity_gal if t.tank_capacity_gal > 0 else '-' }}</td>
+                    <td>
+                        <a href="{{ url_for('fleet.vehicle_edit', plate_no=t.plate_no) }}" class="btn btn-sm btn-outline">Edit</a>
+                        <form method="POST" action="{{ url_for('fleet.vehicle_remove_trailer', plate_no=v.plate_no, trailer_plate=t.plate_no) }}" style="display:inline" onsubmit="return confirm('Remove trailer {{ t.plate_no }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 12px">No trailers linked yet.</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('fleet.vehicle_add_trailer', plate_no=v.plate_no) }}" class="smart-form" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="flex:1;min-width:120px">
+                <label>Trailer Plate No *</label>
+                <input type="text" name="trailer_plate_no" class="form-control" required placeholder="e.g. T-1234">
+            </div>
+            <div class="form-group" style="flex:1;min-width:120px">
+                <label>Trailer Type *</label>
+                <select name="trailer_type" class="form-control" required>
+                    <option value="">Select...</option>
+                    {% for t in vehicle_types %}
+                    <option value="{{ t }}">{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="flex:1;min-width:120px">
+                <label>Sub Type</label>
+                <select name="trailer_sub_type" class="form-control">
+                    <option value="">Select...</option>
+                    {% for s in vehicle_sub_types %}
+                    <option value="{{ s }}">{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="min-width:80px">
+                <label>Length</label>
+                <select name="trailer_length" class="form-control">
+                    <option value="">—</option>
+                    <option value="12M">12M</option>
+                    <option value="24M">24M</option>
+                </select>
+            </div>
+            <div class="form-group" style="min-width:100px">
+                <label>Capacity (gal)</label>
+                <select name="trailer_capacity" class="form-control">
+                    <option value="0">—</option>
+                    <option value="3000">3000</option>
+                    <option value="5000">5000</option>
+                    <option value="10000">10000</option>
+                </select>
+            </div>
+            <div class="form-group" style="min-width:80px">
+                <label>Link Type</label>
+                <select name="trailer_link_type" class="form-control">
+                    <option value="Tractor-Flat">Tractor-Flat</option>
+                    <option value="Tractor-Tanker">Tractor-Tanker</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">+ Add Trailer</button>
+        </form>
+    </div>
+    {% endif %}
 </div>
 
 <script>
