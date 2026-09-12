@@ -3722,19 +3722,10 @@ def generate_field_staff_jobs_pdf(staff, jobs, total_amount, filter_month, date_
             cat = j.get("category", "")
             desc = j.get("description", "") or "-"
             amt = float(j.get("amount", 0))
-            has_att = bool(j.get("attachment_data"))
+            has_att = bool(j.get("has_attachment"))
             if has_att:
                 att_url = f"{base_url}/fleet/attachment/{j['id']}"
-                att_type = (j.get("attachment_type") or "").lower()
-                if att_type.startswith("image/"):
-                    thumb_f = _embed_attachment_image(j.get("attachment_data"), att_type, tempfile.gettempdir())
-                    if thumb_f:
-                        _tmp_imgs.append(thumb_f)
-                        att_link = _LinkImage(thumb_f, att_url, width=20, height=20)
-                    else:
-                        att_link = f'<a href="{att_url}" color="#1C568B">See</a>'
-                else:
-                    att_link = f'<a href="{att_url}" color="#1C568B">Open</a>'
+                att_link = f'<a href="{att_url}" color="#1C568B">Open</a>'
             else:
                 att_link = '<font color="#cccccc">—</font>'
             rws.append([

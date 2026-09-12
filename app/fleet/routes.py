@@ -1865,7 +1865,7 @@ def fleet_staff_jobs_pdf(staff_id):
             jp_where += " AND mj.vehicle_id = ?"
             jp_params.append(vehicle_filter)
         jobs = db.execute(f"""
-            SELECT {_MJ_LIST_COLS}, mj.attachment_data, v.vehicle_type FROM maintenance_jobs mj
+            SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
             WHERE mj.staff_id = ?{jp_where}
             ORDER BY mj.created_at DESC
