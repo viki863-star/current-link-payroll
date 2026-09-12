@@ -430,7 +430,7 @@ def vehicle_list():
                 ) va ON va.vehicle_id = v.plate_no
                 LEFT JOIN employees e ON e.employee_id = va.driver_id
                 WHERE {where_sql}
-                AND (v.linked_plate_no IS NULL OR v.linked_plate_no = '')
+                AND (v.linked_plate_no IS NULL OR v.linked_plate_no = '' OR v.vehicle_category = 'Head')
                 ORDER BY v.ownership_type, v.plate_no""",
             params,
 
@@ -896,14 +896,6 @@ def vehicle_profile(plate_no):
            ORDER BY va.vehicle_id, va.assigned_from DESC""",
         (plate_no,),
     ).fetchall()
-
-    # Fallback: if no vehicle_assignments, check drivers table
-    if not current_drivers:
-        current_drivers = db.execute(
-            """SELECT vehicle_no AS vehicle_id, driver_id, NULL AS assigned_from, full_name AS driver_name
-               FROM drivers WHERE vehicle_no = ? AND status = 'Active'""",
-            (plate_no,),
-        ).fetchall()
 
     active_tab = request.args.get("tab", "overview")
     highlight = request.args.get("highlight", "")
