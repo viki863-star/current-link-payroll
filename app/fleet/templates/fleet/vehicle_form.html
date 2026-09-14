@@ -224,7 +224,7 @@ function toggleTrailerFields(val) {
 }
 function toggleCustom(sel, inputId) {
     var inp = document.getElementById(inputId);
-    if (sel === '__custom__') {
+    if (sel.value === '__custom__') {
         inp.style.display = '';
         inp.required = true;
         inp.focus();
