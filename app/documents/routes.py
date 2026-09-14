@@ -423,10 +423,16 @@ def document_edit(doc_id):
             file_data = base64.b64encode(file.read()).decode("utf-8")
             file_type = file.content_type or "application/octet-stream"
             file_size = len(file_data)
-            thumbnail_data = None
-            pdf_preview_data = None
+            thumbnail_data = doc.get("thumbnail_data")
+            pdf_preview_data = doc.get("pdf_preview_data")
             if doc_category == "Mulkiya":
-                thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, file_type)
+                try:
+                    new_thumb, new_preview = _generate_thumbnail(file_data, file_type)
+                    if new_thumb:
+                        thumbnail_data = new_thumb
+                        pdf_preview_data = new_preview
+                except Exception:
+                    pass
             db.execute(
                 """UPDATE documents SET entity_type=?, entity_id=?, doc_name=?, doc_category=?,
                    doc_ref_no=?, issue_date=?, expiry_date=?, notes=?, file_data=?, file_type=?, file_size=?,
