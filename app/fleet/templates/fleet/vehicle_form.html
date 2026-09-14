@@ -24,31 +24,37 @@
                 </div>
                 <div class="form-group">
                     <label>Vehicle Type *</label>
-                    <select name="vehicle_type" class="form-control">
+                    <select name="vehicle_type" class="form-control" onchange="toggleCustom(this, 'customVehicleType')">
                         <option value="">Select type</option>
                         {% for t in vehicle_types %}
                         <option value="{{ t }}" {% if (v.vehicle_type or '') == t %}selected{% endif %}>{{ t }}</option>
                         {% endfor %}
+                        <option value="__custom__">✏️ Type your own...</option>
                     </select>
+                    <input type="text" name="vehicle_type_custom" id="customVehicleType" class="form-control" style="margin-top:6px;display:none" placeholder="Enter custom vehicle type">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Vehicle Category</label>
-                    <select name="vehicle_category" class="form-control" id="vehicleCategory" onchange="toggleTrailerFields(this.value)">
+                    <select name="vehicle_category" class="form-control" id="vehicleCategory" onchange="toggleTrailerFields(this.value); toggleCustom(this, 'customVehicleCategory')">
                         {% for c in vehicle_categories %}
                         <option value="{{ c }}" {% if (v.vehicle_category or 'Solo') == c %}selected{% endif %}>{{ c }}</option>
                         {% endfor %}
+                        <option value="__custom__">✏️ Type your own...</option>
                     </select>
+                    <input type="text" name="vehicle_category_custom" id="customVehicleCategory" class="form-control" style="margin-top:6px;display:none" placeholder="Enter custom category">
                 </div>
                 <div class="form-group">
                     <label>Sub Type</label>
-                    <select name="vehicle_sub_type" class="form-control">
+                    <select name="vehicle_sub_type" class="form-control" onchange="toggleCustom(this, 'customSubType')">
                         <option value="">Select sub type</option>
                         {% for s in vehicle_sub_types %}
                         <option value="{{ s }}" {% if (v.vehicle_sub_type or '') == s %}selected{% endif %}>{{ s }}</option>
                         {% endfor %}
+                        <option value="__custom__">✏️ Type your own...</option>
                     </select>
+                    <input type="text" name="vehicle_sub_type_custom" id="customSubType" class="form-control" style="margin-top:6px;display:none" placeholder="Enter custom sub type">
                 </div>
             </div>
             <div class="form-row" id="trailerFields" style="{% if (v.vehicle_category or 'Solo') != 'Trailer' %}display:none{% endif %}">
@@ -85,29 +91,35 @@
             <div class="form-row">
                 <div class="form-group">
                     <label>Vehicle Length</label>
-                    <select name="vehicle_length" class="form-control">
+                    <select name="vehicle_length" class="form-control" onchange="toggleCustom(this, 'customVehicleLength')">
                         <option value="">— N/A —</option>
                         <option value="12M" {% if (v.vehicle_length or '') == '12M' %}selected{% endif %}>12M</option>
                         <option value="24M" {% if (v.vehicle_length or '') == '24M' %}selected{% endif %}>24M</option>
+                        <option value="__custom__">✏️ Type your own...</option>
                     </select>
+                    <input type="text" name="vehicle_length_custom" id="customVehicleLength" class="form-control" style="margin-top:6px;display:none" placeholder="e.g. 18M, 30FT">
                 </div>
                 <div class="form-group">
                     <label>Tank Capacity (Gallons)</label>
-                    <select name="tank_capacity_gal" class="form-control">
+                    <select name="tank_capacity_gal" class="form-control" onchange="toggleCustom(this, 'customTankCapacity')">
                         {% for cap in tank_capacities %}
                         <option value="{{ cap }}" {% if (v.tank_capacity_gal or 0)|int == cap %}selected{% endif %}>{{ cap if cap > 0 else '— N/A —' }}</option>
                         {% endfor %}
+                        <option value="__custom__">✏️ Type your own...</option>
                     </select>
+                    <input type="number" name="tank_capacity_gal_custom" id="customTankCapacity" class="form-control" style="margin-top:6px;display:none" placeholder="e.g. 7500">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label>Ownership Type</label>
-                    <select name="ownership_type" class="form-control" id="ownershipType" onchange="togglePartner(this.value)">
+                    <select name="ownership_type" class="form-control" id="ownershipType" onchange="togglePartner(this.value); toggleCustom(this, 'customOwnership')">
                         {% for o in ownership_types %}
                         <option value="{{ o }}" {% if (v.ownership_type or 'Standard') == o %}selected{% endif %}>{{ o }}</option>
                         {% endfor %}
+                        <option value="__custom__">✏️ Type your own...</option>
                     </select>
+                    <input type="text" name="ownership_type_custom" id="customOwnership" class="form-control" style="margin-top:6px;display:none" placeholder="Enter custom ownership type">
                 </div>
                 <div class="form-group" id="partnerNameGroup" style="{% if (v.ownership_type or 'Standard') != 'Partnership' %}display:none{% endif %}">
                     <label>Partner Name</label>
@@ -209,6 +221,18 @@ function togglePartner(val) {
 }
 function toggleTrailerFields(val) {
     document.getElementById('trailerFields').style.display = val === 'Trailer' ? '' : 'none';
+}
+function toggleCustom(sel, inputId) {
+    var inp = document.getElementById(inputId);
+    if (sel === '__custom__') {
+        inp.style.display = '';
+        inp.required = true;
+        inp.focus();
+    } else {
+        inp.style.display = 'none';
+        inp.required = false;
+        inp.value = '';
+    }
 }
 </script>
 {% endblock %}

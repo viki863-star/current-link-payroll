@@ -584,17 +584,29 @@ def vehicle_add():
     if request.method == "POST":
         plate_no = request.form.get("plate_no", "").strip().upper()
         vehicle_type = request.form.get("vehicle_type", "").strip()
+        if vehicle_type == "__custom__":
+            vehicle_type = request.form.get("vehicle_type_custom", "").strip()
         model = request.form.get("model", "").strip()
         year = request.form.get("year", "").strip()
         ownership_type = request.form.get("ownership_type", "").strip()
+        if ownership_type == "__custom__":
+            ownership_type = request.form.get("ownership_type_custom", "").strip()
         partner_name = request.form.get("partner_name", "").strip()
         partner_percent = request.form.get("partner_percent", "").strip()
         driver_id = request.form.get("driver_id", "").strip()
         notes = request.form.get("notes", "").strip()
         vehicle_category = request.form.get("vehicle_category", "Solo").strip()
+        if vehicle_category == "__custom__":
+            vehicle_category = request.form.get("vehicle_category_custom", "").strip()
         vehicle_sub_type = request.form.get("vehicle_sub_type", "").strip()
+        if vehicle_sub_type == "__custom__":
+            vehicle_sub_type = request.form.get("vehicle_sub_type_custom", "").strip()
         vehicle_length = request.form.get("vehicle_length", "").strip()
+        if vehicle_length == "__custom__":
+            vehicle_length = request.form.get("vehicle_length_custom", "").strip()
         tank_capacity_gal = request.form.get("tank_capacity_gal", "0").strip()
+        if tank_capacity_gal == "__custom__":
+            tank_capacity_gal = request.form.get("tank_capacity_gal_custom", "0").strip()
         linked_plate_no = request.form.get("linked_plate_no", "").strip()
         link_type = request.form.get("link_type", "").strip()
 
@@ -661,17 +673,29 @@ def vehicle_edit(plate_no):
     if request.method == "POST":
         new_plate = request.form.get("plate_no", "").strip().upper()
         vehicle_type = request.form.get("vehicle_type", "").strip()
+        if vehicle_type == "__custom__":
+            vehicle_type = request.form.get("vehicle_type_custom", "").strip()
         model = request.form.get("model", "").strip()
         year = request.form.get("year", "").strip()
         ownership_type = request.form.get("ownership_type", "").strip()
+        if ownership_type == "__custom__":
+            ownership_type = request.form.get("ownership_type_custom", "").strip()
         partner_name = request.form.get("partner_name", "").strip()
         partner_percent = request.form.get("partner_percent", "").strip()
         status = request.form.get("status", "").strip()
         notes = request.form.get("notes", "").strip()
         vehicle_category = request.form.get("vehicle_category", "Solo").strip()
+        if vehicle_category == "__custom__":
+            vehicle_category = request.form.get("vehicle_category_custom", "").strip()
         vehicle_sub_type = request.form.get("vehicle_sub_type", "").strip()
+        if vehicle_sub_type == "__custom__":
+            vehicle_sub_type = request.form.get("vehicle_sub_type_custom", "").strip()
         vehicle_length = request.form.get("vehicle_length", "").strip()
+        if vehicle_length == "__custom__":
+            vehicle_length = request.form.get("vehicle_length_custom", "").strip()
         tank_capacity_gal = request.form.get("tank_capacity_gal", "0").strip()
+        if tank_capacity_gal == "__custom__":
+            tank_capacity_gal = request.form.get("tank_capacity_gal_custom", "0").strip()
         linked_plate_no = request.form.get("linked_plate_no", "").strip()
         link_type = request.form.get("link_type", "").strip()
 
