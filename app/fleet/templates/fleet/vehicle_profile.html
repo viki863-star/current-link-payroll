@@ -326,13 +326,110 @@
             <button type="submit" class="btn btn-primary">Upload</button>
         </form>
     </div>
+
+    <style>
+    .mk-vc{position:relative;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);transition:all .2s;max-width:280px}
+    .mk-vc:hover{box-shadow:0 8px 28px rgba(0,0,0,.12);transform:translateY(-2px)}
+    .mk-vc-ribbon{position:absolute;top:0;left:0;right:0;padding:4px 10px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff;text-align:center;z-index:2}
+    .mk-vc-ribbon.expired{background:#ef4444}
+    .mk-vc-ribbon.soon{background:#f59e0b}
+    .mk-vc-ribbon.valid{background:#22c55e}
+    .mk-vc-topbar{height:3px;margin-top:16px;background:linear-gradient(90deg,var(--ring-color) 0%,transparent 100%)}
+    .mk-vc-pattern{background:linear-gradient(135deg,#f8fafc 0%,#e2e8f0 100%);padding:20px 16px;text-align:center}
+    .mk-vc-icon{font-size:1.6rem;margin-bottom:4px}
+    .mk-vc-plate{font-size:1.3rem;font-weight:800;color:#1e293b;font-family:'JetBrains Mono','Courier New',monospace;letter-spacing:1px;margin:4px 0}
+    .mk-vc-label{font-size:.65rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+    .mk-vc-docname{font-size:.72rem;color:#94a3b8;margin-top:2px}
+    .mk-vc-meta{display:flex;flex-direction:column;gap:4px;margin-top:8px;align-items:center}
+    .mk-vc-exp{font-size:.7rem;color:#475569}
+    .mk-vc-countdown{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block}
+    .mk-vc-countdown.expired{background:#fee2e2;color:#dc2626}
+    .mk-vc-countdown.soon{background:#fef3c7;color:#d97706}
+    .mk-vc-countdown.valid{background:#dcfce7;color:#16a34a}
+    .mk-vc-hint{font-size:.68rem;color:#94a3b8;margin-top:8px;opacity:0;transition:opacity .2s}
+    .mk-vc:hover .mk-vc-hint{opacity:1}
+    .mk-vc-divider{width:35%;margin:8px auto 0;background:#f1f5f9;height:1px}
+    .mk-vc-foot{padding:6px 12px;display:flex;justify-content:space-between;align-items:center;background:#fff}
+    .mk-vc-date{font-size:.55rem;color:#cbd5e1}
+    .mk-vc-actions{display:flex;gap:4px}
+    .mk-vc-actions .doc-action-btn{width:22px;height:22px;font-size:.65rem;border:none;background:#f1f5f9;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+    .mk-vc-actions .doc-action-btn:hover{background:#e2e8f0}
+    .mk-vc-back{position:absolute;top:0;left:0;right:0;bottom:0;background:#1e293b;display:none;cursor:pointer;border-radius:14px;overflow:hidden}
+    .mk-vc-back img{width:100%;height:100%;object-fit:cover}
+    .mk-vc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+    </style>
+
+    {% set mulkiyas = all_docs|selectattr('doc_category','equalto','Mulkiya')|list %}
+    {% set other_docs = all_docs|rejectattr('doc_category','equalto','Mulkiya')|list %}
+
+    {% if mulkiyas %}
+    <div style="margin-top:1rem">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Vehicle Mulkiyas</h3>
+        <div class="mk-vc-grid">
+        {% for d in mulkiyas %}
+        {% set es = d._status if d._status is defined else 'valid' %}
+        {% if d.expiry_date %}
+            {% set exp_str = d.expiry_date|string %}
+            {% if exp_str|length >= 10 %}
+                {% set today = date.today() %}
+                {% set exp_date = date.fromisoformat(exp_str[:10]) %}
+                {% set days_left = (exp_date - today).days %}
+            {% else %}
+                {% set days_left = 9999 %}
+            {% endif %}
+        {% else %}
+            {% set days_left = 9999 %}
+        {% endif %}
+        {% if days_left < 0 %}{% set es = 'expired' %}{% elif days_left <= 30 %}{% set es = 'soon' %}{% else %}{% set es = 'valid' %}{% endif %}
+        <div class="mk-vc" onclick="{% if d.pdf_preview_data %}this.querySelector('.mk-vc-back').style.display=this.querySelector('.mk-vc-back').style.display==='block'?'none':'block'{% endif %}">
+            <div class="mk-vc-ribbon {{ es }}">{{ d.doc_category }}</div>
+            <div class="mk-vc-topbar" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}"></div>
+            <div class="mk-vc-pattern">
+                <div class="mk-vc-icon">&#128663;</div>
+                <div class="mk-vc-plate">{{ v.plate_no }}</div>
+                <div class="mk-vc-label">Vehicle Mulkiya</div>
+                <div class="mk-vc-docname">{{ d.doc_name }}</div>
+                <div class="mk-vc-meta">
+                    {% if d.expiry_date %}<span class="mk-vc-exp">Exp: {{ d.expiry_date }}</span>{% endif %}
+                    {% if days_left != 9999 %}
+                    <span class="mk-vc-countdown {{ es }}">
+                        {% if days_left < 0 %}Expired {{ (days_left * -1) }}d ago{% elif days_left == 0 %}Today!{% else %}{{ days_left }}d left{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="mk-vc-hint">&#8634; Tap to view</div>
+            </div>
+            <div class="mk-vc-divider"></div>
+            <div class="mk-vc-foot">
+                <span class="mk-vc-date">{{ d.uploaded_at|string|truncate(10, True, '') }}</span>
+                <div class="mk-vc-actions">
+                    {% if d.doc_data %}
+                    <a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" class="doc-action-btn" title="View" onclick="event.stopPropagation()">&#128065;</a>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" class="doc-action-btn" onsubmit="event.stopPropagation();return confirm('Delete {{ d.doc_name }}?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="doc-action-btn" title="Delete">&#128465;</button>
+                    </form>
+                </div>
+            </div>
+            {% if d.pdf_preview_data %}
+            <div class="mk-vc-back" onclick="this.style.display='none'">
+                <img src="data:image/jpeg;base64,{{ d.pdf_preview_data }}" alt="Mulkiya {{ v.plate_no }}">
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if other_docs %}
     <div class="profile-card" style="margin-top:1rem">
-        <h3 style="margin:0 0 12px;font-size:0.95rem">All Documents</h3>
-        {% if documents %}
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Other Documents</h3>
         <table class="smart-table">
             <thead><tr><th>Name</th><th>Type</th><th>Uploaded</th><th>Notes</th><th></th></tr></thead>
             <tbody>
-                {% for d in documents %}
+                {% for d in other_docs %}
                 <tr>
                     <td><strong>{{ d.doc_name }}</strong></td>
                     <td><span class="badge badge-type">{{ d.doc_type or '—' }}</span></td>
@@ -351,10 +448,14 @@
                 {% endfor %}
             </tbody>
         </table>
-        {% else %}
-        <p class="empty-state">No documents uploaded.</p>
-        {% endif %}
     </div>
+    {% endif %}
+
+    {% if not all_docs %}
+    <div class="profile-card" style="margin-top:1rem">
+        <p class="empty-state">No documents uploaded.</p>
+    </div>
+    {% endif %}
     {% elif active_tab == 'fuel' %}
 <div class="profile-card">
     <h3 style="margin:0 0 12px;font-size:0.95rem">Add Fuel Entry</h3>

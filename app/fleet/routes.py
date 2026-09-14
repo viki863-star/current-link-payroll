@@ -995,6 +995,16 @@ def vehicle_profile(plate_no):
         "SELECT id, plate_no, doc_name, doc_type, doc_data, uploaded_at, notes FROM vehicle_documents WHERE plate_no = ? ORDER BY uploaded_at DESC",
         (plate_no,),
     ).fetchall()
+    # Also fetch Mulkiya from main documents table (with thumbnail/pdf_preview for card display)
+    mulkiya_docs = db.execute(
+        "SELECT id, doc_name, doc_category, entity_id, expiry_date, uploaded_at, doc_data, thumbnail_data, pdf_preview_data FROM documents WHERE entity_type = 'vehicle' AND entity_id = ? AND doc_category = 'Mulkiya' ORDER BY uploaded_at DESC",
+        (plate_no,),
+    ).fetchall()
+    from ..documents.routes import _expiry_status
+    for md in mulkiya_docs:
+        md["_status"] = _expiry_status(md["expiry_date"])
+    # Combine: mulkiya from documents table + other docs from vehicle_documents
+    all_docs = list(documents) + list(mulkiya_docs)
 
     fuel_entries = db.execute(
         "SELECT id, vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes, source_expense_id, created_at FROM fuel_entries WHERE vehicle_plate = ? ORDER BY entry_date DESC, id DESC",
