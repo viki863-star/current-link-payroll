@@ -414,12 +414,12 @@ def vehicle_list():
             where.append("ownership_type = ?")
             params.append(ownership_filter)
         if status_filter:
-            where.append("status = ?")
+            where.append("v.status = ?")
             params.append(status_filter)
 
         # Default to Active only if no status filter
         if not status_filter:
-            where.append("status = 'Active'")
+            where.append("v.status = 'Active'")
 
         where_sql = " AND ".join(where) if where else "TRUE"
 
