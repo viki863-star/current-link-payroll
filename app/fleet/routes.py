@@ -276,7 +276,7 @@ def fleet_dashboard():
     ensure_fleet_tables()
     db = open_db()
 
-    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles ORDER BY plate_no").fetchall()
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE plate_no NOT IN (SELECT linked_plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != '') ORDER BY plate_no").fetchall()
     total = len(vehicles)
     active_v = sum(1 for v in vehicles if (v["status"] or "").lower() == "active")
     standard = sum(1 for v in vehicles if v["ownership_type"] == "Standard")
