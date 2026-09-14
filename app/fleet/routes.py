@@ -1147,18 +1147,39 @@ def vehicle_document_upload(plate_no):
     import base64
     doc_data = None
     doc_type = None
+    file_data = None
     if "doc_file" in request.files:
         f = request.files["doc_file"]
         if f.filename:
-            doc_data = base64.b64encode(f.read()).decode("utf-8")
+            raw = f.read()
+            doc_data = base64.b64encode(raw).decode("utf-8")
             doc_type = f.content_type
-    db.execute(
-        "INSERT INTO vehicle_documents (plate_no, doc_name, doc_type, doc_data, notes) VALUES (?,?,?,?,?)",
-        (plate_no, doc_name, doc_type, doc_data, notes),
-    )
+            file_data = doc_data
+
+    is_mulkiya = "mulkiya" in doc_name.lower()
+
+    if is_mulkiya:
+        # Save Mulkiya to main documents table with thumbnail
+        thumbnail_data = None
+        pdf_preview_data = None
+        if file_data:
+            try:
+                from ..documents.routes import _generate_thumbnail
+                thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, doc_type)
+            except Exception:
+                pass
+        db.execute(
+            "INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, file_data, file_type, file_size, thumbnail_data, pdf_preview_data, notes) VALUES ('vehicle',?,?,?,?,?,?,?,?,?)",
+            (plate_no, doc_name, 'Mulkiya', file_data, doc_type, len(file_data) if file_data else 0, thumbnail_data, pdf_preview_data, notes),
+        )
+    else:
+        db.execute(
+            "INSERT INTO vehicle_documents (plate_no, doc_name, doc_type, doc_data, notes) VALUES (?,?,?,?,?)",
+            (plate_no, doc_name, doc_type, doc_data, notes),
+        )
     db.commit()
     flash(f"Document '{doc_name}' uploaded.", "success")
-    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab='documents'))
 
 
 @fleet_bp.route("/fleet/vehicles/<path:plate_no>/documents/<int:doc_id>/delete", methods=["POST"])
@@ -1166,28 +1187,36 @@ def vehicle_document_upload(plate_no):
 def vehicle_document_delete(plate_no, doc_id):
     _touch_admin_workspace("fleet")
     db = open_db()
-    db.execute("DELETE FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no))
+    # Try vehicle_documents first
+    result = db.execute("DELETE FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no))
+    if result.rowcount == 0:
+        # Try main documents table (Mulkiya)
+        db.execute("DELETE FROM documents WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?", (doc_id, plate_no))
     db.commit()
     flash("Document deleted.", "success")
-    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab='documents'))
 
 
 @fleet_bp.route("/fleet/vehicles/<path:plate_no>/documents/<int:doc_id>/view")
 @_login_required("admin")
 def vehicle_document_view(plate_no, doc_id):
     db = open_db()
-    doc = db.execute("SELECT id, plate_no, doc_name, doc_type, doc_data, uploaded_at, notes FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no)).fetchone()
+    # Check vehicle_documents first
+    doc = db.execute("SELECT id, doc_name, doc_type, doc_data FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no)).fetchone()
+    if not doc or not doc["doc_data"]:
+        # Check main documents table (Mulkiya)
+        doc = db.execute("SELECT id, doc_name, file_type AS doc_type, file_data AS doc_data FROM documents WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?", (doc_id, plate_no)).fetchone()
     if not doc or not doc["doc_data"]:
         flash("Document not found.", "error")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
     import base64
     from io import BytesIO
-    data = base64.b64decode(job["attachment_data"])
+    data = base64.b64decode(doc["doc_data"])
     return send_file(
         BytesIO(data),
-        mimetype=job["attachment_type"] or "application/octet-stream",
+        mimetype=doc["doc_type"] or "application/octet-stream",
         as_attachment=False,
-        download_name=job["attachment_name"] or f"attachment_{job_id}",
+        download_name=doc["doc_name"] or f"document_{doc_id}",
     )
 
 

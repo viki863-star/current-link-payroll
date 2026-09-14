@@ -381,7 +381,7 @@
             {% set days_left = 9999 %}
         {% endif %}
         {% if days_left < 0 %}{% set es = 'expired' %}{% elif days_left <= 30 %}{% set es = 'soon' %}{% else %}{% set es = 'valid' %}{% endif %}
-        <div class="mk-vc" onclick="{% if d.pdf_preview_data %}this.querySelector('.mk-vc-back').style.display=this.querySelector('.mk-vc-back').style.display==='block'?'none':'block'{% endif %}">
+        <div class="mk-vc" onclick="{% if d.thumbnail_data %}this.querySelector('.mk-vc-back').style.display=this.querySelector('.mk-vc-back').style.display==='block'?'none':'block'{% endif %}">
             <div class="mk-vc-ribbon {{ es }}">{{ d.doc_category }}</div>
             <div class="mk-vc-topbar" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}"></div>
             <div class="mk-vc-pattern">
@@ -397,7 +397,7 @@
                     </span>
                     {% endif %}
                 </div>
-                <div class="mk-vc-hint">&#8634; Tap to view</div>
+                <div class="mk-vc-hint">{% if d.thumbnail_data %}&#8634; Tap to view{% else %}&#128196; Click to view{% endif %}</div>
             </div>
             <div class="mk-vc-divider"></div>
             <div class="mk-vc-foot">
@@ -412,9 +412,9 @@
                     </form>
                 </div>
             </div>
-            {% if d.pdf_preview_data %}
+            {% if d.thumbnail_data %}
             <div class="mk-vc-back" onclick="this.style.display='none'">
-                <img src="data:image/jpeg;base64,{{ d.pdf_preview_data }}" alt="Mulkiya {{ v.plate_no }}">
+                <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="Mulkiya {{ v.plate_no }}">
             </div>
             {% endif %}
         </div>
