@@ -417,6 +417,10 @@ def vehicle_list():
             where.append("status = ?")
             params.append(status_filter)
 
+        # Default to Active only if no status filter
+        if not status_filter:
+            where.append("status = 'Active'")
+
         where_sql = " AND ".join(where) if where else "TRUE"
 
         vehicles = db.execute(
@@ -438,9 +442,12 @@ def vehicle_list():
 
         vehicle_types = [r[0] for r in db.execute("SELECT DISTINCT vehicle_type FROM vehicles ORDER BY vehicle_type").fetchall()]
         ownership_types = [r[0] for r in db.execute("SELECT DISTINCT ownership_type FROM vehicles ORDER BY ownership_type").fetchall()]
+        active_count = db.execute("SELECT COUNT(*) FROM vehicles WHERE status = 'Active'").fetchone()[0]
+        inactive_count = db.execute("SELECT COUNT(*) FROM vehicles WHERE status = 'Inactive'").fetchone()[0]
         stats = {
-            "total": len(vehicles),
-            "active": sum(1 for v in vehicles if (v["status"] or "").lower() == "active"),
+            "total": active_count + inactive_count,
+            "active": active_count,
+            "inactive": inactive_count,
             "heads": sum(1 for v in vehicles if (v.get("vehicle_category") or "Solo") == "Head"),
             "trailers": sum(1 for v in vehicles if (v.get("vehicle_category") or "Solo") == "Trailer"),
         }

@@ -43,10 +43,9 @@
     </div>
 
     <div class="kpi-mini-row">
+        <a href="{{ url_for('fleet.vehicle_list') }}" class="kpi-mini {% if not status_filter or status_filter == 'Active' %}active{% endif %}">Active: <strong>{{ stats.active }}</strong></a>
+        <a href="{{ url_for('fleet.vehicle_list', status='Inactive', q=q, type=type_filter, ownership=ownership_filter) }}" class="kpi-mini {% if status_filter == 'Inactive' %}active{% endif %}">Inactive: <strong>{{ stats.inactive }}</strong></a>
         <span class="kpi-mini">Total: <strong>{{ stats.total }}</strong></span>
-        <span class="kpi-mini active">Active: <strong>{{ stats.active }}</strong></span>
-        <span class="kpi-mini">Heads: <strong>{{ stats.heads }}</strong></span>
-        <span class="kpi-mini">Trailers: <strong>{{ stats.trailers }}</strong></span>
     </div>
 
     <div class="table-wrap">
