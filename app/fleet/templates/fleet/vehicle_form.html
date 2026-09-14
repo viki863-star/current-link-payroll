@@ -64,7 +64,7 @@
                         <option value="">— No link —</option>
                         {% for veh in vehicles_list %}
                         {% if veh.vehicle_category == 'Head' or veh.vehicle_category == 'Solo' %}
-                        <option value="{{ veh.plate_no }}" {% if (v.linked_plate_no or '') == veh.plate_no %}selected{% endif %}>{{ veh.plate_no }} - {{ veh.vehicle_type }}{% if veh.model %} ({{ veh.model }}){% endif %}</option>
+                        <option value="{{ veh.plate_no }}" {% if (v.linked_plate_no or '') == veh.plate_no %}selected{% elif veh.plate_no in already_linked %}disabled{% endif %}>{{ veh.plate_no }} - {{ veh.vehicle_type }}{% if veh.model %} ({{ veh.model }}){% endif %}{% if veh.plate_no in already_linked %} ⛔ Already linked{% endif %}</option>
                         {% endif %}
                         {% endfor %}
                     </select>

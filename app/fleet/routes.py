@@ -587,6 +587,7 @@ def vehicle_add():
     db = open_db()
     drivers = _all_employees_drivers()
     vehicles_list = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+    already_linked = [r["plate_no"] for r in db.execute("SELECT linked_plate_no AS plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != ''").fetchall()]
 
     if request.method == "POST":
         plate_no = request.form.get("plate_no", "").strip().upper()
@@ -619,12 +620,12 @@ def vehicle_add():
 
         if not plate_no or not vehicle_type:
             flash("Plate number and vehicle type are required.", "error")
-            return render_template("fleet/vehicle_form.html", v=request.form, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, page_title="Add Vehicle", submit_label="Add Vehicle")
+            return render_template("fleet/vehicle_form.html", v=request.form, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, page_title="Add Vehicle", submit_label="Add Vehicle")
 
         existing = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
         if existing:
             flash(f"Vehicle {plate_no} already exists.", "error")
-            return render_template("fleet/vehicle_form.html", v=request.form, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, page_title="Add Vehicle", submit_label="Add Vehicle")
+            return render_template("fleet/vehicle_form.html", v=request.form, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, page_title="Add Vehicle", submit_label="Add Vehicle")
 
         db.execute(
             "INSERT INTO vehicles (plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -642,7 +643,7 @@ def vehicle_add():
         flash(f"Vehicle {plate_no} added.", "success")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
 
-    return render_template("fleet/vehicle_form.html", v={}, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, page_title="Add Vehicle", submit_label="Add Vehicle")
+    return render_template("fleet/vehicle_form.html", v={}, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, page_title="Add Vehicle", submit_label="Add Vehicle")
 
 
 # ── Edit Vehicle ────────────────────────────────────────────────
@@ -668,6 +669,8 @@ def vehicle_edit(plate_no):
         return redirect(url_for("fleet.vehicle_list"))
     vehicles_list = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category FROM vehicles WHERE status = 'Active' AND plate_no != ? ORDER BY plate_no", (plate_no,)).fetchall()
     linked_trailers = db.execute("SELECT plate_no, vehicle_type, vehicle_sub_type, vehicle_length, tank_capacity_gal FROM vehicles WHERE linked_plate_no = ? AND vehicle_category = 'Trailer' ORDER BY plate_no", (plate_no,)).fetchall()
+    # Get already linked vehicle plate_nos (to disable in dropdown)
+    already_linked = [r["plate_no"] for r in db.execute("SELECT linked_plate_no AS plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != ''").fetchall()]
 
     existing_mulkiyas = db.execute(
         "SELECT id, doc_name, doc_ref_no, expiry_date FROM documents WHERE entity_type = 'vehicle' AND entity_id = ? AND doc_category = 'Mulkiya' ORDER BY uploaded_at DESC",
@@ -708,13 +711,13 @@ def vehicle_edit(plate_no):
 
         if not new_plate:
             flash("Plate number is required.", "error")
-            return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, page_title="Edit Vehicle", submit_label="Save Changes")
+            return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, page_title="Edit Vehicle", submit_label="Save Changes")
 
         if new_plate != plate_no:
             existing = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (new_plate,)).fetchone()
             if existing:
                 flash(f"Plate number {new_plate} already exists.", "error")
-                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, page_title="Edit Vehicle", submit_label="Save Changes")
+                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, page_title="Edit Vehicle", submit_label="Save Changes")
             try:
                 db.execute(
                     "INSERT INTO vehicles (plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type) SELECT ?, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type FROM vehicles WHERE plate_no=?",
@@ -731,7 +734,7 @@ def vehicle_edit(plate_no):
                 db.execute("DELETE FROM vehicles WHERE plate_no=?", (plate_no,))
             except Exception as e:
                 flash(f"Could not update plate number: {e}", "error")
-                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, page_title="Edit Vehicle", submit_label="Save Changes")
+                return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, page_title="Edit Vehicle", submit_label="Save Changes")
         else:
             db.execute(
                 "UPDATE vehicles SET vehicle_type=?, model=?, year=?, ownership_type=?, partner_name=?, partner_percent=?, status=?, notes=?, vehicle_category=?, vehicle_sub_type=?, vehicle_length=?, tank_capacity_gal=?, linked_plate_no=?, link_type=? WHERE plate_no=?",
@@ -741,7 +744,7 @@ def vehicle_edit(plate_no):
         flash("Vehicle updated.", "success")
         return redirect(url_for("fleet.vehicle_profile", plate_no=new_plate))
 
-    return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, page_title="Edit Vehicle", submit_label="Save Changes")
+    return render_template("fleet/vehicle_form.html", v=v, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, page_title="Edit Vehicle", submit_label="Save Changes")
 
 
 # ── Add Trailer to Head Vehicle ────────────────────────────────
