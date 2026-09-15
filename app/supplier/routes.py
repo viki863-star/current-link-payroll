@@ -2788,68 +2788,29 @@ def supplier_soa(sup_id):
 
     ledger = []
 
-    # Invoices — increase balance (we owe supplier)
-    for inv in db.execute(
-        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, vat_amount, description, status FROM supplier_invoices WHERE supplier_id = ?",
-        (sup_id,),
-    ).fetchall():
-        parts = [f"Invoice: {inv['ref']}"]
-        if inv['description']:
-            parts.append(inv['description'])
-        ledger.append({
-            "date": inv["dt"],
-            "type": "invoice",
-            "description": " — ".join(parts),
-            "debit": 0,
-            "credit": inv["amt"],
-            "ref": inv["ref"],
-        })
-
-    # Expenses — increase balance
-    # Non-fuel expenses: individual lines
-    for exp in db.execute(
-        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ? AND (earning_type IS NULL OR earning_type != 'Fuel')",
-        (sup_id,),
-    ).fetchall():
-        if exp["description"]:
-            desc = exp["description"]
-            if exp["vehicle_no"]:
-                desc += f" [{exp['vehicle_no']}]"
-        else:
-            if exp["earning_type"] == "trip":
-                desc = f"Trip: {exp['quantity']} x {exp['rate']}"
-            elif exp["earning_type"] == "hour":
-                desc = f"Hours: {exp['quantity']} x {exp['rate']}"
-            else:
-                desc = f"Expense: {exp['ref']}"
-            if exp["vehicle_no"]:
-                desc += f" [{exp['vehicle_no']}]"
-        ledger.append({
-            "date": exp["dt"],
-            "type": "expense",
-            "description": desc,
-            "debit": 0,
-            "credit": exp["amt"],
-            "ref": "",
-        })
-
-    # Fuel expenses — group by month, show only monthly total
-    fuel_months = db.execute(
+    # All expenses (fuel + non-fuel) — grouped by month
+    month_names = {'01':'January','02':'February','03':'March','04':'April','05':'May','06':'June','07':'July','08':'August','09':'September','10':'October','11':'November','12':'December'}
+    expense_months = db.execute(
         """SELECT substr(expense_date, 1, 7) as ym,
                   SUM(amount) as total_amt,
-                  SUM(quantity) as total_gln
+                  SUM(quantity) as total_gln,
+                  COUNT(*) as bill_count
            FROM supplier_expenses
-           WHERE supplier_id = ? AND earning_type = 'Fuel'
+           WHERE supplier_id = ?
            GROUP BY ym ORDER BY ym""",
         (sup_id,),
     ).fetchall()
-    for fm in fuel_months:
+    for em in expense_months:
+        ym = em["ym"]
+        month_num = ym[5:7] if ym and len(ym) >= 7 else ''
+        month_name = month_names.get(month_num, month_num)
+        year = ym[:4] if ym else ''
         ledger.append({
-            "date": f"{fm['ym']}-01",
+            "date": f"{ym}-15",
             "type": "expense",
-            "description": f"Fuel — {fm['ym']} ({fm['total_gln']:.1f} GLN)",
+            "description": f"Total Expense in the month of {month_name} {year} ({em['bill_count']} bills)",
             "debit": 0,
-            "credit": fm["total_amt"],
+            "credit": em["total_amt"],
             "ref": "",
         })
 
@@ -2889,41 +2850,14 @@ def supplier_soa(sup_id):
         running += row["credit"] - row["debit"]
         row["balance"] = round(running, 2)
 
-    # Group by month and add monthly total rows
-    from collections import OrderedDict
-    monthly_groups = OrderedDict()
+    # Calculate running balance
+    running = 0
     for row in ledger:
-        ym = row["date"][:7] if row["date"] and len(row["date"]) >= 7 else row["date"]
-        if ym not in monthly_groups:
-            monthly_groups[ym] = []
-        monthly_groups[ym].append(row)
+        running += row["credit"] - row["debit"]
+        row["balance"] = round(running, 2)
 
-    final_ledger = []
-    for ym, rows in monthly_groups.items():
-        final_ledger.extend(rows)
-        month_credit = sum(r["credit"] for r in rows)
-        month_debit = sum(r["debit"] for r in rows)
-        if month_credit > 0 or month_debit > 0:
-            last_balance = rows[-1]["balance"] if rows else 0
-            month_names = {'01':'January','02':'February','03':'March','04':'April','05':'May','06':'June','07':'July','08':'August','09':'September','10':'October','11':'November','12':'December'}
-            month_num = ym[5:7] if ym and len(ym) >= 7 else ''
-            month_name = month_names.get(month_num, month_num)
-            year = ym[:4] if ym else ''
-            final_ledger.append({
-                "date": ym + "-99",
-                "type": "monthly_total",
-                "description": f"📊 {month_name} {year} — Total ({len(rows)} transactions)",
-                "debit": month_debit,
-                "credit": month_credit,
-                "balance": last_balance,
-                "ref": "",
-                "is_monthly_total": True,
-            })
-
-    ledger = final_ledger
-
-    total_credit = sum(r["credit"] for r in ledger if not r.get("is_monthly_total"))
-    total_debit = sum(r["debit"] for r in ledger if not r.get("is_monthly_total"))
+    total_credit = sum(r["credit"] for r in ledger)
+    total_debit = sum(r["debit"] for r in ledger)
     closing = round(total_credit - total_debit, 2)
 
 
