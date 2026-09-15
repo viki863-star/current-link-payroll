@@ -2883,6 +2883,40 @@ def supplier_soa(sup_id):
     # Sort by date
     ledger.sort(key=lambda x: x["date"])
 
+    # Group by month and add monthly total rows
+    from collections import OrderedDict
+    monthly_groups = OrderedDict()
+    for row in ledger:
+        ym = row["date"][:7] if row["date"] and len(row["date"]) >= 7 else row["date"]
+        if ym not in monthly_groups:
+            monthly_groups[ym] = []
+        monthly_groups[ym].append(row)
+
+    final_ledger = []
+    for ym, rows in monthly_groups.items():
+        final_ledger.extend(rows)
+        month_credit = sum(r["credit"] for r in rows)
+        month_debit = sum(r["debit"] for r in rows)
+        if month_credit > 0 or month_debit > 0:
+            # Get the last balance in this month
+            last_balance = rows[-1]["balance"] if rows else 0
+            month_names = {'01':'January','02':'February','03':'March','04':'April','05':'May','06':'June','07':'July','08':'August','09':'September','10':'October','11':'November','12':'December'}
+            month_num = ym[5:7] if ym and len(ym) >= 7 else ''
+            month_name = month_names.get(month_num, month_num)
+            year = ym[:4] if ym else ''
+            final_ledger.append({
+                "date": ym + "-99",
+                "type": "monthly_total",
+                "description": f"📊 {month_name} {year} — Total ({len(rows)} transactions)",
+                "debit": month_debit,
+                "credit": month_credit,
+                "balance": last_balance,
+                "ref": "",
+                "is_monthly_total": True,
+            })
+
+    ledger = final_ledger
+
     # Calculate running balance
     running = 0
     for row in ledger:

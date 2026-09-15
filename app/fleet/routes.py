@@ -997,7 +997,7 @@ def vehicle_profile(plate_no):
     ).fetchall()
     # Also fetch Mulkiya from main documents table (with thumbnail/pdf_preview for card display)
     mulkiya_docs = db.execute(
-        "SELECT id, doc_name, doc_category, entity_id, expiry_date, uploaded_at, doc_data, thumbnail_data, pdf_preview_data FROM documents WHERE entity_type = 'vehicle' AND entity_id = ? AND doc_category = 'Mulkiya' ORDER BY uploaded_at DESC",
+        "SELECT id, doc_name, doc_category, entity_id, expiry_date, uploaded_at, file_data AS doc_data, thumbnail_data, pdf_preview_data FROM documents WHERE entity_type = 'vehicle' AND entity_id = ? AND doc_category = 'Mulkiya' ORDER BY uploaded_at DESC",
         (plate_no,),
     ).fetchall()
     from ..documents.routes import _expiry_status

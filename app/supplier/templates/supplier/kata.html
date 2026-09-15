@@ -59,6 +59,21 @@
                 </thead>
                 <tbody>
                     {% for row in ledger %}
+                    {% if row.is_monthly_total %}
+                    <tr style="background:linear-gradient(90deg,#f0f4f8,#e8edf4);border-top:2px solid var(--primary)">
+                        <td class="mono" style="text-align:center;font-weight:700;color:var(--primary);font-size:0.78rem">{{ row.date[:7] }}</td>
+                        <td style="font-size:0.82rem;font-weight:700;color:var(--primary);padding:6px">{{ row.description }}</td>
+                        <td class="mono" style="text-align:right;font-weight:700;color:var(--green);white-space:nowrap">
+                            {% if row.debit > 0 %}{{ "%.0f"|format(row.debit) }}{% endif %}
+                        </td>
+                        <td class="mono" style="text-align:right;font-weight:700;color:#e65100;white-space:nowrap">
+                            {% if row.credit > 0 %}{{ "%.0f"|format(row.credit) }}{% endif %}
+                        </td>
+                        <td class="mono" style="text-align:right;font-weight:700;white-space:nowrap;color:{% if row.balance > 0 %}#e65100{% else %}var(--green){% endif %}">
+                            {{ "%.0f"|format(row.balance) }}
+                        </td>
+                    </tr>
+                    {% else %}
                     <tr style="{% if 'Separate' in row.description %}opacity:0.6{% endif %}">
                         <td class="mono" style="text-align:center;white-space:nowrap">{{ row.date }}</td>
                         <td style="font-size:0.82rem;padding:4px 6px;text-align:left;word-break:break-word;overflow-wrap:break-word">{{ row.description }}</td>
@@ -72,6 +87,7 @@
                             {% if 'Separate' in row.description %}-{% else %}{{ "%.0f"|format(row.balance) }}{% endif %}
                         </td>
                     </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
