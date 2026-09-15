@@ -2891,49 +2891,32 @@ def supplier_soa_pdf(sup_id):
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
 
     ledger = []
-    for inv in db.execute(
-        "SELECT id, invoice_date as dt, invoice_no as ref, total_amount as amt, description, status FROM supplier_invoices WHERE supplier_id = ?",
-        (sup_id,),
-    ).fetchall():
-        parts = [f"Invoice: {inv['ref']}"]
-        if inv['description']:
-            parts.append(inv['description'])
-        ledger.append({"date": inv["dt"], "type": "Invoice", "ref": " — ".join(parts), "dr": 0, "cr": inv["amt"]})
-
-    # Non-fuel expenses: individual lines
-    for exp in db.execute(
-        "SELECT id, expense_date as dt, category as ref, amount as amt, earning_type, quantity, rate, vehicle_no, description FROM supplier_expenses WHERE supplier_id = ? AND (earning_type IS NULL OR earning_type != 'Fuel')",
-        (sup_id,),
-    ).fetchall():
-        if exp["description"]:
-            d = exp["description"]
-            if exp["vehicle_no"]:
-                d += f" [{exp['vehicle_no']}]"
-        else:
-            if exp["earning_type"] == "trip":
-                d = f"Trip: {exp['quantity']} x {exp['rate']}"
-            elif exp["earning_type"] == "hour":
-                d = f"Hours: {exp['quantity']} x {exp['rate']}"
-            else:
-                d = f"Expense: {exp['ref']}"
-            if exp["vehicle_no"]:
-                d += f" [{exp['vehicle_no']}]"
-        ledger.append({"date": exp["dt"], "type": "Expense", "ref": d, "dr": 0, "cr": exp["amt"]})
-
-    # Fuel expenses — group by month, show only monthly total
-    fuel_months = db.execute(
+    # All expenses (fuel + non-fuel) — grouped by month
+    month_names = {'01':'January','02':'February','03':'March','04':'April','05':'May','06':'June','07':'July','08':'August','09':'September','10':'October','11':'November','12':'December'}
+    expense_months = db.execute(
         """SELECT substr(expense_date, 1, 7) as ym,
                   SUM(amount) as total_amt,
-                  SUM(quantity) as total_gln
+                  SUM(quantity) as total_gln,
+                  COUNT(*) as bill_count
            FROM supplier_expenses
-           WHERE supplier_id = ? AND earning_type = 'Fuel'
+           WHERE supplier_id = ?
            GROUP BY ym ORDER BY ym""",
         (sup_id,),
     ).fetchall()
-    for fm in fuel_months:
-        ledger.append({"date": f"{fm['ym']}-01", "type": "Expense", "ref": f"Fuel — {fm['ym']} ({fm['total_gln']:.1f} GLN)", "dr": 0, "cr": fm["total_amt"]})
+    for em in expense_months:
+        ym = em["ym"]
+        month_num = ym[5:7] if ym and len(ym) >= 7 else ''
+        month_name = month_names.get(month_num, month_num)
+        year = ym[:4] if ym else ''
+        ledger.append({"date": f"{ym}-15", "type": "Expense", "ref": f"Total Expense in the month of {month_name} {year} ({em['bill_count']} bills)", "dr": 0, "cr": em["total_amt"]})
+
+    # Payments
     for pay in db.execute(
-        "SELECT id, payment_date as dt, payment_method as ref, amount as amt, reference_no, notes, invoice_id FROM supplier_payment_records WHERE supplier_id = ?",
+        """SELECT pr.id, pr.payment_date as dt, pr.amount as amt, pr.payment_method as ref,
+                  pr.reference_no, pr.notes, pr.invoice_id, inv.invoice_no
+           FROM supplier_payment_records pr
+           LEFT JOIN supplier_invoices inv ON inv.id = pr.invoice_id
+           WHERE pr.supplier_id = ?""",
         (sup_id,),
     ).fetchall():
         if pay["notes"]:
@@ -2942,6 +2925,8 @@ def supplier_soa_pdf(sup_id):
             parts = [f"Payment: {pay['ref']}"]
             if pay["reference_no"]:
                 parts.append(pay["reference_no"])
+            if pay["invoice_no"]:
+                parts.append(f"→ {pay['invoice_no']}")
             d = " — ".join(parts)
         ledger.append({"date": pay["dt"], "type": "Payment", "ref": d, "dr": pay["amt"], "cr": 0})
 
