@@ -4614,6 +4614,7 @@ def register_routes(app: Flask) -> None:
             parties=_all_parties(db),
             payment_method_options=PAYMENT_METHOD_OPTIONS,
             loan_type_options=LOAN_TYPE_OPTIONS,
+            values={},
         )
 
     @app.post("/loans/register-party")
