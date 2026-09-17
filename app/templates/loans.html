@@ -4,134 +4,364 @@
 
 {% block content %}
 <div class="profile-shell">
+
 <style>
-.ln-stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center; transition:box-shadow 0.15s; }
-.ln-stat:hover { box-shadow:0 2px 12px rgba(0,0,0,0.06); }
-.ln-stat .lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
-.ln-stat .val { font-size:1.4rem; font-weight:700; margin-top:6px; }
+/* ═══ LOANS DASHBOARD — ANNUAL FEES STYLE ═══ */
+.ln-hero {
+    background:linear-gradient(135deg, #e65100 0%, #bf360c 100%);
+    border-radius:20px; padding:32px 36px 28px; color:#fff;
+    margin-bottom:24px; position:relative; overflow:hidden;
+}
+.ln-hero::before { content:''; position:absolute; top:-80px; right:-60px; width:300px; height:300px; border-radius:50%; background:rgba(255,255,255,0.05); }
+.ln-hero-top { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.ln-hero-title { font-size:1.6rem; font-weight:800; letter-spacing:-0.3px; }
+.ln-hero-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ln-hero-btn {
+    padding:9px 18px; border-radius:11px; font-size:0.78rem; font-weight:600;
+    border:1.5px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.12);
+    color:#fff; cursor:pointer; transition:all 0.2s; backdrop-filter:blur(4px);
+    text-decoration:none; display:inline-flex; align-items:center; gap:5px;
+}
+.ln-hero-btn:hover { background:rgba(255,255,255,0.22); border-color:rgba(255,255,255,0.4); transform:translateY(-1px); }
+.ln-hero-btn.solid { background:rgba(255,255,255,0.9); color:#bf360c; border-color:rgba(255,255,255,0.9); }
+.ln-hero-btn.solid:hover { background:#fff; }
+
+.ln-summary-row {
+    display:grid; grid-template-columns:1fr auto; gap:0;
+    background:var(--surface); border:1px solid var(--line); border-radius:20px;
+    overflow:hidden; margin-bottom:24px;
+}
+@media(max-width:700px) { .ln-summary-row { grid-template-columns:1fr; } }
+.ln-summary-stats { display:grid; grid-template-columns:repeat(3,1fr); }
+@media(max-width:500px) { .ln-summary-stats { grid-template-columns:1fr; } }
+.ln-summary-stat { padding:22px 20px; position:relative; }
+.ln-summary-stat:not(:last-child)::after { content:''; position:absolute; right:0; top:20%; height:60%; width:1px; background:#e2e8f0; }
+@media(max-width:500px) { .ln-summary-stat:not(:last-child)::after { display:none; } .ln-summary-stat:not(:last-child) { border-bottom:1px solid #f1f5f9; } }
+.ln-summary-stat:hover { background:#fafbfc; }
+.ln-summary-icon { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; font-size:1.15rem; margin-bottom:10px; }
+.ln-summary-stat.st-given .ln-summary-icon { background:linear-gradient(135deg,#fff3e0,#ffe0b2); }
+.ln-summary-stat.st-recovered .ln-summary-icon { background:linear-gradient(135deg,#dcfce7,#bbf7d0); }
+.ln-summary-stat.st-outstanding .ln-summary-icon { background:linear-gradient(135deg,#ffebee,#ffcdd2); }
+.ln-summary-lbl { font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:3px; }
+.ln-summary-val { font-size:1.3rem; font-weight:800; line-height:1.3; }
+.ln-summary-stat.st-given .ln-summary-val { color:#e65100; }
+.ln-summary-stat.st-recovered .ln-summary-val { color:#16a34a; }
+.ln-summary-stat.st-outstanding .ln-summary-val { color:#c62828; }
+.ln-summary-bar { margin-top:8px; height:5px; background:#f1f5f9; border-radius:5px; overflow:hidden; }
+.ln-summary-bar-fill { height:100%; border-radius:5px; }
+.ln-summary-chart { display:flex; align-items:center; justify-content:center; padding:20px 26px; min-width:170px; }
+.ln-donut { position:relative; width:130px; height:130px; }
+.ln-donut svg { transform:rotate(-90deg); }
+.ln-donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ln-donut-pct { font-size:1.5rem; font-weight:800; color:#0f172a; line-height:1; }
+.ln-donut-lbl { font-size:0.55rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.3px; margin-top:2px; }
+
+.ln-toolbar {
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:12px 18px; margin-bottom:20px;
+}
+.ln-toolbar-search { flex:1; min-width:180px; position:relative; }
+.ln-toolbar-search input {
+    width:100%; height:36px; border:1.5px solid var(--line); border-radius:10px;
+    padding:0 12px 0 34px; font-size:0.82rem; color:var(--ink); background:var(--surface);
+    outline:none; transition:all 0.2s;
+}
+.ln-toolbar-search input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.08); }
+.ln-toolbar-search::before { content:'🔍'; position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:0.8rem; pointer-events:none; }
+.ln-pills { display:flex; gap:5px; }
+.ln-pill {
+    padding:6px 14px; border-radius:20px; font-size:0.7rem; font-weight:600;
+    border:1.5px solid var(--line); background:transparent; color:var(--muted);
+    cursor:pointer; transition:all 0.2s; white-space:nowrap;
+}
+.ln-pill:hover { border-color:#e65100; color:#e65100; }
+.ln-pill.active { background:#e65100; color:#fff; border-color:#e65100; }
+.ln-count-badge {
+    padding:4px 12px; border-radius:20px; font-size:0.68rem; font-weight:600;
+    background:#f1f5f9; color:var(--muted); white-space:nowrap;
+}
+
+.ln-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; margin-bottom:24px; }
+.ln-card {
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    overflow:hidden; text-decoration:none; color:inherit; display:flex; flex-direction:column;
+    transition:all 0.3s cubic-bezier(0.4,0,0.2,1); position:relative;
+}
+.ln-card:hover { transform:translateY(-4px); box-shadow:0 12px 40px rgba(0,0,0,0.1); border-color:rgba(230,81,0,0.2); }
+.ln-card-accent { height:4px; }
+.ln-card-accent.has-due { background:linear-gradient(90deg,#e65100,#fb923c); }
+.ln-card-accent.all-paid { background:linear-gradient(90deg,#16a34a,#4ade80); }
+.ln-card-body { padding:18px 20px; flex:1; }
+.ln-card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+.ln-card-avatar {
+    width:44px; height:44px; border-radius:14px; display:grid; place-items:center;
+    font-size:1.1rem; font-weight:800; color:#fff; flex-shrink:0;
+}
+.ln-card-avatar.bg-1 { background:linear-gradient(135deg,#e65100,#fb923c); }
+.ln-card-avatar.bg-2 { background:linear-gradient(135deg,#c62828,#ef5350); }
+.ln-card-avatar.bg-3 { background:linear-gradient(135deg,#1565c0,#42a5f5); }
+.ln-card-avatar.bg-4 { background:linear-gradient(135deg,#2e7d32,#66bb6a); }
+.ln-card-avatar.bg-5 { background:linear-gradient(135deg,#7b1fa2,#ba68c8); }
+.ln-card-info { flex:1; margin-left:12px; }
+.ln-card-name { font-size:0.95rem; font-weight:700; color:var(--ink); line-height:1.3; }
+.ln-card-code { font-size:0.68rem; color:var(--muted); margin-top:2px; font-weight:500; }
+.ln-card-badge {
+    flex-shrink:0; padding:4px 10px; border-radius:20px;
+    font-size:0.6rem; font-weight:700; letter-spacing:0.3px; white-space:nowrap;
+}
+.ln-card-badge.due { background:#ffebee; color:#c62828; border:1px solid #ffcdd2; }
+.ln-card-badge.paid { background:#e8f5e9; color:#16a34a; border:1px solid #c8e6c9; }
+
+.ln-card-progress { margin-bottom:12px; }
+.ln-card-progress-top { display:flex; justify-content:space-between; margin-bottom:4px; }
+.ln-card-progress-lbl { font-size:0.65rem; color:var(--muted); font-weight:500; }
+.ln-card-progress-pct { font-size:0.65rem; font-weight:700; }
+.ln-card-progress-bar { height:6px; background:#f1f5f9; border-radius:6px; overflow:hidden; }
+.ln-card-progress-fill { height:100%; border-radius:6px; transition:width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+.ln-card-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+.ln-card-stat { background:#f8fafc; border-radius:10px; padding:10px 12px; text-align:center; }
+.ln-card-stat .lbl { font-size:0.58rem; color:#94a3b8; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:2px; }
+.ln-card-stat .val { font-size:0.82rem; font-weight:800; }
+
+.ln-card-footer {
+    padding:12px 20px; border-top:1px solid #f1f5f9;
+    display:flex; justify-content:space-between; align-items:center;
+    background:linear-gradient(180deg,#fafbfc,#f8fafc);
+}
+.ln-card-footer .meta { font-size:0.66rem; color:#94a3b8; }
+.ln-card-footer .arrow { font-size:0.78rem; color:#e65100; font-weight:700; display:flex; align-items:center; gap:4px; transition:gap 0.2s; }
+.ln-card:hover .ln-card-footer .arrow { gap:8px; }
+
+.ln-empty { text-align:center; padding:60px 20px; background:var(--surface); border:1px dashed var(--line); border-radius:16px; margin-bottom:24px; }
+.ln-empty-icon { font-size:3rem; margin-bottom:12px; opacity:0.5; }
+.ln-empty-title { font-size:1rem; font-weight:700; color:var(--ink); margin-bottom:6px; }
+.ln-empty-text { font-size:0.82rem; color:var(--muted); max-width:400px; margin:0 auto 16px; }
+
+/* Modals */
+.ln-modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(4px); z-index:10000; display:none; align-items:center; justify-content:center; }
+.ln-modal-overlay.is-open { display:flex; animation:lnFadeIn 0.2s ease; }
+@keyframes lnFadeIn { from{opacity:0} to{opacity:1} }
+@keyframes lnSlideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.ln-modal { background:var(--surface); border:1px solid var(--line); border-radius:20px; width:90%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 24px 80px rgba(0,0,0,0.18); animation:lnSlideUp 0.3s cubic-bezier(0.4,0,0.2,1); }
+.ln-modal-header { display:flex; align-items:center; justify-content:space-between; padding:22px 28px 16px; border-bottom:1px solid var(--line); }
+.ln-modal-header h3 { margin:0; font-size:1.05rem; font-weight:700; }
+.ln-modal-close { width:34px; height:34px; border-radius:10px; border:none; background:#f1f5f9; cursor:pointer; display:grid; place-items:center; font-size:1.1rem; color:#64748b; transition:all 0.15s; }
+.ln-modal-close:hover { background:#e2e8f0; color:var(--ink); }
+.ln-modal-body { padding:24px 28px; }
+.ln-modal-footer { padding:16px 28px 22px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:10px; }
+.ln-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.ln-form-group { display:flex; flex-direction:column; }
+.ln-form-group.full { grid-column:1/-1; }
+.ln-form-group label { font-size:0.72rem; font-weight:600; color:var(--ink); margin-bottom:5px; }
+.ln-form-group label .required { color:#c62828; }
+.ln-form-group input, .ln-form-group select, .ln-form-group textarea {
+    width:100%; padding:9px 12px; border:1.5px solid var(--line); border-radius:10px;
+    font-size:0.82rem; color:var(--ink); background:var(--surface); outline:none; transition:all 0.2s; font-family:inherit;
+}
+.ln-form-group input:focus, .ln-form-group select:focus, .ln-form-group textarea:focus { border-color:#e65100; box-shadow:0 0 0 3px rgba(230,81,0,0.08); }
+.ln-form-group textarea { resize:vertical; min-height:70px; }
+
+@media(max-width:900px) { .ln-cards { grid-template-columns:1fr; } }
+@media(max-width:600px) {
+    .ln-hero { padding:24px 20px 20px; }
+    .ln-hero-title { font-size:1.2rem; }
+    .ln-toolbar { flex-direction:column; align-items:stretch; }
+    .ln-toolbar-search { min-width:auto; }
+    .ln-pills { justify-content:center; }
+    .ln-modal { width:95%; border-radius:16px; }
+    .ln-form-grid { grid-template-columns:1fr; }
+    .ln-card-stats { grid-template-columns:1fr; }
+}
 </style>
 
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
-    <div class="ln-stat">
-        <div class="lbl">Given</div>
-        <div class="val" style="color:#e65100">AED {{ "%.0f"|format(summary.total_given) }}</div>
-    </div>
-    <div class="ln-stat">
-        <div class="lbl">Recovered</div>
-        <div class="val" style="color:var(--green)">AED {{ "%.0f"|format(summary.total_recovered) }}</div>
-    </div>
-    <div class="ln-stat">
-        <div class="lbl">Outstanding</div>
-        <div class="val" style="color:#c62828">AED {{ "%.0f"|format(summary.outstanding) }}</div>
+<!-- ═══ HERO ═══ -->
+{% set total_pct = ((summary.total_recovered / summary.total_given * 100)|round|int) if summary.total_given > 0 else 0 %}
+<div class="ln-hero">
+    <div class="ln-hero-top">
+        <div class="ln-hero-title">💰 Loans Dashboard</div>
+        <div class="ln-hero-actions">
+            <button class="ln-hero-btn solid" onclick="document.getElementById('registerModal').classList.add('is-open')">➕ Register New Party</button>
+        </div>
     </div>
 </div>
 
-<div class="profile-card" style="margin-bottom:16px">
-    <div class="section-header">
-        <h3>{% if values.original_loan_no %}Edit{% else %}New Loan / Recovery{% endif %}</h3>
-    </div>
-    <form method="post" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="original_loan_no" value="{{ values.original_loan_no }}">
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Loan No</label>
-            <input type="text" name="loan_no" value="{{ values.loan_no }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+<!-- ═══ SUMMARY + DONUT ═══ -->
+<div class="ln-summary-row">
+    <div class="ln-summary-stats">
+        <div class="ln-summary-stat st-given">
+            <div class="ln-summary-icon">📤</div>
+            <div class="ln-summary-lbl">Total Given</div>
+            <div class="ln-summary-val">AED {{ "%.0f"|format(summary.total_given) }}</div>
+            <div class="ln-summary-sub" style="font-size:0.68rem;color:var(--muted);margin-top:3px">{{ party_summary|length }} parties</div>
         </div>
-<div>
-    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Party</label>
-    <select name="party_code" id="party_code" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem" onchange="toggleOtherParty(this)">
-        <option value="">Select</option>
-        {% for party in parties %}
-        <option value="{{ party.party_code }}" {% if values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>
-        {% endfor %}
-        <option value="__other__" {% if values.party_code == '__other__' %}selected{% endif %}>Other (Manual Entry)</option>
-    </select>
-    <input type="text" name="other_party_name" id="other_party_name" value="{{ values.other_party_name }}" placeholder="Enter party name" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;margin-top:4px;display:none">
+        <div class="ln-summary-stat st-recovered">
+            <div class="ln-summary-icon">📥</div>
+            <div class="ln-summary-lbl">Total Recovered</div>
+            <div class="ln-summary-val">AED {{ "%.0f"|format(summary.total_recovered) }}</div>
+            <div class="ln-summary-sub" style="font-size:0.68rem;color:var(--muted);margin-top:3px">{{ total_pct }}% recovered</div>
+            <div class="ln-summary-bar"><div class="ln-summary-bar-fill" style="width:{{ total_pct }}%;background:linear-gradient(90deg,#16a34a,#4ade80)"></div></div>
+        </div>
+        <div class="ln-summary-stat st-outstanding">
+            <div class="ln-summary-icon">⏳</div>
+            <div class="ln-summary-lbl">Outstanding</div>
+            <div class="ln-summary-val">AED {{ "%.0f"|format(summary.outstanding) }}</div>
+        </div>
+    </div>
+    <div class="ln-summary-chart">
+        <div class="ln-donut">
+            <svg viewBox="0 0 130 130" width="130" height="130">
+                <circle cx="65" cy="65" r="52" fill="none" stroke="#f1f5f9" stroke-width="13"/>
+                <circle cx="65" cy="65" r="52" fill="none" stroke="#16a34a" stroke-width="13"
+                    stroke-dasharray="{{ (total_pct / 100 * 326.73)|round(1) }} {{ (326.73 - total_pct / 100 * 326.73)|round(1) }}"
+                    stroke-linecap="round"/>
+                <circle cx="65" cy="65" r="52" fill="none" stroke="#e65100" stroke-width="13"
+                    stroke-dasharray="{{ ((100 - total_pct) / 100 * 326.73)|round(1) }} {{ (326.73 - (100 - total_pct) / 100 * 326.73)|round(1) }}"
+                    stroke-dashoffset="-{{ (total_pct / 100 * 326.73)|round(1) }}"
+                    stroke-linecap="round"/>
+            </svg>
+            <div class="ln-donut-center">
+                <div class="ln-donut-pct">{{ total_pct }}%</div>
+                <div class="ln-donut-lbl">Recovered</div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- ═══ TOOLBAR ═══ -->
+<div class="ln-toolbar">
+    <div class="ln-toolbar-search">
+        <input type="text" id="lnSearchInput" placeholder="Search parties by name or code..." oninput="lnFilterCards()">
+    </div>
+    <div class="ln-pills">
+        <button class="ln-pill active" onclick="lnSetFilter('all',this)">All</button>
+        <button class="ln-pill" onclick="lnSetFilter('due',this)">⏳ Has Balance</button>
+        <button class="ln-pill" onclick="lnSetFilter('cleared',this)">✓ Cleared</button>
+    </div>
+    <span class="ln-count-badge" id="lnCountBadge">{{ party_summary|length }} {{ 'parties' if party_summary|length != 1 else 'party' }}</span>
+</div>
+
+<!-- ═══ PARTY CARDS ═══ -->
+{% if party_summary %}
+<div class="ln-cards" id="lnPartyGrid">
+    {% set avatars = ['bg-1','bg-2','bg-3','bg-4','bg-5'] %}
+    {% for p in party_summary %}
+    {% set pidx = loop.index0 % 5 %}
+    {% set pct = ((p.total_recovered / p.total_given * 100)|round|int) if p.total_given > 0 else 0 %}
+    <a href="{{ url_for('loan_party_profile', party_code=p.party_code) }}" class="ln-card"
+       data-search="{{ p.party_name|lower }} {{ p.party_code|lower }}"
+       data-due="{{ 'yes' if p.has_balance else 'no' }}">
+        <div class="ln-card-accent {{ 'has-due' if p.has_balance else 'all-paid' }}"></div>
+        <div class="ln-card-body">
+            <div class="ln-card-top">
+                <div class="ln-card-avatar {{ avatars[pidx] }}">{{ p.party_name[:1] }}</div>
+                <div class="ln-card-info">
+                    <div class="ln-card-name">{{ p.party_name }}</div>
+                    <div class="ln-card-code">{{ p.party_code }}</div>
+                </div>
+                {% if p.has_balance %}
+                <span class="ln-card-badge due">⏳ AED {{ "%.0f"|format(p.balance) }}</span>
+                {% else %}
+                <span class="ln-card-badge paid">✓ Cleared</span>
+                {% endif %}
+            </div>
+            <div class="ln-card-progress">
+                <div class="ln-card-progress-top">
+                    <span class="ln-card-progress-lbl">Recovery</span>
+                    <span class="ln-card-progress-pct" style="color:{% if pct >= 100 %}#16a34a{% elif pct >= 50 %}#1976d2{% else %}#e65100{% endif %}">{{ pct }}%</span>
+                </div>
+                <div class="ln-card-progress-bar">
+                    <div class="ln-card-progress-fill" style="width:{{ pct }}%;background:{% if pct >= 100 %}linear-gradient(90deg,#16a34a,#4ade80){% elif pct >= 50 %}linear-gradient(90deg,#1976d2,#42a5f5){% else %}linear-gradient(90deg,#e65100,#fb923c){% endif %}"></div>
+                </div>
+            </div>
+            <div class="ln-card-stats">
+                <div class="ln-card-stat">
+                    <div class="lbl">Given</div>
+                    <div class="val" style="color:#e65100">AED {{ "%.0f"|format(p.total_given) }}</div>
+                </div>
+                <div class="ln-card-stat">
+                    <div class="lbl">Recovered</div>
+                    <div class="val" style="color:#16a34a">AED {{ "%.0f"|format(p.total_recovered) }}</div>
+                </div>
+                <div class="ln-card-stat">
+                    <div class="lbl">Balance</div>
+                    <div class="val" style="color:{% if p.balance > 0 %}#c62828{% else %}#16a34a{% endif %}">AED {{ "%.0f"|format(p.balance) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="ln-card-footer">
+            <div class="meta">{{ p.entry_count }} {{ 'entries' if p.entry_count != 1 else 'entry' }}</div>
+            <div class="arrow">View Profile <span>→</span></div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+<div id="lnSearchEmpty" style="display:none" class="ln-empty">
+    <div class="ln-empty-icon">🔍</div>
+    <div class="ln-empty-title">No matching parties</div>
+    <div class="ln-empty-text">Try adjusting your search term or filter.</div>
+</div>
+{% else %}
+<div class="ln-empty">
+    <div class="ln-empty-icon">📋</div>
+    <div class="ln-empty-title">No loan parties yet</div>
+    <div class="ln-empty-text">Register a party to start tracking loans.</div>
+    <button class="btn btn-primary" onclick="document.getElementById('registerModal').classList.add('is-open')">➕ Register New Party</button>
+</div>
+{% endif %}
+
+<!-- ═══ REGISTER PARTY MODAL ═══ -->
+<div class="ln-modal-overlay" id="registerModal">
+    <div class="ln-modal">
+        <div class="ln-modal-header">
+            <h3>🏢 Register New Party</h3>
+            <button class="ln-modal-close" onclick="document.getElementById('registerModal').classList.remove('is-open')">✕</button>
+        </div>
+        <form method="post" action="{{ url_for('register_loan_party') }}">
+        <div class="ln-modal-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <p style="font-size:0.78rem;color:var(--muted);margin:0 0 14px 0;background:#fff3e0;padding:10px 14px;border-radius:10px;border-left:3px solid #e65100">💡 Register the party first. Add loan entries from their profile page.</p>
+            <div class="ln-form-grid">
+                <div class="ln-form-group"><label>Party Name <span class="required">*</span></label><input type="text" name="party_name" placeholder="e.g. Ahmed Khan" required></div>
+                <div class="ln-form-group"><label>Contact Person</label><input type="text" name="contact_person" placeholder="e.g. Ahmed Khan"></div>
+                <div class="ln-form-group"><label>Phone Number</label><input type="text" name="phone_number" placeholder="e.g. +971 50 123 4567"></div>
+                <div class="ln-form-group"><label>Email</label><input type="email" name="email" placeholder="e.g. ahmed@example.com"></div>
+                <div class="ln-form-group"><label>TRN No</label><input type="text" name="trn_no" placeholder="e.g. 100200300400500"></div>
+                <div class="ln-form-group"><label>Party Type</label><select name="party_kind"><option value="Company">Company</option><option value="Individual" selected>Individual</option></select></div>
+            </div>
+        </div>
+        <div class="ln-modal-footer">
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('registerModal').classList.remove('is-open')">Cancel</button>
+            <button type="submit" class="btn btn-primary" style="background:#e65100;border-color:#e65100">🚀 Register Party</button>
+        </div>
+        </form>
+    </div>
+</div>
+
+</div>
+
 <script>
-function toggleOtherParty(sel) {
-    var otherInput = document.getElementById('other_party_name');
-    otherInput.style.display = sel.value === '__other__' ? 'block' : 'none';
-    if (sel.value !== '__other__') otherInput.value = '';
+var lnCurrentFilter = 'all';
+function lnFilterCards() {
+    var q = document.getElementById('lnSearchInput').value.toLowerCase();
+    var cards = document.querySelectorAll('.ln-card');
+    var visible = 0;
+    cards.forEach(function(card) {
+        var matchSearch = card.getAttribute('data-search').indexOf(q) !== -1;
+        var matchFilter = lnCurrentFilter === 'all'
+            || (lnCurrentFilter === 'due' && card.getAttribute('data-due') === 'yes')
+            || (lnCurrentFilter === 'cleared' && card.getAttribute('data-due') === 'no');
+        var show = matchSearch && matchFilter;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('lnSearchEmpty').style.display = visible === 0 ? '' : 'none';
+    document.getElementById('lnCountBadge').textContent = visible + ' ' + (visible !== 1 ? 'parties' : 'party');
 }
-(function() {
-    var sel = document.getElementById('party_code');
-    if (sel.value === '__other__') toggleOtherParty(sel);
-})();
+function lnSetFilter(f, el) { lnCurrentFilter = f; document.querySelectorAll('.ln-pill').forEach(function(p){p.classList.remove('active')}); el.classList.add('active'); lnFilterCards(); }
+document.querySelectorAll('.ln-modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('is-open')})});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')document.querySelectorAll('.ln-modal-overlay.is-open').forEach(function(m){m.classList.remove('is-open')})});
 </script>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Type</label>
-            <select name="loan_type" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-                {% for item in loan_type_options %}
-                <option value="{{ item }}" {% if values.loan_type == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Date</label>
-            <input type="date" name="entry_date" value="{{ values.entry_date }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Amount</label>
-            <input type="number" step="0.01" name="amount" value="{{ values.amount }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Method</label>
-            <select name="payment_method" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-                {% for item in payment_method_options %}
-                <option value="{{ item }}" {% if values.payment_method == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Reference</label>
-            <input type="text" name="reference" value="{{ values.reference }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div style="grid-column:1/-1">
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Notes</label>
-            <textarea name="notes" rows="2" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">{{ values.notes }}</textarea>
-        </div>
-        <div style="grid-column:1/-1;display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" type="submit">{{ 'Update' if values.original_loan_no else 'Save' }}</button>
-            {% if values.original_loan_no %}<a href="{{ url_for('loans_center') }}" class="btn btn-outline btn-sm">Cancel</a>{% endif %}
-        </div>
-    </form>
-</div>
-
-<div class="profile-card">
-    <div class="section-header">
-        <h3>Loan Movement</h3>
-    </div>
-    {% if rows %}
-    <div class="table-wrap">
-        <table class="smart-table">
-            <thead><tr><th>No</th><th>Party</th><th>Kind</th><th>Date</th><th>Type</th><th>Method</th><th>Amount</th><th></th></tr></thead>
-            <tbody>
-                {% for item in rows %}
-                <tr>
-                    <td class="mono" style="font-weight:600">{{ item.loan_no }}</td>
-                    <td>{{ item.party_name }}</td>
-                    <td><span class="badge badge-type">{{ item.party_kind or '—' }}</span><br><small style="color:var(--muted);font-size:0.6rem">{{ item.party_roles or '' }}</small></td>
-                    <td class="mono">{{ item.entry_date }}</td>
-                    <td><span class="badge" style="background:{% if item.loan_type == 'Given' %}#e6510033;color:#e65100{% else %}#22c55e33;color:#16a34a{% endif %}">{{ item.loan_type }}</span></td>
-                    <td>{{ item.payment_method }}</td>
-                    <td class="mono" style="font-weight:600;color:{% if item.loan_type == 'Given' %}#e65100{% else %}var(--green){% endif %}">AED {{ "%.2f"|format(item.amount) }}</td>
-                    <td>
-                        <div style="display:flex;gap:4px">
-                            <a href="{{ url_for('loans_center', edit_loan=item.loan_no) }}" class="btn btn-xs btn-outline">&#9998;</a>
-                            <form method="post" action="{{ url_for('delete_loan_entry', loan_no=item.loan_no) }}" style="display:inline" onsubmit="return confirm('Delete this entry?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="btn btn-xs btn-outline" type="submit" style="color:#e65100">&#10005;</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% else %}<tr><td colspan="8" class="empty-state">No loan entries yet.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}<p class="empty-state">No loan entries yet.</p>{% endif %}
-</div>
-</div>
 {% endblock %}

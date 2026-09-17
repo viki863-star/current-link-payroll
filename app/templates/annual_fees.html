@@ -4,139 +4,505 @@
 
 {% block content %}
 <div class="profile-shell">
+
 <style>
-.af-stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 16px; text-align:center; transition:box-shadow 0.15s; }
-.af-stat:hover { box-shadow:0 2px 12px rgba(0,0,0,0.06); }
-.af-stat .lbl { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
-.af-stat .val { font-size:1.4rem; font-weight:700; margin-top:6px; }
+/* ═══════════════════════════════════════════════════════
+   ANNUAL FEES — MAX EFFORT PREMIUM DASHBOARD
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Hero Banner ─── */
+.af-hero {
+    background:linear-gradient(135deg, var(--primary) 0%, #0d47a1 100%);
+    border-radius:20px; padding:32px 36px 28px; color:#fff;
+    margin-bottom:24px; position:relative; overflow:hidden;
+}
+.af-hero::before { content:''; position:absolute; top:-80px; right:-60px; width:300px; height:300px; border-radius:50%; background:rgba(255,255,255,0.05); }
+.af-hero::after { content:''; position:absolute; bottom:-40px; left:30%; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.03); }
+.af-hero-top { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.af-hero-title { font-size:1.6rem; font-weight:800; letter-spacing:-0.3px; }
+.af-hero-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.af-hero-btn {
+    padding:9px 18px; border-radius:11px; font-size:0.78rem; font-weight:600;
+    border:1.5px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.12);
+    color:#fff; cursor:pointer; transition:all 0.2s; backdrop-filter:blur(4px);
+    text-decoration:none; display:inline-flex; align-items:center; gap:5px;
+}
+.af-hero-btn:hover { background:rgba(255,255,255,0.22); border-color:rgba(255,255,255,0.4); transform:translateY(-1px); }
+.af-hero-btn.solid { background:rgba(255,255,255,0.9); color:#0d47a1; border-color:rgba(255,255,255,0.9); }
+.af-hero-btn.solid:hover { background:#fff; }
+
+/* ─── Summary + Donut ─── */
+.af-summary-row {
+    display:grid; grid-template-columns:1fr auto; gap:0;
+    background:var(--surface); border:1px solid var(--line); border-radius:20px;
+    overflow:hidden; margin-bottom:24px;
+}
+@media(max-width:700px) { .af-summary-row { grid-template-columns:1fr; } }
+.af-summary-stats { display:grid; grid-template-columns:repeat(3,1fr); }
+@media(max-width:500px) { .af-summary-stats { grid-template-columns:1fr; } }
+.af-summary-stat { padding:22px 20px; position:relative; }
+.af-summary-stat:not(:last-child)::after { content:''; position:absolute; right:0; top:20%; height:60%; width:1px; background:#e2e8f0; }
+@media(max-width:500px) { .af-summary-stat:not(:last-child)::after { display:none; } .af-summary-stat:not(:last-child) { border-bottom:1px solid #f1f5f9; } }
+.af-summary-stat:hover { background:#fafbfc; }
+.af-summary-icon { width:42px; height:42px; border-radius:13px; display:grid; place-items:center; font-size:1.15rem; margin-bottom:10px; }
+.af-summary-stat.st-total .af-summary-icon { background:linear-gradient(135deg,#e2e8f0,#cbd5e1); }
+.af-summary-stat.st-paid .af-summary-icon { background:linear-gradient(135deg,#dcfce7,#bbf7d0); }
+.af-summary-stat.st-due .af-summary-icon { background:linear-gradient(135deg,#ffedd5,#fed7aa); }
+.af-summary-lbl { font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:3px; }
+.af-summary-val { font-size:1.3rem; font-weight:800; line-height:1.3; }
+.af-summary-stat.st-total .af-summary-val { color:#0f172a; }
+.af-summary-stat.st-paid .af-summary-val { color:#16a34a; }
+.af-summary-stat.st-due .af-summary-val { color:#e65100; }
+.af-summary-sub { font-size:0.68rem; color:var(--muted); margin-top:3px; font-weight:500; }
+.af-summary-bar { margin-top:8px; height:5px; background:#f1f5f9; border-radius:5px; overflow:hidden; }
+.af-summary-bar-fill { height:100%; border-radius:5px; }
+.af-summary-stat.st-paid .af-summary-bar-fill { background:linear-gradient(90deg,#16a34a,#4ade80); }
+.af-summary-stat.st-due .af-summary-bar-fill { background:linear-gradient(90deg,#e65100,#fb923c); }
+.af-summary-chart { display:flex; align-items:center; justify-content:center; padding:20px 26px; min-width:170px; }
+.af-donut { position:relative; width:130px; height:130px; }
+.af-donut svg { transform:rotate(-90deg); }
+.af-donut-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.af-donut-pct { font-size:1.5rem; font-weight:800; color:#0f172a; line-height:1; }
+.af-donut-lbl { font-size:0.55rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.3px; margin-top:2px; }
+
+/* ─── Search & Filter Bar ─── */
+.af-toolbar {
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:12px 18px; margin-bottom:20px;
+}
+.af-toolbar-search { flex:1; min-width:180px; position:relative; }
+.af-toolbar-search input {
+    width:100%; height:36px; border:1.5px solid var(--line); border-radius:10px;
+    padding:0 12px 0 34px; font-size:0.82rem; color:var(--ink); background:var(--surface);
+    outline:none; transition:all 0.2s;
+}
+.af-toolbar-search input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.08); }
+.af-toolbar-search::before { content:'🔍'; position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:0.8rem; pointer-events:none; }
+.af-pills { display:flex; gap:5px; }
+.af-pill {
+    padding:6px 14px; border-radius:20px; font-size:0.7rem; font-weight:600;
+    border:1.5px solid var(--line); background:transparent; color:var(--muted);
+    cursor:pointer; transition:all 0.2s; white-space:nowrap;
+}
+.af-pill:hover { border-color:var(--primary); color:var(--primary); }
+.af-pill.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+.af-count-badge {
+    padding:4px 12px; border-radius:20px; font-size:0.68rem; font-weight:600;
+    background:#f1f5f9; color:var(--muted); white-space:nowrap;
+}
+
+/* ─── Party Cards ─── */
+.af-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; margin-bottom:24px; }
+.af-card {
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    overflow:hidden; text-decoration:none; color:inherit; display:flex; flex-direction:column;
+    transition:all 0.3s cubic-bezier(0.4,0,0.2,1); position:relative;
+}
+.af-card:hover { transform:translateY(-4px); box-shadow:0 12px 40px rgba(0,0,0,0.1); border-color:rgba(28,86,139,0.2); }
+.af-card-accent { height:4px; }
+.af-card-accent.has-due { background:linear-gradient(90deg,#e65100,#fb923c); }
+.af-card-accent.all-paid { background:linear-gradient(90deg,#16a34a,#4ade80); }
+.af-card-body { padding:18px 20px; flex:1; }
+.af-card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+.af-card-avatar {
+    width:44px; height:44px; border-radius:14px; display:grid; place-items:center;
+    font-size:1.1rem; font-weight:800; color:#fff; flex-shrink:0;
+}
+.af-card-avatar.bg-1 { background:linear-gradient(135deg,#1976d2,#42a5f5); }
+.af-card-avatar.bg-2 { background:linear-gradient(135deg,#7b1fa2,#ba68c8); }
+.af-card-avatar.bg-3 { background:linear-gradient(135deg,#e65100,#fb923c); }
+.af-card-avatar.bg-4 { background:linear-gradient(135deg,#2e7d32,#66bb6a); }
+.af-card-avatar.bg-5 { background:linear-gradient(135deg,#c62828,#ef5350); }
+.af-card-info { flex:1; margin-left:12px; }
+.af-card-name { font-size:0.95rem; font-weight:700; color:var(--ink); line-height:1.3; }
+.af-card-code { font-size:0.68rem; color:var(--muted); margin-top:2px; font-weight:500; }
+.af-card-badge {
+    flex-shrink:0; padding:4px 10px; border-radius:20px;
+    font-size:0.6rem; font-weight:700; letter-spacing:0.3px; white-space:nowrap;
+}
+.af-card-badge.due { background:#fff3e0; color:#e65100; border:1px solid #ffe0b2; }
+.af-card-badge.paid { background:#e8f5e9; color:#16a34a; border:1px solid #c8e6c9; }
+
+/* ─── Card Progress ─── */
+.af-card-progress { margin-bottom:12px; }
+.af-card-progress-top { display:flex; justify-content:space-between; margin-bottom:4px; }
+.af-card-progress-lbl { font-size:0.65rem; color:var(--muted); font-weight:500; }
+.af-card-progress-pct { font-size:0.65rem; font-weight:700; }
+.af-card-progress-bar { height:6px; background:#f1f5f9; border-radius:6px; overflow:hidden; }
+.af-card-progress-fill { height:100%; border-radius:6px; transition:width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+/* ─── Card Stats Row ─── */
+.af-card-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
+.af-card-stat { background:#f8fafc; border-radius:10px; padding:10px 12px; text-align:center; }
+.af-card-stat .lbl { font-size:0.58rem; color:#94a3b8; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:2px; }
+.af-card-stat .val { font-size:0.82rem; font-weight:800; }
+.af-card-stat .val.v-blue { color:#1976d2; }
+.af-card-stat .val.v-green { color:#16a34a; }
+.af-card-stat .val.v-orange { color:#e65100; }
+
+.af-card-footer {
+    padding:12px 20px; border-top:1px solid #f1f5f9;
+    display:flex; justify-content:space-between; align-items:center;
+    background:linear-gradient(180deg,#fafbfc,#f8fafc);
+}
+.af-card-footer .meta { font-size:0.66rem; color:#94a3b8; }
+.af-card-footer .meta strong { color:var(--ink); }
+.af-card-footer .arrow { font-size:0.78rem; color:var(--primary); font-weight:700; display:flex; align-items:center; gap:4px; transition:gap 0.2s; }
+.af-card:hover .af-card-footer .arrow { gap:8px; }
+
+/* ─── Empty State ─── */
+.af-empty { text-align:center; padding:60px 20px; background:var(--surface); border:1px dashed var(--line); border-radius:16px; margin-bottom:24px; }
+.af-empty-icon { font-size:3rem; margin-bottom:12px; opacity:0.5; }
+.af-empty-title { font-size:1rem; font-weight:700; color:var(--ink); margin-bottom:6px; }
+.af-empty-text { font-size:0.82rem; color:var(--muted); max-width:400px; margin:0 auto 16px; }
+
+/* ─── Modals ─── */
+.af-modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(4px); z-index:10000; display:none; align-items:center; justify-content:center; }
+.af-modal-overlay.is-open { display:flex; animation:afFadeIn 0.2s ease; }
+@keyframes afFadeIn { from{opacity:0} to{opacity:1} }
+@keyframes afSlideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.af-modal { background:var(--surface); border:1px solid var(--line); border-radius:20px; width:90%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 24px 80px rgba(0,0,0,0.18); animation:afSlideUp 0.3s cubic-bezier(0.4,0,0.2,1); }
+.af-modal-header { display:flex; align-items:center; justify-content:space-between; padding:22px 28px 16px; border-bottom:1px solid var(--line); }
+.af-modal-header h3 { margin:0; font-size:1.05rem; font-weight:700; }
+.af-modal-close { width:34px; height:34px; border-radius:10px; border:none; background:#f1f5f9; cursor:pointer; display:grid; place-items:center; font-size:1.1rem; color:#64748b; transition:all 0.15s; }
+.af-modal-close:hover { background:#e2e8f0; color:var(--ink); }
+.af-modal-body { padding:24px 28px; }
+.af-modal-footer { padding:16px 28px 22px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:10px; }
+.af-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.af-form-group { display:flex; flex-direction:column; }
+.af-form-group.full { grid-column:1/-1; }
+.af-form-group label { font-size:0.72rem; font-weight:600; color:var(--ink); margin-bottom:5px; }
+.af-form-group label .required { color:#c62828; }
+.af-form-group input, .af-form-group select, .af-form-group textarea {
+    width:100%; padding:9px 12px; border:1.5px solid var(--line); border-radius:10px;
+    font-size:0.82rem; color:var(--ink); background:var(--surface); outline:none; transition:all 0.2s; font-family:inherit;
+}
+.af-form-group input:focus, .af-form-group select:focus, .af-form-group textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.08); }
+.af-form-group textarea { resize:vertical; min-height:70px; }
+
+/* ─── Fee Register ─── */
+.af-register-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; padding:14px 20px; background:var(--surface); border:1px solid var(--line); border-radius:14px; margin-bottom:0; transition:all 0.2s; font-size:0.85rem; font-weight:700; color:var(--ink); }
+.af-register-toggle:hover { border-color:var(--primary); }
+.af-register-toggle .chevron { transition:transform 0.25s; font-size:0.7rem; }
+.af-register-toggle.is-open .chevron { transform:rotate(90deg); }
+.af-register-body { display:none; background:var(--surface); border:1px solid var(--line); border-top:none; border-radius:0 0 14px 14px; overflow:hidden; }
+.af-register-body.is-open { display:block; }
+
+/* ─── Responsive ─── */
+@media(max-width:900px) { .af-cards { grid-template-columns:1fr; } }
+@media(max-width:600px) {
+    .af-hero { padding:24px 20px 20px; }
+    .af-hero-title { font-size:1.2rem; }
+    .af-hero-actions { width:100%; }
+    .af-toolbar { flex-direction:column; align-items:stretch; }
+    .af-toolbar-search { min-width:auto; }
+    .af-pills { justify-content:center; }
+    .af-modal { width:95%; border-radius:16px; }
+    .af-form-grid { grid-template-columns:1fr; }
+    .af-card-stats { grid-template-columns:1fr; }
+}
 </style>
 
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-    <div class="af-stat">
-        <div class="lbl">Annual Amount</div>
-        <div class="val" style="color:var(--primary)">AED {{ "%.2f"|format(summary.total_annual) }}</div>
-    </div>
-    <div class="af-stat">
-        <div class="lbl">Received</div>
-        <div class="val" style="color:var(--green)">AED {{ "%.2f"|format(summary.total_received) }}</div>
-    </div>
-    <div class="af-stat">
-        <div class="lbl">Outstanding</div>
-        <div class="val" style="color:#e65100">AED {{ "%.2f"|format(summary.total_balance) }}</div>
-    </div>
-    <div class="af-stat">
-        <div class="lbl">Due Items</div>
-        <div class="val" style="color:#c62828">{{ summary.due_count }}</div>
+<!-- ═══ HERO BANNER ═══ -->
+{% set total_pct = ((summary.total_received / summary.total_annual * 100)|round|int) if summary.total_annual > 0 else 0 %}
+<div class="af-hero">
+    <div class="af-hero-top">
+        <div class="af-hero-title">📊 Annual Fees Dashboard</div>
+        <div class="af-hero-actions">
+            <button class="af-hero-btn solid" onclick="document.getElementById('registerModal').classList.add('is-open')">➕ Register New Party</button>
+            <button class="af-hero-btn" onclick="document.getElementById('addFeeModal').classList.add('is-open')">📝 New Fee Entry</button>
+        </div>
     </div>
 </div>
 
-<div class="profile-card" style="margin-bottom:16px">
-    <div class="section-header">
-        <h3>{% if values.original_fee_no %}Edit{% else %}New Fee Entry{% endif %}</h3>
+<!-- ═══ SUMMARY + DONUT ═══ -->
+<div class="af-summary-row">
+    <div class="af-summary-stats">
+        <div class="af-summary-stat st-total">
+            <div class="af-summary-icon">💰</div>
+            <div class="af-summary-lbl">Total Fees</div>
+            <div class="af-summary-val">AED {{ "%.0f"|format(summary.total_annual) }}</div>
+            <div class="af-summary-sub">{{ rows|length }} total entries</div>
+        </div>
+        <div class="af-summary-stat st-paid">
+            <div class="af-summary-icon">✅</div>
+            <div class="af-summary-lbl">Paid</div>
+            <div class="af-summary-val">AED {{ "%.0f"|format(summary.total_received) }}</div>
+            <div class="af-summary-sub">{{ total_pct }}% collected</div>
+            <div class="af-summary-bar"><div class="af-summary-bar-fill" style="width:{{ total_pct }}%"></div></div>
+        </div>
+        <div class="af-summary-stat st-due">
+            <div class="af-summary-icon">⏳</div>
+            <div class="af-summary-lbl">Outstanding</div>
+            <div class="af-summary-val">AED {{ "%.0f"|format(summary.total_balance) }}</div>
+            <div class="af-summary-sub">{{ summary.due_count }} {{ 'items' if summary.due_count != 1 else 'item' }} due</div>
+            <div class="af-summary-bar"><div class="af-summary-bar-fill" style="width:{{ 100 - total_pct }}%"></div></div>
+        </div>
     </div>
-    <form method="post" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="original_fee_no" value="{{ values.original_fee_no }}">
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Fee No</label>
-            <input type="text" name="fee_no" value="{{ values.fee_no }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
+    <div class="af-summary-chart">
+        <div class="af-donut">
+            <svg viewBox="0 0 130 130" width="130" height="130">
+                <circle cx="65" cy="65" r="52" fill="none" stroke="#f1f5f9" stroke-width="13"/>
+                <circle cx="65" cy="65" r="52" fill="none" stroke="#16a34a" stroke-width="13"
+                    stroke-dasharray="{{ (total_pct / 100 * 326.73)|round(1) }} {{ (326.73 - total_pct / 100 * 326.73)|round(1) }}"
+                    stroke-linecap="round"/>
+                <circle cx="65" cy="65" r="52" fill="none" stroke="#e65100" stroke-width="13"
+                    stroke-dasharray="{{ ((100 - total_pct) / 100 * 326.73)|round(1) }} {{ (326.73 - (100 - total_pct) / 100 * 326.73)|round(1) }}"
+                    stroke-dashoffset="-{{ (total_pct / 100 * 326.73)|round(1) }}"
+                    stroke-linecap="round"/>
+            </svg>
+            <div class="af-donut-center">
+                <div class="af-donut-pct">{{ total_pct }}%</div>
+                <div class="af-donut-lbl">Collected</div>
+            </div>
         </div>
-<div>
-    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Party</label>
-    <select name="party_code" id="party_code" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem" onchange="toggleOtherParty(this)">
-        <option value="">Select</option>
-        {% for party in parties %}
-        <option value="{{ party.party_code }}" {% if values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>
-        {% endfor %}
-        <option value="__other__" {% if values.party_code == '__other__' %}selected{% endif %}>Other (Manual Entry)</option>
-    </select>
-    <input type="text" name="other_party_name" id="other_party_name" value="{{ values.other_party_name }}" placeholder="Enter party name" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;margin-top:4px;display:none">
-</div>
-<script>
-function toggleOtherParty(sel) {
-    var otherInput = document.getElementById('other_party_name');
-    otherInput.style.display = sel.value === '__other__' ? 'block' : 'none';
-    if (sel.value !== '__other__') otherInput.value = '';
-}
-(function() {
-    var sel = document.getElementById('party_code');
-    if (sel.value === '__other__') toggleOtherParty(sel);
-})();
-</script>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Fee Type</label>
-            <select name="fee_type" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-                {% for item in fee_type_options %}
-                <option value="{{ item }}" {% if values.fee_type == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Due Date</label>
-            <input type="date" name="due_date" value="{{ values.due_date }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Annual Amount</label>
-            <input type="number" step="0.01" name="annual_amount" value="{{ values.annual_amount }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Received</label>
-            <input type="number" step="0.01" name="received_amount" value="{{ values.received_amount }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Vehicle No</label>
-            <input type="text" name="vehicle_no" value="{{ values.vehicle_no }}" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div>
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Description</label>
-            <input type="text" name="description" value="{{ values.description }}" placeholder="Visa / Vehicle renewal" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-        </div>
-        <div style="grid-column:1/-1">
-            <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:2px">Notes</label>
-            <textarea name="notes" rows="2" style="width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">{{ values.notes }}</textarea>
-        </div>
-        <div style="grid-column:1/-1;display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" type="submit">{{ 'Update' if values.original_fee_no else 'Save' }}</button>
-            {% if values.original_fee_no %}<a href="{{ url_for('annual_fees') }}" class="btn btn-outline btn-sm">Cancel</a>{% endif %}
-        </div>
-    </form>
+    </div>
 </div>
 
-<div class="profile-card">
-    <div class="section-header">
-        <h3>Fee Register</h3>
+<!-- ═══ TOOLBAR ═══ -->
+<div class="af-toolbar">
+    <div class="af-toolbar-search">
+        <input type="text" id="afSearchInput" placeholder="Search parties by name or code..." oninput="afFilterCards()">
     </div>
+    <div class="af-pills">
+        <button class="af-pill active" onclick="afSetFilter('all',this)">All</button>
+        <button class="af-pill" onclick="afSetFilter('due',this)">⏳ Has Dues</button>
+        <button class="af-pill" onclick="afSetFilter('paid',this)">✓ Fully Paid</button>
+    </div>
+    <span class="af-count-badge" id="afCountBadge">{{ party_summary|length }} {{ 'parties' if party_summary|length != 1 else 'party' }}</span>
+</div>
+
+<!-- ═══ PARTY CARDS ═══ -->
+{% if party_summary %}
+<div class="af-cards" id="afPartyGrid">
+    {% set avatars = ['bg-1','bg-2','bg-3','bg-4','bg-5'] %}
+    {% for p in party_summary %}
+    {% set pidx = loop.index0 % 5 %}
+    {% set pct = ((p.overall.received / p.overall.annual * 100)|round|int) if p.overall.annual > 0 else 0 %}
+    <a href="{{ url_for('annual_fee_party_profile', party_code=p.party_code) }}" class="af-card"
+       data-search="{{ p.party_name|lower }} {{ p.party_code|lower }}"
+       data-due="{{ 'yes' if p.overall.due > 0 else 'no' }}">
+        <div class="af-card-accent {{ 'has-due' if p.overall.due > 0 else 'all-paid' }}"></div>
+        <div class="af-card-body">
+            <div class="af-card-top">
+                <div class="af-card-avatar {{ avatars[pidx] }}">{{ p.party_name[:1] }}</div>
+                <div class="af-card-info">
+                    <div class="af-card-name">{{ p.party_name }}</div>
+                    <div class="af-card-code">{{ p.party_code }}</div>
+                </div>
+                {% if p.overall.due > 0 %}
+                <span class="af-card-badge due">⏳ {{ p.overall.due }} due</span>
+                {% else %}
+                <span class="af-card-badge paid">✓ Paid</span>
+                {% endif %}
+            </div>
+            <div class="af-card-progress">
+                <div class="af-card-progress-top">
+                    <span class="af-card-progress-lbl">Collection</span>
+                    <span class="af-card-progress-pct" style="color:{% if pct >= 100 %}#16a34a{% elif pct >= 50 %}#1976d2{% else %}#e65100{% endif %}">{{ pct }}%</span>
+                </div>
+                <div class="af-card-progress-bar">
+                    <div class="af-card-progress-fill" style="width:{{ pct }}%;background:{% if pct >= 100 %}linear-gradient(90deg,#16a34a,#4ade80){% elif pct >= 50 %}linear-gradient(90deg,#1976d2,#42a5f5){% else %}linear-gradient(90deg,#e65100,#fb923c){% endif %}"></div>
+                </div>
+            </div>
+            <div class="af-card-stats">
+                <div class="af-card-stat">
+                    <div class="lbl">Total</div>
+                    <div class="val v-blue">AED {{ "%.0f"|format(p.overall.annual) }}</div>
+                </div>
+                <div class="af-card-stat">
+                    <div class="lbl">Paid</div>
+                    <div class="val v-green">AED {{ "%.0f"|format(p.overall.received) }}</div>
+                </div>
+                <div class="af-card-stat">
+                    <div class="lbl">Balance</div>
+                    <div class="val {% if p.overall.balance > 0 %}v-orange{% else %}v-green{% endif %}">AED {{ "%.0f"|format(p.overall.balance) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="af-card-footer">
+            <div class="meta">{{ p.overall.entries }} {{ 'entries' if p.overall.entries != 1 else 'entry' }} · {{ p.overall.due }} due</div>
+            <div class="arrow">View Profile <span>→</span></div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+<div id="afSearchEmpty" style="display:none" class="af-empty">
+    <div class="af-empty-icon">🔍</div>
+    <div class="af-empty-title">No matching parties</div>
+    <div class="af-empty-text">Try adjusting your search term or filter.</div>
+</div>
+{% else %}
+<div class="af-empty">
+    <div class="af-empty-icon">📋</div>
+    <div class="af-empty-title">No parties registered yet</div>
+    <div class="af-empty-text">Register your first party to start tracking annual fees.</div>
+    <button class="btn btn-primary" onclick="document.getElementById('registerModal').classList.add('is-open')">➕ Register New Party</button>
+</div>
+{% endif %}
+
+<!-- ═══ FEE REGISTER (Collapsible) ═══ -->
+<div class="af-register-toggle" id="registerToggle" onclick="afToggleRegister()">
+    <span class="chevron">▶</span>
+    📊 Fee Register
+    <span style="font-weight:500;color:var(--muted);font-size:0.72rem;margin-left:auto;">{{ rows|length }} entries</span>
+</div>
+<div class="af-register-body" id="registerBody">
     {% if rows %}
-    <div class="table-wrap">
+    <div class="table-wrap" style="border:none;border-radius:0;">
         <table class="smart-table">
-            <thead><tr><th>No</th><th>Party</th><th>Type</th><th>Due</th><th>Annual</th><th>Received</th><th>Balance</th><th>Status</th><th></th></tr></thead>
+            <thead>
+                <tr><th>No</th><th>Party</th><th>Type</th><th>Due Date</th><th>Annual</th><th>Received</th><th>Balance</th><th>Status</th><th>Actions</th></tr>
+            </thead>
             <tbody>
                 {% for item in rows %}
                 <tr>
                     <td class="mono" style="font-weight:600">{{ item.fee_no }}</td>
                     <td>{{ item.party_name }}</td>
-                    <td><span class="badge badge-type">{{ item.fee_type }}</span></td>
+                    <td>
+                        {% set type_icons = {'Vehicle': '🚛', 'Visa': '🪪', 'Mulkia': '🇦🇪', 'Fine': '🚨', 'Insurance': '🛡️', 'Other': '📦'} %}
+                        {% set type_colors = {'Vehicle': '#e3f2fd,#1565c0', 'Visa': '#f3e5f5,#7b1fa2', 'Mulkia': '#fff3e0,#e65100', 'Fine': '#ffebee,#c62828', 'Insurance': '#e8f5e9,#2e7d32', 'Other': '#eceff1,#546e7a'} %}
+                        {% set tc = type_colors.get(item.fee_type, '#eceff1,#546e7a').split(',') %}
+                        <span class="badge" style="background:{{ tc[0] }};color:{{ tc[1] }}">{{ type_icons.get(item.fee_type, '📦') }} {{ item.fee_type }}</span>
+                    </td>
                     <td class="mono">{{ item.due_date }}</td>
                     <td class="mono" style="font-weight:600">AED {{ "%.2f"|format(item.annual_amount) }}</td>
-                    <td class="mono" style="color:var(--green)">AED {{ "%.2f"|format(item.received_amount) }}</td>
-                    <td class="mono" style="font-weight:600;color:{% if item.balance_amount > 0 %}#e65100{% else %}var(--green){% endif %}">AED {{ "%.2f"|format(item.balance_amount) }}</td>
-                    <td><span class="badge {% if item.status == 'Paid' %}" style="background:#22c55e33;color:#16a34a{% else %}" style="background:#e6510033;color:#e65100{% endif %}">{{ item.status }}</span></td>
+                    <td class="mono" style="color:#16a34a;font-weight:600">AED {{ "%.2f"|format(item.received_amount) }}</td>
+                    <td class="mono" style="font-weight:600;color:{% if item.balance_amount > 0 %}#e65100{% else %}#16a34a{% endif %}">AED {{ "%.2f"|format(item.balance_amount) }}</td>
+                    <td>
+                        {% if item.status == 'Paid' or item.status == 'Closed' %}
+                        <span class="badge" style="background:#e8f5e9;color:#2e7d32">✓ {{ item.status }}</span>
+                        {% else %}
+                        <span class="badge" style="background:#fff3e0;color:#e65100">⏳ {{ item.status }}</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <div style="display:flex;gap:4px">
-                            <a href="{{ url_for('annual_fees', edit_fee=item.fee_no) }}" class="btn btn-xs btn-outline">&#9998;</a>
-                            <form method="post" action="{{ url_for('delete_annual_fee', fee_no=item.fee_no) }}" style="display:inline" onsubmit="return confirm('Delete this fee row?');">
+                            <a href="{{ url_for('annual_fees', edit_fee=item.fee_no) }}" class="btn btn-xs btn-outline" title="Edit">✏️</a>
+                            <form method="post" action="{{ url_for('delete_annual_fee', fee_no=item.fee_no) }}" style="display:inline" onsubmit="return confirm('Delete this fee entry?');">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button class="btn btn-xs btn-outline" type="submit" style="color:#e65100">&#10005;</button>
+                                <button class="btn btn-xs btn-outline" type="submit" title="Delete" style="color:#c62828;">🗑️</button>
                             </form>
                         </div>
                     </td>
                 </tr>
-                {% else %}<tr><td colspan="9" class="empty-state">No fee entries yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}<p class="empty-state">No fee entries yet.</p>{% endif %}
+    {% else %}
+    <div style="padding:32px 20px;text-align:center;color:var(--muted);font-size:0.85rem;">No fee entries yet.</div>
+    {% endif %}
 </div>
+
+<!-- ═══ REGISTER PARTY MODAL ═══ -->
+<div class="af-modal-overlay" id="registerModal">
+    <div class="af-modal">
+        <div class="af-modal-header">
+            <h3>🏢 Register New Party</h3>
+            <button class="af-modal-close" onclick="document.getElementById('registerModal').classList.remove('is-open')">✕</button>
+        </div>
+        <form method="post" action="{{ url_for('register_annual_fee_party') }}">
+        <div class="af-modal-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <p style="font-size:0.78rem;color:var(--muted);margin:0 0 14px 0;background:#f0f7ff;padding:10px 14px;border-radius:10px;border-left:3px solid var(--primary)">💡 Register the party first. Add fee entries from their profile page.</p>
+            <div class="af-form-grid">
+                <div class="af-form-group"><label>Party Name <span class="required">*</span></label><input type="text" name="party_name" placeholder="e.g. Asad Ullah" required></div>
+                <div class="af-form-group"><label>Contact Person</label><input type="text" name="contact_person" placeholder="e.g. Asad Ullah"></div>
+                <div class="af-form-group"><label>Phone Number</label><input type="text" name="phone_number" placeholder="e.g. +971 50 123 4567"></div>
+                <div class="af-form-group"><label>Email</label><input type="email" name="email" placeholder="e.g. asad@example.com"></div>
+                <div class="af-form-group"><label>TRN No</label><input type="text" name="trn_no" placeholder="e.g. 100200300400500"></div>
+                <div class="af-form-group"><label>Party Type</label><select name="party_kind"><option value="Company">Company</option><option value="Individual" selected>Individual</option></select></div>
+            </div>
+        </div>
+        <div class="af-modal-footer">
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('registerModal').classList.remove('is-open')">Cancel</button>
+            <button type="submit" class="btn btn-primary">🚀 Register Party</button>
+        </div>
+        </form>
+    </div>
 </div>
+
+<!-- ═══ ADD FEE ENTRY MODAL ═══ -->
+<div class="af-modal-overlay" id="addFeeModal">
+    <div class="af-modal">
+        <div class="af-modal-header">
+            <h3>{% if values.original_fee_no %}✏️ Edit Fee Entry{% else %}➕ New Fee Entry{% endif %}</h3>
+            <button class="af-modal-close" onclick="document.getElementById('addFeeModal').classList.remove('is-open')">✕</button>
+        </div>
+        <form method="post" action="{{ url_for('annual_fees') }}">
+        <div class="af-modal-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="original_fee_no" value="{{ values.original_fee_no }}">
+            <div class="af-form-grid">
+                <div class="af-form-group"><label>Fee No</label><input type="text" name="fee_no" value="{{ values.fee_no }}" readonly style="background:#f8fafc;color:#94a3b8;cursor:not-allowed;"></div>
+                <div class="af-form-group"><label>Party <span class="required">*</span></label>
+                    <select name="party_code" id="party_code" required onchange="toggleOtherParty(this)">
+                        <option value="">Select party...</option>
+                        {% for party in parties %}<option value="{{ party.party_code }}" {% if values.party_code == party.party_code %}selected{% endif %}>{{ party.party_name }}</option>{% endfor %}
+                        <option value="__other__" {% if values.party_code == '__other__' %}selected{% endif %}>Other (Manual Entry)</option>
+                    </select>
+                    <input type="text" name="other_party_name" id="other_party_name" value="{{ values.other_party_name }}" placeholder="Enter party name" style="margin-top:6px;display:none">
+                </div>
+                <div class="af-form-group"><label>Fee Type <span class="required">*</span></label><select name="fee_type" id="feeTypeSelect" required>{% for item in fee_type_options %}<option value="{{ item }}" {% if values.fee_type == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+                <div class="af-form-group"><label>Due Date <span class="required">*</span></label><input type="date" name="due_date" value="{{ values.due_date }}" required></div>
+                <div class="af-form-group"><label>Annual Amount <span class="required">*</span></label><input type="number" step="0.01" name="annual_amount" value="{{ values.annual_amount }}" placeholder="0.00" required></div>
+                <div class="af-form-group"><label>Received Amount</label><input type="number" step="0.01" name="received_amount" value="{{ values.received_amount }}" placeholder="0.00"></div>
+                <div class="af-form-group" id="vehicleNoGroup"><label>Vehicle No</label><input type="text" name="vehicle_no" value="{{ values.vehicle_no }}" placeholder="e.g. ABC-1234"></div>
+                <div class="af-form-group"><label>Description</label><input type="text" name="description" value="{{ values.description }}" placeholder="e.g. Visa renewal 2025"></div>
+                <div class="af-form-group full"><label>Notes</label><textarea name="notes" rows="2" placeholder="Any notes...">{{ values.notes }}</textarea></div>
+            </div>
+        </div>
+        <div class="af-modal-footer">
+            {% if values.original_fee_no %}<a href="{{ url_for('annual_fees') }}" class="btn btn-outline">Cancel</a>
+            {% else %}<button type="button" class="btn btn-outline" onclick="document.getElementById('addFeeModal').classList.remove('is-open')">Cancel</button>{% endif %}
+            <button type="submit" class="btn btn-primary">{{ '💾 Update' if values.original_fee_no else '💾 Save Entry' }}</button>
+        </div>
+        </form>
+    </div>
+</div>
+
+</div>
+
+<script>
+/* ─── Search & Filter ─── */
+var afCurrentFilter = 'all';
+function afFilterCards() {
+    var q = document.getElementById('afSearchInput').value.toLowerCase();
+    var cards = document.querySelectorAll('.af-card');
+    var visible = 0;
+    cards.forEach(function(card) {
+        var matchSearch = card.getAttribute('data-search').indexOf(q) !== -1;
+        var matchFilter = afCurrentFilter === 'all'
+            || (afCurrentFilter === 'due' && card.getAttribute('data-due') === 'yes')
+            || (afCurrentFilter === 'paid' && card.getAttribute('data-due') === 'no');
+        var show = matchSearch && matchFilter;
+        card.style.display = show ? '' : 'none';
+        if (show) visible++;
+    });
+    document.getElementById('afSearchEmpty').style.display = visible === 0 ? '' : 'none';
+    document.getElementById('afCountBadge').textContent = visible + ' ' + (visible !== 1 ? 'parties' : 'party');
+}
+function afSetFilter(f, el) { afCurrentFilter = f; document.querySelectorAll('.af-pill').forEach(function(p){p.classList.remove('active')}); el.classList.add('active'); afFilterCards(); }
+
+/* ─── Fee Register Toggle ─── */
+function afToggleRegister() { document.getElementById('registerToggle').classList.toggle('is-open'); document.getElementById('registerBody').classList.toggle('is-open'); }
+
+/* ─── Vehicle Toggle ─── */
+var ft = document.getElementById('feeTypeSelect'), vg = document.getElementById('vehicleNoGroup');
+if (ft && vg) { function tv() { vg.style.display = ft.value === 'Vehicle' ? '' : 'none'; } ft.addEventListener('change', tv); tv(); }
+
+/* ─── Other Party ─── */
+function toggleOtherParty(sel) { var o = document.getElementById('other_party_name'); o.style.display = sel.value === '__other__' ? 'block' : 'none'; if (sel.value !== '__other__') o.value = ''; }
+(function(){ var s = document.getElementById('party_code'); if (s && s.value === '__other__') toggleOtherParty(s); })();
+
+/* ─── Modal Close ─── */
+document.querySelectorAll('.af-modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)o.classList.remove('is-open')})});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')document.querySelectorAll('.af-modal-overlay.is-open').forEach(function(m){m.classList.remove('is-open')})});
+
+/* ─── Auto-open modal if editing ─── */
+{% if values.original_fee_no %}document.getElementById('addFeeModal').classList.add('is-open');{% endif %}
+</script>
 {% endblock %}
