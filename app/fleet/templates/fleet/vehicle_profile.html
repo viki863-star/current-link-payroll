@@ -139,13 +139,74 @@
     {% endif %}
 
     {% if v.linked_plate_no and v.linked_plate_no != '' %}
-    <div style="margin:12px 0;padding:10px 16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <svg viewBox="0 0 20 20" fill="none" stroke="#16a34a" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
-        <span style="font-weight:600;color:#16a34a;font-size:0.9rem">Linked to Head:</span>
-        <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.linked_plate_no) }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:#fff;border:1px solid #86efac;border-radius:6px;text-decoration:none;color:#15803d;font-weight:600;font-size:0.85rem">
-            {{ v.linked_plate_no }}
-            {% if v.link_type %}<span style="font-size:0.72rem;color:#94a3b8">({{ v.link_type }})</span>{% endif %}
-        </a>
+    <div style="margin:12px 0;padding:14px 16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:12px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+            <svg viewBox="0 0 20 20" fill="none" stroke="#16a34a" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
+            <span style="font-weight:600;color:#16a34a;font-size:0.9rem">Linked to Head:</span>
+            <a href="{{ url_for('fleet.vehicle_profile', plate_no=v.linked_plate_no) }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:#fff;border:1px solid #86efac;border-radius:6px;text-decoration:none;color:#15803d;font-weight:600;font-size:0.85rem">
+                {{ v.linked_plate_no }}
+                {% if v.link_type %}<span style="font-size:0.72rem;color:#94a3b8">({{ v.link_type }})</span>{% endif %}
+            </a>
+            <button onclick="document.getElementById('linkSection').style.display=document.getElementById('linkSection').style.display==='none'?'block':'none'" style="padding:4px 10px;background:#fff;border:1px solid #fbbf24;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#b45309;font-weight:600">✏️ Change</button>
+            <form method="POST" action="{{ url_for('fleet.vehicle_unlink', plate_no=v.plate_no) }}" onsubmit="return confirm('Unlink this vehicle from Head {{ v.linked_plate_no }}?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" style="padding:4px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#c62828;font-weight:600">🔗 Unlink</button>
+            </form>
+        </div>
+        <div id="linkSection" style="display:none;margin-top:8px;padding:12px;background:#fff;border:1px solid #d1fae5;border-radius:10px">
+            <form method="POST" action="{{ url_for('fleet.vehicle_change_link', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="flex:1;min-width:150px">
+                    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">New Head Vehicle</label>
+                    <select name="head_plate_no" class="form-control" required style="width:100%">
+                        <option value="">— Select Head —</option>
+                        {% for hv in head_vehicles %}
+                        <option value="{{ hv.plate_no }}" {% if v.linked_plate_no == hv.plate_no %}selected{% elif hv.plate_no in already_linked and hv.plate_no != v.linked_plate_no %}disabled{% endif %}>{{ hv.plate_no }} — {{ hv.vehicle_type }}{% if hv.model %} ({{ hv.model }}){% endif %}{% if hv.plate_no in already_linked and hv.plate_no != v.linked_plate_no %} ⛔{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="min-width:120px">
+                    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">Link Type</label>
+                    <select name="link_type" class="form-control" style="width:100%">
+                        {% for lt in link_types %}
+                        <option value="{{ lt }}" {% if v.link_type == lt %}selected{% endif %}>{{ lt or '— None —' }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" style="padding:7px 16px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.82rem;white-space:nowrap">💾 Save Link</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div style="margin:12px 0;padding:14px 16px;background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;border-radius:12px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+            <svg viewBox="0 0 20 20" fill="none" stroke="#e65100" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
+            <span style="font-weight:600;color:#e65100;font-size:0.9rem">Not linked to any Head</span>
+        </div>
+        <button onclick="document.getElementById('linkSectionNew').style.display=document.getElementById('linkSectionNew').style.display==='none'?'block':'none'" style="padding:5px 14px;background:#fff;border:1px solid #f97316;border-radius:8px;cursor:pointer;font-size:0.78rem;color:#c2410c;font-weight:600">🔗 Link to Head</button>
+        <div id="linkSectionNew" style="display:none;margin-top:10px;padding:12px;background:#fff;border:1px solid #fed7aa;border-radius:10px">
+            <form method="POST" action="{{ url_for('fleet.vehicle_change_link', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="flex:1;min-width:150px">
+                    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">Select Head Vehicle</label>
+                    <select name="head_plate_no" class="form-control" required style="width:100%">
+                        <option value="">— Select Head —</option>
+                        {% for hv in head_vehicles %}
+                        <option value="{{ hv.plate_no }}" {% if hv.plate_no in already_linked %}disabled{% endif %}>{{ hv.plate_no }} — {{ hv.vehicle_type }}{% if hv.model %} ({{ hv.model }}){% endif %}{% if hv.plate_no in already_linked %} ⛔{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="min-width:120px">
+                    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">Link Type</label>
+                    <select name="link_type" class="form-control" style="width:100%">
+                        {% for lt in link_types %}
+                        <option value="{{ lt }}">{{ lt or '— None —' }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" style="padding:7px 16px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.82rem;white-space:nowrap">💾 Save Link</button>
+            </form>
+        </div>
     </div>
     {% endif %}
         </div>

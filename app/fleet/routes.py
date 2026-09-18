@@ -868,6 +868,62 @@ def vehicle_remove_mulkiya(plate_no, doc_id):
     return redirect(url_for("fleet.vehicle_edit", plate_no=plate_no))
 
 
+# ── Unlink Vehicle from Head ────────────────────────────────────
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/unlink", methods=["POST"])
+@_login_required("admin")
+def vehicle_unlink(plate_no):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+
+    v = db.execute("SELECT plate_no, vehicle_category FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    if not v:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+
+    db.execute("UPDATE vehicles SET linked_plate_no = NULL, link_type = '' WHERE plate_no = ?", (plate_no,))
+    db.commit()
+    db.close()
+
+    flash(f"Vehicle {plate_no} unlinked from Head.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+
+
+# ── Change Link from Profile ───────────────────────────────────
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/change-link", methods=["POST"])
+@_login_required("admin")
+def vehicle_change_link(plate_no):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+
+    v = db.execute("SELECT plate_no, vehicle_category FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    if not v:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+
+    head_plate = request.form.get("head_plate_no", "").strip()
+    link_type = request.form.get("link_type", "").strip()
+
+    if not head_plate:
+        flash("Please select a Head vehicle.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+
+    head = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (head_plate,)).fetchone()
+    if not head:
+        flash("Head vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+
+    db.execute("UPDATE vehicles SET linked_plate_no = ?, link_type = ? WHERE plate_no = ?", (head_plate, link_type, plate_no))
+    db.commit()
+    db.close()
+
+    flash(f"Vehicle {plate_no} now linked to Head {head_plate}.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
+
+
 # ── Link Vehicle to Head ────────────────────────────────────────
 
 @fleet_bp.route("/fleet/vehicles/<path:plate_no>/link-to-head", methods=["POST"])
@@ -1028,6 +1084,11 @@ def vehicle_profile(plate_no):
     parts_total_vat = sum(b["vat_amount"] for b in supplier_bills) if supplier_bills else 0
     parts_total_net = sum(b["net_amount"] for b in supplier_bills) if supplier_bills else 0
 
+    head_vehicles = db.execute(
+        "SELECT plate_no, vehicle_type, model FROM vehicles WHERE vehicle_category = 'Head' AND status = 'Active' ORDER BY plate_no"
+    ).fetchall()
+    already_linked = [r["plate_no"] for r in db.execute("SELECT linked_plate_no AS plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != ''").fetchall()]
+
     return render_template(
         "fleet/vehicle_profile.html",
         v=v,
@@ -1049,6 +1110,9 @@ def vehicle_profile(plate_no):
         suppliers=suppliers,
         linked_vehicles=linked_vehicles,
         current_drivers=current_drivers,
+        head_vehicles=head_vehicles,
+        already_linked=already_linked,
+        link_types=LINK_TYPES,
         date=date,
     )
 
