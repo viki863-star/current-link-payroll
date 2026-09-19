@@ -962,7 +962,7 @@ CREATE INDEX IF NOT EXISTS idx_supplier_timesheets_party ON supplier_timesheets(
 CREATE INDEX IF NOT EXISTS idx_supplier_vouchers_party ON supplier_vouchers(party_code);
 CREATE INDEX IF NOT EXISTS idx_supplier_vouchers_status ON supplier_vouchers(status);
 CREATE INDEX IF NOT EXISTS idx_lpos_party ON lpos(party_code);
-CREATE INDEX IF NOT EXISTS idx_maintenance_papers_party ON maintenance_papers(party_code);
+CREATE INDEX IF NOT EXISTS idx_maintenance_papers_target_party ON maintenance_papers(target_party_code);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_notifications_role ON notifications(role, is_read);
 """
@@ -1925,7 +1925,7 @@ CREATE INDEX IF NOT EXISTS idx_supplier_timesheets_party ON supplier_timesheets(
 CREATE INDEX IF NOT EXISTS idx_supplier_vouchers_party ON supplier_vouchers(party_code);
 CREATE INDEX IF NOT EXISTS idx_supplier_vouchers_status ON supplier_vouchers(status);
 CREATE INDEX IF NOT EXISTS idx_lpos_party ON lpos(party_code);
-CREATE INDEX IF NOT EXISTS idx_maintenance_papers_party ON maintenance_papers(party_code);
+CREATE INDEX IF NOT EXISTS idx_maintenance_papers_target_party ON maintenance_papers(target_party_code);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_notifications_role ON notifications(role, is_read);
 """
