@@ -890,40 +890,6 @@ def vehicle_unlink(plate_no):
     return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
 
 
-# ── Change Link from Profile ───────────────────────────────────
-
-@fleet_bp.route("/fleet/vehicles/<path:plate_no>/change-link", methods=["POST"])
-@_login_required("admin")
-def vehicle_change_link(plate_no):
-    _touch_admin_workspace("fleet")
-    ensure_fleet_tables()
-    db = open_db()
-
-    v = db.execute("SELECT plate_no, vehicle_category FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
-    if not v:
-        flash("Vehicle not found.", "error")
-        return redirect(url_for("fleet.vehicle_list"))
-
-    head_plate = request.form.get("head_plate_no", "").strip()
-    link_type = request.form.get("link_type", "").strip()
-
-    if not head_plate:
-        flash("Please select a Head vehicle.", "error")
-        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
-
-    head = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (head_plate,)).fetchone()
-    if not head:
-        flash("Head vehicle not found.", "error")
-        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
-
-    db.execute("UPDATE vehicles SET linked_plate_no = ?, link_type = ? WHERE plate_no = ?", (head_plate, link_type, plate_no))
-    db.commit()
-    db.close()
-
-    flash(f"Vehicle {plate_no} now linked to Head {head_plate}.", "success")
-    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
-
-
 # ── Link Vehicle to Head ────────────────────────────────────────
 
 @fleet_bp.route("/fleet/vehicles/<path:plate_no>/link-to-head", methods=["POST"])
@@ -954,8 +920,8 @@ def vehicle_link_to_head(plate_no):
     db.commit()
     db.close()
 
-    flash(f"Vehicle {plate_no} linked to Head {head_plate}. It will no longer appear in the main list.", "success")
-    return redirect(url_for("fleet.vehicle_list"))
+    flash(f"Vehicle {plate_no} linked to Head {head_plate}.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
 
 
 # ── Vehicle Profile ─────────────────────────────────────────────
@@ -1175,20 +1141,7 @@ def vehicle_assign_driver(plate_no):
 
 # ── Field Staff: Staff Login ────────────────────────────────────
 
-def _staff_login_required(f):
-    from functools import wraps
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        staff_id = session.get("staff_id")
-        if not staff_id:
-            return redirect(url_for("fleet.staff_login"))
-        db = open_db()
-        staff = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active FROM field_staff WHERE staff_id = ? AND is_active = 1", (staff_id,)).fetchone()
-        if not staff:
-            session.pop("staff_id", None)
-            return redirect(url_for("fleet.staff_login"))
-        return f(*args, **kwargs)
-    return wrapper
+
 
 
 # ── Vehicle Documents ─────────────────────────────────────────────
@@ -1284,206 +1237,7 @@ def vehicle_document_view(plate_no, doc_id):
     )
 
 
-# ═════════════════════════════════════════════════════════════════
 
-# FIELD STAFF PORTAL (separate login)
-# ═════════════════════════════════════════════════════════════════
-
-@fleet_bp.route("/staff/login", methods=["GET", "POST"])
-def staff_login():
-    return redirect(url_for("technician_login"))
-
-
-staff_login.csrf_exempt = True
-
-
-@fleet_bp.route("/staff/logout")
-def staff_logout():
-    return redirect(url_for("logout"))
-
-
-@fleet_bp.route("/staff/dashboard")
-def staff_dashboard():
-    return redirect(url_for("technician_portal"))
-
-
-@fleet_bp.route("/staff/jobs/new", methods=["GET", "POST"])
-@_staff_login_required
-def staff_job_new():
-    db = open_db()
-    staff_id = session["staff_id"]
-    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
-    _ensure_maintenance_suppliers_table(db)
-    supplier_rows = db.execute(
-        "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT name FROM maintenance_suppliers WHERE name IS NOT NULL AND name != '' ORDER BY supplier_name ASC"
-    ).fetchall()
-    supplier_suggestions = [r[0] for r in supplier_rows]
-    supplier_trn_rows = db.execute(
-        "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT name, trn FROM maintenance_suppliers WHERE trn IS NOT NULL AND trn != ''"
-    ).fetchall()
-    supplier_trn_map = {}
-    for row in supplier_trn_rows:
-        if row[0] and not supplier_trn_map.get(row[0]):
-            supplier_trn_map[row[0]] = row[1]
-
-    if request.method == "POST":
-        row_count = _bulk_row_count()
-        rows = [_bulk_row_values(i) for i in range(row_count)]
-        if not rows or not any(r["amount"] for r in rows):
-            flash("Add at least one paper with an amount.", "error")
-            return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form, rows=rows)
-        errors = _bulk_validation_errors(rows)
-        if errors:
-            for e in errors:
-                flash(e, "error")
-            return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form, rows=rows)
-
-        try:
-            created = 0
-            total_amt = 0.0
-            missing = 0
-            for i, row in enumerate(rows):
-                attachment = request.files.get(f"attachment_{i}")
-                if _insert_staff_job_row(db, staff_id, row, attachment):
-                    missing += 1
-                created += 1
-                total_amt += float(row["amount"] or 0)
-            db.commit()
-            if missing:
-                flash(f"{missing} paper(s) had an unregistered vehicle — recorded as General Expense. Add the vehicle to the fleet list if it was wrong.", "warning")
-            try:
-                from app.notification_service import add_notification
-                add_notification(
-                    title=f"{created} job(s) submitted for approval",
-                    type="success",
-                    role="technician",
-                    message=f"{created} paper(s) — AED {round(total_amt, 2)}",
-                )
-                add_notification(
-                    title=f"{created} new job(s) submitted by {session.get('staff_name','Field Staff')}",
-                    type="pending_approvals",
-                    role="admin",
-                    message=f"{created} paper(s) — AED {round(total_amt, 2)}",
-                    link="/fleet/approvals",
-                )
-            except Exception:
-                pass
-            flash(f"{created} paper(s) submitted for approval.", "success")
-            return redirect(url_for("fleet.staff_dashboard"))
-        except Exception as e:
-            db.rollback()
-            current_app.logger.error("staff_job_new bulk POST error: %s", e, exc_info=True)
-            flash(f"Error submitting jobs: {e}", "error")
-            return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v=request.form, rows=rows)
-
-    return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=MAINTENANCE_CATEGORIES, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v={}, rows=[])
-
-
-staff_job_new.csrf_exempt = True
-
-
-@fleet_bp.route("/staff/jobs")
-@_staff_login_required
-def staff_jobs():
-    db = open_db()
-    staff_id = session["staff_id"]
-    jobs = db.execute(
-        f"""SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
-           LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
-           WHERE mj.staff_id = ? ORDER BY mj.created_at DESC""",
-        (staff_id,),
-    ).fetchall()
-    return render_template("fleet/staff_jobs.html", jobs=jobs)
-
-
-# ── Staff: Edit Job (only pending, own jobs) ────────────────────
-
-@fleet_bp.route("/staff/jobs/<int:job_id>/edit", methods=["GET", "POST"])
-@_staff_login_required
-def staff_job_edit(job_id):
-    db = open_db()
-    staff_id = session["staff_id"]
-    job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at, supplier_name, supplier_trn, supplier_bill_no, tax_mode, tax_amount FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status = 'pending'", (job_id, staff_id)).fetchone()
-    if not job:
-        flash("Job not found or cannot be edited.", "error")
-        return redirect(url_for("fleet.staff_jobs"))
-
-    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
-
-    if request.method == "POST":
-        vehicle_id = request.form.get("vehicle_id", "").strip()
-        amount = request.form.get("amount", "").strip()
-        category = request.form.get("category", "").strip()
-        description = request.form.get("description", "").strip()
-        supplier_name = request.form.get("supplier_name", "").strip()
-        supplier_trn = request.form.get("supplier_trn", "").strip()
-        supplier_bill_no = request.form.get("supplier_bill_no", "").strip()
-        tax_mode = request.form.get("tax_mode", job["tax_mode"] or "Without Tax").strip() or "Without Tax"
-
-        if not amount or not category:
-            flash("Amount and category are required.", "error")
-            return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES)
-        if tax_mode == "Tax Invoice":
-            if not supplier_name:
-                flash("Workshop name is required when the bill includes VAT 5%.", "error")
-                return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES)
-            if not supplier_bill_no:
-                flash("Bill number is required when the bill includes VAT 5%.", "error")
-                return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES)
-        try:
-            net_amount = round(float(amount), 2)
-        except ValueError:
-            net_amount = 0.0
-        if tax_mode == "Tax Invoice":
-            tax_amount = round(net_amount * 0.05, 2)
-            amount_total = round(net_amount + tax_amount, 2)
-        else:
-            tax_amount = 0.0
-            amount_total = net_amount
-
-        attachment_name = job["attachment_name"]
-        attachment_data = job["attachment_data"]
-        attachment_type = job["attachment_type"]
-        if "attachment" in request.files:
-            file = request.files["attachment"]
-            if file.filename:
-                import base64
-                attachment_name = file.filename
-                attachment_data = base64.b64encode(file.read()).decode("utf-8")
-                attachment_type = file.content_type
-
-        db.execute(
-            "UPDATE maintenance_jobs SET vehicle_id=?, amount=?, category=?, description=?, attachment_name=?, attachment_data=?, attachment_type=?, supplier_name=?, supplier_trn=?, supplier_bill_no=?, tax_mode=?, tax_amount=? WHERE id=?",
-            (vehicle_id or "N/A", amount_total, category, description, attachment_name, attachment_data, attachment_type, supplier_name or None, supplier_trn or None, supplier_bill_no or None, tax_mode, tax_amount, job_id),
-        )
-        db.commit()
-        flash("Job updated.", "success")
-        return redirect(url_for("fleet.staff_jobs"))
-
-    return render_template("fleet/staff_job_edit.html", job=job, vehicles=vehicles, categories=MAINTENANCE_CATEGORIES)
-
-
-staff_job_edit.csrf_exempt = True
-
-
-# ── Staff: Delete Job (only pending, own jobs) ──────────────────
-
-@fleet_bp.route("/staff/jobs/<int:job_id>/delete", methods=["POST"])
-@_staff_login_required
-def staff_job_delete(job_id):
-    db = open_db()
-    staff_id = session["staff_id"]
-    job = db.execute("SELECT id FROM maintenance_jobs WHERE id = ? AND staff_id = ? AND status = 'pending'", (job_id, staff_id)).fetchone()
-    if not job:
-        flash("Job not found or cannot be deleted.", "error")
-    else:
-        db.execute("DELETE FROM maintenance_jobs WHERE id = ?", (job_id,))
-        db.commit()
-        flash("Job deleted.", "info")
-    return redirect(url_for("fleet.staff_jobs"))
-
-
-staff_job_delete.csrf_exempt = True
 
 
 # ═════════════════════════════════════════════════════════════════
@@ -1494,10 +1248,6 @@ def _staff_photo_url(row):
     if row and row.get("photo_data") and row.get("photo_content_type"):
         return f"data:{row['photo_content_type']};base64,{row['photo_data']}"
     return None
-
-
-def _staff_photo_url_value(row, attr="photo"):
-    return _staff_photo_url(row)
 
 
 def _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, is_active):
@@ -1644,7 +1394,7 @@ def _import_maintenance_staff_from_sqlite(db):
     except Exception:
         old_staff = []
     for s in old_staff:
-        code = s["staff_code"]
+        code = s["staff_id"]
         existing = db.execute("SELECT staff_code FROM maintenance_staff WHERE staff_code = ?", (code,)).fetchone()
         if existing:
             continue
@@ -1652,28 +1402,28 @@ def _import_maintenance_staff_from_sqlite(db):
             db.execute("""
                 INSERT INTO maintenance_staff (staff_code, staff_name, phone_number, status, notes, created_at)
                 VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
-            """, (code, s["staff_name"], s["phone_number"] or "", s["status"] or "Active",
-                  s["notes"] or "", s.get("created_at")))
+            """, (code, s["full_name"], s["phone"] or "", s["status"] or "Active",
+                  "", s["created_at"]))
         except Exception:
             pass
         already = db.execute("SELECT staff_id FROM field_staff WHERE staff_id = ?", (code,)).fetchone()
         if already:
             continue
-        name = s["staff_name"]
+        name = s["full_name"]
         username = (code + name)[:20].lower().replace("-", "").replace(" ", "")
         pw_hash = generate_password_hash("changeme123")
         try:
             db.execute("""
                 INSERT INTO field_staff (staff_id, full_name, phone, username, password_hash, is_active)
                 VALUES (?, ?, ?, ?, ?, 1)
-            """, (code, name, s["phone_number"] or "", username, pw_hash))
+            """, (code, name, s["phone"] or "", username, pw_hash))
         except Exception:
             continue
         try:
             db.execute("""
                 INSERT INTO technicians (technician_code, party_code, user_id, password_hash, phone_number, specialization, status)
                 VALUES (?, NULL, ?, ?, ?, ?, 'Active')
-            """, (code, username, pw_hash, s["phone_number"] or "", name))
+            """, (code, username, pw_hash, s["phone"] or "", name))
         except Exception:
             pass
     db.execute("""
@@ -2623,7 +2373,7 @@ def fleet_job_approve_all():
             if sid and sid not in notified:
                 notified.add(sid)
                 add_notification(title=f"Your job{'s' if len(pending)>1 else ''} approved", type="success", role="technician")
-    except:
+    except Exception:
         pass
     flash(f"All {len(pending)} pending jobs approved.", "success")
     return redirect(url_for("fleet.fleet_approvals"))
@@ -2649,13 +2399,13 @@ def fleet_job_approve_all_staff(staff_id):
         s = db.execute("SELECT full_name FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
         if s:
             staff_name = s[0]
-    except:
+    except Exception:
         pass
     try:
         from app.notification_service import add_notification
         add_notification(title=f"{len(pending)} job(s) for {staff_name} approved", type="success", role="admin", link="/fleet/approvals")
         add_notification(title=f"Your job{'s' if len(pending)>1 else ''} approved", type="success", role="technician")
-    except:
+    except Exception:
         pass
     flash(f"Approved {len(pending)} pending job(s) for {staff_name}.", "success")
     return redirect(url_for("fleet.fleet_approvals"))
@@ -2690,7 +2440,7 @@ def fleet_job_approve(job_id):
             if staff_id:
                 s = db.execute("SELECT full_name FROM field_staff WHERE staff_id=?", (staff_id,)).fetchone()
                 if s: staff_name = s[0]
-        except:
+        except Exception:
             staff_name = "Technician"
         add_notification(
             title=f"Job #{job_id} approved by admin",
@@ -2698,7 +2448,7 @@ def fleet_job_approve(job_id):
             role="technician",
             message=job.get("category","") + " — AED " + str(job.get("amount","")),
         )
-    except:
+    except Exception:
         pass
     flash(f"Job #{job_id} approved.", "success")
     return redirect(url_for("fleet.fleet_approvals"))
@@ -2727,7 +2477,7 @@ def fleet_job_reject(job_id):
         try:
             job = db.execute("SELECT id, vehicle_id, staff_id, amount, category, description, attachment_name, attachment_data, attachment_type, status, admin_notes, approved_at FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
             staff_id = job.get("staff_id") if job else None
-        except:
+        except Exception:
             staff_id = None
         add_notification(
             title=f"Job #{job_id} rejected by admin",
@@ -2735,7 +2485,7 @@ def fleet_job_reject(job_id):
             role="technician",
             message=notes,
         )
-    except:
+    except Exception:
         pass
     flash(f"Job #{job_id} rejected.", "info")
     return redirect(url_for("fleet.fleet_approvals"))
@@ -2744,6 +2494,7 @@ def fleet_job_reject(job_id):
 # ── Serve Attachment ────────────────────────────────────────────
 
 @fleet_bp.route("/fleet/attachment/<int:job_id>")
+@_login_required("admin")
 def fleet_attachment(job_id):
     db = open_db()
     job = db.execute("SELECT attachment_data, attachment_name, attachment_type FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
@@ -2764,6 +2515,7 @@ def fleet_attachment(job_id):
 
 
 @fleet_bp.route("/fleet/attachment/<int:job_id>/thumb")
+@_login_required("admin")
 def fleet_attachment_thumb(job_id):
     db = open_db()
     job = db.execute("SELECT attachment_data, attachment_name, attachment_type FROM maintenance_jobs WHERE id = ?", (job_id,)).fetchone()
@@ -3112,12 +2864,6 @@ def fuel_supplier_statement(supplier_id):
         total_amount=total_amount,
     )
 
-
-@fleet_bp.route("/fleet/fuel/supplier/<int:supplier_id>/pdf")
-@_login_required("admin")
-def fuel_supplier_statement_pdf(supplier_id):
-    flash("PDF coming soon.", "info")
-    return redirect(url_for("fleet.fuel_supplier_statement", supplier_id=supplier_id))
 
 @fleet_bp.route("/fleet/vat-quick", methods=["GET", "POST"])
 @_login_required("admin")
@@ -3543,33 +3289,6 @@ def fleet_job_revert(job_id):
     db.commit()
     flash("Job reverted to pending.", "success")
     return redirect(url_for("fleet.fleet_approvals"))
-
-
-# ═════════════════════════════════════════════════════════════════
-# ENDPOINT: Staff can view their own attachment
-# ═════════════════════════════════════════════════════════════════
-
-@fleet_bp.route("/staff/attachment/<int:job_id>")
-@_staff_login_required
-def staff_attachment(job_id):
-    db = open_db()
-    staff_id = session["staff_id"]
-    job = db.execute(
-        "SELECT attachment_data, attachment_name, attachment_type FROM maintenance_jobs WHERE id = ? AND staff_id = ?",
-        (job_id, staff_id),
-    ).fetchone()
-    if not job or not job["attachment_data"]:
-        flash("Attachment not found.", "error")
-        return redirect(url_for("fleet.staff_jobs"))
-    import base64
-    from io import BytesIO
-    data = base64.b64decode(job["attachment_data"])
-    return send_file(
-        BytesIO(data),
-        mimetype=job["attachment_type"] or "application/octet-stream",
-        as_attachment=False,
-        download_name=job["attachment_name"] or f"attachment_{job_id}",
-    )
 
 
 # ═════════════════════════════════════════════════════════════════

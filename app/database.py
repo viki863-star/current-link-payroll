@@ -949,6 +949,22 @@ CREATE TABLE IF NOT EXISTS bank_transactions (
     description TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_driver_transactions_driver ON driver_transactions(driver_id);
+CREATE INDEX IF NOT EXISTS idx_salary_store_driver ON salary_store(driver_id);
+CREATE INDEX IF NOT EXISTS idx_salary_slips_driver ON salary_slips(driver_id);
+CREATE INDEX IF NOT EXISTS idx_salary_payments_driver ON salary_payments(driver_id);
+CREATE INDEX IF NOT EXISTS idx_account_invoices_party ON account_invoices(party_code);
+CREATE INDEX IF NOT EXISTS idx_account_invoices_status ON account_invoices(status);
+CREATE INDEX IF NOT EXISTS idx_account_invoice_lines_invoice ON account_invoice_lines(invoice_no);
+CREATE INDEX IF NOT EXISTS idx_supplier_timesheets_party ON supplier_timesheets(party_code);
+CREATE INDEX IF NOT EXISTS idx_supplier_vouchers_party ON supplier_vouchers(party_code);
+CREATE INDEX IF NOT EXISTS idx_supplier_vouchers_status ON supplier_vouchers(status);
+CREATE INDEX IF NOT EXISTS idx_lpos_party ON lpos(party_code);
+CREATE INDEX IF NOT EXISTS idx_maintenance_papers_party ON maintenance_papers(party_code);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_notifications_role ON notifications(role, is_read);
 """
 
 
@@ -1896,6 +1912,22 @@ CREATE TABLE IF NOT EXISTS supplier_inquiries (
     closure_notes TEXT,
     FOREIGN KEY(party_code) REFERENCES parties(party_code)
 );
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_driver_transactions_driver ON driver_transactions(driver_id);
+CREATE INDEX IF NOT EXISTS idx_salary_store_driver ON salary_store(driver_id);
+CREATE INDEX IF NOT EXISTS idx_salary_slips_driver ON salary_slips(driver_id);
+CREATE INDEX IF NOT EXISTS idx_salary_payments_driver ON salary_payments(driver_id);
+CREATE INDEX IF NOT EXISTS idx_account_invoices_party ON account_invoices(party_code);
+CREATE INDEX IF NOT EXISTS idx_account_invoices_status ON account_invoices(status);
+CREATE INDEX IF NOT EXISTS idx_account_invoice_lines_invoice ON account_invoice_lines(invoice_no);
+CREATE INDEX IF NOT EXISTS idx_supplier_timesheets_party ON supplier_timesheets(party_code);
+CREATE INDEX IF NOT EXISTS idx_supplier_vouchers_party ON supplier_vouchers(party_code);
+CREATE INDEX IF NOT EXISTS idx_supplier_vouchers_status ON supplier_vouchers(status);
+CREATE INDEX IF NOT EXISTS idx_lpos_party ON lpos(party_code);
+CREATE INDEX IF NOT EXISTS idx_maintenance_papers_party ON maintenance_papers(party_code);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_notifications_role ON notifications(role, is_read);
 """
 
 

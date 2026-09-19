@@ -1,120 +1,250 @@
 {% extends "base.html" %}
 {% block title %}Pending VAT Conversion — Fleet{% endblock %}
 {% block body_class %}list-body{% endblock %}
-{% block page_title %}Pending VAT Conversion{% endblock %}
+{% block page_title %}VAT Pending{% endblock %}
 
 {% block content %}
 <style>
-.vp-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
-.vp-toolbar h3 { margin:0; font-size:1.15rem; display:flex; align-items:center; gap:8px; color:var(--orange); }
-.vp-stat { background:#fff; border:1px solid var(--line); border-radius:12px; padding:8px 16px; text-align:center; }
-.vp-stat b { display:block; font-size:1.05rem; }
-.vp-stat span { font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; }
+/* VAT Pending — premium ERP redesign (scoped, no global changes) */
+.vp-page { max-width:1180px; margin:0 auto; }
+.vp-hero { background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px 22px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; box-shadow:0 1px 4px rgba(15,43,82,.06); margin-bottom:16px; }
+.vp-hero-left { min-width:240px; flex:1; }
+.vp-breadcrumb { display:flex; align-items:center; gap:6px; font-size:.68rem; font-weight:600; color:var(--muted); letter-spacing:.04em; text-transform:uppercase; margin-bottom:6px; }
+.vp-breadcrumb a { color:var(--muted); text-decoration:none; }
+.vp-breadcrumb a:hover { color:var(--primary); }
+.vp-breadcrumb .sep { color:#cbd5e1; }
+.vp-hero h1 { margin:0; font-size:1.35rem; font-weight:800; letter-spacing:-.03em; color:var(--ink); display:flex; align-items:center; gap:10px; }
+.vp-hero h1 svg { color:var(--orange); flex-shrink:0; }
+.vp-hero-desc { margin:6px 0 0; font-size:.84rem; color:var(--muted); line-height:1.5; max-width:640px; }
+.vp-hero-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.vp-btn-primary { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:8px; font-size:.78rem; font-weight:700; color:#fff; background:#d97706; border:1px solid #d97706; text-decoration:none; white-space:nowrap; transition:filter .15s, transform .15s; }
+.vp-btn-primary:hover { filter:brightness(1.05); transform:translateY(-1px); color:#fff; }
+.vp-btn-outline { display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:8px; font-size:.75rem; font-weight:600; color:var(--primary); background:#fff; border:1px solid #d0d8e8; text-decoration:none; white-space:nowrap; transition:all .15s; }
+.vp-btn-outline:hover { border-color:var(--primary); background:#f0f4ff; color:var(--primary); }
+.vp-hint-card { background:#fff; border:1px solid #dbeafe; border-left:3px solid #3b82f6; border-radius:10px; padding:12px 14px; margin-bottom:14px; }
+.vp-hint-card p { margin:0; font-size:.78rem; color:#475569; line-height:1.55; }
+.vp-hint-card strong { color:#1e293b; }
+.vp-kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
+.vp-kpi { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; position:relative; overflow:hidden; }
+.vp-kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; }
+.vp-kpi-count::before { background:var(--primary); }
+.vp-kpi-total::before { background:#d97706; }
+.vp-kpi-photo::before { background:#16a34a; }
+.vp-kpi-hidden::before { background:#64748b; }
+.vp-kpi-label { font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:4px; }
+.vp-kpi-value { font-size:1.28rem; font-weight:800; color:var(--ink); letter-spacing:-.02em; line-height:1; }
+.vp-kpi-value.mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:1.05rem; }
+.vp-kpi-sub { font-size:.68rem; color:var(--muted); margin-top:3px; }
+.vp-kpi-hidden.is-clickable { cursor:pointer; text-decoration:none; display:block; transition:border-color .15s, box-shadow .15s; }
+.vp-kpi-hidden.is-clickable:hover { border-color:#94a3b8; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+.vp-filter-card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+.vp-filter-left { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.vp-filter-label { font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+.vp-select { padding:7px 10px; font-size:.82rem; border:1.5px solid #d0d8e8; border-radius:8px; background:#fff; color:var(--ink); min-width:160px; }
+.vp-select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,.12); }
+.vp-filter-meta { font-size:.72rem; color:var(--muted); }
+.vp-table-card { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(15,43,82,.06); }
+.vp-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.vp-table { width:100%; border-collapse:collapse; font-size:.80rem; }
+.vp-table thead th { position:sticky; top:0; z-index:1; background:linear-gradient(180deg,#f8fafc,#f1f5f9); color:#475569; font-size:.66rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:10px 12px; border-bottom:1px solid #e2e8f0; white-space:nowrap; text-align:left; }
+.vp-table tbody td { padding:12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.vp-table tbody tr:last-child td { border-bottom:none; }
+.vp-table tbody tr:hover { background:rgba(247,147,30,.03); }
+.vp-table .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.vp-amount { font-weight:700; color:var(--ink); white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.vp-amount em { font-style:normal; color:#d97706; }
+.vp-veh { font-weight:700; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:#0f172a; background:#f8fafc; border:1px solid #e2e8f0; padding:2px 7px; border-radius:6px; white-space:nowrap; font-size:.74rem; }
+.vp-staff { font-size:.78rem; color:#334155; white-space:nowrap; }
+.vp-cat-badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:.66rem; font-weight:700; background:#eef4ff; color:#1c568b; border:1px solid #d0d8ff; white-space:nowrap; }
+.vp-thumb { display:block; width:56px; height:56px; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:#f8fafc; position:relative; }
+.vp-thumb img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .2s; }
+.vp-thumb:hover img { transform:scale(1.04); }
+.vp-file-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 10px; border-radius:8px; font-size:.72rem; font-weight:600; background:#fff; border:1px solid #d0d8e8; color:var(--primary); text-decoration:none; }
+.vp-file-btn:hover { background:#f0f4ff; border-color:var(--primary); }
+.vp-actions { min-width:320px; }
 .vp-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.vp-row input[type="number"] { width:110px; }
-.vp-row input[type="text"] { width:150px; }
-.vp-row .ext { font-size:0.7rem; color:var(--muted); }
-.vp-hint { font-size:0.78rem; color:var(--muted); margin-top:6px; }
-.vp-mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+.vp-row-top { margin-bottom:8px; }
+.vp-btn-xs { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:7px; font-size:.70rem; font-weight:600; text-decoration:none; cursor:pointer; border:1px solid #d0d8e8; background:#fff; color:#334155; transition:all .14s; white-space:nowrap; }
+.vp-btn-xs:hover { border-color:var(--primary); color:var(--primary); background:#f0f4ff; }
+.vp-btn-xs-muted { color:#475569; border-color:#cbd5e1; }
+.vp-btn-xs-muted:hover { color:#1e293b; border-color:#94a3b8; background:#f8fafc; }
+.vp-btn-vat { background:#d97706; border-color:#d97706; color:#fff; font-weight:700; }
+.vp-btn-vat:hover { background:#b45309; border-color:#b45309; color:#fff; }
+.vp-input { padding:6px 8px; font-size:.76rem; border:1.5px solid #d0d8e8; border-radius:7px; background:#fff; color:var(--ink); }
+.vp-input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,.12); }
+.vp-input-num { width:108px; }
+.vp-input-date { width:142px; }
+.vp-input-text { width:138px; }
+.vp-ext { font-size:.68rem; color:var(--muted); margin-top:5px; }
+.vp-empty { padding:40px 20px; text-align:center; }
+.vp-empty-icon { width:48px; height:48px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; display:grid; place-items:center; margin:0 auto 12px; color:#94a3b8; }
+.vp-empty h4 { margin:0 0 6px; font-size:.95rem; font-weight:700; color:var(--ink); }
+.vp-empty p { margin:0 0 14px; font-size:.82rem; color:var(--muted); }
+@media(max-width:900px){ .vp-kpi-grid{ grid-template-columns:repeat(2,1fr); } .vp-hero{ padding:16px; } }
+@media(max-width:640px){
+  .vp-kpi-grid{ grid-template-columns:1fr 1fr; }
+  .vp-hero h1{ font-size:1.15rem; }
+  .vp-table thead{ display:none; }
+  .vp-table tbody tr{ display:block; border:1px solid #e2e8f0; border-radius:12px; margin:10px; padding:10px 12px; background:#fff; }
+  .vp-table tbody td{ display:flex; justify-content:space-between; align-items:center; padding:7px 0; border:none; gap:12px; }
+  .vp-table tbody td::before{ content:attr(data-label); font-size:.64rem; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); flex-shrink:0; }
+  .vp-table tbody td[data-label="Convert to VAT"]{ display:block; }
+  .vp-table tbody td[data-label="Convert to VAT"]::before{ display:block; margin-bottom:8px; }
+  .vp-actions{ min-width:0; }
+  .vp-input-num,.vp-input-date,.vp-input-text{ width:100%; flex:1 1 100%; }
+  .vp-row{ gap:6px; }
+}
 </style>
 
-<div class="list-shell">
-    <div class="vp-toolbar">
-        <h3>
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M6.5 20a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/><path d="M11 4 14 8 6 11l-3-4z"/><circle cx="13" cy="15.5" r="2.5"/></svg>
-            Pending VAT Conversion
-        </h3>
-        <a href="{{ url_for('fleet.vat_quick') }}" class="btn btn-outline btn-sm">Quick VAT Editor</a>
+<div class="vp-page">
+    <!-- Header -->
+    <div class="vp-hero">
+        <div class="vp-hero-left">
+            <div class="vp-breadcrumb">
+                <a href="{{ url_for('fleet.fleet_dashboard') }}">Fleet</a><span class="sep">/</span><span>VAT Pending</span>
+            </div>
+            <h1>
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true"><path d="M10 2v6"/><path d="M10 8 14 6"/><path d="M10 8 6 6"/><path d="M3 8a7 7 0 1 1 14 0v9a14 14 0 0 1-14 0z"/></svg>
+                VAT Pending
+            </h1>
+            <p class="vp-hero-desc">Approved jobs awaiting VAT confirmation — open the attached paper, verify tax, then convert to Tax Invoice or hide as No VAT. Hidden items are reversible.</p>
+        </div>
+        <div class="vp-hero-actions">
+            <a href="{{ url_for('fleet.vat_quick') }}" class="vp-btn-outline" title="Open Quick VAT Editor">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M6.5 20a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/><path d="M11 4 14 8 6 11l-3-4z"/><circle cx="13" cy="15.5" r="2.5"/></svg>
+                Quick VAT Editor
+            </a>
+        </div>
     </div>
 
-    <div class="profile-card">
-        <p class="vp-hint">Yahan <strong>sirf woh without-VAT jobs</strong> dikh rahe hain <strong>jin ke saath paper/pic attached hai</strong> (bina pic wali kabhi nahi dikhti). <strong>Paper/Photo par click</strong> kar ke kholo: paper mein <strong>TAX hai</strong> → <strong>Add VAT 5%</strong> (job list se hat jayegi, VAT report + vehicle profile update, balance frozen). Paper mein <strong>TAX nahi hai</strong> → <strong>No VAT (hide)</strong> — list se hide ho jayegi, koi change nahi. Hide hui "<strong>Show hidden</strong>" se dobara dekh sakte ho.</p>
+    <div class="vp-hint-card" role="note">
+        <p>Yahan <strong>sirf woh without-VAT jobs</strong> dikh rahe hain <strong>jin ke saath paper/pic attached hai</strong> (bina pic wali kabhi nahi dikhti). <strong>Paper/Photo par click</strong> kar ke kholo: paper mein <strong>TAX hai</strong> → <strong>Add VAT 5%</strong> (list se hat jayegi, VAT report + vehicle profile update, balance frozen). Paper mein <strong>TAX nahi hai</strong> → <strong>No VAT (hide)</strong> — list se hide ho jayegi, koi change nahi. Hide hui “<strong>Show hidden</strong>” se dobara dekh sakte ho.</p>
     </div>
 
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0">
-        <form method="GET" style="display:flex;gap:8px;align-items:center;margin:0">
+    <!-- KPI Cards -->
+    <div class="vp-kpi-grid">
+        <div class="vp-kpi vp-kpi-count">
+            <div class="vp-kpi-label">Jobs To Check</div>
+            <div class="vp-kpi-value">{{ summary.count }}</div>
+            <div class="vp-kpi-sub">Pending approvals</div>
+        </div>
+        <div class="vp-kpi vp-kpi-total">
+            <div class="vp-kpi-label">Total Amount</div>
+            <div class="vp-kpi-value mono">AED {{ "{:,.2f}".format(summary.total) }}</div>
+            <div class="vp-kpi-sub">Net sum of listed jobs</div>
+        </div>
+        <div class="vp-kpi vp-kpi-photo">
+            <div class="vp-kpi-label">With Photo</div>
+            <div class="vp-kpi-value">{{ summary.with_photo }}</div>
+            <div class="vp-kpi-sub">Have attachment</div>
+        </div>
+        {% if summary.hidden %}
+        <a href="{{ url_for('fleet.vat_pending', show_hidden='1', month=month or None) }}" class="vp-kpi vp-kpi-hidden is-clickable" title="View hidden No VAT jobs">
+            <div class="vp-kpi-label">Hidden — No VAT</div>
+            <div class="vp-kpi-value">{{ summary.hidden }}</div>
+            <div class="vp-kpi-sub">Tap to show</div>
+        </a>
+        {% else %}
+        <div class="vp-kpi vp-kpi-hidden" style="opacity:.75">
+            <div class="vp-kpi-label">Hidden — No VAT</div>
+            <div class="vp-kpi-value">0</div>
+            <div class="vp-kpi-sub">None hidden</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Filters -->
+    <div class="vp-filter-card">
+        <form method="GET" class="vp-filter-left" style="margin:0">
             {% if show_hidden %}<input type="hidden" name="show_hidden" value="1">{% endif %}
-            <label style="font-size:0.78rem;font-weight:600;color:var(--muted)">Month:</label>
-            <select name="month" class="form-control" style="padding:6px 10px;font-size:0.82rem" onchange="this.form.submit()">
+            <span class="vp-filter-label">Month</span>
+            <select name="month" class="vp-select" onchange="this.form.submit()" aria-label="Filter by month">
                 <option value="">All months</option>
                 {% for m in month_options or [] %}
                 <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
             </select>
             {% if month %}
-            <a href="{{ url_for('fleet.vat_pending', show_hidden='1' if show_hidden else '') }}" class="btn btn-outline btn-xs" style="white-space:nowrap">Clear month</a>
+            <a href="{{ url_for('fleet.vat_pending', show_hidden='1' if show_hidden else '') }}" class="vp-btn-xs" style="white-space:nowrap">Clear month</a>
             {% endif %}
         </form>
-        <span class="vp-stat"><b>{{ summary.count }}</b><span>Jobs To Check</span></span>
-        <span class="vp-stat"><b>AED {{ "{:,.2f}".format(summary.total) }}</b><span>Total Amount</span></span>
-        <span class="vp-stat" style="color:#475569"><b>{{ summary.with_photo }}</b><span>With Photo</span></span>
-        {% if summary.hidden %}
-        <a href="{{ url_for('fleet.vat_pending', show_hidden='1', month=month or None) }}" class="btn btn-outline btn-sm" style="align-self:center;white-space:nowrap">Show hidden ({{ summary.hidden }}) — No VAT confirmed</a>
-        {% endif %}
+        <div class="vp-filter-meta">
+            {% if show_hidden %}
+            <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; background:#fef3c7; color:#92400e; font-size:.72rem; font-weight:600; border:1px solid #fde68a;">Showing hidden — No VAT confirmed</span>
+            <a href="{{ url_for('fleet.vat_pending', month=month or None) }}" class="vp-btn-xs" style="margin-left:6px">Back to pending</a>
+            {% else %}
+            <span>{{ summary.count }} record{{ 's' if summary.count != 1 else '' }} • Sorted by date ↓</span>
+            {% endif %}
+        </div>
     </div>
 
     {% if rows %}
-    <div class="profile-card" style="margin-top:4px">
-        <div class="table-wrap">
-            <table class="smart-table">
+    <div class="vp-table-card">
+        <div class="vp-table-wrap">
+            <table class="vp-table">
                 <thead>
                     <tr>
-                        <th style="min-width:110px">Date</th>
-                        <th style="min-width:64px">Paper / Photo</th>
+                        <th style="min-width:108px">Date</th>
+                        <th style="min-width:72px">Paper</th>
                         <th>Vehicle</th>
                         <th>Staff</th>
                         <th>Net</th>
                         <th>Category / Notes</th>
-                        <th style="min-width:290px">Convert to VAT</th>
+                        <th style="min-width:340px">Convert to VAT</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for j in rows %}
                     <tr>
-                        <td class="mono" style="white-space:nowrap">{{ fmt_dt(j.created_at, '%d %b %Y') }}</td>
-                        <td style="white-space:nowrap">
+                        <td class="mono" data-label="Date" style="white-space:nowrap; font-size:.78rem; color:#334155;">{{ fmt_dt(j.created_at, '%d %b %Y') }}</td>
+                        <td data-label="Paper" style="white-space:nowrap">
                             {% if j.has_attachment and j.attachment_type and j.attachment_type.startswith('image') %}
-                            <a href="/fleet/attachment/{{ j.id }}" target="_blank" title="Open full paper: {{ j.attachment_name }}"
-                               style="display:block;width:56px;height:56px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#f8fafc">
-                                <img src="/fleet/attachment/{{ j.id }}/thumb" alt="Job {{ j.id }} paper" loading="lazy" decoding="async"
-                                     style="width:100%;height:100%;object-fit:cover;display:block">
+                            <a href="/fleet/attachment/{{ j.id }}" target="_blank" rel="noopener" title="Open full paper: {{ j.attachment_name }}" class="vp-thumb" aria-label="Open paper for job {{ j.id }}">
+                                <img src="/fleet/attachment/{{ j.id }}/thumb" alt="Job {{ j.id }} paper" loading="lazy" decoding="async">
                             </a>
                             {% elif j.has_attachment %}
-                            <a href="/fleet/attachment/{{ j.id }}" target="_blank" title="Open attached file: {{ j.attachment_name }}"
-                               class="btn btn-xs btn-outline">&#128196; File</a>
+                            <a href="/fleet/attachment/{{ j.id }}" target="_blank" rel="noopener" title="Open attached file: {{ j.attachment_name }}" class="vp-file-btn">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" width="14" height="14"><path d="M6 2h6l4 4v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M12 2v4h4"/></svg>
+                                File
+                            </a>
                             {% else %}
-                            <span style="color:var(--muted);font-size:0.7rem">No paper</span>
+                            <span style="color:var(--muted);font-size:.72rem">No paper</span>
                             {% endif %}
                         </td>
-                        <td style="font-weight:600;white-space:nowrap">{{ j.vehicle_id }}</td>
-                        <td style="white-space:nowrap">{{ j.staff_name or '-' }}</td>
-                        <td class="mono vp-mono" style="font-weight:600">AED {{ "%.2f"|format(j.net_amount) }}</td>
-                        <td style="max-width:170px;white-space:normal;font-size:0.75rem">
-                            <span class="badge badge-type">{{ j.category }}</span>
-                            {% if j.description %}<div style="margin-top:2px;color:var(--muted)">{{ j.description }}</div>{% endif %}
+                        <td data-label="Vehicle"><span class="vp-veh">{{ j.vehicle_id }}</span></td>
+                        <td data-label="Staff" class="vp-staff">{{ j.staff_name or '—' }}</td>
+                        <td data-label="Net" class="vp-amount">AED {{ "%.2f"|format(j.net_amount) }}</td>
+                        <td data-label="Category / Notes" style="max-width:190px; white-space:normal; font-size:.75rem">
+                            <span class="vp-cat-badge">{{ j.category }}</span>
+                            {% if j.description %}<div style="margin-top:4px; color:var(--muted); line-height:1.4">{{ j.description }}</div>{% endif %}
                         </td>
-                        <td>
+                        <td data-label="Convert to VAT" class="vp-actions">
                             {% if show_hidden %}
-                            <div class="vp-row" style="margin-bottom:6px">
+                            <div class="vp-row vp-row-top">
                                 <form method="POST" style="display:inline">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="unhide">
                                     <input type="hidden" name="job_id" value="{{ j.id }}">
                                     <input type="hidden" name="show_hidden" value="1">
                                     <input type="hidden" name="month" value="{{ month or '' }}">
-                                    <button type="submit" class="btn btn-xs btn-outline" title="Wapas pending list mein lao">Restore to list</button>
+                                    <button type="submit" class="vp-btn-xs" title="Restore to pending list">
+                                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="12" height="12"><path d="M3 12a9 9 0 1 0 3-6"/><path d="M3 3v6h6"/></svg>
+                                        Restore to list
+                                    </button>
                                 </form>
                             </div>
                             {% else %}
-                            <div class="vp-row" style="margin-bottom:6px">
-                                <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" title="Open full edit form (paper dekh kar supplier/bill bharo)">Open &amp; Edit</a>
-                                <form method="POST" style="display:inline"
-                                      onsubmit="return confirm('Is paper mein TAX nahi hai, confirm? Job sirf list se hide hogi — koi change nahi hoga.')">
+                            <div class="vp-row vp-row-top">
+                                <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="vp-btn-xs" title="Open full edit form">
+                                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/><path d="M13 3l4 4-8 8H5v-4l8-8z"/></svg>
+                                    Open &amp; Edit
+                                </a>
+                                <form method="POST" style="display:inline" onsubmit="return confirm('Is paper mein TAX nahi hai, confirm? Job sirf list se hide hogi — koi change nahi hoga.')">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <input type="hidden" name="action" value="no_vat">
                                     <input type="hidden" name="job_id" value="{{ j.id }}">
                                     <input type="hidden" name="month" value="{{ month or '' }}">
-                                    <button type="submit" class="btn btn-xs btn-outline" style="color:#475569;border-color:#cbd5e1" title="Paper mein tax nahi hai — is job ko list se hide karo (koi change nahi)">No VAT (hide)</button>
+                                    <button type="submit" class="vp-btn-xs vp-btn-xs-muted" title="Hide as No VAT">No VAT (hide)</button>
                                 </form>
                             </div>
                             {% endif %}
@@ -124,13 +254,13 @@
                                 <input type="hidden" name="job_id" value="{{ j.id }}">
                                 <input type="hidden" name="month" value="{{ month or '' }}">
                                 <div class="vp-row">
-                                    <input type="number" step="0.01" min="0" name="net_amount" value="{{ "%.2f"|format(j.net_amount) }}" class="form-control" title="Net amount (staff credit)">
-                                    <input type="date" name="job_date" value="{{ j.job_date or '' }}" class="form-control" title="Job date update (optional)">
-                                    <input type="text" name="supplier_name" list="vpSupplierList" placeholder="Workshop (optional)" autocomplete="off" class="form-control">
-                                    <input type="text" name="supplier_bill_no" placeholder="Bill No (optional)" class="form-control">
-                                    <button type="submit" class="btn btn-xs btn-primary" style="background:#d97706;border-color:#d97706;white-space:nowrap">Add VAT 5%</button>
+                                    <input type="number" step="0.01" min="0" name="net_amount" value="{{ "%.2f"|format(j.net_amount) }}" class="vp-input vp-input-num" title="Net amount (staff credit)" aria-label="Net amount">
+                                    <input type="date" name="job_date" value="{{ j.job_date or '' }}" class="vp-input vp-input-date" title="Job date update (optional)" aria-label="Job date">
+                                    <input type="text" name="supplier_name" list="vpSupplierList" placeholder="Workshop" autocomplete="off" class="vp-input vp-input-text" aria-label="Workshop name">
+                                    <input type="text" name="supplier_bill_no" placeholder="Bill No" class="vp-input vp-input-text" aria-label="Bill number">
+                                    <button type="submit" class="vp-btn-xs vp-btn-vat" title="Convert to Tax Invoice 5%">Add VAT 5%</button>
                                 </div>
-                                <div class="ext" style="margin-top:4px">net + 5% = total; balance frozen; list se hat jayega</div>
+                                <div class="vp-ext">net + 5% = total • balance frozen • removed from pending</div>
                             </form>
                         </td>
                     </tr>
@@ -140,8 +270,17 @@
         </div>
     </div>
     {% else %}
-    <div class="profile-card">
-        <p class="empty-state">Koi without-VAT job nahi bachi — sab VAT convert ho chuki hain.</p>
+    <div class="vp-table-card vp-empty">
+        <div class="vp-empty-icon">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" width="22" height="22"><path d="M6.5 20a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/><path d="M11 4 14 8 6 11l-3-4z"/><circle cx="13" cy="15.5" r="2.5"/></svg>
+        </div>
+        <h4>No pending VAT jobs</h4>
+        <p>Koi without-VAT job nahi bachi — sab VAT convert ho chuki hain.{% if month %} Month filter lagaa hua hai — clear karke dobara dekho.{% endif %}</p>
+        <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+            {% if month %}<a href="{{ url_for('fleet.vat_pending', show_hidden='1' if show_hidden else '') }}" class="vp-btn-outline">Clear month</a>{% endif %}
+            {% if summary.hidden %}<a href="{{ url_for('fleet.vat_pending', show_hidden='1', month=month or None) }}" class="vp-btn-xs">Show hidden ({{ summary.hidden }})</a>{% endif %}
+            <a href="{{ url_for('fleet.vat_quick') }}" class="vp-btn-xs">Open Quick VAT Editor</a>
+        </div>
     </div>
     {% endif %}
 </div>

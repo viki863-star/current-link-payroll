@@ -567,7 +567,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
     tc = cp.get("theme_color") or "#1a3a5c"
     try:
         TH = colors.HexColor(tc)
-    except:
+    except Exception:
         TH = colors.HexColor("#1a3a5c")
     BG = colors.HexColor("#f4f6f9")
     WH = colors.white
@@ -835,7 +835,7 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     cp = dict(company_profile) if company_profile else {}
     tc = cp.get("theme_color") or "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     BG = colors.HexColor("#f4f6f9"); WH = colors.white
     C3 = colors.HexColor("#d1d5db"); C4 = colors.HexColor("#111827")
     C5 = colors.HexColor("#6b7280")
@@ -863,7 +863,7 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
             f.write(lb); f.close()
             logo = PlImage(f.name, width=50, height=50)
             LW = 50
-        except: pass
+        except Exception: pass
 
     cl = [f"<font size=11><b>{cn}</b></font>"]
     addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
@@ -999,204 +999,6 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
     return str(output_path)
 
 
-def generate_transactions_kata_pdf(driver, advances, month_value, output_dir: str, assets_dir: str, company_profile: dict | None = None) -> str:
-    from reportlab.platypus import SimpleDocTemplate, Paragraph as PlParagraph, Spacer, Table as PlTable, TableStyle as PlTableStyle, Image as PlImage
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-    import os, tempfile
-
-    normalized_month = format_month_label(month_value) if month_value else ""
-    file_suffix = f"transactions-{month_value}" if month_value else "transactions"
-    output_path = Path(output_dir) / f"{driver['driver_id']}_{file_suffix}.pdf"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    LM, RM, TM, BM = 18*mm, 18*mm, 15*mm, 15*mm
-    doc = SimpleDocTemplate(str(output_path), pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
-    W = A4[0] - LM - RM
-
-    cp = dict(company_profile) if company_profile else {}
-    tc = cp.get("theme_color") or "#1a3a5c"
-    try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
-    BG = colors.HexColor("#f4f6f9"); WH = colors.white
-    C3 = colors.HexColor("#d1d5db"); C4 = colors.HexColor("#111827")
-    C5 = colors.HexColor("#6b7280")
-
-    def F(name, **kw):
-        kw.setdefault("fontSize", 8); kw.setdefault("leading", 12)
-        return ParagraphStyle(name, **kw)
-    def C(t, **kw):
-        kw.setdefault("alignment", TA_CENTER)
-        return PlParagraph(str(t), F("_C", **kw))
-    def R(t, **kw):
-        kw.setdefault("alignment", TA_RIGHT)
-        return PlParagraph(str(t), F("_R", **kw))
-
-    els = []
-    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
-    trn = cp.get("trn_no") or "—"
-
-    # ═══ HEADER ═══
-    logo = None; LW = 0
-    if cp.get("logo_data"):
-        try:
-            lb = base64.b64decode(cp["logo_data"])
-            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-            f.write(lb); f.close()
-            logo = PlImage(f.name, width=50, height=50)
-            LW = 50
-        except: pass
-
-    cl = [f"<font size=11><b>{cn}</b></font>"]
-    addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
-    parts_l = [x for x in [addr] if x]
-    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != "TRN: —"]
-    if parts_l or cparts:
-        info = " &middot; ".join(parts_l + cparts)
-        cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
-    co_p = PlParagraph("<br/>".join(cl), F("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
-    if logo:
-        lh = PlTable([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
-        lh.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    else:
-        lh = co_p
-    rh = PlParagraph("<b>STATEMENT<br/>OF ACCOUNT</b>", F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
-    ht = PlTable([[lh, rh]], colWidths=[W*0.65, W*0.35])
-    ht.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(ht)
-    els.append(Spacer(1, 2*mm))
-    hr = PlTable([[""]], colWidths=[W], rowHeights=[2])
-    hr.setStyle(PlTableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(hr)
-    els.append(Spacer(1, 4*mm))
-
-    # ═══ FUND INFO ═══
-    finfo = [
-        [PlParagraph("<b>Fund</b>", F("_fl", fontSize=8, fontName="Helvetica-Bold", textColor=C4, leading=11)),
-         PlParagraph(f"<b>Outstanding Advances — {normalized_month}</b>", F("_fv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12))],
-        [PlParagraph("Employee", F("_l", fontSize=7.5, textColor=C5, leading=10)),
-         PlParagraph(f"{driver.get('full_name','-')} ({driver.get('driver_id','-')})", F("_v", fontSize=8.5, textColor=C4, leading=11))],
-    ]
-    ft = PlTable(finfo, colWidths=[50, W - 50])
-    ft.setStyle(PlTableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("TOPPADDING",(0,0),(-1,-1),1),("BOTTOMPADDING",(0,0),(-1,-1),1),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(ft)
-
-    # ═══ SUMMARY CARDS ═══
-    els.append(Spacer(1, 3*mm))
-    total_amt = sum(float(a.get("amount", 0)) for a in advances)
-    total_ded = sum(float(a.get("deducted", 0)) for a in advances)
-    total_out = total_amt - total_ded
-    cleared_count = sum(1 for a in advances if float(a.get("deducted", 0)) >= float(a.get("amount", 0)))
-    uncleared_count = len(advances) - cleared_count
-    sdata = [[
-        PlParagraph(f"<b>Total Transactions</b><br/><font size=10 color='#1a3a5c'>{len(advances)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        PlParagraph(f"<b>Total Advances</b><br/><font size=10 color='#1a7d1a'>AED {format_currency(total_amt)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        PlParagraph(f"<b>Total Deducted</b><br/><font size=10 color='#c62828'>AED {format_currency(total_ded)}</font>", F("_s3", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-        PlParagraph(f"<b>Outstanding</b><br/><font size=10 color='#e65100'>AED {format_currency(total_out)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
-    ]]
-    st = PlTable(sdata, colWidths=[W/4, W/4, W/4, W/4])
-    st.setStyle(PlTableStyle([
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),8), ("BOTTOMPADDING",(0,0),(-1,-1),8),
-        ("LEFTPADDING",(0,0),(-1,-1),5), ("RIGHTPADDING",(0,0),(-1,-1),5),
-        ("BACKGROUND",(0,0),(-1,-1),BG),
-    ]))
-    els.append(st)
-    els.append(Spacer(1, 3*mm))
-
-    # ═══ ADVANCES TABLE ═══
-    els.append(PlParagraph("<b>Advance / Transaction Details</b>", F("_atitle", fontSize=8, fontName="Helvetica-Bold", textColor=TH, leading=10)))
-    els.append(Spacer(1, 2*mm))
-
-    adv_colw = [50, 42, 50, W - 50 - 42 - 50 - 50 - 50, 50, 50]
-    adv_hdr = [
-        PlParagraph("<b>Date</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
-        PlParagraph("<b>Amount</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        PlParagraph("<b>Given By</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        PlParagraph("<b>Details</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, leading=9)),
-        PlParagraph("<b>Deducted</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-        PlParagraph("<b>Remaining</b>", F("_ah", fontSize=6.2, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
-    ]
-    adv_rows = [adv_hdr]
-    t_amt = 0.0; t_ded = 0.0; t_rem = 0.0
-    for a in advances:
-        amt = float(a.get("amount", 0))
-        ded = float(a.get("deducted", 0))
-        rem = amt - ded
-        t_amt += amt; t_ded += ded; t_rem += rem
-        adv_rows.append([
-            PlParagraph(str(a.get("entry_date",""))[:10], F("_ad", fontSize=6.5, leading=9)),
-            PlParagraph(f"<b>{format_currency(amt)}</b>", F("_aa", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=9)),
-            PlParagraph(str(a.get("given_by","-")), F("_ag", fontSize=6.5, textColor=C5, leading=9)),
-            PlParagraph(str(a.get("details","-")), F("_aDet", fontSize=6.2, textColor=C5, leading=9)),
-            PlParagraph(f"<b>{format_currency(ded)}</b>" if ded > 0 else '<font color="#cccccc">—</font>', F("_adr", fontSize=6.5, textColor="#c62828" if ded > 0 else C5, alignment=TA_RIGHT, leading=9)),
-            PlParagraph(f"<b>{format_currency(rem)}</b>" if rem > 0 else '<font color="#cccccc">—</font>', F("_arm", fontSize=6.5, textColor="#e65100" if rem > 0 else C5, alignment=TA_RIGHT, leading=9)),
-        ])
-    # Totals row
-    adv_rows.append([
-        PlParagraph("<b>Totals</b>", F("_atb", fontSize=7, fontName="Helvetica-Bold", textColor=WH, leading=10)),
-        PlParagraph(f"<b>{format_currency(t_amt)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        PlParagraph("", F("_ax")),
-        PlParagraph(f"Cleared: {cleared_count} / Out: {uncleared_count}", F("_ax", fontSize=6.2, textColor=WH, leading=9)),
-        PlParagraph(f"<b>{format_currency(t_ded)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-        PlParagraph(f"<b>{format_currency(t_rem)}</b>", F("_att", fontSize=7, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=10)),
-    ])
-    atbl = PlTable(adv_rows, colWidths=adv_colw, repeatRows=1)
-    atbl.setStyle(PlTableStyle([
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("BACKGROUND",(0,0),(-1,0),TH), ("TEXTCOLOR",(0,0),(-1,0),WH),
-        ("BOX",(0,0),(-1,-1),0.5,C3), ("INNERGRID",(0,0),(-1,-1),0.3,C3),
-        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
-        ("LEFTPADDING",(0,0),(-1,-1),3), ("RIGHTPADDING",(0,0),(-1,-1),3),
-        ("BACKGROUND",(0,-1),(-1,-1),TH), ("TEXTCOLOR",(0,-1),(-1,-1),WH),
-        ("ROWBACKGROUNDS",(0,1),(-2,-2),[WH, BG]),
-    ]))
-    els.append(atbl)
-
-    # ═══ SIGNATURES ═══
-    els.append(Spacer(1, 8*mm))
-    s_sg = ParagraphStyle("SSG", fontSize=9, alignment=TA_CENTER, leading=14)
-    s_stamp_path = os.path.join(assets_dir, 'Stamp.png')
-    s_sign_path = os.path.join(assets_dir, 'Sign (1).png')
-    s_auth_cells = []
-    s_auth_cells.append(PlParagraph("_________________________", s_sg))
-    if os.path.exists(s_stamp_path):
-        s_auth_cells.append(PlImage(s_stamp_path, width=40, height=40))
-    if os.path.exists(s_sign_path):
-        s_auth_cells.append(PlImage(s_sign_path, width=40, height=40))
-    s_auth_cells.append(PlParagraph("<b>Authorized Signatory</b>", s_sg))
-    s_auth_cell = PlTable([[c] for c in s_auth_cells], colWidths=[W*0.35])
-    s_auth_cell.setStyle(PlTableStyle([
-        ("ALIGN",(0,0),(-1,-1),"CENTER"),
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),0),
-        ("BOTTOMPADDING",(0,0),(-1,-1),2),
-    ]))
-    soa_sig = PlTable([[
-        s_auth_cell,
-        C("", fontSize=4),
-        PlParagraph("", s_sg),
-    ]], colWidths=[W*0.35, W*0.30, W*0.35])
-    soa_sig.setStyle(PlTableStyle([
-        ("VALIGN",(0,0),(-1,-1),"TOP"),
-        ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(2,0),(2,0),0.5,C5),
-        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
-    ]))
-    els.append(soa_sig)
-
-    # ═══ FOOTER ═══
-    els.append(Spacer(1, 8*mm))
-    fh = PlTable([[""]], colWidths=[W], rowHeights=[0.5])
-    fh.setStyle(PlTableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(fh)
-    els.append(Spacer(1, 2*mm))
-    ft_txt = "This is a computer-generated Outstanding Advances Statement."
-    els.append(PlParagraph(ft_txt, F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
-
-    doc.build(els)
-    return str(output_path)
-
 
 def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str, filters=None, company_profile: dict | None = None) -> str:
     import os, tempfile
@@ -1241,7 +1043,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
 
     tc = cp.get("theme_color") or "#1a3a5c"
     try: TH = rl_colors.HexColor(tc)
-    except: TH = rl_colors.HexColor("#1a3a5c")
+    except Exception: TH = rl_colors.HexColor("#1a3a5c")
     BG = rl_colors.HexColor("#f4f6f9"); WH = rl_colors.white
     C3 = rl_colors.HexColor("#d1d5db"); C4 = rl_colors.HexColor("#111827")
     C5 = rl_colors.HexColor("#6b7280"); CG = rl_colors.HexColor("#1a7d1a")
@@ -1271,7 +1073,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
             f.write(lb); f.close()
             logo = Image(f.name, width=50, height=50)
             LW = 50
-        except: pass
+        except Exception: pass
 
     cl = [f"<font size=11><b>{cn}</b></font>"]
     addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
@@ -3815,7 +3617,7 @@ def generate_deduction_statement_pdf(driver, salary_store_row, slip_row, deducte
     cp = dict(company_profile) if company_profile else {}
     tc = cp.get("theme_color") or "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     BG = colors.HexColor("#f4f6f9"); WH = colors.white
     C3 = colors.HexColor("#d1d5db"); C4 = colors.HexColor("#111827"); C5 = colors.HexColor("#6b7280")
 
@@ -3835,7 +3637,7 @@ def generate_deduction_statement_pdf(driver, salary_store_row, slip_row, deducte
             f.write(lb); f.close()
             logo = PlImage(f.name, width=50, height=50)
             LW = 50
-        except: pass
+        except Exception: pass
 
     cl = [f"<font size=11><b>{cn}</b></font>"]
     addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
@@ -4002,7 +3804,7 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
     cp = company_profile or {}
     tc = cp.get('theme_color') or '#1a3a5c'
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor('#1a3a5c')
+    except Exception: TH = colors.HexColor('#1a3a5c')
     BG = colors.HexColor('#f4f6f9'); WH = colors.white; C3 = colors.HexColor('#d1d5db')
     C4 = colors.HexColor('#111827'); C5 = colors.HexColor('#6b7280'); RD = colors.HexColor('#c62828')
     els = []
@@ -4021,7 +3823,7 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
             logo = Image(f.name, width=40, height=40)
             LW = 40
             _logo_tmp_files.append(f.name)
-        except: pass
+        except Exception: pass
 
     addr = cp.get('address') or ''; ph = cp.get('phone_number') or ''; em = cp.get('email') or ''
     parts = [x for x in [addr] if x]
@@ -4224,7 +4026,7 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
         f.write(buf.getvalue())
     for tmp in _logo_tmp_files:
         try: os.unlink(tmp)
-        except: pass
+        except Exception: pass
     return str(output_path)
 
 
@@ -4255,7 +4057,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     cp = company_profile or {}
     tc = cp.get('theme_color') or '#1a3a5c'
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor('#1a3a5c')
+    except Exception: TH = colors.HexColor('#1a3a5c')
     BG = colors.HexColor('#f4f6f9'); WH = colors.white; C3 = colors.HexColor('#d1d5db')
     C4 = colors.HexColor('#111827'); C5 = colors.HexColor('#6b7280'); RD = colors.HexColor('#c62828')
 
@@ -4275,7 +4077,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
             logo = Image(f.name, width=40, height=40)
             LW = 40
             _logo_tmp_files.append(f.name)
-        except: pass
+        except Exception: pass
 
     addr = cp.get('address') or ''; ph = cp.get('phone_number') or ''; em = cp.get('email') or ''
     parts = [x for x in [addr] if x]
@@ -4409,7 +4211,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
         f.write(buf.getvalue())
     for tmp in _logo_tmp_files:
         try: os.unlink(tmp)
-        except: pass
+        except Exception: pass
     return str(output_path)
 
 
@@ -5381,7 +5183,7 @@ def generate_driver_salary_card_pdf(
     cp = dict(company_profile) if company_profile else {}
     tc = cp.get("theme_color") or "#1a3a5c"
     try: TH = HexColor(tc)
-    except: TH = HexColor("#1a3a5c")
+    except Exception: TH = HexColor("#1a3a5c")
 
     GREEN = HexColor("#16a34a"); GREEN_L = HexColor("#f0fdf4")
     ORANGE = HexColor("#ea580c"); ORANGE_L = HexColor("#ffedd5")
@@ -5405,7 +5207,7 @@ def generate_driver_salary_card_pdf(
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
             f.write(lb); f.close()
             logo = PlImage(f.name, width=32, height=32); LW = 32
-        except: pass
+        except Exception: pass
 
     h_title = S("HT", fontSize=14, fontName="Helvetica-Bold", textColor=TH, alignment=TA_CENTER, leading=17)
     h_sub = S("HS", fontSize=7.5, textColor=MUTED, alignment=TA_CENTER, leading=10)
@@ -5591,5 +5393,5 @@ def generate_driver_salary_card_pdf(
     doc.build(els)
     try:
         if logo: os.unlink(logo._file)
-    except: pass
+    except Exception: pass
     return str(output_path)

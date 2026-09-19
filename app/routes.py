@@ -219,7 +219,7 @@ def register_routes(app: Flask) -> None:
         try:
             cdb = open_db()
             cpx = cdb.execute("SELECT company_name, address, phone_number, email, logo_type, logo_data, theme_color, trn_no, vat_status, legal_name FROM company_profile LIMIT 1").fetchone()
-        except:
+        except Exception:
             cpx = None
         current_staff_photo = ""
         if request_active:
@@ -1588,13 +1588,13 @@ def register_routes(app: Flask) -> None:
         backup_summary = backup_status_summary(app)
         try:
             pending_jobs_count = db.execute("SELECT COUNT(*) FROM maintenance_jobs WHERE status='pending'").fetchone()[0]
-        except:
+        except Exception:
             pending_jobs_count = 0
         try:
             from .notification_service import get_unread_notifications
             notifs = get_unread_notifications(role="admin", limit=1)
             latest_backup_notification = notifs[0] if notifs and notifs[0]["type"] in ("success", "error") else None
-        except:
+        except Exception:
             latest_backup_notification = None
 
         # ── Document Expiry Alerts ──
@@ -1608,7 +1608,7 @@ def register_routes(app: Flask) -> None:
                 "SELECT COUNT(*) FROM documents WHERE expiry_date IS NOT NULL AND expiry_date < ?",
                 (today_str,)
             ).fetchone()[0] or 0
-        except:
+        except Exception:
             expiring_soon = 0
             expired_count = 0
 
@@ -1933,7 +1933,7 @@ def register_routes(app: Flask) -> None:
                     message="Review and approve/reject pending maintenance jobs",
                     link="/fleet/approvals",
                 )
-        except:
+        except Exception:
             pass
         notifs = get_unread_notifications(role=role)
         count = unread_count(role=role)
@@ -6716,7 +6716,7 @@ def register_routes(app: Flask) -> None:
 
         tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
         try: TH = colors.HexColor(tc)
-        except: TH = colors.HexColor("#1a3a5c")
+        except Exception: TH = colors.HexColor("#1a3a5c")
         WH = colors.white; C5 = colors.HexColor("#6b7280")
         ORG = colors.HexColor("#f7931e")
 
@@ -6866,7 +6866,7 @@ def register_routes(app: Flask) -> None:
         cp = dict(company) if company else {}
         tc = cp.get("theme_color") or "#1a3a5c"
         try: TH = rl_colors.HexColor(tc)
-        except: TH = rl_colors.HexColor("#1a3a5c")
+        except Exception: TH = rl_colors.HexColor("#1a3a5c")
         BG = rl_colors.HexColor("#f4f6f9"); WH = rl_colors.white
         C3 = rl_colors.HexColor("#d1d5db"); C4 = rl_colors.HexColor("#111827")
         C5 = rl_colors.HexColor("#6b7280")
@@ -6894,7 +6894,7 @@ def register_routes(app: Flask) -> None:
                 f.write(lb); f.close()
                 logo = Image(f.name, width=50, height=50)
                 LW = 50
-            except: pass
+            except Exception: pass
 
         cl = [f"<font size=11><b>{cn}</b></font>"]
         addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
@@ -7083,7 +7083,7 @@ def register_routes(app: Flask) -> None:
         cp = dict(company) if company else {}
         tc = cp.get("theme_color") or "#1a3a5c"
         try: TH = rl_colors.HexColor(tc)
-        except: TH = rl_colors.HexColor("#1a3a5c")
+        except Exception: TH = rl_colors.HexColor("#1a3a5c")
         BG = rl_colors.HexColor("#f4f6f9"); WH = rl_colors.white
         C3 = rl_colors.HexColor("#d1d5db"); C4 = rl_colors.HexColor("#111827")
         C5 = rl_colors.HexColor("#6b7280")
@@ -7111,7 +7111,7 @@ def register_routes(app: Flask) -> None:
                 f.write(lb); f.close()
                 logo = Image(f.name, width=50, height=50)
                 LW = 50
-            except: pass
+            except Exception: pass
 
         cl = [f"<font size=11><b>{cn}</b></font>"]
         addr = cp.get("address") or ""; ph = cp.get("phone_number") or ""; em = cp.get("email") or ""
@@ -15309,89 +15309,6 @@ def _supplier_statement_data(db, party_code: str, supplier_mode: str = "Normal")
             "total_paid": 0.0, "outstanding": 0.0,
         }
 
-    rows = []
-    timesheets = db.execute(
-        """
-        SELECT t.entry_date, t.period_month, t.timesheet_no, t.subtotal, t.voucher_no, a.asset_name, a.vehicle_no
-        FROM supplier_timesheets t
-        LEFT JOIN supplier_assets a ON a.asset_code = t.asset_code
-        WHERE t.party_code = ?
-        ORDER BY t.entry_date ASC, t.id ASC
-        """,
-        (party_code,),
-    ).fetchall()
-    vouchers = db.execute(
-        """
-        SELECT issue_date, voucher_no, period_month, total_amount, balance_amount, status
-        FROM supplier_vouchers
-        WHERE party_code = ?
-        ORDER BY issue_date ASC, id ASC
-        """,
-        (party_code,),
-    ).fetchall()
-    payments = db.execute(
-        """
-        SELECT entry_date, payment_no, voucher_no, amount, payment_method
-        FROM supplier_payments
-        WHERE party_code = ?
-        ORDER BY entry_date ASC, id ASC
-        """,
-        (party_code,),
-    ).fetchall()
-    for row in timesheets:
-        rows.append(
-            {
-                "entry_date": row["entry_date"],
-                "reference": row["timesheet_no"],
-                "entry_type": "Timesheet",
-                "details": f"{row['asset_name'] or 'Asset'} / {row['vehicle_no'] or '-'} / {format_month_label(row['period_month'])}",
-                "work_amount": float(row["subtotal"] or 0.0),
-                "voucher_amount": 0.0,
-                "payment_amount": 0.0,
-            }
-        )
-    for row in vouchers:
-        rows.append(
-            {
-                "entry_date": row["issue_date"],
-                "reference": row["voucher_no"],
-                "entry_type": "Voucher",
-                "details": f"{format_month_label(row['period_month'])} / {row['status']}",
-                "work_amount": 0.0,
-                "voucher_amount": float(row["total_amount"] or 0.0),
-                "payment_amount": 0.0,
-            }
-        )
-    for row in payments:
-        rows.append(
-            {
-                "entry_date": row["entry_date"],
-                "reference": row["payment_no"],
-                "entry_type": "Payment",
-                "details": f"{row['voucher_no']} / {row['payment_method'] or '-'}",
-                "work_amount": 0.0,
-                "voucher_amount": 0.0,
-                "payment_amount": float(row["amount"] or 0.0),
-            }
-        )
-    sort_order = {"Timesheet": 0, "Voucher": 1, "Payment": 2}
-    rows.sort(key=lambda item: (item["entry_date"], sort_order.get(item["entry_type"], 9), item["reference"]))
-    running_balance = 0.0
-    for item in rows:
-        if item["entry_type"] == "Voucher":
-            running_balance += item["voucher_amount"]
-        elif item["entry_type"] == "Payment":
-            running_balance -= item["payment_amount"]
-        item["running_balance"] = max(round(running_balance, 2), 0.0)
-
-    summary = {
-        "work_logged": sum(item["work_amount"] for item in rows),
-        "total_vouchers": sum(item["voucher_amount"] for item in rows),
-        "total_paid": sum(item["payment_amount"] for item in rows),
-        "outstanding": max(round(sum(item["voucher_amount"] for item in rows) - sum(item["payment_amount"] for item in rows), 2), 0.0),
-    }
-    return rows, summary
-
 
 def _statement_pdf_date(value: str) -> str:
     if not value:
@@ -15719,8 +15636,49 @@ def _supplier_partnership_summary(db, party_code: str, period_month: str):
     total_maintenance_cost = round(company_maintenance + partner_maintenance, 2)
     total_cost = round(company_paid + partner_paid, 2)
     net_profit = round(work_total - total_cost, 2)
-    company_profit_share = round(net_profit * 0.5, 2)
-    partner_profit_share = round(net_profit * 0.5, 2)
+
+    assets = db.execute(
+        """
+        SELECT
+            asset_code,
+            partnership_mode,
+            company_share_percent,
+            partner_share_percent
+        FROM supplier_assets
+        WHERE party_code = ?
+        """,
+        (party_code,),
+    ).fetchall()
+
+    weighted_company_pct = 0.0
+    weighted_partner_pct = 0.0
+    if assets and work_total > 0:
+        for asset in assets:
+            asset_work = float(
+                db.execute(
+                    """
+                    SELECT COALESCE(SUM(subtotal), 0)
+                    FROM supplier_timesheets
+                    WHERE party_code = ? AND asset_code = ? AND period_month = ?
+                    """,
+                    (party_code, asset["asset_code"], month_value),
+                ).fetchone()[0]
+                or 0.0
+            )
+            weight = asset_work / work_total if work_total else 0.0
+            co_pct = float(asset["company_share_percent"] or 100.0)
+            pa_pct = float(asset["partner_share_percent"] or 0.0)
+            if (asset["partnership_mode"] or "Standard") != "Partnership":
+                co_pct = 100.0
+                pa_pct = 0.0
+            weighted_company_pct += weight * co_pct
+            weighted_partner_pct += weight * pa_pct
+    else:
+        weighted_company_pct = 50.0
+        weighted_partner_pct = 50.0
+
+    company_profit_share = round(net_profit * (weighted_company_pct / 100.0), 2)
+    partner_profit_share = round(net_profit * (weighted_partner_pct / 100.0), 2)
     return {
         "period_month": month_value,
         "work_total": work_total,
@@ -15734,6 +15692,8 @@ def _supplier_partnership_summary(db, party_code: str, period_month: str):
         "total_maintenance_cost": total_maintenance_cost,
         "total_cost": total_cost,
         "net_profit": net_profit,
+        "company_share_percent": round(weighted_company_pct, 2),
+        "partner_share_percent": round(weighted_partner_pct, 2),
         "company_profit_share": company_profit_share,
         "partner_profit_share": partner_profit_share,
         "company_should_receive": round(company_profit_share + company_paid, 2),
@@ -17355,10 +17315,6 @@ def _driver_insert_values(form, basic_salary: float, ot_rate: float, pin_hash: s
         form["status"],
         form["remarks"],
     )
-
-
-def _safe_float(value: str) -> float:
-    return _parse_decimal(value, "Number", required=False, default=0.0)
 
 
 def _parse_decimal(value: str, field_name: str, *, required: bool = True, default=None, minimum=None, maximum=None) -> float:
@@ -19038,11 +18994,6 @@ def _archive_field_staff_vehicle_record(
             vehicle_no=row["vehicle_no"] or "",
             fallback_row=row,
         )
-
-
-def _snapshot_filename(*parts: str) -> str:
-    normalized = [secure_filename((part or "").strip().lower()) for part in parts if part]
-    return "-".join(filter(None, normalized)) or datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 def _archive_driver_transaction_record(app: Flask, db, driver, transaction_id: int, event_type: str) -> None:

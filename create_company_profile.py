@@ -121,7 +121,7 @@ for i, (img_file, title, desc) in enumerate(services):
             eq_img = Image(img_path, width=55*mm, height=30*mm)
         else:
             eq_img = Paragraph("", S("_emp", fontSize=6))
-    except:
+    except Exception:
         eq_img = Paragraph("", S("_emp", fontSize=6))
     svc_data = [
         [eq_img],
@@ -274,7 +274,7 @@ for row_start in range(0, len(client_files), 3):
                 fpath = os.path.join(STATIC, fname)
             try:
                 logo_img = Image(fpath, width=38*mm, height=18*mm)
-            except:
+            except Exception:
                 logo_img = Paragraph(cname, S("_cln", fontSize=10, fontName="Helvetica-Bold", textColor=HexColor("#0F172A"), alignment=TA_CENTER))
             cell_data = [
                 [logo_img],
@@ -319,7 +319,7 @@ for img_file, title, desc in certs:
     els.append(Spacer(1, 3*mm))
     try:
         cert_img = Image(os.path.join(STATIC, img_file), width=16*mm, height=16*mm)
-    except:
+    except Exception:
         cert_img = Paragraph("\u2713", S("_ci", fontSize=16, textColor=HexColor("#F59E0B"), alignment=TA_CENTER))
     cert_data = [[
         cert_img,
@@ -362,7 +362,7 @@ try:
     stamp_container_t.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE")]))
     els.append(stamp_container_t)
     els.append(Spacer(1, 2*mm))
-except:
+except Exception:
     pass
 
 els.append(Paragraph("<b>Authorized Signatory</b>", S("_auth", fontSize=11, fontName="Helvetica-Bold", textColor=HexColor("#0F172A"), alignment=TA_CENTER, leading=14)))

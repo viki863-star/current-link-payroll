@@ -3,6 +3,7 @@ from datetime import date
 from flask import render_template, request, redirect, url_for, flash, current_app, send_file, jsonify
 from markupsafe import Markup
 from . import customer_bp
+from ..utils import num_to_words as n2w
 
 def _get_db():
     from ..database import open_db
@@ -932,7 +933,7 @@ def customer_invoice_pdf(cid, iid):
                 try:
                     canvas.drawImage(cf, cx3 - (cl_spacing + 8*mm), cl_y, width=8*mm, height=8*mm, preserveAspectRatio=True, anchor='c')
                     cl_spacing += 9*mm
-                except:
+                except Exception:
                     pass
             canvas.setFont("Helvetica", 7)
             canvas.setFillColor(colors.HexColor("#aac5db"))
@@ -952,7 +953,7 @@ def customer_invoice_pdf(cid, iid):
                 f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
                 f.write(lb); f.close()
                 _logo_tmp_files.append(f.name)
-            except:
+            except Exception:
                 pass
 
         ci_html = (
@@ -993,7 +994,7 @@ def customer_invoice_pdf(cid, iid):
                 logo_h = int(text_h)
                 logo = Image(_logo_tmp_files[-1], width=logo_w, height=logo_h)
                 LW = logo_w
-            except:
+            except Exception:
                 pass
 
         if logo:
@@ -1031,7 +1032,7 @@ def customer_invoice_pdf(cid, iid):
                 ri = row_icons[i] if i < len(row_icons) else ""
                 try:
                     ri_img = Image(os.path.join(icon_base, ri), width=5*mm, height=5*mm) if ri else Paragraph("", S("_e", fontSize=1))
-                except:
+                except Exception:
                     ri_img = Paragraph("", S("_e", fontSize=1))
                 rows.append([
                     ri_img,
@@ -1079,7 +1080,7 @@ def customer_invoice_pdf(cid, iid):
         try:
             import json
             nmdc_meta = json.loads(inv.get("notes", "{}"))
-        except:
+        except Exception:
             nmdc_meta = {}
         nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
@@ -1139,35 +1140,6 @@ def customer_invoice_pdf(cid, iid):
         els2.append(Spacer(1, 5*mm))
 
         # â”€â”€ AMOUNT IN WORDS + TOTALS â”€â”€
-        def n2w(n):
-            if n == 0: return "Zero"
-            o = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve",
-                 "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]
-            t = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
-            sc = ["", "Thousand", "Million", "Billion"]
-            def h(num):
-                r = ""
-                if num >= 100: r += o[num // 100] + " Hundred"; num %= 100
-                if num and r: r += " "
-                if num >= 20: r += t[num // 10]; num %= 10
-                if num and r: r += " "
-                if num > 0: r += o[num]
-                return r.strip()
-            ip = int(n)
-            dp = min(int(round((n - ip) * 100)), 99)
-            if ip == 0: w = "Zero"
-            else:
-                w = ""; i = 0
-                while ip > 0:
-                    ck = ip % 1000
-                    if ck:
-                        cw = h(ck)
-                        if sc[i]: cw += " " + sc[i]
-                        w = cw + (" " + w if w else "")
-                    ip //= 1000; i += 1
-            if dp: w += f" and {dp:02d}/100"
-            return "AED " + w + " Only"
-
         lbw = stringWidth("Amount in Words", "Helvetica-Bold", 7.5) + 6*mm
         words_box = Table([
             [Paragraph("<b>Amount in Words</b>", S("AW", fontSize=7.5, fontName="Helvetica-Bold", textColor=WH, leading=10)),
@@ -1215,7 +1187,7 @@ def customer_invoice_pdf(cid, iid):
                 try:
                     json.loads(lines[0])
                     display_notes = lines[1].strip() if len(lines) > 1 else ""
-                except:
+                except Exception:
                     pass
         if display_notes:
             els2.append(Spacer(1, 3*mm))
@@ -1279,7 +1251,7 @@ def customer_invoice_pdf(cid, iid):
         doc2.build(els2, onFirstPage=draw_page, onLaterPages=draw_page)
         for f in _logo_tmp_files:
             try: os.remove(f)
-            except: pass
+            except Exception: pass
         pdf_data = buf2.getvalue(); buf2.close()
         return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"Invoice_{inv_no}.pdf")
 
@@ -1290,7 +1262,7 @@ def customer_invoice_pdf(cid, iid):
 
     tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     WH = colors.white; BG = colors.HexColor("#f8fafc")
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64738b"); C6 = colors.HexColor("#dc2626")
@@ -1345,7 +1317,7 @@ def customer_invoice_pdf(cid, iid):
             f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
             f.write(lb); f.close()
             _logo_tmp_files.append(f.name)
-        except: pass
+        except Exception: pass
 
     ci_lines = []
     c_contact = []
@@ -1375,7 +1347,7 @@ def customer_invoice_pdf(cid, iid):
             logo_h = int(text_h)
             logo = Image(_logo_tmp_files[-1], width=logo_w, height=logo_h)
             LW = logo_w
-        except:
+        except Exception:
             pass
 
     if logo:
@@ -1576,35 +1548,7 @@ def customer_invoice_pdf(cid, iid):
     els.append(ft)
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 5. AMOUNT IN WORDS
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    def n2w(n):
-        if n == 0: return "Zero"
-        o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
-             "Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
-        t = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
-        sc = ["","Thousand","Million","Billion"]
-        def h(num):
-            r = ""
-            if num >= 100: r += o[num//100] + " Hundred"; num %= 100
-            if num and r: r += " "
-            if num >= 20: r += t[num//10]; num %= 10
-            if num and r: r += " "
-            if num > 0: r += o[num]
-            return r.strip()
-        ip = int(n)
-        dp = min(int(round((n - ip) * 100)), 99)
-        if ip == 0: w = "Zero"
-        else:
-            w = ""; i = 0
-            while ip > 0:
-                ck = ip % 1000
-                if ck:
-                    cw = h(ck)
-                    if sc[i]: cw += " " + sc[i]
-                    w = cw + (" " + w if w else "")
-                ip //= 1000; i += 1
-        if dp: w += f" and {dp:02d}/100"
-        return "AED " + w + " Only"
+    # ──────────────────────────────────────────────────────────
 
     els.append(Spacer(1, 4*mm))
     ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=14))]], colWidths=[W])
@@ -1725,7 +1669,7 @@ def customer_invoice_pdf(cid, iid):
     doc.build(els)
     for f in _logo_tmp_files:
         try: os.remove(f)
-        except: pass
+        except Exception: pass
     pdf_data = buf.getvalue(); buf.close()
     return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"Invoice_{inv_no}.pdf")
 
@@ -1929,7 +1873,7 @@ def customer_credit_note_pdf(cid, cnid):
             logo_h = int(text_h)
             logo = Image(_logo_tmp_files[-1], width=logo_w, height=logo_h)
             LW = logo_w
-        except: pass
+        except Exception: pass
 
     c_ph2 = (company["phone_number"] or "") if company else ""
     c_em2 = (company["email"] or "") if company else ""
@@ -2039,35 +1983,6 @@ def customer_credit_note_pdf(cid, cnid):
     els.append(Spacer(1, 2*mm))
     els.append(ft)
 
-    def n2w(n):
-        if n == 0: return "Zero"
-        o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
-             "Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
-        t = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
-        sc = ["","Thousand","Million","Billion"]
-        def h(num):
-            r = ""
-            if num >= 100: r += o[num//100] + " Hundred"; num %= 100
-            if num and r: r += " "
-            if num >= 20: r += t[num//10]; num %= 10
-            if num and r: r += " "
-            if num > 0: r += o[num]
-            return r.strip()
-        ip = int(n)
-        dp = min(int(round((n - ip) * 100)), 99)
-        if ip == 0: w = "Zero"
-        else:
-            w = ""; i = 0
-            while ip > 0:
-                ck = ip % 1000
-                if ck:
-                    cw2 = h(ck)
-                    if sc[i]: cw2 += " " + sc[i]
-                    w = cw2 + (" " + w if w else "")
-                ip //= 1000; i += 1
-        if dp: w += f" and {dp:02d}/100"
-        return "AED " + w + " Only"
-
     els.append(Spacer(1, 4*mm))
     ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=14))]], colWidths=[W])
     ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
@@ -2127,7 +2042,7 @@ def customer_credit_note_pdf(cid, cnid):
 
     for p in _logo_tmp_files:
         try: import os; os.unlink(p)
-        except: pass
+        except Exception: pass
 
     buf.seek(0)
     from flask import send_file
@@ -2433,7 +2348,7 @@ def customer_quotation_pdf(cid, qid):
 
     tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     WH = colors.white; BG = colors.HexColor("#f8fafc")
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
@@ -2487,7 +2402,7 @@ def customer_quotation_pdf(cid, qid):
             logo = Image(f.name, width=90, height=90)
             LW = 90
             _logo_tmp_files.append(f.name)
-        except: pass
+        except Exception: pass
 
     ci_lines = []
     if c_addr: ci_lines.append(f"<font size=7 color='#64748b'>{c_addr}</font>")
@@ -2640,34 +2555,6 @@ def customer_quotation_pdf(cid, qid):
     els.append(ft)
 
     # AMOUNT IN WORDS
-    def n2w(n):
-        if n == 0: return "Zero"
-        o = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve",
-             "Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
-        t = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
-        sc = ["","Thousand","Million","Billion"]
-        def h(num):
-            r = ""
-            if num >= 100: r += o[num//100] + " Hundred"; num %= 100
-            if num and r: r += " "
-            if num >= 20: r += t[num//10]; num %= 10
-            if num and r: r += " "
-            if num > 0: r += o[num]
-            return r.strip()
-        ip = int(n)
-        dp = min(int(round((n - ip) * 100)), 99)
-        if ip == 0: w = "Zero"
-        else:
-            w = ""; i = 0
-            while ip > 0:
-                ck = ip % 1000
-                if ck:
-                    cw = h(ck)
-                    if sc[i]: cw += " " + sc[i]
-                    w = cw + (" " + w if w else "")
-                ip //= 1000; i += 1
-        if dp: w += f" and {dp:02d}/100"
-        return "AED " + w + " Only"
 
     els.append(Spacer(1, 3*mm))
     ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=13))]], colWidths=[W])
@@ -2743,7 +2630,7 @@ def customer_quotation_pdf(cid, qid):
     buf.close()
     for f in _logo_tmp_files:
         try: os.unlink(f)
-        except: pass
+        except Exception: pass
 
     from flask import Response
     return Response(pdf_data, mimetype="application/pdf",
@@ -3271,7 +3158,7 @@ def customer_soa_pdf(cid):
 
     tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     BG = colors.HexColor("#f4f6f9"); WH = colors.white; C3 = colors.HexColor("#d1d5db")
     C4 = colors.HexColor("#111827"); C5 = colors.HexColor("#6b7280"); CG = colors.HexColor("#1a7d1a")
     CR = colors.HexColor("#c62828")
@@ -3313,7 +3200,7 @@ def customer_soa_pdf(cid):
             logo = Image(f.name, width=lw, height=lh)
             LW = lw
             _logo_tmp_files.append(f.name)
-        except: pass
+        except Exception: pass
 
     cl = [f"<font size=11><b>{cn}</b></font>"]
     addr = company["address"] or ""; ph = company["phone_number"] or ""; em = company["email"] or ""
@@ -3492,7 +3379,7 @@ def customer_soa_pdf(cid):
     doc.build(els)
     for f in _logo_tmp_files:
         try: os.remove(f)
-        except: pass
+        except Exception: pass
     pdf_data = buf.getvalue(); buf.close()
     return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"SOA_{c['customer_name']}.pdf")
 
@@ -3693,7 +3580,7 @@ def customer_tax_report_pdf():
 
     tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     WH = colors.white; C5 = colors.HexColor("#6b7280")
     CR = colors.HexColor("#c62828")
 
@@ -3877,7 +3764,7 @@ def customer_tripsheet_report_pdf(cid):
 
     tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     WH = colors.white
     C4 = colors.HexColor("#111827")
     C5_g = colors.HexColor("#6b7280")
@@ -3898,7 +3785,7 @@ def customer_tripsheet_report_pdf(cid):
             logo = Image(f.name, width=30, height=30)
             LW = 30
             _logo_tmp_files.append(f.name)
-        except: pass
+        except Exception: pass
 
     month_name = f"{calendar.month_name[int(month.split('-')[1])]} {month.split('-')[0]}" if '-' in month else month
     co_text = f"<font size=9><b>{cn}</b></font><br/><font size=5.5 color='#6b7280'>{month_name} &middot; {c['customer_name']}</font>"
@@ -3963,7 +3850,7 @@ def customer_tripsheet_report_pdf(cid):
     doc.build(els)
     for f in _logo_tmp_files:
         try: os.remove(f)
-        except: pass
+        except Exception: pass
     buf.seek(0)
     fn = f"Tabreed_Tripsheet_{month}_{c['customer_name']}.pdf"
     return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=fn)

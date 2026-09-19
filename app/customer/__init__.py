@@ -24,7 +24,7 @@ def inject_globals():
         db.executescript("CREATE TABLE IF NOT EXISTS company_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, company_name TEXT)")
         co = db.execute("SELECT company_name FROM company_profile LIMIT 1").fetchone()
         db.close()
-    except:
+    except Exception:
         co = None
 
     def amount_in_words(n):

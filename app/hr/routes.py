@@ -778,7 +778,7 @@ def employee_transactions(employee_id):
     )
 
 
-@hr_bp.route("/hr/employees/<employee_id>/transactions/<int:txn_id>/delete", methods=["GET", "POST"])
+@hr_bp.route("/hr/employees/<employee_id>/transactions/<int:txn_id>/delete", methods=["POST"])
 @_login_required("admin")
 def employee_transaction_delete(employee_id, txn_id):
     _touch_admin_workspace("hr")
@@ -795,14 +795,6 @@ def employee_transaction_delete(employee_id, txn_id):
         "SELECT id, owner_name, entry_date, amount, received_by, payment_method, details FROM owner_fund_entries WHERE source_table='driver_transactions' AND source_id=?",
         (txn_id,),
     ).fetchone()
-
-    if request.method == "GET" and owner_fund_entry:
-        return render_template(
-            "hr/delete_transaction_confirm.html",
-            employee_id=employee_id,
-            txn=dict(txn),
-            owner_fund_entry=dict(owner_fund_entry),
-        )
 
     delete_owner_fund = request.form.get("delete_owner_fund") == "yes"
     try:
@@ -972,7 +964,7 @@ def employee_salary_store(employee_id):
     )
 
 
-@hr_bp.route("/hr/employees/<employee_id>/salary-store/<int:store_id>/delete", methods=["GET", "POST"])
+@hr_bp.route("/hr/employees/<employee_id>/salary-store/<int:store_id>/delete", methods=["POST"])
 @_login_required("admin")
 def employee_salary_store_delete(employee_id, store_id):
     _touch_admin_workspace("hr")
@@ -1328,7 +1320,7 @@ def employee_salary_slip(employee_id):
     )
 
 
-@hr_bp.route("/hr/employees/<employee_id>/salary-slip/<int:store_id>/delete", methods=["GET", "POST"])
+@hr_bp.route("/hr/employees/<employee_id>/salary-slip/<int:store_id>/delete", methods=["POST"])
 @_login_required("admin")
 def employee_salary_slip_delete(employee_id, store_id):
     _touch_admin_workspace("hr")
@@ -1352,15 +1344,6 @@ def employee_salary_slip_delete(employee_id, store_id):
         (slip["id"],),
     ).fetchone()
 
-    if request.method == "GET" and owner_fund_entry:
-        return render_template(
-            "hr/delete_transaction_confirm.html",
-            employee_id=employee_id,
-            txn=dict(slip),
-            owner_fund_entry=dict(owner_fund_entry),
-            is_salary_slip=True,
-        )
-
     delete_owner_fund = request.form.get("delete_owner_fund") == "yes"
 
     # ── Reverse FIFO deductions: restore remaining_amount on transactions ──
@@ -1380,7 +1363,7 @@ def employee_salary_slip_delete(employee_id, store_id):
             original_amount = float(txn["amount"])
             db.execute(
                 "UPDATE driver_transactions SET remaining_amount = ?, is_fully_deducted = ? WHERE id = ?",
-                (min(new_remaining, original_amount), 0 if new_remaining < original_amount else 0, txn["id"]),
+                (min(new_remaining, original_amount), 1 if new_remaining <= 0 else 0, txn["id"]),
             )
             reversed_count += 1
 

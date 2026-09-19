@@ -18,6 +18,7 @@ from app import csrf
 
 from ..database import open_db
 from ..routes import _next_reference_code
+from ..utils import num_to_words
 
 
 SUPPLIER_CATEGORIES = [
@@ -773,9 +774,9 @@ def supplier_dashboard():
             top_suppliers=top_suppliers,
         )
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        return f"<h2>Supplier Dashboard Error</h2><pre>{e}\n\n{tb}</pre>", 500
+        current_app.logger.error("supplier_dashboard error: %s", e, exc_info=True)
+        flash("An unexpected error occurred. Please try again later.", "error")
+        return redirect(url_for("supplier.supplier_list"))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1616,26 +1617,6 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     els.append(i_tbl)
     els.append(Spacer(1, 3*mm))
 
-    # ═══════════════════════════════════════════════════════
-    #  TOTAL & AMOUNT IN WORDS
-    # ═══════════════════════════════════════════════════════
-    def num_to_words(n):
-        if n == 0: return "Zero Only"
-        ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
-                "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
-                "Seventeen","Eighteen","Nineteen"]
-        tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
-        def cvt(x):
-            if x < 20: return ones[x]
-            if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
-            if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
-            if x < 1000000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
-            return cvt(x//1000000) + " Million" + (" " + cvt(x%1000000) if x%1000000 else "")
-        ip = int(n); dp = round((n - ip) * 100)
-        w = cvt(ip)
-        if dp: w += f" and {dp}/100"
-        return "AED " + w + " Only"
-
     summary_data = [
         [Paragraph("Total Amount (AED)", ParagraphStyle("tsl", fontSize=8, textColor=MUTED, leading=10, spaceAfter=0)),
          Paragraph(f"<b>{total_amt:,.2f}</b>",
@@ -2090,24 +2071,6 @@ def supplier_quotation_pdf(sup_id, q_id):
     els.append(totals_tbl)
     els.append(Spacer(1, 2*mm))
 
-    # ── AMOUNT IN WORDS ──
-    def num_to_words(n):
-        if n == 0: return "Zero Only"
-        ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
-                "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
-                "Seventeen","Eighteen","Nineteen"]
-        tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
-        def cvt(x):
-            if x < 20: return ones[x]
-            if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
-            if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
-            if x < 1000000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
-            return cvt(x//1000000) + " Million" + (" " + cvt(x%1000000) if x%1000000 else "")
-        ip = int(n); dp = round((n - ip) * 100)
-        w = cvt(ip)
-        if dp: w += f" and {dp}/100"
-        return "AED " + w + " Only"
-
     words_p = Paragraph("<b>Amount in Words:</b> " + num_to_words(grand_total), ParagraphStyle("wrds", fontSize=8.5, textColor=colors.HexColor("#64748b"), leading=11))
     words_box = Table([[words_p]], colWidths=[None])
     words_box.setStyle(TableStyle([
@@ -2433,23 +2396,23 @@ def supplier_payment_add(sup_id):
             try:
                 db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
                 db.commit()
-            except:
+            except Exception:
                 try: db.rollback()
-                except: pass
+                except Exception: pass
         for col,dtype in [("discount","REAL DEFAULT 0")]:
             try:
                 db.execute(f"ALTER TABLE supplier_payment_records ADD COLUMN {col} {dtype}")
                 db.commit()
-            except:
+            except Exception:
                 try: db.rollback()
-                except: pass
+                except Exception: pass
         for col,dtype in [("payment_date","TEXT"),("payment_method","TEXT"),("payment_ref","TEXT")]:
             try:
                 db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
                 db.commit()
-            except:
+            except Exception:
                 try: db.rollback()
-                except: pass
+                except Exception: pass
 
         discount = request.form.get("discount", "0").strip()
         discount_f = float(discount) if discount else 0
@@ -2545,21 +2508,6 @@ def supplier_cheque_print(sup_id, pay_id):
         company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     except Exception:
         company = None
-
-    def num_to_words(n):
-        if n == 0: return "Zero"
-        ones = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
-        tens = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
-        def cvt(x):
-            if x < 20: return ones[x]
-            if x < 100: return tens[x//10] + (" " + ones[x%10] if x%10 else "")
-            if x < 1000: return ones[x//100] + " Hundred" + (" " + cvt(x%100) if x%100 else "")
-            if x < 1000000: return cvt(x//1000) + " Thousand" + (" " + cvt(x%1000) if x%1000 else "")
-            return cvt(x//1000000) + " Million" + (" " + cvt(x%1000000) if x%1000000 else "")
-        ip = int(n); dp = round((n - ip) * 100)
-        w = cvt(ip)
-        if dp: w += f" and {dp}/100"
-        return w
 
     disc = float(pay.get("discount") or 0)
     amt = max(0, (pay["amount"] or 0) - disc)
@@ -2761,16 +2709,11 @@ def supplier_loan_delete(sup_id, loan_id):
         flash(f"{total} loan entr{'y' if total == 1 else 'ies'} deleted.", "info")
     except Exception as e:
         try: db.rollback()
-        except: pass
+        except Exception: pass
         flash(f"Delete error: {e}", "error")
     return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
 
 csrf.exempt(supplier_loan_delete)
-
-
-@supplier_bp.route("/<int:sup_id>/loans")
-def supplier_loans_list(sup_id):
-    return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="loans"))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -3048,7 +2991,7 @@ def supplier_soa_pdf(sup_id):
 
     tc = company["theme_color"] or "#1a3a5c" if company else "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     BG = colors.HexColor("#f4f6f9"); WH = colors.white; C3 = colors.HexColor("#d1d5db")
     C4 = colors.HexColor("#111827"); C5 = colors.HexColor("#6b7280")
 
@@ -3079,7 +3022,7 @@ def supplier_soa_pdf(sup_id):
             logo = Image(f.name, width=50, height=50)
             LW = 50
             _logo_tmp_files.append(f.name)
-        except: pass
+        except Exception: pass
 
     cl = [f"<font size=11><b>{cn}</b></font>"]
     addr = company["address"] or ""; ph = company["phone_number"] or ""; em = company["email"] or ""
@@ -3227,7 +3170,7 @@ def supplier_soa_pdf(sup_id):
     doc.build(els)
     for fp in _logo_tmp_files:
         try: os.unlink(fp)
-        except: pass
+        except Exception: pass
     buf.seek(0)
     return send_file(buf, mimetype="application/pdf", as_attachment=True, download_name=f"SOA_{s['supplier_name']}.pdf")
 
@@ -3278,38 +3221,6 @@ def supplier_restore(sup_id):
     return redirect(url_for("supplier.supplier_list"))
 
 
-# ═══════════════════════════════════════════════════════════
-# OWNER FUND
-# ═══════════════════════════════════════════════════════════
-
-@supplier_bp.route("/owner-fund")
-def owner_fund_dashboard():
-    return redirect(url_for("owner_fund"))
-
-
-@supplier_bp.route("/owner-fund/add", methods=["GET", "POST"])
-def owner_fund_add():
-    _ensure_tables()
-    if request.method == "POST":
-        amount = request.form.get("amount", "").strip()
-        fund_date = request.form.get("fund_date", "").strip() or date.today().isoformat()
-        owner_name = request.form.get("owner_name", "Owner").strip()
-        transaction_type = request.form.get("transaction_type", "deposit").strip()
-        description = request.form.get("description", "").strip()
-        notes = request.form.get("notes", "").strip()
-        if not amount or float(amount) <= 0:
-            flash("Valid amount is required.", "error")
-            return redirect(url_for("owner_fund"))
-        db = _get_db()
-        db.execute(
-            "INSERT INTO owner_funds (amount, fund_date, owner_name, transaction_type, description, notes) VALUES (?,?,?,?,?,?)",
-            (float(amount), fund_date, owner_name, transaction_type, description, notes),
-        )
-        db.commit()
-
-        flash("Owner fund entry added.", "success")
-        return redirect(url_for("owner_fund"))
-    return redirect(url_for("owner_fund"))
 
 
 # ═══════════════════════════════════════════════════════════
@@ -3621,7 +3532,7 @@ def supplier_purchase_report_pdf():
 
     tc = (company["theme_color"] or "#1a3a5c") if company else "#1a3a5c"
     try: TH = colors.HexColor(tc)
-    except: TH = colors.HexColor("#1a3a5c")
+    except Exception: TH = colors.HexColor("#1a3a5c")
     WH = colors.white; C5 = colors.HexColor("#6b7280")
 
     def F(name, **kw):

@@ -887,22 +887,28 @@ tbody td {
 
 /* Dashboard body override — matches header nav bar navy exactly */
 .dashboard-body {
-    background: linear-gradient(160deg, #0f1e38 0%, #162847 50%, #1a2d55 100%);
+    background: var(--bg) !important;
 }
-.dashboard-body .page { background: transparent; }
+.dashboard-body .page {
+    background: transparent !important;
+    padding-top: 0 !important;
+}
 
 /* Dashboard shell */
 .db-shell {
     padding: 36px 0 64px;
-    width: min(1240px, calc(100% - 40px));
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0;
+    width: 100%;
 }
 
 /* Header - Enhanced for Supplier Desk */
 .db-header {
     display: flex; align-items: center;
-    justify-content: space-between; gap: 24px;
-    margin-bottom: 48px; flex-wrap: wrap;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
     position: relative;
 }
 .db-header::before {
@@ -967,7 +973,7 @@ tbody td {
     line-height: 1.4;
 }
 .db-header-badges {
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: center; gap: 8px;
     flex-wrap: wrap;
 }
 .db-kpi-pill {
@@ -1291,10 +1297,13 @@ tbody td {
 
 
 .wc-partner {
-    background: linear-gradient(145deg, #1a0d2e 0%, #2d1654 100%);
-    box-shadow: 0 8px 32px rgba(124,58,237,0.28);
+    background: linear-gradient(145deg, #2d1b5c 0%, #4a2b8c 100%);
+    box-shadow: 0 8px 32px rgba(124,58,237,0.35);
 }
-.wc-partner:hover { box-shadow: 0 24px 60px rgba(124,58,237,0.42); }
+.wc-partner:hover {
+    box-shadow: 0 24px 60px rgba(124,58,237,0.55);
+    background: linear-gradient(145deg, #3a2470 0%, #5d3aa3 100%);
+}
 
 .wc-customer {
     background: linear-gradient(145deg, #001825 0%, #002e45 100%);
@@ -1344,15 +1353,6 @@ tbody td {
 .wc-managed:hover {
     box-shadow: 0 24px 60px rgba(59,130,246,0.50);
     background: linear-gradient(145deg, #152a5c 0%, #2a3f7a 100%);
-}
-
-.wc-partner {
-    background: linear-gradient(145deg, #2d1b5c 0%, #4a2b8c 100%);
-    box-shadow: 0 8px 32px rgba(124,58,237,0.35);
-}
-.wc-partner:hover {
-    box-shadow: 0 24px 60px rgba(124,58,237,0.55);
-    background: linear-gradient(145deg, #3a2470 0%, #5d3aa3 100%);
 }
 
 /* ── Card inner elements ── */
@@ -1541,21 +1541,24 @@ tbody td {
    FLASH MESSAGES POLISH
 Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 .flash {
-    border-radius: 14px;
-    padding: 12px 18px;
+    padding: 13px 15px;
+    border-radius: 12px;
+    border: 1px solid transparent;
     font-weight: 600;
     font-size: 0.9rem;
     animation: riseIn 0.3s ease;
 }
-.flash-success { background: var(--success-soft); color: #165c35; border: 1px solid rgba(44,177,92,0.25); }
-.flash-error   { background: var(--danger-soft);  color: #8b1c1c; border: 1px solid rgba(199,61,44,0.25); }
+.flash-success { background: var(--success-soft); color: #145f3a; border-color: #bce7c8; }
+.flash-error   { background: var(--danger-soft);  color: #8a2e24; border-color: #f1beb4; }
 .flash-info    { background: rgba(28,86,139,0.08); color: var(--primary-dark); border: 1px solid rgba(28,86,139,0.16); }
 
 /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
    PAGE SPACING Ã¢â‚¬â€ push content below the sticky topnav
 Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 .page {
-    padding-top: 20px;
+    padding: 8px 0 36px;
+    width: min(1360px, calc(100% - 28px));
+    margin: 0 auto;
 }
 
 /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
@@ -1598,11 +1601,6 @@ a {
 .footer-wrap {
     width: 100%;
     overflow: hidden;
-}
-
-.page {
-    width: min(1180px, calc(100% - 28px));
-    margin: 0 auto;
 }
 
 .hero {
@@ -1822,10 +1820,6 @@ a {
 
 .actions-row form {
     margin: 0;
-}
-
-.page {
-    padding: 8px 0 36px;
 }
 
 .inline-note {
@@ -3065,13 +3059,19 @@ label span {
 
 .form-actions {
     display: flex;
-    justify-content: flex-end;
     gap: 10px;
-    margin-top: 2px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
 }
 
 .split-actions {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .triple-actions {
@@ -3090,6 +3090,9 @@ label span {
 }
 
 .table-wrap {
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--line);
     overflow-x: auto;
 }
 
@@ -3167,24 +3170,6 @@ thead th {
 
 .flash-stack {
     margin-bottom: 16px;
-}
-
-.flash {
-    padding: 13px 15px;
-    border-radius: 12px;
-    border: 1px solid transparent;
-}
-
-.flash-error {
-    background: var(--danger-soft);
-    color: #8a2e24;
-    border-color: #f1beb4;
-}
-
-.flash-success {
-    background: var(--success-soft);
-    color: #145f3a;
-    border-color: #bce7c8;
 }
 
 .topbar-meta {
@@ -4348,15 +4333,6 @@ html {
     color: var(--primary-dark);
 }
 
-.quick-link-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.quick-link-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 20px 40px rgba(19, 56, 104, 0.14);
-}
-
 .subtle-quick-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 253, 0.98));
     border-color: rgba(21, 51, 93, 0.06);
@@ -5388,8 +5364,7 @@ html {
 
 .admin-toolbar-row,
 .directory-card-foot,
-.directory-card-head,
-.split-actions {
+.directory-card-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -5398,8 +5373,7 @@ html {
 
 .admin-toolbar-actions,
 .admin-filter-actions,
-.mini-link-stack.inline-link-stack,
-.split-actions {
+.mini-link-stack.inline-link-stack {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -6254,10 +6228,7 @@ html {
 /* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
    WIDER PAGE CONTAINER Ã¢â‚¬â€ admin/internal pages look better at
    large viewport widths / zoomed-out screens
-Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
-.page {
-    width: min(1360px, calc(100% - 28px));
-}
+======================================================================= */
 
 /* ─────────────────────────────────────────────────────────────────────────────
    ENHANCED TECHNICIAN DASHBOARD STYLES
@@ -7842,14 +7813,6 @@ html {
     --sidebar-w: 250px;
 }
 
-.dashboard-body {
-    background: var(--bg) !important;
-}
-.dashboard-body .page {
-    background: transparent !important;
-    padding-top: 0 !important;
-}
-
 .app-layout {
     display: flex;
     min-height: 100vh;
@@ -8405,20 +8368,6 @@ html {
     padding: 24px 28px 40px;
 }
 
-.db-shell {
-    max-width: 100%;
-    margin: 0;
-    width: 100%;
-}
-
-.db-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 24px;
-}
 
 .db-header h1 {
     margin: 0;
@@ -8431,13 +8380,6 @@ html {
     margin: 2px 0 0;
     font-size: 0.88rem;
     color: var(--text-secondary);
-}
-
-.db-header-badges {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    align-items: center;
 }
 
 .db-badge {
@@ -9062,15 +9004,6 @@ textarea.form-control {
     margin-top: 3px;
 }
 
-.form-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid var(--line);
-}
-
 /* List page */
 .list-shell {
     max-width: 1200px;
@@ -9191,13 +9124,6 @@ textarea.form-control {
 }
 .kpi-mini.active strong { color: var(--green); }
 .kpi-mini.inactive strong { color: var(--danger); }
-
-.table-wrap {
-    background: var(--surface);
-    border-radius: 12px;
-    border: 1px solid var(--line);
-    overflow-x: auto;
-}
 
 .smart-table {
     width: 100%;

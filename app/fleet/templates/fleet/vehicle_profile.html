@@ -154,7 +154,7 @@
             </form>
         </div>
         <div id="linkSection" style="display:none;margin-top:8px;padding:12px;background:#fff;border:1px solid #d1fae5;border-radius:10px">
-            <form method="POST" action="{{ url_for('fleet.vehicle_change_link', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <form method="POST" action="{{ url_for('fleet.vehicle_link_to_head', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div style="flex:1;min-width:150px">
                     <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">New Head Vehicle</label>
@@ -185,7 +185,7 @@
         </div>
         <button onclick="document.getElementById('linkSectionNew').style.display=document.getElementById('linkSectionNew').style.display==='none'?'block':'none'" style="padding:5px 14px;background:#fff;border:1px solid #f97316;border-radius:8px;cursor:pointer;font-size:0.78rem;color:#c2410c;font-weight:600">🔗 Link to Head</button>
         <div id="linkSectionNew" style="display:none;margin-top:10px;padding:12px;background:#fff;border:1px solid #fed7aa;border-radius:10px">
-            <form method="POST" action="{{ url_for('fleet.vehicle_change_link', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <form method="POST" action="{{ url_for('fleet.vehicle_link_to_head', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div style="flex:1;min-width:150px">
                     <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">Select Head Vehicle</label>

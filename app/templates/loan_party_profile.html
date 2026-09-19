@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+{% block title %}{{ party.party_name }} — Loans{% endblock %}
+{% block page_title %}Loans{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+
+<style>
+/* ══════════════════════════════════════════════════════════
+   LOAN PARTY PROFILE — UNIQUE DESIGN v4
+   ══════════════════════════════════════════════════════════ */
+
+/* ─── Profile Header Bar ─── */
+.lp-profile {
+    display:flex; align-items:center; gap:20px;
+    padding:24px 0 0; margin-bottom:24px;
+}
+.lp-avatar {
+    width:64px; height:64px; border-radius:16px; flex-shrink:0;
+    background:linear-gradient(135deg, #e65100, #ff9800);
+    display:grid; place-items:center; font-size:1.6rem; font-weight:900;
+    color:#fff; box-shadow:0 4px 16px rgba(230,81,0,0.25);
+}
+.lp-profile-info { flex:1; min-width:0; }
+.lp-profile-name { font-size:1.4rem; font-weight:800; color:var(--ink); line-height:1.2; }
+.lp-profile-meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+.lp-meta-pill {
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:0.7rem; font-weight:500; color:var(--muted);
+    padding:3px 10px; border-radius:6px; background:#f1f5f9;
+}
+.lp-meta-pill strong { color:var(--ink); font-weight:600; }
+.lp-profile-actions { display:flex; gap:8px; flex-shrink:0; }
+.lp-act-btn {
+    padding:9px 18px; border-radius:10px; font-size:0.78rem; font-weight:600;
+    border:none; cursor:pointer; transition:all 0.2s;
+    display:inline-flex; align-items:center; gap:5px; text-decoration:none;
+}
+.lp-act-btn:active { transform:scale(0.97); }
+.lp-act-btn.give { background:#e65100; color:#fff; box-shadow:0 2px 8px rgba(230,81,0,0.2); }
+.lp-act-btn.give:hover { background:#bf360c; }
+.lp-act-btn.recover { background:#16a34a; color:#fff; box-shadow:0 2px 8px rgba(22,163,74,0.2); }
+.lp-act-btn.recover:hover { background:#15803d; }
+.lp-act-btn.ghost { background:#f1f5f9; color:var(--ink); border:1px solid var(--line); }
+.lp-act-btn.ghost:hover { background:#e2e8f0; }
+.lp-divider { height:1px; background:linear-gradient(90deg, transparent, var(--line), transparent); margin:20px 0; }
+
+/* ─── Stats Row — 4 Inline Pills ─── */
+.lp-stats-row {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px;
+}
+.lp-stat-pill {
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; display:flex; align-items:center; gap:14px;
+    transition:all 0.2s;
+}
+.lp-stat-pill:hover { border-color:#e2e8f0; box-shadow:0 2px 12px rgba(0,0,0,0.04); }
+.lp-stat-dot {
+    width:40px; height:40px; border-radius:12px; display:grid; place-items:center;
+    font-size:1.1rem; flex-shrink:0;
+}
+.lp-stat-dot.dot-given { background:#fff3e0; }
+.lp-stat-dot.dot-recovered { background:#e8f5e9; }
+.lp-stat-dot.dot-earned { background:#e3f2fd; }
+.lp-stat-dot.dot-balance { background:#ffebee; }
+.lp-stat-content { min-width:0; }
+.lp-stat-label { font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+.lp-stat-number { font-size:1.15rem; font-weight:800; line-height:1.2; margin-top:1px; }
+.lp-stat-sub { font-size:0.65rem; color:var(--muted); margin-top:1px; }
+@media(max-width:600px) { .lp-stats-row { grid-template-columns:1fr 1fr; } }
+
+/* ─── Recovery Progress ─── */
+.lp-progress-card {
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:18px 22px; margin-bottom:20px;
+}
+.lp-progress-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.lp-progress-title { font-size:0.85rem; font-weight:700; color:var(--ink); }
+.lp-progress-pct { font-size:0.85rem; font-weight:800; color:#e65100; }
+.lp-progress-track { width:100%; height:10px; background:#f1f5f9; border-radius:10px; overflow:hidden; position:relative; }
+.lp-progress-fill { height:100%; border-radius:10px; background:linear-gradient(90deg, #16a34a, #4ade80); transition:width 1s cubic-bezier(0.4,0,0.2,1); }
+.lp-progress-labels { display:flex; justify-content:space-between; margin-top:8px; }
+.lp-progress-labels span { font-size:0.65rem; color:var(--muted); font-weight:500; }
+
+/* ─── SOA Table Card ─── */
+.lp-soa-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:24px; }
+.lp-soa-head {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 22px; border-bottom:1px solid var(--line);
+}
+.lp-soa-head h2 { margin:0; font-size:0.95rem; font-weight:700; color:var(--ink); }
+.lp-soa-head-actions { display:flex; gap:6px; }
+.lp-soa-pill {
+    padding:5px 12px; border-radius:7px; font-size:0.72rem; font-weight:600;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink);
+    text-decoration:none; cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+    transition:all 0.2s;
+}
+.lp-soa-pill:hover { border-color:#e65100; color:#e65100; }
+.lp-soa-pill.accent { background:#e65100; color:#fff; border-color:#e65100; }
+.lp-soa-pill.accent:hover { background:#bf360c; }
+
+.lp-soa-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.lp-soa-table th {
+    padding:10px 14px; background:#fafbfc; font-size:0.67rem; font-weight:600;
+    color:var(--muted); text-transform:uppercase; letter-spacing:0.3px;
+    white-space:nowrap; text-align:left; border-bottom:2px solid #e2e8f0;
+}
+.lp-soa-table td { padding:10px 14px; border-bottom:1px solid #f1f5f9; }
+.lp-soa-table tbody tr:hover td { background:#fafbfc; }
+.lp-soa-table tbody tr:last-child td { border-bottom:none; }
+.lp-type-chip {
+    display:inline-block; font-size:0.65rem; font-weight:600; padding:3px 10px;
+    border-radius:20px; letter-spacing:0.2px;
+}
+.lp-total-row { background:linear-gradient(135deg, #e65100, #bf360c); }
+.lp-total-row td { padding:12px 14px; color:#fff; font-weight:700; }
+.lp-total-row td:first-child { border-radius:0 0 0 14px; }
+.lp-total-row td:last-child { border-radius:0 0 14px 0; }
+
+/* ─── Empty State ─── */
+.lp-empty { padding:48px 24px; text-align:center; }
+.lp-empty-icon { font-size:3rem; margin-bottom:12px; opacity:0.3; }
+.lp-empty-title { font-size:1rem; font-weight:700; color:var(--ink); margin-bottom:4px; }
+.lp-empty-desc { font-size:0.82rem; color:var(--muted); max-width:360px; margin:0 auto 16px; }
+
+/* ─── Modals ─── */
+.lp-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.45); backdrop-filter:blur(6px); z-index:10000; display:none; align-items:center; justify-content:center; }
+.lp-overlay.open { display:flex; }
+.lp-dialog {
+    background:var(--surface); border-radius:18px; width:92%; max-width:540px;
+    max-height:88vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.2);
+    animation:lpPop 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes lpPop { from{opacity:0;transform:scale(0.95) translateY(10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+.lp-dialog-head {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:20px 24px 14px; border-bottom:1px solid #f1f5f9;
+}
+.lp-dialog-head h3 { margin:0; font-size:1rem; font-weight:700; }
+.lp-dialog-x { background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--muted); padding:4px 8px; border-radius:6px; }
+.lp-dialog-x:hover { background:#f1f5f9; color:var(--ink); }
+.lp-dialog-body { padding:18px 24px; }
+.lp-dialog-foot { padding:14px 24px 20px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:8px; }
+.lp-fg { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media(max-width:500px) { .lp-fg { grid-template-columns:1fr; } }
+.lp-fi { display:flex; flex-direction:column; gap:4px; }
+.lp-fi.span { grid-column:1/-1; }
+.lp-fi label { font-size:0.72rem; font-weight:600; color:var(--ink); }
+.lp-fi label .req { color:#c62828; }
+.lp-fi input, .lp-fi select, .lp-fi textarea {
+    padding:9px 12px; border:1.5px solid var(--line); border-radius:8px;
+    font-size:0.82rem; font-family:inherit; background:var(--surface); color:var(--ink);
+    transition:border-color 0.2s;
+}
+.lp-fi input:focus, .lp-fi select:focus, .lp-fi textarea:focus {
+    outline:none; border-color:#e65100; box-shadow:0 0 0 3px rgba(230,81,0,0.08);
+}
+.lp-fi textarea { resize:vertical; min-height:56px; }
+.lp-info-box {
+    background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px;
+    padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; gap:8px;
+}
+.lp-info-box .icon { font-size:1.1rem; }
+.lp-info-box .text { font-size:0.78rem; font-weight:600; color:#16a34a; }
+.lp-info-box .sub { font-size:0.68rem; color:#15803d; font-weight:400; }
+
+/* ─── Buttons ─── */
+.btn-sm {
+    padding:8px 16px; border-radius:8px; font-size:0.78rem; font-weight:600;
+    border:none; cursor:pointer; transition:all 0.2s;
+}
+.btn-sm:active { transform:scale(0.97); }
+.btn-sm.primary { background:#e65100; color:#fff; }
+.btn-sm.primary:hover { background:#bf360c; }
+.btn-sm.success { background:#16a34a; color:#fff; }
+.btn-sm.success:hover { background:#15803d; }
+.btn-sm.outline { background:var(--surface); color:var(--ink); border:1.5px solid var(--line); }
+.btn-sm.outline:hover { border-color:#e65100; color:#e65100; }
+</style>
+
+<!-- ═══ PROFILE HEADER ═══ -->
+<div class="lp-profile">
+    <div class="lp-avatar">{{ party.party_name[:1] }}</div>
+    <div class="lp-profile-info">
+        <div class="lp-profile-name">{{ party.party_name }}</div>
+        <div class="lp-profile-meta">
+            <span class="lp-meta-pill"><strong>{{ party.party_code }}</strong></span>
+            {% if party.contact_person %}<span class="lp-meta-pill">👤 {{ party.contact_person }}</span>{% endif %}
+            {% if party.phone_number %}<span class="lp-meta-pill">📞 {{ party.phone_number }}</span>{% endif %}
+            {% if party.email %}<span class="lp-meta-pill">✉️ {{ party.email }}</span>{% endif %}
+            {% if party.trn_no %}<span class="lp-meta-pill">🏛️ {{ party.trn_no }}</span>{% endif %}
+        </div>
+    </div>
+    <div class="lp-profile-actions">
+        <button class="lp-act-btn give" onclick="openModal('givenModal')">📤 Loan De Diya</button>
+        <button class="lp-act-btn recover" onclick="openModal('recoverModal')">📥 Wasooli</button>
+        <button class="lp-act-btn" style="background:#1565c0;color:#fff;box-shadow:0 2px 8px rgba(21,101,192,0.2)" onclick="openModal('earningModal')">💰 Kamaya (Earning)</button>
+        <a href="{{ url_for('loan_party_soa_pdf', party_code=party.party_code) }}" class="lp-act-btn ghost" target="_blank">📄 PDF</a>
+        <a href="{{ url_for('loans_center') }}" class="lp-act-btn ghost">← Back</a>
+    </div>
+</div>
+
+<!-- ═══ STATS PILLS ═══ -->
+{% set pct = (((overall.recovered + overall.earned) / overall.given * 100)|round|int) if overall.given > 0 else 0 %}
+<div class="lp-stats-row">
+    <div class="lp-stat-pill">
+        <div class="lp-stat-dot dot-given">📤</div>
+        <div class="lp-stat-content">
+            <div class="lp-stat-label">Loan De Diya</div>
+            <div class="lp-stat-number" style="color:#e65100">AED {{ "%.0f"|format(overall.given) }}</div>
+            <div class="lp-stat-sub">{{ overall.entries }} {{ 'entries' if overall.entries != 1 else 'entry' }}</div>
+        </div>
+    </div>
+    <div class="lp-stat-pill">
+        <div class="lp-stat-dot dot-recovered">📥</div>
+        <div class="lp-stat-content">
+            <div class="lp-stat-label">Wasooli Ho Gayi</div>
+            <div class="lp-stat-number" style="color:#16a34a">AED {{ "%.0f"|format(overall.recovered) }}</div>
+            <div class="lp-stat-sub">{{ pct }}% recovered</div>
+        </div>
+    </div>
+    <div class="lp-stat-pill">
+        <div class="lp-stat-dot dot-earned">💰</div>
+        <div class="lp-stat-content">
+            <div class="lp-stat-label">Kamaya (Earning)</div>
+            <div class="lp-stat-number" style="color:#1565c0">AED {{ "%.0f"|format(overall.earned) }}</div>
+            <div class="lp-stat-sub">Auto deducted from loan</div>
+        </div>
+    </div>
+    <div class="lp-stat-pill">
+        <div class="lp-stat-dot dot-balance">⏳</div>
+        <div class="lp-stat-content">
+            <div class="lp-stat-label">Abhi Baqi Hai</div>
+            <div class="lp-stat-number" style="color:{% if overall.balance > 0 %}#c62828{% else %}#16a34a{% endif %}">AED {{ "%.0f"|format(overall.balance) }}</div>
+            <div class="lp-stat-sub">{% if overall.balance > 0 %}Pending{% else %}✅ Fully recovered{% endif %}</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ RECOVERY PROGRESS ═══ -->
+{% if overall.given > 0 %}
+<div class="lp-progress-card">
+    <div class="lp-progress-head">
+        <div class="lp-progress-title">Recovery Progress</div>
+        <div class="lp-progress-pct">{{ pct }}%</div>
+    </div>
+    <div class="lp-progress-track">
+        <div class="lp-progress-fill" style="width:{{ pct }}%"></div>
+    </div>
+    <div class="lp-progress-labels">
+        <span>AED {{ "%.0f"|format(overall.recovered) }} recovered</span>
+        <span>AED {{ "%.0f"|format(overall.balance) }} remaining</span>
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══ STATEMENT OF ACCOUNT ═══ -->
+<div class="lp-soa-card">
+    <div class="lp-soa-head">
+        <h2>Statement of Account</h2>
+        <div class="lp-soa-head-actions">
+            <a href="{{ url_for('loan_party_soa_pdf', party_code=party.party_code) }}" class="lp-soa-pill accent" target="_blank">📄 Download PDF</a>
+        </div>
+    </div>
+    {% if rows %}
+    <div style="overflow-x:auto">
+        <table class="lp-soa-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Ref</th>
+                    <th style="text-align:right">Amount</th>
+                    <th style="text-align:right">Balance</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set running = namespace(bal=0) %}
+                {% set tg = namespace(v=0) %}
+                {% set tr = namespace(v=0) %}
+                {% for row in rows %}
+                {% if row.loan_type == 'Given' %}
+                {% set running.bal = running.bal + row.amount|float %}
+                {% set tg.v = tg.v + row.amount|float %}
+                {% else %}
+                {% set running.bal = running.bal - row.amount|float %}
+                {% set tr.v = tr.v + row.amount|float %}
+                {% endif %}
+                <tr>
+                    <td style="font-family:monospace;font-size:0.78rem">{{ row.entry_date }}</td>
+                    <td>
+                        {% if row.loan_type == 'Given' %}
+                        <span class="lp-type-chip" style="background:#fff3e0;color:#e65100">📤 Given</span>
+                        {% elif row.loan_type == 'Earning' %}
+                        <span class="lp-type-chip" style="background:#e3f2fd;color:#1565c0">💰 Earning</span>
+                        {% else %}
+                        <span class="lp-type-chip" style="background:#e8f5e9;color:#16a34a">📥 Recovered</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.8rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{% if row.payment_method %}{{ row.payment_method }}{% endif %}{% if row.reference %}{% if row.payment_method %} — {% endif %}{{ row.reference }}{% endif %}{% if row.notes %}{% if row.payment_method or row.reference %} — {% endif %}{{ row.notes[:40] }}{% endif %}{% if not row.payment_method and not row.reference and not row.notes %}—{% endif %}</td>
+                    <td style="font-family:monospace;font-weight:600;font-size:0.76rem">{{ row.loan_no }}</td>
+                    <td style="text-align:right;font-weight:700;font-family:monospace;color:{% if row.loan_type == 'Given' %}#e65100{% elif row.loan_type == 'Earning' %}#1565c0{% else %}#16a34a{% endif %}">{{ "%.2f"|format(row.amount) }}</td>
+                    <td style="text-align:right;font-weight:700;font-family:monospace;color:{% if running.bal > 0.009 %}#c62828{% else %}#16a34a{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
+                    <td style="white-space:nowrap">
+                        <button class="btn btn-xs btn-outline" title="Edit"
+                            onclick="editEntry('{{ row.loan_no }}','{{ row.entry_date }}','{{ row.loan_type }}','{{ row.amount }}','{{ row.payment_method }}','{{ row.reference or '' }}','{{ row.notes or '' }}')">✏️</button>
+                        <form method="post" action="{{ url_for('delete_loan_entry', loan_no=row.loan_no) }}" style="display:inline" onsubmit="return confirm('Delete {{ row.loan_no }}?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-xs btn-outline" title="Delete" style="color:#c62828;border-color:#c62828">🗑️</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                <tr class="lp-total-row">
+                    <td colspan="4">Closing Balance</td>
+                    <td style="text-align:right;font-family:monospace">AED {{ "%.2f"|format(tg.v) }}</td>
+                    <td style="text-align:right;font-family:monospace;font-size:0.9rem">AED {{ "0.00" if overall.balance <= 0 else "%.2f"|format(overall.balance) }}</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="lp-empty">
+        <div class="lp-empty-icon">📋</div>
+        <div class="lp-empty-title">Abhi koi loan entry nahi hai</div>
+        <div class="lp-empty-desc">"📤 Loan De Diya" par click karein aur pehli loan entry record karein.</div>
+        <button class="btn-sm primary" onclick="openModal('givenModal')">📤 Loan De Diya</button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ MODAL: LOAN DE DIYA ═══ -->
+<div class="lp-overlay" id="givenModal">
+    <div class="lp-dialog">
+        <div class="lp-dialog-head">
+            <h3>📤 Loan De Diya</h3>
+            <button class="lp-dialog-x" onclick="closeModal('givenModal')">✕</button>
+        </div>
+        <form method="post" action="{{ url_for('add_party_loan_entry', party_code=party.party_code) }}">
+        <div class="lp-dialog-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="loan_type" value="Given">
+            <input type="hidden" name="original_loan_no" value="">
+            <div class="lp-fg">
+                <div class="lp-fi"><label>Loan No</label><input type="text" name="loan_no" readonly style="background:#f8fafc;color:#94a3b8;cursor:not-allowed"></div>
+                <div class="lp-fi"><label>Date <span class="req">*</span></label><input type="date" name="entry_date" required></div>
+                <div class="lp-fi"><label>Kitne (AED) <span class="req">*</span></label><input type="number" step="0.01" name="amount" placeholder="0.00" required></div>
+                <div class="lp-fi"><label>Zariya</label><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></div>
+                <div class="lp-fi"><label>Reference</label><input type="text" name="reference" placeholder="Bank ref, cheque no"></div>
+                <div class="lp-fi span"><label>Kyun diya?</label><textarea name="notes" rows="2" placeholder="Notes..."></textarea></div>
+            </div>
+        </div>
+        <div class="lp-dialog-foot">
+            <button type="button" class="btn-sm outline" onclick="closeModal('givenModal')">Cancel</button>
+            <button type="submit" class="btn-sm primary">💾 Save</button>
+        </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══ MODAL: WASOOLI ═══ -->
+<div class="lp-overlay" id="recoverModal">
+    <div class="lp-dialog">
+        <div class="lp-dialog-head">
+            <h3>📥 Wasooli Record</h3>
+            <button class="lp-dialog-x" onclick="closeModal('recoverModal')">✕</button>
+        </div>
+        <form method="post" action="{{ url_for('add_party_loan_entry', party_code=party.party_code) }}">
+        <div class="lp-dialog-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="loan_type" value="Recovered">
+            <input type="hidden" name="original_loan_no" value="">
+            <div class="lp-info-box">
+                <span class="icon">ℹ️</span>
+                <div>
+                    <div class="text">Baqi Loan: AED {{ "%.2f"|format(overall.balance) }}</div>
+                    <div class="sub">Party kitna wapas kar raha hai wo daalein</div>
+                </div>
+            </div>
+            <div class="lp-fg">
+                <div class="lp-fi"><label>Loan No</label><input type="text" name="loan_no" readonly style="background:#f8fafc;color:#94a3b8;cursor:not-allowed"></div>
+                <div class="lp-fi"><label>Date <span class="req">*</span></label><input type="date" name="entry_date" required></div>
+                <div class="lp-fi"><label>Kitna Wapas (AED) <span class="req">*</span></label><input type="number" step="0.01" name="amount" placeholder="0.00" required></div>
+                <div class="lp-fi"><label>Zariya</label><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></div>
+                <div class="lp-fi"><label>Reference</label><input type="text" name="reference" placeholder="Bank ref, cheque no"></div>
+                <div class="lp-fi span"><label>Notes</label><textarea name="notes" rows="2" placeholder="Wasooli notes..."></textarea></div>
+            </div>
+        </div>
+        <div class="lp-dialog-foot">
+            <button type="button" class="btn-sm outline" onclick="closeModal('recoverModal')">Cancel</button>
+            <button type="submit" class="btn-sm success">💾 Save Wasooli</button>
+        </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══ MODAL: EARNING ═══ -->
+<div class="lp-overlay" id="earningModal">
+    <div class="lp-dialog">
+        <div class="lp-dialog-head">
+            <h3>💰 Kamaya (Earning)</h3>
+            <button class="lp-dialog-x" onclick="closeModal('earningModal')">✕</button>
+        </div>
+        <form method="post" action="{{ url_for('add_party_loan_entry', party_code=party.party_code) }}">
+        <div class="lp-dialog-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="loan_type" value="Earning">
+            <input type="hidden" name="original_loan_no" value="">
+            <div class="lp-info-box">
+                <span class="icon">💰</span>
+                <div>
+                    <div class="text">Party ne hamare sath kaam karke kamaya</div>
+                    <div class="sub">Yeh amount loan outstanding se automatically cut ho jayega</div>
+                </div>
+            </div>
+            <div class="lp-fg">
+                <div class="lp-fi"><label>Loan No</label><input type="text" name="loan_no" readonly style="background:#f8fafc;color:#94a3b8;cursor:not-allowed"></div>
+                <div class="lp-fi"><label>Date <span class="req">*</span></label><input type="date" name="entry_date" required></div>
+                <div class="lp-fi"><label>Kitna Kamaya (AED) <span class="req">*</span></label><input type="number" step="0.01" name="amount" placeholder="0.00" required></div>
+                <div class="lp-fi"><label>Zariya</label><select name="payment_method">{% for item in payment_method_options %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></div>
+                <div class="lp-fi"><label>Reference</label><input type="text" name="reference" placeholder="Trip #, commission ref etc"></div>
+                <div class="lp-fi span"><label>Kya kaam kiya?</label><textarea name="notes" rows="2" placeholder="Trip commission, daily wages, etc..."></textarea></div>
+            </div>
+        </div>
+        <div class="lp-dialog-foot">
+            <button type="button" class="btn-sm outline" onclick="closeModal('earningModal')">Cancel</button>
+            <button type="submit" class="btn-sm" style="background:#1565c0;color:#fff">💾 Save Earning</button>
+        </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══ MODAL: EDIT ═══ -->
+<div class="lp-overlay" id="editModal">
+    <div class="lp-dialog">
+        <div class="lp-dialog-head">
+            <h3>✏️ Edit Entry</h3>
+            <button class="lp-dialog-x" onclick="closeModal('editModal')">✕</button>
+        </div>
+        <form method="post" id="editForm">
+        <div class="lp-dialog-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="original_loan_no" id="edit_orig">
+            <div class="lp-fg">
+                <div class="lp-fi"><label>Loan No</label><input type="text" id="edit_lno" readonly style="background:#f8fafc;color:#94a3b8;cursor:not-allowed"></div>
+                <div class="lp-fi"><label>Type <span class="req">*</span></label><select name="loan_type" id="edit_type" required>{% for item in loan_type_options %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></div>
+                <div class="lp-fi"><label>Date <span class="req">*</span></label><input type="date" name="entry_date" id="edit_date" required></div>
+                <div class="lp-fi"><label>Amount (AED) <span class="req">*</span></label><input type="number" step="0.01" name="amount" id="edit_amt" required></div>
+                <div class="lp-fi"><label>Method</label><select name="payment_method" id="edit_mtd">{% for item in payment_method_options %}<option value="{{ item }}">{{ item }}</option>{% endfor %}</select></div>
+                <div class="lp-fi"><label>Reference</label><input type="text" name="reference" id="edit_ref"></div>
+                <div class="lp-fi span"><label>Notes</label><textarea name="notes" id="edit_notes" rows="2"></textarea></div>
+            </div>
+        </div>
+        <div class="lp-dialog-foot">
+            <button type="button" class="btn-sm outline" onclick="closeModal('editModal')">Cancel</button>
+            <button type="submit" class="btn-sm primary">💾 Update</button>
+        </div>
+        </form>
+    </div>
+</div>
+
+</div>
+
+<script>
+function openModal(id) {
+    var m = document.getElementById(id);
+    var d = m.querySelector('[name="entry_date"]');
+    if (d && !d.value) d.value = new Date().toISOString().slice(0,10);
+    m.classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function editEntry(ln, dt, tp, amt, mtd, ref, notes) {
+    document.getElementById('editForm').action = "{{ url_for('edit_party_loan_entry', party_code=party.party_code, loan_no='__LOAN__') }}".replace('__LOAN__', ln);
+    document.getElementById('edit_orig').value = ln;
+    document.getElementById('edit_lno').value = ln;
+    document.getElementById('edit_date').value = dt;
+    document.getElementById('edit_type').value = tp;
+    document.getElementById('edit_amt').value = amt;
+    document.getElementById('edit_mtd').value = mtd;
+    document.getElementById('edit_ref').value = ref;
+    document.getElementById('edit_notes').value = notes;
+    openModal('editModal');
+}
+document.querySelectorAll('.lp-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)closeModal(o.id)})});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')document.querySelectorAll('.lp-overlay.open').forEach(function(o){closeModal(o.id)})});
+</script>
+{% endblock %}

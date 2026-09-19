@@ -197,7 +197,10 @@
                                         <td data-label="Details" style="max-width:180px;white-space:normal">{{ txn.details }}</td>
                                         <td data-label="" class="dv2-actions">
                                             <a href="{{ url_for('hr.employee_transactions', employee_id=employee.employee_id) }}?edit={{ txn.id }}" class="dv2-btn dv2-btn-outline dv2-btn-sm" title="Edit">&#9998;</a>
-                                            <a href="{{ url_for('hr.employee_transaction_delete', employee_id=employee.employee_id, txn_id=txn.id) }}" class="dv2-btn dv2-btn-danger dv2-btn-sm" title="Delete">&#128465;</a>
+                                            <form method="POST" action="{{ url_for('hr.employee_transaction_delete', employee_id=employee.employee_id, txn_id=txn.id) }}" style="display:inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dv2-btn dv2-btn-danger dv2-btn-sm" title="Delete" onclick="return confirm('Delete this transaction?')">&#128465;</button>
+                                            </form>
                                         </td>
                                     </tr>
                                     {% else %}
@@ -373,7 +376,10 @@
                                         <td data-label="Net" class="dv2-mono dv2-amount">AED {{ "%.0f"|format(row.net_salary or 0) }}</td>
                                         <td data-label="" class="dv2-actions">
                                             <a href="{{ url_for('hr.employee_salary_store', employee_id=employee.employee_id, month=row.salary_month) }}" class="dv2-btn dv2-btn-outline dv2-btn-sm" title="Edit">&#9998;</a>
-                                            <a href="{{ url_for('hr.employee_salary_store_delete', employee_id=employee.employee_id, store_id=row.id) }}" class="dv2-btn dv2-btn-danger dv2-btn-sm" title="Delete" onclick="return confirm('Delete salary store for {{ row.salary_month }}?')">&#128465;</a>
+                                            <form method="POST" action="{{ url_for('hr.employee_salary_store_delete', employee_id=employee.employee_id, store_id=row.id) }}" style="display:inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dv2-btn dv2-btn-danger dv2-btn-sm" title="Delete" onclick="return confirm('Delete salary store for {{ row.salary_month }}?')">&#128465;</button>
+                                            </form>
                                         </td>
                                     </tr>
                                     {% else %}
@@ -529,7 +535,10 @@
                             <div class="dv2-slip-actions">
                                 <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="dv2-btn dv2-btn-primary">&#128196; View / Print Salary Slip</a>
                                 <a href="{{ url_for('hr.employee_deduction_statement', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="dv2-btn dv2-btn-outline">Download Deduction Statement</a>
-                                <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="dv2-btn dv2-btn-danger">&#128465; Delete</a>
+                                <form method="POST" action="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="dv2-btn dv2-btn-danger" onclick="return confirm('Delete this salary slip?')">&#128465; Delete</button>
+                                </form>
                             </div>
                             {% endif %}
 

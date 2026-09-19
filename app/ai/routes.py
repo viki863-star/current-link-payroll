@@ -43,21 +43,21 @@ def _get_schema():
 
 def _is_write_sql(sql):
     s = sql.strip().upper()
-    return s.startswith("INSERT") or s.startswith("UPDATE") or s.startswith("DELETE")
+    forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "REPLACE", "GRANT", "REVOKE"]
+    for kw in forbidden:
+        if kw in s:
+            return True
+    return False
 
 
 def _execute_sql(sql):
+    if _is_write_sql(sql):
+        return {"error": "Only SELECT queries are allowed."}
+    s = sql.strip().upper()
+    if " LIMIT " not in s and " COUNT(" not in s and " SUM(" not in s and " AVG(" not in s and " MIN(" not in s and " MAX(" not in s:
+        sql = sql.rstrip().rstrip(";") + " LIMIT 500"
     db = open_db()
-    is_write = _is_write_sql(sql)
     try:
-        if is_write:
-            result = db.execute(sql)
-            db.commit()
-            if hasattr(result, "fetchone"):
-                row = result.fetchone()
-                if row:
-                    return {"affected": "insert", "row": dict(row)}
-            return {"affected": "success"}
         result = db.execute(sql).fetchall()
         return [dict(row) for row in result] if result else []
     except Exception as e:
@@ -130,7 +130,6 @@ def _call_llm(messages, max_tokens=1024):
 
 
 @ai_bp.route("/tripsheet_save", methods=["POST"])
-@csrf.exempt
 def tripsheet_save():
     try:
         data = request.get_json()
