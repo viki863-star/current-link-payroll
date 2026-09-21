@@ -18,6 +18,26 @@
 .vp-tab:hover { color: var(--primary); background: rgba(28,86,139,0.06); }
 .vp-tab.is-active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 @media (max-width:640px){.responsive-four-grid{grid-template-columns:1fr 1fr !important;}}
+.vp-kpi{border-radius:14px;padding:20px;text-align:center;position:relative;overflow:hidden}
+.vp-kpi::after{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.15)}
+.vp-kpi-icon{font-size:1.6rem;margin-bottom:6px}
+.vp-kpi-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8;margin-bottom:4px}
+.vp-kpi-value{font-size:1.5rem;font-weight:800}
+.vp-section-title{font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:24px 0 12px;color:var(--muted)}
+.vp-form-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.vp-form-header{padding:16px 20px;background:linear-gradient(135deg,var(--primary),#1a4a7a);color:#fff;display:flex;align-items:center;gap:10px}
+.vp-form-header h3{margin:0;font-size:0.95rem;font-weight:700;color:#fff}
+.vp-form-body{padding:18px 20px}
+.vp-job-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:12px;transition:all .2s;cursor:pointer}
+.vp-job-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.08);transform:translateY(-1px)}
+.vp-job-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.vp-job-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vp-fine-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:12px;transition:all .2s}
+.vp-fine-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.08)}
+.vp-expense-bar{height:12px;border-radius:6px;overflow:hidden;display:flex;background:#f1f5f9}
+.vp-expense-bar>div{height:100%;transition:width .3s}
+.vp-hero-avatar{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;color:#fff;flex-shrink:0}
+.vp-hero-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 </style>
 <div class="profile-shell">
 
@@ -67,8 +87,36 @@
 
     {# ═══════ OVERVIEW ═══════ #}
     {% if active_tab == 'overview' %}
-    <div class="panel-row">
-        <div class="panel-half">
+
+    {# ── KPI Cards ── #}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff">
+            <div class="vp-kpi-icon">🔧</div>
+            <div class="vp-kpi-label">Jobs</div>
+            <div class="vp-kpi-value">{{ v.job_count }}</div>
+        </div>
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff">
+            <div class="vp-kpi-icon">💰</div>
+            <div class="vp-kpi-label">Total Cost</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(v.total_cost) }}</div>
+        </div>
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">
+            <div class="vp-kpi-icon">⛽</div>
+            <div class="vp-kpi-label">Fuel Cost</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
+        </div>
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff">
+            <div class="vp-kpi-icon">📦</div>
+            <div class="vp-kpi-label">Parts Cost</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(parts_total_net) }}</div>
+        </div>
+    </div>
+
+    {# ── Middle: Two-Column Layout ── #}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        {# Left Column #}
+        <div style="display:flex;flex-direction:column;gap:16px">
+            {# Vehicle Information #}
             <div class="profile-card">
                 <h3 style="margin:0 0 12px;font-size:0.95rem">Vehicle Information</h3>
                 <table class="info-table" style="width:100%">
@@ -79,7 +127,8 @@
                     <tr><td>Status</td><td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td></tr>
                 </table>
             </div>
-            <div class="profile-card" style="margin-top:1rem">
+            {# Ownership #}
+            <div class="profile-card">
                 <h3 style="margin:0 0 12px;font-size:0.95rem">Ownership</h3>
                 <table class="info-table" style="width:100%">
                     <tr><td style="width:40%">Type</td><td><strong>{{ v.ownership_type }}</strong></td></tr>
@@ -90,15 +139,17 @@
                 </table>
             </div>
         </div>
-        <div class="panel-half">
+        {# Right Column #}
+        <div style="display:flex;flex-direction:column;gap:16px">
+            {# Current Driver #}
             <div class="profile-card">
                 <h3 style="margin:0 0 12px;font-size:0.95rem">Current Driver{{ 's' if current_drivers|length > 1 else '' }}</h3>
                 {% if current_drivers %}
                 {% for cd in current_drivers %}
-                <div style="display:flex;align-items:center;gap:12px;{% if not loop.last %}margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eee{% endif %}">
-                    <div class="emp-avatar-letter" style="width:44px;height:44px;font-size:1rem">{{ cd.driver_name[:1]|upper }}</div>
-                    <div>
-                        <div style="font-weight:600">{{ cd.driver_name }}</div>
+                <div style="display:flex;align-items:center;gap:14px;{% if not loop.last %}margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #eee{% endif %}">
+                    <div class="emp-avatar-letter" style="width:52px;height:52px;font-size:1.1rem;background:linear-gradient(135deg,var(--primary),#1a4a7a);color:#fff;border-radius:50%">{{ cd.driver_name[:1]|upper }}</div>
+                    <div style="flex:1">
+                        <div style="font-weight:700;font-size:0.95rem">{{ cd.driver_name }}</div>
                         <div class="mono" style="font-size:0.78rem;color:var(--muted)">{{ cd.driver_id }}</div>
                         <div style="font-size:0.78rem;color:var(--muted)">Since {{ cd.assigned_from }}</div>
                     </div>
@@ -108,26 +159,25 @@
                 <p class="empty-state" style="padding:20px">No driver assigned.</p>
                 {% endif %}
             </div>
-            <div class="profile-card" style="margin-top:1rem">
-                <h3 style="margin:0 0 12px;font-size:0.95rem">Stats</h3>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                    <div style="background:#f8fafd;border-radius:8px;padding:12px;text-align:center">
-                        <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Jobs Done</div>
-                        <div style="font-size:1.3rem;font-weight:700;color:var(--primary)">{{ v.job_count }}</div>
+            {# Status Badge #}
+            <div class="profile-card">
+                <h3 style="margin:0 0 12px;font-size:0.95rem">Status</h3>
+                <div style="display:flex;align-items:center;gap:12px">
+                    <span class="status-badge {{ v.status|lower }}" style="font-size:1rem;padding:8px 20px">{{ v.status }}</span>
+                    <div style="font-size:0.82rem;color:var(--muted)">
+                        {% if v.status == 'Active' %}Vehicle is in service
+                        {% elif v.status == 'Maintenance' %}Currently under maintenance
+                        {% elif v.status == 'Inactive' %}Vehicle is out of service
+                        {% else %}Current status{% endif %}
                     </div>
-                    <div style="background:#f8fafd;border-radius:8px;padding:12px;text-align:center">
-                        <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Total Cost</div>
-                        <div style="font-size:1.1rem;font-weight:700;color:#e65100">AED {{ "%.0f"|format(v.total_cost) }}</div>
-                    </div>
-                    <div style="background:#f8fafd;border-radius:8px;padding:12px;text-align:center">
-                        <div style="font-size:0.72rem;color:var(--muted);text-transform:uppercase">Fuel Cost</div>
-                        <div style="font-size:1.1rem;font-weight:700;color:#ff8a1f">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
-                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
+    {# ── Bottom: Linked Vehicles ── #}
     {% if linked_vehicles %}
-    <div style="margin:12px 0;padding:10px 16px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1px solid #bae6fd;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="margin-top:20px;padding:14px 18px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1px solid #bae6fd;border-radius:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <svg viewBox="0 0 20 20" fill="none" stroke="#0284c7" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
         <span style="font-weight:600;color:#0284c7;font-size:0.9rem">Linked Vehicles:</span>
         {% for lv in linked_vehicles %}
@@ -141,7 +191,7 @@
     {% endif %}
 
     {% if v.linked_plate_no and v.linked_plate_no != '' %}
-    <div style="margin:12px 0;padding:14px 16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:12px">
+    <div style="margin-top:16px;padding:14px 16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:12px">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
             <svg viewBox="0 0 20 20" fill="none" stroke="#16a34a" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
             <span style="font-weight:600;color:#16a34a;font-size:0.9rem">Linked to Head:</span>
@@ -180,7 +230,7 @@
         </div>
     </div>
     {% else %}
-    <div style="margin:12px 0;padding:14px 16px;background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;border-radius:12px">
+    <div style="margin-top:16px;padding:14px 16px;background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;border-radius:12px">
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
             <svg viewBox="0 0 20 20" fill="none" stroke="#e65100" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
             <span style="font-weight:600;color:#e65100;font-size:0.9rem">Not linked to any Head</span>
@@ -211,14 +261,35 @@
         </div>
     </div>
     {% endif %}
+
     {# ═══════ DRIVER ═══════ #}
     {% elif active_tab == 'driver' %}
-    <div class="panel-row">
-        <div class="panel-half">
-            <div class="profile-card">
-                <h3 style="margin:0 0 12px;font-size:0.95rem">Assign / Replace Driver</h3>
-                <form method="POST" action="{{ url_for('fleet.vehicle_assign_driver', plate_no=v.plate_no) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# Current Driver Hero #}
+    {% if current_drivers %}
+    {% for cd in current_drivers %}
+    <div class="vp-hero-card" style="margin-bottom:16px;border-left:4px solid var(--primary)">
+        <div class="vp-hero-avatar" style="background:linear-gradient(135deg,var(--primary),#1a4a7a)">{{ cd.driver_name[:1]|upper }}</div>
+        <div style="flex:1">
+            <div style="font-size:1.1rem;font-weight:700">{{ cd.driver_name }}</div>
+            <div class="mono" style="font-size:0.82rem;color:var(--muted)">{{ cd.driver_id }}</div>
+            <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">Assigned since {{ cd.assigned_from }}</div>
+        </div>
+        <a href="{{ url_for('fleet.driver_profile', employee_id=cd.driver_id) }}" class="btn btn-primary btn-sm">View Profile →</a>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {# Assign / Replace Form #}
+    <div class="vp-form-card">
+        <div class="vp-form-header">
+            <span style="font-size:1.3rem">👤</span>
+            <h3>Assign / Replace Driver</h3>
+        </div>
+        <div class="vp-form-body">
+            <form method="POST" action="{{ url_for('fleet.vehicle_assign_driver', plate_no=v.plate_no) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end">
                     <div class="form-row">
                         <label class="form-label">Driver</label>
                         <select name="driver_id" class="form-control" required>
@@ -233,113 +304,132 @@
                         <input type="date" name="assigned_from" value="{{ date.today().isoformat() }}" class="form-control">
                     </div>
                     <button type="submit" class="btn btn-primary">Assign Driver</button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
-        <div class="panel-half">
-            <div class="profile-card">
-                <h3 style="margin:0 0 12px;font-size:0.95rem">Driver History</h3>
-                {% if driver_history %}
-                <table class="smart-table">
-                    <thead><tr><th>Driver</th><th>From</th><th>Until</th></tr></thead>
-                    <tbody>
-                        {% for a in driver_history %}
-                        <tr>
-                            <td><strong>{{ a.driver_name }}</strong> {% if a.is_current %}<span class="status-badge active">Current</span>{% endif %}</td>
-                            <td class="mono">{{ a.assigned_from }}</td>
-                            <td class="mono">{{ a.assigned_until or 'Present' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <p class="empty-state">No driver history.</p>
-                {% endif %}
-            </div>
+    </div>
+
+    {# Driver History #}
+    <div class="vp-form-card" style="margin-top:16px">
+        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
+            <span style="font-size:1.3rem">📋</span>
+            <h3>Driver History</h3>
+        </div>
+        <div class="vp-form-body">
+            {% if driver_history %}
+            <table class="smart-table">
+                <thead><tr><th>Driver</th><th>From</th><th>Until</th></tr></thead>
+                <tbody>
+                    {% for a in driver_history %}
+                    <tr>
+                        <td><strong>{{ a.driver_name }}</strong> {% if a.is_current %}<span class="status-badge active">Current</span>{% endif %}</td>
+                        <td class="mono">{{ a.assigned_from }}</td>
+                        <td class="mono">{{ a.assigned_until or 'Present' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">No driver history.</p>
+            {% endif %}
         </div>
     </div>
 
     {# ═══════ MAINTENANCE JOBS ═══════ #}
     {% elif active_tab == 'jobs' %}
-    <div class="profile-card">
-        <h3 style="margin:0 0 12px;font-size:0.95rem">Add Maintenance Entry</h3>
-        <form method="POST" action="{{ url_for('fleet.vehicle_add_maintenance', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end" class="responsive-four-grid">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div>
-                <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Date</label>
-                <input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:6px 8px;font-size:0.82rem">
-            </div>
-            <div>
-                <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Category</label>
-                <input type="text" name="category" placeholder="e.g. Engine" list="catList" class="form-control" style="padding:6px 8px;font-size:0.82rem">
-                <datalist id="catList">
-                    <option value="Engine"><option value="Tire"><option value="Service">
-                    <option value="Brake"><option value="AC"><option value="Electrical">
-                    <option value="Body"><option value="Other">
-                </datalist>
-            </div>
-            <div>
-                <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Amount (AED)</label>
-                <input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem">
-            </div>
-            <div style="display:flex;gap:6px;align-items:end">
-                <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.webp" style="flex:1;font-size:0.78rem">
-                <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap">+ Add</button>
-            </div>
-            <div style="grid-column:1/-1">
-                <input type="text" name="description" placeholder="Description (optional)" class="form-control" style="padding:6px 8px;font-size:0.82rem">
-            </div>
-        </form>
+
+    {# Add Maintenance Form #}
+    <div class="vp-form-card">
+        <div class="vp-form-header">
+            <span style="font-size:1.3rem">🔧</span>
+            <h3>Add Maintenance Entry</h3>
+        </div>
+        <div class="vp-form-body">
+            <form method="POST" action="{{ url_for('fleet.vehicle_add_maintenance', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px 14px;align-items:end" class="responsive-four-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Date</label>
+                    <input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:8px 10px;font-size:0.85rem">
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Category</label>
+                    <input type="text" name="category" placeholder="e.g. Engine" list="catList" class="form-control" style="padding:8px 10px;font-size:0.85rem">
+                    <datalist id="catList">
+                        <option value="Engine"><option value="Tire"><option value="Service">
+                        <option value="Brake"><option value="AC"><option value="Electrical">
+                        <option value="Body"><option value="Other">
+                    </datalist>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Amount (AED)</label>
+                    <input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem">
+                </div>
+                <div style="display:flex;gap:6px;align-items:end">
+                    <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.webp" style="flex:1;font-size:0.78rem">
+                    <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap">+ Add</button>
+                </div>
+                <div style="grid-column:1/-1">
+                    <input type="text" name="description" placeholder="Description (optional)" class="form-control" style="padding:8px 10px;font-size:0.85rem">
+                </div>
+            </form>
+        </div>
     </div>
 
-    <div class="profile-card" style="margin-top:1rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="margin:0;font-size:0.95rem">Approved Maintenance Jobs</h3>
-            <span class="badge badge-dept">{{ approved_jobs|length }} jobs</span>
+    {# Jobs List #}
+    <div class="vp-form-card" style="margin-top:16px">
+        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
+            <span style="font-size:1.3rem">📋</span>
+            <h3>Approved Maintenance Jobs</h3>
+            <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;margin-left:auto">{{ approved_jobs|length }} jobs</span>
         </div>
-        {% set all_entries = approved_jobs + maintenance_papers_list %}
-        {% if all_entries %}
-        <div class="table-wrap">
-            <table class="smart-table">
-                <thead><tr><th>Date</th><th>Staff</th><th>Amount</th><th>Category</th><th>Description</th><th>Action</th></tr></thead>
-                <tbody>
-                    {% set hl = highlight|string %}
-                    {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
-                    {% set is_hl = (j.id|string == hl) %}
-                    <tr id="entry-row-{{ loop.index }}" class="clickable-row{% if is_hl %} highlight-row{% endif %}" onclick="togglePaper('paper-detail-{{ loop.index }}')">
-                        <td class="mono">{{ (j.created_at or '')|string|truncate(10, True, '') }}</td>
-                        <td><strong>{{ j.staff_name or '-' }}</strong></td>
-                        <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount|float) }}</td>
-                        <td><span class="badge badge-type">{{ j.category }}</span></td>
-                        <td style="max-width:200px;white-space:normal">{{ j.description or '-' }}</td>
-                        <td>{% if j.edit_vehicle_id %}{% if j.attachment_name %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.7rem;color:var(--muted)">—</span>{% endif %}{% else %}{% if j.has_attachment %}<a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">View</a>{% elif j.attachment_name %}<a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View</a>{% else %}<span style="font-size:0.7rem;color:var(--muted)">—</span>{% endif %}<a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" title="Edit job (VAT/amount) — staff balance is not affected">Edit Job</a>{% endif %}</td>
-                    </tr>
-                    <tr id="paper-detail-{{ loop.index }}" style="{% if is_hl %}display:table-row{% else %}display:none{% endif %}">
-                        <td colspan="6" style="padding:14px 18px;background:#f8fafd">
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:0.85rem">
-                                <div><strong>Date:</strong> {{ (j.created_at or '')|string|truncate(10, True, '') }}</div>
-                                <div><strong>Staff:</strong> {{ j.staff_name or '-' }}</div>
-                                <div><strong>Amount:</strong> AED {{ "%.0f"|format(j.amount|float) }}</div>
-                                <div><strong>Category:</strong> {{ j.category }}</div>
-                                {% if j.tax_mode %}<div><strong>Tax:</strong> {{ j.tax_mode }}{% if j.tax_mode == 'Tax Invoice' %} (VAT AED {{ "%.2f"|format(j.vat_amount|float) }}){% endif %}</div>{% endif %}
-                                {% if j.tax_mode == 'Tax Invoice' %}<div><strong>Net:</strong> AED {{ "%.2f"|format(j.net_amount|float) }} <span style="color:var(--muted)">(+VAT AED {{ "%.2f"|format(j.vat_amount|float) }})</span></div>{% endif %}
-                                {% if j.supplier_name %}<div><strong>Supplier:</strong> {{ j.supplier_name }}{% if j.supplier_trn %} (TRN: {{ j.supplier_trn }}){% endif %}</div>{% endif %}
-                                {% if j.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ j.description }}</div>{% endif %}
-                                {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
-                                <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
-                                {% if j.edit_vehicle_id %}
-                                {% if j.attachment_name %}
-                                <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
-                                {% else %}
-                                <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
-                                {% endif %}
-                                {% elif j.has_attachment %}
-                                <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
-                                {% else %}
-                                <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
-                                {% endif %}
-                                {% if j.edit_vehicle_id %}
-                        <div style="grid-column:1/-1;margin-top:4px;display:flex;gap:8px">
+        <div class="vp-form-body">
+            {% set all_entries = approved_jobs + maintenance_papers_list %}
+            {% if all_entries %}
+            {% set hl = highlight|string %}
+            {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
+            {% set is_hl = (j.id|string == hl) %}
+            <div class="vp-job-card{% if is_hl %} highlight-row{% endif %}" id="entry-row-{{ loop.index }}" onclick="togglePaper('paper-detail-{{ loop.index }}')">
+                <div class="vp-job-header">
+                    <div class="vp-job-meta">
+                        <span class="mono" style="font-size:0.85rem;font-weight:600">{{ (j.created_at or '')|string|truncate(10, True, '') }}</span>
+                        <span style="color:var(--muted);font-size:0.8rem">•</span>
+                        <span style="font-weight:600">{{ j.staff_name or '-' }}</span>
+                    </div>
+                    <div class="vp-job-meta">
+                        <span class="badge badge-type">{{ j.category }}</span>
+                        <span class="mono" style="font-weight:700;color:#e65100;font-size:1rem">AED {{ "%.0f"|format(j.amount|float) }}</span>
+                    </div>
+                </div>
+                {% if j.description %}
+                <div style="margin-top:8px;font-size:0.82rem;color:var(--muted)">{{ j.description }}</div>
+                {% endif %}
+            </div>
+            <div id="paper-detail-{{ loop.index }}" style="{% if is_hl %}display:block{% else %}display:none{% endif %}">
+                <div style="margin:-4px 0 12px;padding:16px 20px;background:#f8fafd;border:1px solid var(--line);border-radius:12px">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:0.85rem">
+                        <div><strong>Date:</strong> {{ (j.created_at or '')|string|truncate(10, True, '') }}</div>
+                        <div><strong>Staff:</strong> {{ j.staff_name or '-' }}</div>
+                        <div><strong>Amount:</strong> AED {{ "%.0f"|format(j.amount|float) }}</div>
+                        <div><strong>Category:</strong> {{ j.category }}</div>
+                        {% if j.tax_mode %}<div><strong>Tax:</strong> {{ j.tax_mode }}{% if j.tax_mode == 'Tax Invoice' %} (VAT AED {{ "%.2f"|format(j.vat_amount|float) }}){% endif %}</div>{% endif %}
+                        {% if j.tax_mode == 'Tax Invoice' %}<div><strong>Net:</strong> AED {{ "%.2f"|format(j.net_amount|float) }} <span style="color:var(--muted)">(+VAT AED {{ "%.2f"|format(j.vat_amount|float) }})</span></div>{% endif %}
+                        {% if j.supplier_name %}<div><strong>Supplier:</strong> {{ j.supplier_name }}{% if j.supplier_trn %} (TRN: {{ j.supplier_trn }}){% endif %}</div>{% endif %}
+                        {% if j.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ j.description }}</div>{% endif %}
+                        {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
+                        <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
+                        {% if j.edit_vehicle_id %}
+                        {% if j.attachment_name %}
+                        <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
+                        {% else %}
+                        <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
+                        {% endif %}
+                        {% elif j.has_attachment %}
+                        <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
+                        {% else %}
+                        <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
+                        {% endif %}
+                        {% if j.edit_vehicle_id %}
+                        <div style="grid-column:1/-1;margin-top:6px;display:flex;gap:8px">
                             <a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#9998; Edit</a>
                             <form method="post" action="/fleet-maintenance/{{ j.id }}/delete" onsubmit="return confirm('Delete paper {{ j.id }}?');" style="display:inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -347,22 +437,21 @@
                             </form>
                         </div>
                         {% else %}
-                        <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" style="grid-column:1/-1;margin-top:4px">&#9998; Edit Job</a>
+                        <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" style="grid-column:1/-1;margin-top:6px">&#9998; Edit Job</a>
                         {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% set total = all_entries|sum(attribute='amount') %}
+            <div style="margin-top:16px;padding:14px 20px;background:linear-gradient(135deg,#f8fafd,#eef2f7);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:600;color:var(--muted)">Total Maintenance Cost</span>
+                <span class="mono" style="font-size:1.15rem;font-weight:800;color:#e65100">AED {{ "%.0f"|format(total|float) }}</span>
+            </div>
+            {% else %}
+            <p class="empty-state">No maintenance jobs yet.</p>
+            {% endif %}
         </div>
-        {% set total = all_entries|sum(attribute='amount') %}
-        <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;text-align:right">
-            <strong>Total: AED {{ "%.0f"|format(total|float) }}</strong>
-        </div>
-        {% else %}
-        <p class="empty-state">No maintenance jobs yet.</p>
-        {% endif %}
     </div>
 
     {# ═══════ DOCUMENTS ═══════ #}
@@ -650,253 +739,288 @@
         </div>
     </div>
 
+    {# ═══════ FUEL ═══════ #}
     {% elif active_tab == 'fuel' %}
-<div class="profile-card">
-    <h3 style="margin:0 0 12px;font-size:0.95rem">Add Fuel Entry</h3>
-    <form method="POST" action="{{ url_for('fleet.fuel_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end" class="responsive-four-grid">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="vehicle_plate" value="{{ v.plate_no }}">
-        <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Date</label>
-            <input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Gallons</label>
-            <input type="number" name="gallons" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Rate/GLN</label>
-            <input type="number" name="rate_per_gallon" step="0.001" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Supplier</label>
-            <select name="supplier_id" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
-                <option value="">— Select —</option>
-                {% for s in suppliers %}
-                <option value="{{ s.id }}">{{ s.supplier_name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit" class="btn btn-primary" style="padding:6px 12px;white-space:nowrap">+ Add Fuel</button>
-        <div style="grid-column:1/-1">
-            <input type="text" name="notes" placeholder="Notes (optional)" class="form-control" style="padding:6px 8px;font-size:0.82rem">
-        </div>
-    </form>
-</div>
 
-<div class="profile-card" style="margin-top:1rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;font-size:0.95rem">Fuel History</h3>
-        <span class="badge badge-dept">{{ fuel_entries|length }} entries</span>
+    {# Add Fuel Form #}
+    <div class="vp-form-card">
+        <div class="vp-form-header" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+            <span style="font-size:1.3rem">⛽</span>
+            <h3>Add Fuel Entry</h3>
+        </div>
+        <div class="vp-form-body">
+            <form method="POST" action="{{ url_for('fleet.fuel_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px 14px;align-items:end" class="responsive-four-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="vehicle_plate" value="{{ v.plate_no }}">
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Date</label>
+                    <input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Gallons</label>
+                    <input type="number" name="gallons" step="0.01" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Rate/GLN</label>
+                    <input type="number" name="rate_per_gallon" step="0.001" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Supplier</label>
+                    <select name="supplier_id" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                        <option value="">— Select —</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.id }}">{{ s.supplier_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="grid-column:1/-1;display:flex;gap:8px;align-items:end">
+                    <input type="text" name="notes" placeholder="Notes (optional)" class="form-control" style="padding:8px 10px;font-size:0.85rem;flex:1">
+                    <button type="submit" class="btn btn-primary" style="padding:8px 16px;white-space:nowrap">+ Add Fuel</button>
+                </div>
+            </form>
+        </div>
     </div>
-    {% if fuel_entries %}
-    <div class="table-wrap">
-        <table class="smart-table">
-            <thead><tr><th>Date</th><th class="r">Gallons</th><th class="r">Rate/GLN</th><th class="r">Total AED</th><th>Supplier</th><th>Notes</th><th></th></tr></thead>
-            <tbody>
-                {% for fe in fuel_entries %}
-                <tr>
-                    <td class="mono">{{ fe.entry_date }}</td>
-                    <td class="r mono" style="font-weight:600">{{ "%.2f"|format(fe.gallons) }}</td>
-                    <td class="r mono">{{ "%.3f"|format(fe.rate_per_gallon) }}</td>
-                    <td class="r mono" style="font-weight:700;color:#e65100">{{ "%.2f"|format(fe.total_amount) }}</td>
-                    <td>{{ fe.supplier_name }}</td>
-                    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ fe.notes or '—' }}</td>
-                    <td>
-                        <div style="display:flex;gap:4px">
-                            <a href="{{ url_for('fleet.fuel_edit', entry_id=fe.id) }}" class="btn btn-xs btn-outline">Edit</a>
-                            <form method="post" action="{{ url_for('fleet.fuel_delete', entry_id=fe.id) }}" style="display:inline" onsubmit="return confirm('Delete this fuel entry?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;display:flex;justify-content:space-between">
-        <span><strong>Total Gallons:</strong> {{ "%.2f"|format(fuel_total_gallons) }}</span>
-        <span><strong>Total Amount:</strong> AED {{ "%.2f"|format(fuel_total_amount) }}</span>
-    </div>
-    {% else %}
-    <p class="empty-state">No fuel entries for this vehicle.</p>
-    {% endif %}
-</div>
-{% elif active_tab == 'parts' %}
-<div class="profile-card">
-    <h3 style="margin:0 0 12px;font-size:0.95rem">Add Supplier Bill</h3>
-    <form method="POST" action="{{ url_for('supplier.supplier_bill_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px 12px;align-items:end" class="responsive-four-grid">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="vehicle_plate" value="{{ v.plate_no }}">
-        <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Supplier</label>
-            <select name="supplier_id" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
-                <option value="">— Select —</option>
-                {% for s in suppliers %}
-                <option value="{{ s.id }}">{{ s.supplier_name }}</option>
-                {% endfor %}
-            </select>
+
+    {# Fuel History #}
+    <div class="vp-form-card" style="margin-top:16px">
+        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
+            <span style="font-size:1.3rem">📋</span>
+            <h3>Fuel History</h3>
+            <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;margin-left:auto">{{ fuel_entries|length }} entries</span>
         </div>
-        <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Bill No</label>
-            <input type="text" name="bill_no" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Date</label>
-            <input type="date" name="bill_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
-        </div>
-        <div>
-            <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">Amount (excl. Tax)</label>
-            <input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem" required>
-        </div>
-        <div style="grid-column:1/-1;display:flex;gap:8px;align-items:end">
-            <input type="text" name="description" placeholder="Items (e.g. Oil filter, Diesel filter)" class="form-control" style="padding:6px 8px;font-size:0.82rem;flex:1">
-            <input type="hidden" name="is_tax_bill" value="on">
-            <div style="display:flex;gap:4px;align-items:end">
-                <label style="font-size:0.7rem;font-weight:600;color:var(--muted);white-space:nowrap">Disc:</label>
-                <input type="number" name="discount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:6px 8px;font-size:0.82rem;width:70px">
+        <div class="vp-form-body">
+            {% if fuel_entries %}
+            <div class="table-wrap">
+                <table class="smart-table">
+                    <thead><tr><th>Date</th><th class="r">Gallons</th><th class="r">Rate/GLN</th><th class="r">Total AED</th><th>Supplier</th><th>Notes</th><th></th></tr></thead>
+                    <tbody>
+                        {% for fe in fuel_entries %}
+                        <tr>
+                            <td class="mono">{{ fe.entry_date }}</td>
+                            <td class="r mono" style="font-weight:600">{{ "%.2f"|format(fe.gallons) }}</td>
+                            <td class="r mono">{{ "%.3f"|format(fe.rate_per_gallon) }}</td>
+                            <td class="r mono" style="font-weight:700;color:#e65100">{{ "%.2f"|format(fe.total_amount) }}</td>
+                            <td>{{ fe.supplier_name }}</td>
+                            <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ fe.notes or '—' }}</td>
+                            <td>
+                                <div style="display:flex;gap:4px">
+                                    <a href="{{ url_for('fleet.fuel_edit', entry_id=fe.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                                    <form method="post" action="{{ url_for('fleet.fuel_delete', entry_id=fe.id) }}" style="display:inline" onsubmit="return confirm('Delete this fuel entry?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            <button type="submit" class="btn btn-primary" style="padding:6px 12px;white-space:nowrap">+ Add Bill</button>
+            <div style="margin-top:16px;padding:14px 20px;background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;border-radius:10px;display:flex;justify-content:space-between">
+                <span style="font-weight:600;color:#92400e">⛽ Total Gallons: {{ "%.2f"|format(fuel_total_gallons) }}</span>
+                <span class="mono" style="font-weight:800;color:#e65100;font-size:1.05rem">AED {{ "%.2f"|format(fuel_total_amount) }}</span>
+            </div>
+            {% else %}
+            <p class="empty-state">No fuel entries for this vehicle.</p>
+            {% endif %}
         </div>
-    </form>
-</div>
+    </div>
 
-<div class="profile-card" style="margin-top:1rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0;font-size:0.95rem">Parts History</h3>
-        <span class="badge badge-dept">{{ supplier_bills|length }} bills</span>
+    {# ═══════ PARTS ═══════ #}
+    {% elif active_tab == 'parts' %}
+
+    {# Add Supplier Bill Form #}
+    <div class="vp-form-card">
+        <div class="vp-form-header" style="background:linear-gradient(135deg,#10b981,#059669)">
+            <span style="font-size:1.3rem">📦</span>
+            <h3>Add Supplier Bill</h3>
+        </div>
+        <div class="vp-form-body">
+            <form method="POST" action="{{ url_for('supplier.supplier_bill_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px 14px;align-items:end" class="responsive-four-grid">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="vehicle_plate" value="{{ v.plate_no }}">
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Supplier</label>
+                    <select name="supplier_id" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                        <option value="">— Select —</option>
+                        {% for s in suppliers %}
+                        <option value="{{ s.id }}">{{ s.supplier_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Bill No</label>
+                    <input type="text" name="bill_no" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Date</label>
+                    <input type="date" name="bill_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                </div>
+                <div>
+                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Amount (excl. Tax)</label>
+                    <input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                </div>
+                <div style="grid-column:1/-1;display:flex;gap:8px;align-items:end">
+                    <input type="text" name="description" placeholder="Items (e.g. Oil filter, Diesel filter)" class="form-control" style="padding:8px 10px;font-size:0.85rem;flex:1">
+                    <input type="hidden" name="is_tax_bill" value="on">
+                    <div style="display:flex;gap:4px;align-items:end">
+                        <label style="font-size:0.7rem;font-weight:600;color:var(--muted);white-space:nowrap">Disc:</label>
+                        <input type="number" name="discount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem;width:70px">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="padding:8px 16px;white-space:nowrap">+ Add Bill</button>
+                </div>
+            </form>
+        </div>
     </div>
-    {% if supplier_bills %}
-    <div class="table-wrap">
-        <table class="smart-table">
-            <thead><tr><th>Bill#</th><th>Date</th><th>Supplier</th><th>Items</th><th class="r">Excl VAT</th><th class="r">VAT</th><th class="r">Inc VAT</th><th class="r">Disc</th><th class="r">Net</th><th></th></tr></thead>
-            <tbody>
-                {% for b in supplier_bills %}
-                <tr>
-                    <td class="mono" style="font-weight:600">{{ b.bill_no }}</td>
-                    <td class="mono">{{ b.bill_date }}</td>
-                    <td>{{ b.supplier_name }}</td>
-                    <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ b.description or '—' }}</td>
-                    <td class="r mono">{{ "%.2f"|format(b.net_amount + b.discount) }}</td>
-                    <td class="r mono" style="color:#7c3aed;font-size:0.78rem">{{ "%.2f"|format(b.vat_amount) if b.vat_amount > 0 else '—' }}</td>
-                    <td class="r mono" style="font-weight:600;color:#e65100">{{ "%.2f"|format(b.total_amount) }}</td>
-                    <td class="r mono" style="color:#2e7d32">{{ "%.2f"|format(b.discount) if b.discount > 0 else '—' }}</td>
-                    <td class="r mono" style="font-weight:700;color:#1565C0">{{ "%.2f"|format(b.net_amount) }}</td>
-                    <td>
-                        <div style="display:flex;gap:4px">
-                            <a href="{{ url_for('supplier.supplier_bill_edit', bill_id=b.id) }}" class="btn btn-xs btn-outline">Edit</a>
-                            <form method="post" action="{{ url_for('supplier.supplier_bill_delete', bill_id=b.id) }}" style="display:inline" onsubmit="return confirm('Delete bill #{{ b.bill_no }}?');">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+    {# Bills History #}
+    <div class="vp-form-card" style="margin-top:16px">
+        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
+            <span style="font-size:1.3rem">📋</span>
+            <h3>Parts History</h3>
+            <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;margin-left:auto">{{ supplier_bills|length }} bills</span>
+        </div>
+        <div class="vp-form-body">
+            {% if supplier_bills %}
+            <div class="table-wrap">
+                <table class="smart-table">
+                    <thead><tr><th>Bill#</th><th>Date</th><th>Supplier</th><th>Items</th><th class="r">Excl VAT</th><th class="r">VAT</th><th class="r">Inc VAT</th><th class="r">Disc</th><th class="r">Net</th><th></th></tr></thead>
+                    <tbody>
+                        {% for b in supplier_bills %}
+                        <tr>
+                            <td class="mono" style="font-weight:600">{{ b.bill_no }}</td>
+                            <td class="mono">{{ b.bill_date }}</td>
+                            <td>{{ b.supplier_name }}</td>
+                            <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ b.description or '—' }}</td>
+                            <td class="r mono">{{ "%.2f"|format(b.net_amount + b.discount) }}</td>
+                            <td class="r mono" style="color:#7c3aed;font-size:0.78rem">{{ "%.2f"|format(b.vat_amount) if b.vat_amount > 0 else '—' }}</td>
+                            <td class="r mono" style="font-weight:600;color:#e65100">{{ "%.2f"|format(b.total_amount) }}</td>
+                            <td class="r mono" style="color:#2e7d32">{{ "%.2f"|format(b.discount) if b.discount > 0 else '—' }}</td>
+                            <td class="r mono" style="font-weight:700;color:#1565C0">{{ "%.2f"|format(b.net_amount) }}</td>
+                            <td>
+                                <div style="display:flex;gap:4px">
+                                    <a href="{{ url_for('supplier.supplier_bill_edit', bill_id=b.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                                    <form method="post" action="{{ url_for('supplier.supplier_bill_delete', bill_id=b.id) }}" style="display:inline" onsubmit="return confirm('Delete bill #{{ b.bill_no }}?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top:16px;padding:14px 20px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:10px;display:flex;justify-content:space-around;flex-wrap:wrap;gap:8px">
+                <span style="font-weight:600;color:#166534">Excl. VAT: <strong>AED {{ "%.2f"|format(parts_total_amount - parts_total_vat|default(0)) }}</strong></span>
+                <span style="font-weight:600;color:#7c3aed">VAT: <strong>AED {{ "%.2f"|format(parts_total_vat|default(0)) }}</strong></span>
+                <span style="font-weight:600;color:#e65100">Inc. VAT: <strong>AED {{ "%.2f"|format(parts_total_amount) }}</strong></span>
+                <span style="font-weight:600;color:#1565C0">Net: <strong>AED {{ "%.2f"|format(parts_total_net) }}</strong></span>
+            </div>
+            {% else %}
+            <p class="empty-state">No parts bills for this vehicle.</p>
+            {% endif %}
+        </div>
     </div>
-    <div style="margin-top:12px;padding:12px;background:#f8fafd;border-radius:8px;display:flex;justify-content:space-around">
-        <span><strong>Total (Excl. VAT):</strong> AED {{ "%.2f"|format(parts_total_amount - parts_total_vat|default(0)) }}</span>
-        <span><strong>Total VAT:</strong> AED {{ "%.2f"|format(parts_total_vat|default(0)) }}</span>
-        <span><strong>Total (Inc. VAT):</strong> AED {{ "%.2f"|format(parts_total_amount) }}</span>
-        <span><strong>Total Net:</strong> AED {{ "%.2f"|format(parts_total_net) }}</span>
-    </div>
-    {% else %}
-    <p class="empty-state">No parts bills for this vehicle.</p>
-    {% endif %}
-</div>
 
     {# ═══════ TRAFFIC FINES ═══════ #}
     {% elif active_tab == 'fines' %}
-    <div class="profile-card">
-        <h3 style="margin:0 0 12px;font-size:0.95rem">Add Traffic Fine</h3>
-        <form method="POST" action="{{ url_for('fleet.vehicle_traffic_fine_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-                <div class="form-row">
-                    <label class="form-label">Fine Date <span style="color:red">*</span></label>
-                    <input type="date" name="fine_date" class="form-control" required value="{{ date.today().isoformat() }}">
-                </div>
-                <div class="form-row">
-                    <label class="form-label">Fine Type</label>
-                    <select name="fine_type" class="form-control">
-                        <option value="Traffic Fine">Traffic Fine</option>
-                        <option value="Salik Fine">Salik Fine</option>
-                        <option value="Parking Fine">Parking Fine</option>
-                        <option value="Speed Camera">Speed Camera</option>
-                        <option value="Red Light Fine">Red Light Fine</option>
-                        <option value="Overloading Fine">Overloading Fine</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <label class="form-label">Amount (AED) <span style="color:red">*</span></label>
-                    <input type="number" step="0.01" name="fine_amount" class="form-control" required placeholder="0.00">
-                </div>
-                <div class="form-row">
-                    <label class="form-label">Status</label>
-                    <select name="fine_status" class="form-control">
-                        <option value="Pending">⏳ Pending</option>
-                        <option value="Paid">✅ Paid</option>
-                        <option value="Contested">🔄 Contested</option>
-                        <option value="Closed">Closed</option>
-                    </select>
-                </div>
-                <div class="form-row">
-                    <label class="form-label">Location</label>
-                    <input type="text" name="fine_location" class="form-control" placeholder="e.g. Sheikh Zayed Road">
-                </div>
-                <div class="form-row">
-                    <label class="form-label">Attachment</label>
-                    <input type="file" name="fine_attachment" class="form-control" accept="image/*,.pdf">
-                </div>
-                <div class="form-row" style="grid-column:1/-1">
-                    <label class="form-label">Description</label>
-                    <input type="text" name="fine_description" class="form-control" placeholder="e.g. Speeding 140km/h in 120 zone">
-                </div>
-                <div class="form-row" style="grid-column:1/-1">
-                    <label class="form-label">Notes</label>
-                    <input type="text" name="notes" class="form-control" placeholder="Internal notes...">
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:12px;background:#dc2626;border-color:#dc2626">🚦 Record Fine</button>
-        </form>
+
+    {# Summary Cards #}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">
+            <div class="vp-kpi-icon">🚦</div>
+            <div class="vp-kpi-label">Total Fines</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(fines_total) }}</div>
+        </div>
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff">
+            <div class="vp-kpi-icon">✅</div>
+            <div class="vp-kpi-label">Paid</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(fines_paid) }}</div>
+        </div>
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">
+            <div class="vp-kpi-icon">⏳</div>
+            <div class="vp-kpi-label">Pending</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(fines_pending) }}</div>
+        </div>
     </div>
 
-    {% if traffic_fines %}
-    <div class="profile-card" style="margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <h3 style="margin:0;font-size:0.95rem">Traffic Fine History</h3>
-            <div style="display:flex;gap:12px;font-size:0.8rem">
-                <span style="color:var(--muted)">Total: <strong style="color:#dc2626">AED {{ "%.2f"|format(fines_total) }}</strong></span>
-                <span style="color:var(--muted)">Paid: <strong style="color:#16a34a">AED {{ "%.2f"|format(fines_paid) }}</strong></span>
-                <span style="color:var(--muted)">Pending: <strong style="color:#e65100">AED {{ "%.2f"|format(fines_pending) }}</strong></span>
-            </div>
+    {# Add Fine Form #}
+    <div class="vp-form-card">
+        <div class="vp-form-header" style="background:linear-gradient(135deg,#dc2626,#b91c1c)">
+            <span style="font-size:1.3rem">🚨</span>
+            <h3>Add Traffic Fine</h3>
         </div>
-        <div class="table-wrap">
-            <table class="smart-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Location</th>
-                        <th>Description</th>
-                        <th>Attachment</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for f in traffic_fines %}
-                    <tr>
-                        <td class="mono">{{ f.fine_date }}</td>
-                        <td><span class="badge" style="background:#fee2e2;color:#dc2626">{{ f.fine_type }}</span></td>
-                        <td class="mono" style="font-weight:600;color:#dc2626">AED {{ "%.2f"|format(f.fine_amount) }}</td>
-                        <td>
+        <div class="vp-form-body">
+            <form method="POST" action="{{ url_for('fleet.vehicle_traffic_fine_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+                    <div class="form-row">
+                        <label class="form-label">Fine Date <span style="color:red">*</span></label>
+                        <input type="date" name="fine_date" class="form-control" required value="{{ date.today().isoformat() }}">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Fine Type</label>
+                        <select name="fine_type" class="form-control">
+                            <option value="Traffic Fine">Traffic Fine</option>
+                            <option value="Salik Fine">Salik Fine</option>
+                            <option value="Parking Fine">Parking Fine</option>
+                            <option value="Speed Camera">Speed Camera</option>
+                            <option value="Red Light Fine">Red Light Fine</option>
+                            <option value="Overloading Fine">Overloading Fine</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Amount (AED) <span style="color:red">*</span></label>
+                        <input type="number" step="0.01" name="fine_amount" class="form-control" required placeholder="0.00">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Status</label>
+                        <select name="fine_status" class="form-control">
+                            <option value="Pending">⏳ Pending</option>
+                            <option value="Paid">✅ Paid</option>
+                            <option value="Contested">🔄 Contested</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Location</label>
+                        <input type="text" name="fine_location" class="form-control" placeholder="e.g. Sheikh Zayed Road">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">Attachment</label>
+                        <input type="file" name="fine_attachment" class="form-control" accept="image/*,.pdf">
+                    </div>
+                    <div class="form-row" style="grid-column:1/-1">
+                        <label class="form-label">Description</label>
+                        <input type="text" name="fine_description" class="form-control" placeholder="e.g. Speeding 140km/h in 120 zone">
+                    </div>
+                    <div class="form-row" style="grid-column:1/-1">
+                        <label class="form-label">Notes</label>
+                        <input type="text" name="notes" class="form-control" placeholder="Internal notes...">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top:14px;background:#dc2626;border-color:#dc2626">🚦 Record Fine</button>
+            </form>
+        </div>
+    </div>
+
+    {# Fine History #}
+    {% if traffic_fines %}
+    <div class="vp-form-card" style="margin-top:16px">
+        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
+            <span style="font-size:1.3rem">📋</span>
+            <h3>Traffic Fine History</h3>
+        </div>
+        <div class="vp-form-body">
+            {% for f in traffic_fines %}
+            <div class="vp-fine-card" style="border-left:4px solid {% if f.fine_status == 'Paid' %}#16a34a{% elif f.fine_status == 'Contested' %}#d97706{% elif f.fine_status == 'Closed' %}#64748b{% else %}#dc2626{% endif %}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                            <span class="mono" style="font-weight:600">{{ f.fine_date }}</span>
+                            <span class="badge" style="background:#fee2e2;color:#dc2626">{{ f.fine_type }}</span>
                             {% if f.fine_status == 'Paid' %}
                             <span class="badge" style="background:#dcfce7;color:#16a34a">✅ Paid</span>
                             {% elif f.fine_status == 'Contested' %}
@@ -906,26 +1030,25 @@
                             {% else %}
                             <span class="badge" style="background:#fee2e2;color:#dc2626">⏳ Pending</span>
                             {% endif %}
-                        </td>
-                        <td>{{ f.fine_location or '—' }}</td>
-                        <td>{{ f.fine_description or '—' }}</td>
-                        <td>
+                        </div>
+                        {% if f.fine_location %}<div style="font-size:0.82rem;color:var(--muted)">📍 {{ f.fine_location }}</div>{% endif %}
+                        {% if f.fine_description %}<div style="font-size:0.82rem;margin-top:2px">{{ f.fine_description }}</div>{% endif %}
+                    </div>
+                    <div style="text-align:right">
+                        <div class="mono" style="font-size:1.15rem;font-weight:800;color:#dc2626">AED {{ "%.2f"|format(f.fine_amount) }}</div>
+                        <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
                             {% if f.attachment_data %}
-                            <a href="{{ url_for('fleet.vehicle_traffic_fine_attachment', plate_no=v.plate_no, fine_id=f.id) }}" target="_blank" style="color:var(--primary);font-size:0.78rem">📎 View</a>
-                            {% else %}
-                            <span style="color:var(--muted);font-size:0.78rem">—</span>
+                            <a href="{{ url_for('fleet.vehicle_traffic_fine_attachment', plate_no=v.plate_no, fine_id=f.id) }}" target="_blank" class="btn btn-xs btn-outline">📎 View</a>
                             {% endif %}
-                        </td>
-                        <td>
                             <form method="POST" action="{{ url_for('fleet.vehicle_traffic_fine_delete', plate_no=v.plate_no, fine_id=f.id) }}" onsubmit="return confirm('Delete this fine entry?')">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.8rem" title="Delete">🗑️</button>
+                                <button type="submit" class="btn btn-xs btn-outline" style="color:#dc2626">🗑️</button>
                             </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
     {% else %}
@@ -938,46 +1061,87 @@
 
     {# ═══════ EXPENSES SUMMARY ═══════ #}
     {% elif active_tab == 'expenses' %}
+
+    {# KPI Cards #}
+    {% set grand_total = fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total %}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">
+            <div class="vp-kpi-icon">⛽</div>
+            <div class="vp-kpi-label">Fuel</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
+            <div style="font-size:0.72rem;opacity:0.85;margin-top:4px">{{ "%.1f"|format((fuel_total_amount / grand_total * 100) if grand_total > 0 else 0) }}% of total</div>
+        </div>
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff">
+            <div class="vp-kpi-icon">🔧</div>
+            <div class="vp-kpi-label">Maintenance</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(v.total_cost or 0) }}</div>
+            <div style="font-size:0.72rem;opacity:0.85;margin-top:4px">{{ "%.1f"|format(((v.total_cost or 0) / grand_total * 100) if grand_total > 0 else 0) }}% of total</div>
+        </div>
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff">
+            <div class="vp-kpi-icon">📦</div>
+            <div class="vp-kpi-label">Parts</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(parts_total_amount) }}</div>
+            <div style="font-size:0.72rem;opacity:0.85;margin-top:4px">{{ "%.1f"|format((parts_total_amount / grand_total * 100) if grand_total > 0 else 0) }}% of total</div>
+        </div>
+        <div class="vp-kpi" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">
+            <div class="vp-kpi-icon">🚦</div>
+            <div class="vp-kpi-label">Fines</div>
+            <div class="vp-kpi-value">AED {{ "%.0f"|format(fines_total) }}</div>
+            <div style="font-size:0.72rem;opacity:0.85;margin-top:4px">{{ "%.1f"|format((fines_total / grand_total * 100) if grand_total > 0 else 0) }}% of total</div>
+        </div>
+    </div>
+
+    {# Grand Total + Bar Chart #}
     <div class="profile-card">
-        <h3 style="margin:0 0 16px;font-size:1.1rem">💰 Vehicle Expenses Summary</h3>
-        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 16px">All costs for this vehicle in one place: Fuel, Maintenance, Parts, Traffic Fines, Registration Fees, etc.</p>
-        
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px">
-            <div style="background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;border-radius:14px;padding:18px;text-align:center">
-                <div style="font-size:1.6rem">⛽</div>
-                <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">Fuel</div>
-                <div style="font-size:1.2rem;font-weight:800;color:#e65100">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:2px solid #e2e8f0;margin-bottom:16px">
+            <div>
+                <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Total Vehicle Cost</div>
+                <div style="font-size:1.6rem;font-weight:800;color:var(--primary)">AED {{ "%.0f"|format(grand_total) }}</div>
             </div>
-            <div style="background:linear-gradient(135deg,#eff6ff,#bfdbfe);border:1px solid #93c5fd;border-radius:14px;padding:18px;text-align:center">
-                <div style="font-size:1.6rem">🔧</div>
-                <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">Maintenance</div>
-                <div style="font-size:1.2rem;font-weight:800;color:#1d4ed8">AED {{ "%.0f"|format(v.total_cost or 0) }}</div>
-            </div>
-            <div style="background:linear-gradient(135deg,#f0fdf4,#bbf7d0);border:1px solid #86efac;border-radius:14px;padding:18px;text-align:center">
-                <div style="font-size:1.6rem">📦</div>
-                <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">Parts</div>
-                <div style="font-size:1.2rem;font-weight:800;color:#16a34a">AED {{ "%.0f"|format(parts_total_amount) }}</div>
-            </div>
-            <div style="background:linear-gradient(135deg,#fef2f2,#fecaca);border:1px solid #fca5a5;border-radius:14px;padding:18px;text-align:center">
-                <div style="font-size:1.6rem">🚦</div>
-                <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">Fines</div>
-                <div style="font-size:1.2rem;font-weight:800;color:#dc2626">AED {{ "%.0f"|format(fines_total) }}</div>
+            <div style="text-align:right">
+                <div style="font-size:0.75rem;color:var(--muted)">All categories combined</div>
             </div>
         </div>
 
-        <div style="background:#f8fafc;border-radius:14px;padding:20px;border:1px solid #e2e8f0">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:2px solid #e2e8f0">
-                <span style="font-size:1.1rem;font-weight:700">TOTAL VEHICLE COST</span>
-                <span style="font-size:1.5rem;font-weight:800;color:var(--primary)">AED {{ "%.0f"|format(fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) }}</span>
+        {# Visual Bar Chart #}
+        <div style="margin-bottom:20px">
+            <div class="vp-expense-bar">
+                {% if grand_total > 0 %}
+                <div style="width:{{ (fuel_total_amount / grand_total * 100) }}%;background:linear-gradient(90deg,#f59e0b,#d97706)" title="Fuel: AED {{ "%.0f"|format(fuel_total_amount) }}"></div>
+                <div style="width:{{ ((v.total_cost or 0) / grand_total * 100) }}%;background:linear-gradient(90deg,#3b82f6,#1d4ed8)" title="Maintenance: AED {{ "%.0f"|format(v.total_cost or 0) }}"></div>
+                <div style="width:{{ (parts_total_amount / grand_total * 100) }}%;background:linear-gradient(90deg,#10b981,#059669)" title="Parts: AED {{ "%.0f"|format(parts_total_amount) }}"></div>
+                <div style="width:{{ (fines_total / grand_total * 100) }}%;background:linear-gradient(90deg,#ef4444,#dc2626)" title="Fines: AED {{ "%.0f"|format(fines_total) }}"></div>
+                {% endif %}
             </div>
-            <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-size:0.85rem">
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">⛽ Fuel</span><span style="font-weight:600">{{ "%.1f"|format((fuel_total_amount / (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) * 100) if (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) > 0 else 0) }}%</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🔧 Maintenance</span><span style="font-weight:600">{{ "%.1f"|format(((v.total_cost or 0) / (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) * 100) if (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) > 0 else 0) }}%</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">📦 Parts</span><span style="font-weight:600">{{ "%.1f"|format((parts_total_amount / (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) * 100) if (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) > 0 else 0) }}%</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🚦 Fines</span><span style="font-weight:600">{{ "%.1f"|format((fines_total / (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) * 100) if (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) > 0 else 0) }}%</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.72rem;color:var(--muted)">
+                <div style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f59e07"></span> Fuel</div>
+                <div style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#3b82f6"></span> Maintenance</div>
+                <div style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#10b981"></span> Parts</div>
+                <div style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#ef4444"></span> Fines</div>
+            </div>
+        </div>
+
+        {# Percentage Breakdown #}
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#fff7ed;border-radius:8px;border:1px solid #fed7aa">
+                <span style="color:var(--muted)">⛽ Fuel</span>
+                <span style="font-weight:700;color:#e65100">{{ "%.1f"|format((fuel_total_amount / grand_total * 100) if grand_total > 0 else 0) }}%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">
+                <span style="color:var(--muted)">🔧 Maintenance</span>
+                <span style="font-weight:700;color:#1d4ed8">{{ "%.1f"|format(((v.total_cost or 0) / grand_total * 100) if grand_total > 0 else 0) }}%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
+                <span style="color:var(--muted)">📦 Parts</span>
+                <span style="font-weight:700;color:#16a34a">{{ "%.1f"|format((parts_total_amount / grand_total * 100) if grand_total > 0 else 0) }}%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
+                <span style="color:var(--muted)">🚦 Fines</span>
+                <span style="font-weight:700;color:#dc2626">{{ "%.1f"|format((fines_total / grand_total * 100) if grand_total > 0 else 0) }}%</span>
             </div>
         </div>
     </div>
+
     {% endif %}
 </div>
 
@@ -987,7 +1151,7 @@
 <script>
 function togglePaper(id) {
     var el = document.getElementById(id);
-    if (el) el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 {% if highlight %}
 (function() {
@@ -995,7 +1159,7 @@ function togglePaper(id) {
     var els = document.querySelectorAll('[id^="entry-row-"]');
     for (var i = 0; i < els.length; i++) {
         var detail = document.getElementById(els[i].id.replace('entry-row-', 'paper-detail-'));
-        if (detail && detail.style.display === 'table-row') {
+        if (detail && detail.style.display === 'block') {
             setTimeout(function() { els[i].scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
             break;
         }
