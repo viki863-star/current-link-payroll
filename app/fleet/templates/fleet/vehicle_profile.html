@@ -367,67 +367,141 @@
 
     {# ═══════ DOCUMENTS ═══════ #}
     {% elif active_tab == 'documents' %}
+    <style>
+    .doc-upload-box{border:2px dashed #cbd5e1;border-radius:16px;padding:32px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfc}
+    .doc-upload-box:hover{border-color:var(--primary);background:#f0f7ff}
+    .doc-upload-box.dragover{border-color:var(--primary);background:#eff6ff;transform:scale(1.01)}
+    .doc-upload-icon{font-size:2.5rem;margin-bottom:8px;opacity:.6}
+    .doc-upload-text{font-size:.88rem;font-weight:600;color:var(--ink)}
+    .doc-upload-hint{font-size:.75rem;color:var(--muted);margin-top:4px}
+    .doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+    .doc-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:all .25s;position:relative}
+    .doc-card:hover{box-shadow:0 8px 30px rgba(0,0,0,.1);transform:translateY(-2px)}
+    .doc-card-header{padding:16px 18px 12px;display:flex;align-items:flex-start;gap:12px}
+    .doc-card-icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:1.3rem;flex-shrink:0}
+    .doc-card-icon.pdf{background:linear-gradient(135deg,#fee2e2,#fecaca)}
+    .doc-card-icon.image{background:linear-gradient(135deg,#dbeafe,#bfdbfe)}
+    .doc-card-icon.other{background:linear-gradient(135deg,#f1f5f9,#e2e8f0)}
+    .doc-card-info{flex:1;min-width:0}
+    .doc-card-name{font-size:.88rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .doc-card-meta{font-size:.72rem;color:var(--muted);margin-top:3px;display:flex;gap:8px;align-items:center}
+    .doc-card-type{font-size:.68rem;padding:2px 8px;border-radius:20px;font-weight:600;background:#f1f5f9;color:var(--muted)}
+    .doc-card-body{padding:0 18px 14px}
+    .doc-card-notes{font-size:.78rem;color:var(--muted);line-height:1.4;max-height:2.8em;overflow:hidden}
+    .doc-card-exp{font-size:.7rem;padding:3px 10px;border-radius:20px;font-weight:600;display:inline-block;margin-top:6px}
+    .doc-card-exp.valid{background:#dcfce7;color:#16a34a}
+    .doc-card-exp.soon{background:#fef3c7;color:#d97706}
+    .doc-card-exp.expired{background:#fee2e2;color:#dc2626}
+    .doc-card-footer{padding:10px 18px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;background:#fafbfc}
+    .doc-card-date{font-size:.68rem;color:#94a3b8}
+    .doc-card-actions{display:flex;gap:6px}
+    .doc-card-actions button,.doc-card-actions a{width:30px;height:30px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;display:grid;place-items:center;font-size:.85rem;text-decoration:none;color:var(--muted);transition:all .15s}
+    .doc-card-actions button:hover,.doc-card-actions a:hover{background:#f1f5f9;border-color:#cbd5e1;color:var(--ink)}
+    .doc-card-actions .btn-del:hover{background:#fee2e2;border-color:#fca5a5;color:#dc2626}
+    .doc-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:10000;display:none;align-items:center;justify-content:center}
+    .doc-modal-overlay.is-open{display:flex}
+    .doc-modal{background:#fff;border-radius:20px;width:90%;max-width:550px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.18)}
+    .doc-modal-header{padding:22px 28px 16px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center}
+    .doc-modal-header h3{margin:0;font-size:1.05rem;font-weight:700}
+    .doc-modal-close{width:34px;height:34px;border-radius:10px;border:none;background:#f1f5f9;cursor:pointer;display:grid;place-items:center;font-size:1.1rem;color:#64748b;transition:all .15s}
+    .doc-modal-close:hover{background:#e2e8f0;color:var(--ink)}
+    .doc-modal-body{padding:24px 28px}
+    .doc-modal-footer{padding:16px 28px 22px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px}
+    .doc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .doc-form-group{display:flex;flex-direction:column}
+    .doc-form-group.full{grid-column:1/-1}
+    .doc-form-group label{font-size:.72rem;font-weight:600;color:var(--ink);margin-bottom:5px}
+    .doc-form-group input,.doc-form-group textarea{width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.82rem;color:var(--ink);outline:none;transition:all .2s;font-family:inherit}
+    .doc-form-group input:focus,.doc-form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(28,86,139,.08)}
+    </style>
+
+    {# ─── Upload Section ─── #}
     <div class="profile-card">
-        <h3 style="margin:0 0 12px;font-size:0.95rem">Upload Document</h3>
-        <form method="POST" action="{{ url_for('fleet.vehicle_document_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <h3 style="margin:0;font-size:0.95rem">📄 Vehicle Documents</h3>
+            <span style="font-size:.78rem;color:var(--muted)">{{ all_docs|length }} document{{ 's' if all_docs|length != 1 else '' }}</span>
+        </div>
+        <form method="POST" action="{{ url_for('fleet.vehicle_document_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data" id="docUploadForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-row">
-                <label class="form-label">Document Name</label>
-                <input type="text" name="doc_name" class="form-control" required>
+            <div class="doc-upload-box" id="dropZone" onclick="document.getElementById('docFileInput').click()">
+                <div class="doc-upload-icon">📁</div>
+                <div class="doc-upload-text">Click or drag files here to upload</div>
+                <div class="doc-upload-hint">Supports PDF, Images, and other document types</div>
+                <input type="file" name="doc_file" id="docFileInput" style="display:none" onchange="handleFileSelect(this)">
             </div>
-            <div class="form-row">
-                <label class="form-label">File</label>
-                <input type="file" name="doc_file" class="form-control">
+            <div id="fileInfo" style="display:none;margin-top:12px;padding:12px 16px;background:#f0f7ff;border-radius:10px;align-items:center;gap:10px">
+                <span style="font-size:1.2rem">📎</span>
+                <span id="fileName" style="font-size:.85rem;font-weight:600;flex:1"></span>
+                <button type="button" onclick="clearFile()" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:.85rem">✕ Remove</button>
             </div>
-            <div class="form-row">
-                <label class="form-label">Notes</label>
-                <input type="text" name="notes" class="form-control">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
+                <div class="doc-form-group">
+                    <label>Document Name <span style="color:#dc2626">*</span></label>
+                    <input type="text" name="doc_name" id="docNameInput" placeholder="e.g. Insurance Certificate" required>
+                </div>
+                <div class="doc-form-group">
+                    <label>Notes</label>
+                    <input type="text" name="notes" placeholder="Optional notes...">
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary">Upload</button>
+            <button type="submit" class="btn btn-primary" style="margin-top:12px;width:100%;padding:10px" id="uploadBtn" disabled>📁 Upload Document</button>
         </form>
     </div>
 
-    <style>
-    .mk-vc{position:relative;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);transition:all .2s;max-width:280px}
-    .mk-vc:hover{box-shadow:0 8px 28px rgba(0,0,0,.12);transform:translateY(-2px)}
-    .mk-vc-ribbon{position:absolute;top:0;left:0;right:0;padding:4px 10px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#fff;text-align:center;z-index:2}
-    .mk-vc-ribbon.expired{background:#ef4444}
-    .mk-vc-ribbon.soon{background:#f59e0b}
-    .mk-vc-ribbon.valid{background:#22c55e}
-    .mk-vc-topbar{height:3px;margin-top:16px;background:linear-gradient(90deg,var(--ring-color) 0%,transparent 100%)}
-    .mk-vc-pattern{background:linear-gradient(135deg,#f8fafc 0%,#e2e8f0 100%);padding:20px 16px;text-align:center}
-    .mk-vc-icon{font-size:1.6rem;margin-bottom:4px}
-    .mk-vc-plate{font-size:1.3rem;font-weight:800;color:#1e293b;font-family:'JetBrains Mono','Courier New',monospace;letter-spacing:1px;margin:4px 0}
-    .mk-vc-label{font-size:.65rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
-    .mk-vc-docname{font-size:.72rem;color:#94a3b8;margin-top:2px}
-    .mk-vc-meta{display:flex;flex-direction:column;gap:4px;margin-top:8px;align-items:center}
-    .mk-vc-exp{font-size:.7rem;color:#475569}
-    .mk-vc-countdown{font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block}
-    .mk-vc-countdown.expired{background:#fee2e2;color:#dc2626}
-    .mk-vc-countdown.soon{background:#fef3c7;color:#d97706}
-    .mk-vc-countdown.valid{background:#dcfce7;color:#16a34a}
-    .mk-vc-hint{font-size:.68rem;color:#94a3b8;margin-top:8px;opacity:0;transition:opacity .2s}
-    .mk-vc:hover .mk-vc-hint{opacity:1}
-    .mk-vc-divider{width:35%;margin:8px auto 0;background:#f1f5f9;height:1px}
-    .mk-vc-foot{padding:6px 12px;display:flex;justify-content:space-between;align-items:center;background:#fff}
-    .mk-vc-date{font-size:.55rem;color:#cbd5e1}
-    .mk-vc-actions{display:flex;gap:4px}
-    .mk-vc-actions .doc-action-btn{width:22px;height:22px;font-size:.65rem;border:none;background:#f1f5f9;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
-    .mk-vc-actions .doc-action-btn:hover{background:#e2e8f0}
-    .mk-vc-back{position:absolute;top:0;left:0;right:0;bottom:0;background:#1e293b;display:none;cursor:pointer;border-radius:14px;overflow:hidden}
-    .mk-vc-back img{width:100%;height:100%;object-fit:cover}
-    .mk-vc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
-    </style>
+    <script>
+    function handleFileSelect(input) {
+        if (input.files.length > 0) {
+            var f = input.files[0];
+            document.getElementById('fileInfo').style.display = 'flex';
+            document.getElementById('fileName').textContent = f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)';
+            document.getElementById('uploadBtn').disabled = false;
+            if (!document.getElementById('docNameInput').value) {
+                document.getElementById('docNameInput').value = f.name.replace(/\.[^/.]+$/, '');
+            }
+        }
+    }
+    function clearFile() {
+        document.getElementById('docFileInput').value = '';
+        document.getElementById('fileInfo').style.display = 'none';
+        document.getElementById('uploadBtn').disabled = true;
+    }
+    var dz = document.getElementById('dropZone');
+    dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', function() { dz.classList.remove('dragover'); });
+    dz.addEventListener('drop', function(e) {
+        e.preventDefault(); dz.classList.remove('dragover');
+        var input = document.getElementById('docFileInput');
+        input.files = e.dataTransfer.files;
+        handleFileSelect(input);
+    });
 
+    function openEditModal(id, name, notes, expiry) {
+        document.getElementById('editDocId').value = id;
+        document.getElementById('editDocName').value = name;
+        document.getElementById('editDocNotes').value = notes || '';
+        document.getElementById('editDocExpiry').value = expiry || '';
+        var form = document.getElementById('editDocForm');
+        form.action = form.action.replace(/\/edit\/\d+/, '/edit/' + id);
+        document.getElementById('editModal').classList.add('is-open');
+    }
+    function closeEditModal() { document.getElementById('editModal').classList.remove('is-open'); }
+    document.querySelectorAll('.doc-modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)closeEditModal()})});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEditModal()});
+    </script>
+
+    {# ─── Mulkiya Cards ─── #}
     {% set mulkiyas = all_docs|selectattr('doc_category','equalto','Mulkiya')|list %}
     {% set other_docs = all_docs|rejectattr('doc_category','equalto','Mulkiya')|list %}
 
     {% if mulkiyas %}
-    <div style="margin-top:1rem">
-        <h3 style="margin:0 0 12px;font-size:0.95rem">Vehicle Mulkiyas</h3>
-        <div class="mk-vc-grid">
+    <div class="profile-card" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <h3 style="margin:0;font-size:0.95rem">🇦🇪 Vehicle Mulkiyas</h3>
+            <span style="font-size:.78rem;color:var(--muted)">{{ mulkiyas|length }} mulkiya</span>
+        </div>
+        <div class="doc-grid">
         {% for d in mulkiyas %}
-        {% set es = d._status if d._status is defined else 'valid' %}
+        {% set es = 'valid' %}
         {% if d.expiry_date %}
             {% set exp_str = d.expiry_date|string %}
             {% if exp_str|length >= 10 %}
@@ -441,81 +515,141 @@
             {% set days_left = 9999 %}
         {% endif %}
         {% if days_left < 0 %}{% set es = 'expired' %}{% elif days_left <= 30 %}{% set es = 'soon' %}{% else %}{% set es = 'valid' %}{% endif %}
-        <div class="mk-vc" onclick="{% if d.thumbnail_data %}this.querySelector('.mk-vc-back').style.display=this.querySelector('.mk-vc-back').style.display==='block'?'none':'block'{% endif %}">
-            <div class="mk-vc-ribbon {{ es }}">{{ d.doc_category }}</div>
-            <div class="mk-vc-topbar" style="--ring-color:{% if es == 'expired' %}#ef4444{% elif es == 'soon' %}#f59e0b{% else %}#22c55e{% endif %}"></div>
-            <div class="mk-vc-pattern">
-                <div class="mk-vc-icon">&#128663;</div>
-                <div class="mk-vc-plate">{{ v.plate_no }}</div>
-                <div class="mk-vc-label">Vehicle Mulkiya</div>
-                <div class="mk-vc-docname">{{ d.doc_name }}</div>
-                <div class="mk-vc-meta">
-                    {% if d.expiry_date %}<span class="mk-vc-exp">Exp: {{ d.expiry_date }}</span>{% endif %}
-                    {% if days_left != 9999 %}
-                    <span class="mk-vc-countdown {{ es }}">
-                        {% if days_left < 0 %}Expired {{ (days_left * -1) }}d ago{% elif days_left == 0 %}Today!{% else %}{{ days_left }}d left{% endif %}
-                    </span>
-                    {% endif %}
+
+        <div class="doc-card">
+            <div class="doc-card-header">
+                <div class="doc-card-icon pdf">🇦🇪</div>
+                <div class="doc-card-info">
+                    <div class="doc-card-name">{{ d.doc_name }}</div>
+                    <div class="doc-card-meta">
+                        <span class="doc-card-type">Mulkiya</span>
+                        <span>{{ v.plate_no }}</span>
+                    </div>
                 </div>
-                <div class="mk-vc-hint">{% if d.thumbnail_data %}&#8634; Tap to view{% else %}&#128196; Click to view{% endif %}</div>
             </div>
-            <div class="mk-vc-divider"></div>
-            <div class="mk-vc-foot">
-                <span class="mk-vc-date">{{ d.uploaded_at|string|truncate(10, True, '') }}</span>
-                <div class="mk-vc-actions">
-                    {% if d.doc_data %}
-                    <a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" class="doc-action-btn" title="View" onclick="event.stopPropagation()">&#128065;</a>
+            {% if d.expiry_date %}
+            <div class="doc-card-body" style="padding-top:0">
+                <div class="doc-card-exp {{ es }}">
+                    {% if es == 'expired' %}❌ Expired {{ d.expiry_date }}{% elif es == 'soon' %}⚠️ Expires {{ d.expiry_date }} ({{ days_left }}d){% else %}✅ Valid until {{ d.expiry_date }}{% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if d.notes %}
+            <div class="doc-card-body" style="padding-top:0">
+                <div class="doc-card-notes">{{ d.notes }}</div>
+            </div>
+            {% endif %}
+            <div class="doc-card-footer">
+                <span class="doc-card-date">{{ d.uploaded_at|string|truncate(10, True, '') }}</span>
+                <div class="doc-card-actions">
+                    {% if d.doc_data or d.thumbnail_data %}
+                    <a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" target="_blank" title="View">👁️</a>
                     {% endif %}
-                    <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" class="doc-action-btn" onsubmit="event.stopPropagation();return confirm('Delete {{ d.doc_name }}?')">
+                    <button type="button" onclick="openEditModal('{{ d.id }}','{{ d.doc_name|e }}','{{ (d.notes or '')|e }}','{{ d.expiry_date or '' }}')" title="Edit">✏️</button>
+                    <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" onsubmit="return confirm('Delete {{ d.doc_name }}?')" style="margin:0">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="doc-action-btn" title="Delete">&#128465;</button>
+                        <button type="submit" class="btn-del" title="Delete">🗑️</button>
                     </form>
                 </div>
             </div>
-            {% if d.thumbnail_data %}
-            <div class="mk-vc-back" onclick="this.style.display='none'">
-                <img src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="Mulkiya {{ v.plate_no }}">
-            </div>
-            {% endif %}
         </div>
         {% endfor %}
         </div>
     </div>
     {% endif %}
 
+    {# ─── Other Documents ─── #}
     {% if other_docs %}
-    <div class="profile-card" style="margin-top:1rem">
-        <h3 style="margin:0 0 12px;font-size:0.95rem">Other Documents</h3>
-        <table class="smart-table">
-            <thead><tr><th>Name</th><th>Type</th><th>Uploaded</th><th>Notes</th><th></th></tr></thead>
-            <tbody>
-                {% for d in other_docs %}
-                <tr>
-                    <td><strong>{{ d.doc_name }}</strong></td>
-                    <td><span class="badge badge-type">{{ d.doc_type or '—' }}</span></td>
-                    <td class="mono">{{ d.uploaded_at|string|truncate(16, True, '') }}</td>
-                    <td style="max-width:180px;white-space:normal;font-size:0.82rem">{{ d.notes or '' }}</td>
-                    <td>
-                        {% if d.doc_data %}
-                        <a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" class="btn btn-xs btn-outline" target="_blank">View</a>
-                        {% endif %}
-                        <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ d.doc_name }}?');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-xs btn-outline" style="color:#dc3545;border-color:#dc3545">&#10005;</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="profile-card" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <h3 style="margin:0;font-size:0.95rem">📋 Other Documents</h3>
+            <span style="font-size:.78rem;color:var(--muted)">{{ other_docs|length }} document{{ 's' if other_docs|length != 1 else '' }}</span>
+        </div>
+        <div class="doc-grid">
+        {% for d in other_docs %}
+        <div class="doc-card">
+            <div class="doc-card-header">
+                {% set ext = (d.doc_type or '')|lower %}
+                {% if 'pdf' in ext %}
+                <div class="doc-card-icon pdf">📄</div>
+                {% elif 'image' in ext %}
+                <div class="doc-card-icon image">🖼️</div>
+                {% else %}
+                <div class="doc-card-icon other">📁</div>
+                {% endif %}
+                <div class="doc-card-info">
+                    <div class="doc-card-name">{{ d.doc_name }}</div>
+                    <div class="doc-card-meta">
+                        <span class="doc-card-type">{{ d.doc_type or 'Unknown' }}</span>
+                    </div>
+                </div>
+            </div>
+            {% if d.notes %}
+            <div class="doc-card-body" style="padding-top:0">
+                <div class="doc-card-notes">{{ d.notes }}</div>
+            </div>
+            {% endif %}
+            <div class="doc-card-footer">
+                <span class="doc-card-date">{{ d.uploaded_at|string|truncate(10, True, '') }}</span>
+                <div class="doc-card-actions">
+                    {% if d.doc_data %}
+                    <a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" target="_blank" title="View">👁️</a>
+                    {% endif %}
+                    <button type="button" onclick="openEditModal('{{ d.id }}','{{ d.doc_name|e }}','{{ (d.notes or '')|e }}','')" title="Edit">✏️</button>
+                    <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" onsubmit="return confirm('Delete {{ d.doc_name }}?')" style="margin:0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn-del" title="Delete">🗑️</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        </div>
     </div>
     {% endif %}
 
     {% if not all_docs %}
-    <div class="profile-card" style="margin-top:1rem">
-        <p class="empty-state">No documents uploaded.</p>
+    <div class="profile-card" style="margin-top:16px;text-align:center;padding:48px">
+        <div style="font-size:3rem;margin-bottom:12px;opacity:.5">📂</div>
+        <div style="font-weight:700;font-size:1rem;color:var(--ink);margin-bottom:6px">No documents uploaded yet</div>
+        <div style="font-size:.85rem;color:var(--muted);max-width:360px;margin:0 auto">Upload Mulkiya, Insurance, Registration, and other vehicle documents using the form above.</div>
     </div>
     {% endif %}
+
+    {# ─── Edit Modal ─── #}
+    <div class="doc-modal-overlay" id="editModal">
+        <div class="doc-modal">
+            <div class="doc-modal-header">
+                <h3>✏️ Edit Document</h3>
+                <button class="doc-modal-close" onclick="closeEditModal()">✕</button>
+            </div>
+            <form id="editDocForm" method="POST" action="{{ url_for('fleet.vehicle_document_edit', plate_no=v.plate_no, doc_id=0) }}">
+            <div class="doc-modal-body">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="doc_id" id="editDocId">
+                <div class="doc-form-grid">
+                    <div class="doc-form-group full">
+                        <label>Document Name <span style="color:#dc2626">*</span></label>
+                        <input type="text" name="doc_name" id="editDocName" required>
+                    </div>
+                    <div class="doc-form-group full">
+                        <label>Notes</label>
+                        <textarea name="notes" id="editDocNotes" rows="2" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.82rem;resize:vertical;font-family:inherit"></textarea>
+                    </div>
+                    <div class="doc-form-group full">
+                        <label>Expiry Date (Mulkiya only)</label>
+                        <input type="date" name="expiry_date" id="editDocExpiry">
+                    </div>
+                </div>
+            </div>
+            <div class="doc-modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+            </div>
+            </form>
+        </div>
+    </div>
+
     {% elif active_tab == 'fuel' %}
 <div class="profile-card">
     <h3 style="margin:0 0 12px;font-size:0.95rem">Add Fuel Entry</h3>

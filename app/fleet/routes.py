@@ -1270,6 +1270,40 @@ def vehicle_document_view(plate_no, doc_id):
     )
 
 
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/documents/<int:doc_id>/edit", methods=["POST"])
+@_login_required("admin")
+def vehicle_document_edit(plate_no, doc_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    v = _vehicle_full(plate_no)
+    if not v:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+
+    doc_name = request.form.get("doc_name", "").strip()
+    notes = request.form.get("notes", "").strip()
+    expiry_date = request.form.get("expiry_date", "").strip() or None
+
+    if not doc_name:
+        flash("Document name is required.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="documents"))
+
+    result = db.execute(
+        "UPDATE vehicle_documents SET doc_name = ?, notes = ? WHERE id = ? AND plate_no = ?",
+        (doc_name, notes, doc_id, plate_no),
+    )
+    if result.rowcount == 0:
+        db.execute(
+            "UPDATE documents SET doc_name = ?, notes = ?, expiry_date = ? WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?",
+            (doc_name, notes, expiry_date, doc_id, plate_no),
+        )
+    db.commit()
+    db.close()
+    flash(f"Document '{doc_name}' updated.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="documents"))
+
+
 # ── Vehicle Traffic Fines ────────────────────────────────────────
 
 @fleet_bp.route("/fleet/vehicles/<path:plate_no>/traffic-fines/upload", methods=["POST"])
