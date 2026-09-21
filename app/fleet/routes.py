@@ -118,6 +118,19 @@ def ensure_fleet_tables():
             notes TEXT
         )
     """)
+    # Migrate any old vehicle_documents records to unified documents table
+    try:
+        old_docs = db.execute("SELECT id, plate_no, doc_name, doc_type, doc_data, notes FROM vehicle_documents").fetchall()
+        for od in old_docs:
+            existing = db.execute("SELECT id FROM documents WHERE entity_type='vehicle' AND entity_id=? AND doc_name=? AND doc_category='Other'", (od["plate_no"], od["doc_name"])).fetchone()
+            if not existing:
+                db.execute(
+                    "INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, file_data, file_type, file_size, notes) VALUES ('vehicle',?,?,?,?,?,?,?)",
+                    (od["plate_no"], od["doc_name"], "Other", od["doc_data"], od["doc_type"], len(od["doc_data"]) if od["doc_data"] else 0, od["notes"]),
+                )
+        db.commit()
+    except Exception:
+        pass
     real_type = "REAL"
     db.execute(f"""
         CREATE TABLE IF NOT EXISTS fuel_entries (
@@ -1030,20 +1043,14 @@ def vehicle_profile(plate_no):
         reverse=True,
     )
 
-    documents = db.execute(
-        "SELECT id, plate_no, doc_name, doc_type, doc_data, uploaded_at, notes FROM vehicle_documents WHERE plate_no = ? ORDER BY uploaded_at DESC",
-        (plate_no,),
-    ).fetchall()
-    # Also fetch Mulkiya from main documents table (with thumbnail/pdf_preview for card display)
-    mulkiya_docs = db.execute(
-        "SELECT id, doc_name, doc_category, entity_id, expiry_date, uploaded_at, file_data AS doc_data, thumbnail_data, pdf_preview_data FROM documents WHERE entity_type = 'vehicle' AND entity_id = ? AND doc_category = 'Mulkiya' ORDER BY uploaded_at DESC",
+    # Fetch ALL vehicle documents from unified documents table
+    all_docs = db.execute(
+        "SELECT id, doc_name, doc_category, file_data AS doc_data, file_type AS doc_type, entity_id, expiry_date, uploaded_at, thumbnail_data, pdf_preview_data, notes FROM documents WHERE entity_type = 'vehicle' AND entity_id = ? ORDER BY uploaded_at DESC",
         (plate_no,),
     ).fetchall()
     from ..documents.routes import _expiry_status
-    for md in mulkiya_docs:
-        md["_status"] = _expiry_status(md["expiry_date"])
-    # Combine: mulkiya from documents table + other docs from vehicle_documents
-    all_docs = list(documents) + list(mulkiya_docs)
+    for md in all_docs:
+        md["_status"] = _expiry_status(md.get("expiry_date"))
 
     fuel_entries = db.execute(
         "SELECT id, vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes, source_expense_id, created_at FROM fuel_entries WHERE vehicle_plate = ? ORDER BY entry_date DESC, id DESC",
@@ -1207,26 +1214,20 @@ def vehicle_document_upload(plate_no):
             file_data = doc_data
 
     is_mulkiya = "mulkiya" in doc_name.lower()
+    doc_category = "Mulkiya" if is_mulkiya else "Other"
 
-    if is_mulkiya:
-        # Save Mulkiya to main documents table with thumbnail
-        thumbnail_data = None
-        pdf_preview_data = None
-        if file_data:
-            try:
-                from ..documents.routes import _generate_thumbnail
-                thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, doc_type)
-            except Exception:
-                pass
-        db.execute(
-            "INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, file_data, file_type, file_size, thumbnail_data, pdf_preview_data, notes) VALUES ('vehicle',?,?,?,?,?,?,?,?,?)",
-            (plate_no, doc_name, 'Mulkiya', file_data, doc_type, len(file_data) if file_data else 0, thumbnail_data, pdf_preview_data, notes),
-        )
-    else:
-        db.execute(
-            "INSERT INTO vehicle_documents (plate_no, doc_name, doc_type, doc_data, notes) VALUES (?,?,?,?,?)",
-            (plate_no, doc_name, doc_type, doc_data, notes),
-        )
+    thumbnail_data = None
+    pdf_preview_data = None
+    if file_data:
+        try:
+            from ..documents.routes import _generate_thumbnail
+            thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, doc_type)
+        except Exception:
+            pass
+    db.execute(
+        "INSERT INTO documents (entity_type, entity_id, doc_name, doc_category, file_data, file_type, file_size, thumbnail_data, pdf_preview_data, notes) VALUES ('vehicle',?,?,?,?,?,?,?,?,?)",
+        (plate_no, doc_name, doc_category, file_data, doc_type, len(file_data) if file_data else 0, thumbnail_data, pdf_preview_data, notes),
+    )
     db.commit()
     flash(f"Document '{doc_name}' uploaded.", "success")
     return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab='documents'))
@@ -1237,11 +1238,7 @@ def vehicle_document_upload(plate_no):
 def vehicle_document_delete(plate_no, doc_id):
     _touch_admin_workspace("fleet")
     db = open_db()
-    # Try vehicle_documents first
-    result = db.execute("DELETE FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no))
-    if result.rowcount == 0:
-        # Try main documents table (Mulkiya)
-        db.execute("DELETE FROM documents WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?", (doc_id, plate_no))
+    db.execute("DELETE FROM documents WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?", (doc_id, plate_no))
     db.commit()
     flash("Document deleted.", "success")
     return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab='documents'))
@@ -1251,11 +1248,7 @@ def vehicle_document_delete(plate_no, doc_id):
 @_login_required("admin")
 def vehicle_document_view(plate_no, doc_id):
     db = open_db()
-    # Check vehicle_documents first
-    doc = db.execute("SELECT id, doc_name, doc_type, doc_data FROM vehicle_documents WHERE id = ? AND plate_no = ?", (doc_id, plate_no)).fetchone()
-    if not doc or not doc["doc_data"]:
-        # Check main documents table (Mulkiya)
-        doc = db.execute("SELECT id, doc_name, file_type AS doc_type, file_data AS doc_data FROM documents WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?", (doc_id, plate_no)).fetchone()
+    doc = db.execute("SELECT id, doc_name, file_type AS doc_type, file_data AS doc_data FROM documents WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?", (doc_id, plate_no)).fetchone()
     if not doc or not doc["doc_data"]:
         flash("Document not found.", "error")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
@@ -1289,15 +1282,10 @@ def vehicle_document_edit(plate_no, doc_id):
         flash("Document name is required.", "error")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="documents"))
 
-    result = db.execute(
-        "UPDATE vehicle_documents SET doc_name = ?, notes = ? WHERE id = ? AND plate_no = ?",
-        (doc_name, notes, doc_id, plate_no),
+    db.execute(
+        "UPDATE documents SET doc_name = ?, notes = ?, expiry_date = ? WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?",
+        (doc_name, notes, expiry_date, doc_id, plate_no),
     )
-    if result.rowcount == 0:
-        db.execute(
-            "UPDATE documents SET doc_name = ?, notes = ?, expiry_date = ? WHERE id = ? AND entity_type = 'vehicle' AND entity_id = ?",
-            (doc_name, notes, expiry_date, doc_id, plate_no),
-        )
     db.commit()
     db.close()
     flash(f"Document '{doc_name}' updated.", "success")
