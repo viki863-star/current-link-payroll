@@ -275,7 +275,7 @@
             <div class="mono" style="font-size:0.82rem;color:var(--muted)">{{ cd.driver_id }}</div>
             <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">Assigned since {{ cd.assigned_from }}</div>
         </div>
-        <a href="{{ url_for('fleet.driver_profile', employee_id=cd.driver_id) }}" class="btn btn-primary btn-sm">View Profile →</a>
+        <a href="{{ url_for('hr.employee_detail', employee_id=cd.driver_id) }}" class="btn btn-primary btn-sm">View Profile →</a>
     </div>
     {% endfor %}
     {% endif %}
