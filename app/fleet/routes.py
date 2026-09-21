@@ -5,7 +5,7 @@ from pathlib import Path
 
 from flask import (
     current_app, flash, redirect, render_template, request,
-    send_file, url_for, session
+    send_file, url_for, session, Response
 )
 from werkzeug.security import generate_password_hash
 
@@ -131,6 +131,23 @@ def ensure_fleet_tables():
             supplier_name TEXT NOT NULL,
             notes TEXT,
             source_expense_id INTEGER,
+            created_at TEXT DEFAULT {default_ts}
+        )
+    """)
+    db.execute(f"""
+        CREATE TABLE IF NOT EXISTS traffic_fines (
+            {id_col},
+            plate_no TEXT NOT NULL,
+            fine_date TEXT NOT NULL,
+            fine_type TEXT NOT NULL DEFAULT 'Traffic Fine',
+            fine_amount {real_type} NOT NULL DEFAULT 0,
+            fine_location TEXT,
+            fine_description TEXT,
+            fine_status TEXT NOT NULL DEFAULT 'Pending',
+            attachment_data TEXT,
+            attachment_type TEXT,
+            attachment_name TEXT,
+            notes TEXT,
             created_at TEXT DEFAULT {default_ts}
         )
     """)
@@ -1050,6 +1067,18 @@ def vehicle_profile(plate_no):
     parts_total_vat = sum(b["vat_amount"] for b in supplier_bills) if supplier_bills else 0
     parts_total_net = sum(b["net_amount"] for b in supplier_bills) if supplier_bills else 0
 
+    # Traffic fines
+    try:
+        traffic_fines = db.execute(
+            "SELECT * FROM traffic_fines WHERE plate_no = ? ORDER BY fine_date DESC",
+            (plate_no,),
+        ).fetchall()
+    except Exception:
+        traffic_fines = []
+    fines_total = sum(f["fine_amount"] for f in traffic_fines) if traffic_fines else 0
+    fines_paid = sum(f["fine_amount"] for f in traffic_fines if f["fine_status"] in ("Paid", "Closed")) if traffic_fines else 0
+    fines_pending = fines_total - fines_paid
+
     head_vehicles = db.execute(
         "SELECT plate_no, vehicle_type, model FROM vehicles WHERE vehicle_category = 'Head' AND status = 'Active' ORDER BY plate_no"
     ).fetchall()
@@ -1079,6 +1108,10 @@ def vehicle_profile(plate_no):
         head_vehicles=head_vehicles,
         already_linked=already_linked,
         link_types=LINK_TYPES,
+        traffic_fines=traffic_fines,
+        fines_total=fines_total,
+        fines_paid=fines_paid,
+        fines_pending=fines_pending,
         date=date,
     )
 
@@ -1237,6 +1270,84 @@ def vehicle_document_view(plate_no, doc_id):
     )
 
 
+# ── Vehicle Traffic Fines ────────────────────────────────────────
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/traffic-fines/upload", methods=["POST"])
+@_login_required("admin")
+def vehicle_traffic_fine_upload(plate_no):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    v = _vehicle_full(plate_no)
+    if not v:
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+
+    fine_date = request.form.get("fine_date", "").strip()
+    fine_type = request.form.get("fine_type", "Traffic Fine").strip()
+    fine_amount = request.form.get("fine_amount", "0").strip()
+    fine_location = request.form.get("fine_location", "").strip()
+    fine_description = request.form.get("fine_description", "").strip()
+    fine_status = request.form.get("fine_status", "Pending").strip()
+    notes = request.form.get("notes", "").strip()
+
+    if not fine_date:
+        flash("Fine date is required.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="fines"))
+
+    try:
+        fine_amount = float(fine_amount)
+    except ValueError:
+        fine_amount = 0
+
+    attachment_data = None
+    attachment_type = None
+    attachment_name = None
+    if "fine_attachment" in request.files:
+        f = request.files["fine_attachment"]
+        if f.filename:
+            import base64
+            raw = f.read()
+            attachment_data = base64.b64encode(raw).decode("utf-8")
+            attachment_type = f.content_type
+            attachment_name = f.filename
+
+    db.execute(
+        """INSERT INTO traffic_fines (plate_no, fine_date, fine_type, fine_amount, fine_location, fine_description, fine_status, attachment_data, attachment_type, attachment_name, notes)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+        (plate_no, fine_date, fine_type, fine_amount, fine_location, fine_description, fine_status, attachment_data, attachment_type, attachment_name, notes),
+    )
+    db.commit()
+    flash(f"Traffic fine of AED {fine_amount:.2f} recorded.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="fines"))
+
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/traffic-fines/<int:fine_id>/delete", methods=["POST"])
+@_login_required("admin")
+def vehicle_traffic_fine_delete(plate_no, fine_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    db.execute("DELETE FROM traffic_fines WHERE id = ? AND plate_no = ?", (fine_id, plate_no))
+    db.commit()
+    flash("Traffic fine deleted.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="fines"))
+
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/traffic-fines/<int:fine_id>/attachment")
+@_login_required("admin")
+def vehicle_traffic_fine_attachment(plate_no, fine_id):
+    ensure_fleet_tables()
+    db = open_db()
+    fine = db.execute("SELECT attachment_data, attachment_type, attachment_name FROM traffic_fines WHERE id = ? AND plate_no = ?", (fine_id, plate_no)).fetchone()
+    db.close()
+    if not fine or not fine["attachment_data"]:
+        flash("Attachment not found.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="fines"))
+    import base64
+    data = base64.b64decode(fine["attachment_data"])
+    return Response(data, mimetype=fine["attachment_type"] or "application/octet-stream",
+                    headers={"Content-Disposition": f'inline; filename="{fine["attachment_name"] or "attachment"}"'})
 
 
 

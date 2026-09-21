@@ -61,6 +61,8 @@
         <a class="vp-tab {% if active_tab == 'documents' %}is-active{% endif %}" href="?tab=documents">Documents</a>
         <a class="vp-tab {% if active_tab == 'fuel' %}is-active{% endif %}" href="?tab=fuel">Fuel</a>
         <a class="vp-tab {% if active_tab == 'parts' %}is-active{% endif %}" href="?tab=parts">Parts</a>
+        <a class="vp-tab {% if active_tab == 'fines' %}is-active{% endif %}" href="?tab=fines">🚦 Fines</a>
+        <a class="vp-tab {% if active_tab == 'expenses' %}is-active{% endif %}" href="?tab=expenses">💰 Expenses</a>
     </div>
 
     {# ═══════ OVERVIEW ═══════ #}
@@ -208,10 +210,6 @@
             </form>
         </div>
     </div>
-    {% endif %}
-        </div>
-    </div>
-
     {# ═══════ DRIVER ═══════ #}
     {% elif active_tab == 'driver' %}
     <div class="panel-row">
@@ -675,7 +673,177 @@
     <p class="empty-state">No parts bills for this vehicle.</p>
     {% endif %}
 </div>
-{% endif %}
+
+    {# ═══════ TRAFFIC FINES ═══════ #}
+    {% elif active_tab == 'fines' %}
+    <div class="profile-card">
+        <h3 style="margin:0 0 12px;font-size:0.95rem">Add Traffic Fine</h3>
+        <form method="POST" action="{{ url_for('fleet.vehicle_traffic_fine_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+                <div class="form-row">
+                    <label class="form-label">Fine Date <span style="color:red">*</span></label>
+                    <input type="date" name="fine_date" class="form-control" required value="{{ date.today().isoformat() }}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Fine Type</label>
+                    <select name="fine_type" class="form-control">
+                        <option value="Traffic Fine">Traffic Fine</option>
+                        <option value="Salik Fine">Salik Fine</option>
+                        <option value="Parking Fine">Parking Fine</option>
+                        <option value="Speed Camera">Speed Camera</option>
+                        <option value="Red Light Fine">Red Light Fine</option>
+                        <option value="Overloading Fine">Overloading Fine</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Amount (AED) <span style="color:red">*</span></label>
+                    <input type="number" step="0.01" name="fine_amount" class="form-control" required placeholder="0.00">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Status</label>
+                    <select name="fine_status" class="form-control">
+                        <option value="Pending">⏳ Pending</option>
+                        <option value="Paid">✅ Paid</option>
+                        <option value="Contested">🔄 Contested</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="fine_location" class="form-control" placeholder="e.g. Sheikh Zayed Road">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Attachment</label>
+                    <input type="file" name="fine_attachment" class="form-control" accept="image/*,.pdf">
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="fine_description" class="form-control" placeholder="e.g. Speeding 140km/h in 120 zone">
+                </div>
+                <div class="form-row" style="grid-column:1/-1">
+                    <label class="form-label">Notes</label>
+                    <input type="text" name="notes" class="form-control" placeholder="Internal notes...">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:12px;background:#dc2626;border-color:#dc2626">🚦 Record Fine</button>
+        </form>
+    </div>
+
+    {% if traffic_fines %}
+    <div class="profile-card" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h3 style="margin:0;font-size:0.95rem">Traffic Fine History</h3>
+            <div style="display:flex;gap:12px;font-size:0.8rem">
+                <span style="color:var(--muted)">Total: <strong style="color:#dc2626">AED {{ "%.2f"|format(fines_total) }}</strong></span>
+                <span style="color:var(--muted)">Paid: <strong style="color:#16a34a">AED {{ "%.2f"|format(fines_paid) }}</strong></span>
+                <span style="color:var(--muted)">Pending: <strong style="color:#e65100">AED {{ "%.2f"|format(fines_pending) }}</strong></span>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Location</th>
+                        <th>Description</th>
+                        <th>Attachment</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in traffic_fines %}
+                    <tr>
+                        <td class="mono">{{ f.fine_date }}</td>
+                        <td><span class="badge" style="background:#fee2e2;color:#dc2626">{{ f.fine_type }}</span></td>
+                        <td class="mono" style="font-weight:600;color:#dc2626">AED {{ "%.2f"|format(f.fine_amount) }}</td>
+                        <td>
+                            {% if f.fine_status == 'Paid' %}
+                            <span class="badge" style="background:#dcfce7;color:#16a34a">✅ Paid</span>
+                            {% elif f.fine_status == 'Contested' %}
+                            <span class="badge" style="background:#fef3c7;color:#d97706">🔄 Contested</span>
+                            {% elif f.fine_status == 'Closed' %}
+                            <span class="badge" style="background:#f1f5f9;color:#64748b">Closed</span>
+                            {% else %}
+                            <span class="badge" style="background:#fee2e2;color:#dc2626">⏳ Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ f.fine_location or '—' }}</td>
+                        <td>{{ f.fine_description or '—' }}</td>
+                        <td>
+                            {% if f.attachment_data %}
+                            <a href="{{ url_for('fleet.vehicle_traffic_fine_attachment', plate_no=v.plate_no, fine_id=f.id) }}" target="_blank" style="color:var(--primary);font-size:0.78rem">📎 View</a>
+                            {% else %}
+                            <span style="color:var(--muted);font-size:0.78rem">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="{{ url_for('fleet.vehicle_traffic_fine_delete', plate_no=v.plate_no, fine_id=f.id) }}" onsubmit="return confirm('Delete this fine entry?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:0.8rem" title="Delete">🗑️</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="profile-card" style="margin-top:16px;text-align:center;padding:40px">
+        <div style="font-size:2rem;margin-bottom:8px">🚦</div>
+        <div style="font-weight:600;color:var(--muted)">No traffic fines recorded</div>
+        <div style="font-size:0.82rem;color:var(--muted)">Add a fine using the form above.</div>
+    </div>
+    {% endif %}
+
+    {# ═══════ EXPENSES SUMMARY ═══════ #}
+    {% elif active_tab == 'expenses' %}
+    <div class="profile-card">
+        <h3 style="margin:0 0 16px;font-size:1.1rem">💰 Vehicle Expenses Summary</h3>
+        <p style="color:var(--muted);font-size:0.85rem;margin:0 0 16px">All costs for this vehicle in one place: Fuel, Maintenance, Parts, Traffic Fines, Registration Fees, etc.</p>
+        
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px">
+            <div style="background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;border-radius:14px;padding:18px;text-align:center">
+                <div style="font-size:1.6rem">⛽</div>
+                <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">Fuel</div>
+                <div style="font-size:1.2rem;font-weight:800;color:#e65100">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#eff6ff,#bfdbfe);border:1px solid #93c5fd;border-radius:14px;padding:18px;text-align:center">
+                <div style="font-size:1.6rem">🔧</div>
+                <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">Maintenance</div>
+                <div style="font-size:1.2rem;font-weight:800;color:#1d4ed8">AED {{ "%.0f"|format(v.total_cost or 0) }}</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#f0fdf4,#bbf7d0);border:1px solid #86efac;border-radius:14px;padding:18px;text-align:center">
+                <div style="font-size:1.6rem">📦</div>
+                <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">Parts</div>
+                <div style="font-size:1.2rem;font-weight:800;color:#16a34a">AED {{ "%.0f"|format(parts_total_amount) }}</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#fef2f2,#fecaca);border:1px solid #fca5a5;border-radius:14px;padding:18px;text-align:center">
+                <div style="font-size:1.6rem">🚦</div>
+                <div style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px">Fines</div>
+                <div style="font-size:1.2rem;font-weight:800;color:#dc2626">AED {{ "%.0f"|format(fines_total) }}</div>
+            </div>
+        </div>
+
+        <div style="background:#f8fafc;border-radius:14px;padding:20px;border:1px solid #e2e8f0">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:2px solid #e2e8f0">
+                <span style="font-size:1.1rem;font-weight:700">TOTAL VEHICLE COST</span>
+                <span style="font-size:1.5rem;font-weight:800;color:var(--primary)">AED {{ "%.0f"|format(fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) }}</span>
+            </div>
+            <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;font-size:0.85rem">
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">⛽ Fuel</span><span style="font-weight:600">{{ "%.1f"|format((fuel_total_amount / (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) * 100) if (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) > 0 else 0) }}%</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🔧 Maintenance</span><span style="font-weight:600">{{ "%.1f"|format(((v.total_cost or 0) / (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) * 100) if (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) > 0 else 0) }}%</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">📦 Parts</span><span style="font-weight:600">{{ "%.1f"|format((parts_total_amount / (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) * 100) if (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) > 0 else 0) }}%</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🚦 Fines</span><span style="font-weight:600">{{ "%.1f"|format((fines_total / (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) * 100) if (fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total) > 0 else 0) }}%</span></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <style>
