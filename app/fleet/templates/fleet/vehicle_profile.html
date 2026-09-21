@@ -5,43 +5,62 @@
 
 {% block content %}
 <style>
-.vp-tabs {
-    display: flex; gap: 4px; margin-bottom: 20px;
-    background: #f0f2f5; border-radius: 10px; padding: 4px;
-}
-.vp-tab {
-    flex: 1; text-align: center; padding: 10px 16px;
-    font-size: 0.85rem; font-weight: 600; color: #666;
-    text-decoration: none; border-radius: 8px;
-    transition: all 0.15s;
-}
-.vp-tab:hover { color: var(--primary); background: rgba(28,86,139,0.06); }
-.vp-tab.is-active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-@media (max-width:640px){.responsive-four-grid{grid-template-columns:1fr 1fr !important;}}
-.vp-kpi{border-radius:14px;padding:20px;text-align:center;position:relative;overflow:hidden}
-.vp-kpi::after{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.15)}
-.vp-kpi-icon{font-size:1.6rem;margin-bottom:6px}
-.vp-kpi-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;opacity:0.8;margin-bottom:4px}
-.vp-kpi-value{font-size:1.5rem;font-weight:800}
-.vp-section-title{font-size:0.82rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:24px 0 12px;color:var(--muted)}
-.vp-form-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
-.vp-form-header{padding:16px 20px;background:linear-gradient(135deg,var(--primary),#1a4a7a);color:#fff;display:flex;align-items:center;gap:10px}
-.vp-form-header h3{margin:0;font-size:0.95rem;font-weight:700;color:#fff}
-.vp-form-body{padding:18px 20px}
-.vp-job-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:12px;transition:all .2s;cursor:pointer}
-.vp-job-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.08);transform:translateY(-1px)}
-.vp-job-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.vp-job-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.vp-fine-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:12px;transition:all .2s}
-.vp-fine-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.08)}
-.vp-expense-bar{height:12px;border-radius:6px;overflow:hidden;display:flex;background:#f1f5f9}
-.vp-expense-bar>div{height:100%;transition:width .3s}
-.vp-hero-avatar{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;color:#fff;flex-shrink:0}
-.vp-hero-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+/* ── Tab Bar ── */
+.vp-tabs{display:flex;gap:2px;margin-bottom:24px;background:#f8f9fb;border-radius:12px;padding:4px;border:1px solid #e9ecef}
+.vp-tab{flex:1;text-align:center;padding:11px 10px;font-size:0.8rem;font-weight:600;color:#868e96;text-decoration:none;border-radius:9px;transition:all .2s;letter-spacing:-0.1px}
+.vp-tab:hover{color:#495057;background:rgba(0,0,0,.03)}
+.vp-tab.is-active{background:#fff;color:var(--primary,#1c568b);box-shadow:0 1px 4px rgba(0,0,0,.08);font-weight:700}
+@media (max-width:640px){.responsive-four-grid{grid-template-columns:1fr 1fr !important;}.vp-tab{font-size:0.7rem;padding:8px 6px}}
+
+/* ── KPI Row ── */
+.vp-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+@media (max-width:800px){.vp-kpi-row{grid-template-columns:repeat(2,1fr)}}
+.vp-kpi{background:#fff;border:1px solid #e9ecef;border-radius:12px;padding:18px 16px;text-align:center;transition:all .2s}
+.vp-kpi:hover{box-shadow:0 4px 16px rgba(0,0,0,.06);transform:translateY(-1px)}
+.vp-kpi-icon{font-size:1.3rem;margin-bottom:6px;opacity:.85}
+.vp-kpi-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:.5px;color:#868e96;font-weight:600;margin-bottom:4px}
+.vp-kpi-value{font-size:1.35rem;font-weight:800;color:#212529;line-height:1.2}
+
+/* ── Section Card ── */
+.vp-card{background:#fff;border:1px solid #e9ecef;border-radius:14px;overflow:hidden;margin-bottom:16px}
+.vp-card-head{padding:16px 20px;border-bottom:1px solid #f1f3f5;display:flex;align-items:center;justify-content:space-between}
+.vp-card-head h3{margin:0;font-size:0.92rem;font-weight:700;color:#212529}
+.vp-card-body{padding:20px}
+
+/* ── Info Grid ── */
+.vp-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:700px){.vp-info-grid{grid-template-columns:1fr}}
+.vp-info-item{display:flex;flex-direction:column;gap:2px}
+.vp-info-label{font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.3px;color:#adb5bd}
+.vp-info-value{font-size:0.88rem;font-weight:600;color:#212529}
+
+/* ── Driver Hero ── */
+.vp-driver-hero{display:flex;align-items:center;gap:18px;padding:24px;background:#fff;border:1px solid #e9ecef;border-radius:14px;margin-bottom:16px}
+.vp-driver-avatar{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-size:1.2rem;font-weight:700;color:#fff;background:var(--primary,#1c568b);flex-shrink:0}
+
+/* ── Job Card ── */
+.vp-job-item{padding:14px 18px;border:1px solid #e9ecef;border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all .15s}
+.vp-job-item:hover{background:#f8f9fb;border-color:#dee2e6}
+
+/* ── Fine Item ── */
+.vp-fine-item{padding:14px 18px;border:1px solid #e9ecef;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+
+/* ── Expense Bar ── */
+.vp-bar{height:10px;border-radius:5px;overflow:hidden;display:flex;background:#f1f3f5}
+.vp-bar>div{height:100%;transition:width .3s}
+
+/* ── Summary Row ── */
+.vp-summary{padding:14px 20px;background:#f8f9fb;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-top:14px;border:1px solid #e9ecef}
+
+/* ── Form Rows ── */
+.vp-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end}
+.vp-form-grid>div>label{display:block;font-size:0.7rem;font-weight:600;color:#868e96;margin-bottom:4px}
+@media (max-width:640px){.vp-form-grid{grid-template-columns:1fr 1fr}}
 </style>
+
 <div class="profile-shell">
 
-    {# ─── Header ─── #}
+    {# ─── HEADER ─── #}
     <div class="profile-header" style="border-left:4px solid var(--primary)">
         <div class="profile-avatar">
             <div class="avatar-placeholder" style="width:70px;height:70px;font-size:1.2rem;background:var(--primary)">{{ v.plate_no[:2] }}</div>
@@ -73,249 +92,148 @@
         </div>
     </div>
 
-    {# ─── Tabs ─── #}
+    {# ─── TABS ─── #}
     <div class="vp-tabs">
         <a class="vp-tab {% if active_tab == 'overview' %}is-active{% endif %}" href="?tab=overview">Overview</a>
         <a class="vp-tab {% if active_tab == 'driver' %}is-active{% endif %}" href="?tab=driver">Driver</a>
-        <a class="vp-tab {% if active_tab == 'jobs' %}is-active{% endif %}" href="?tab=jobs">Maintenance Jobs</a>
+        <a class="vp-tab {% if active_tab == 'jobs' %}is-active{% endif %}" href="?tab=jobs">Jobs</a>
         <a class="vp-tab {% if active_tab == 'documents' %}is-active{% endif %}" href="?tab=documents">Documents</a>
         <a class="vp-tab {% if active_tab == 'fuel' %}is-active{% endif %}" href="?tab=fuel">Fuel</a>
         <a class="vp-tab {% if active_tab == 'parts' %}is-active{% endif %}" href="?tab=parts">Parts</a>
-        <a class="vp-tab {% if active_tab == 'fines' %}is-active{% endif %}" href="?tab=fines">🚦 Fines</a>
-        <a class="vp-tab {% if active_tab == 'expenses' %}is-active{% endif %}" href="?tab=expenses">💰 Expenses</a>
+        <a class="vp-tab {% if active_tab == 'fines' %}is-active{% endif %}" href="?tab=fines">Fines</a>
+        <a class="vp-tab {% if active_tab == 'expenses' %}is-active{% endif %}" href="?tab=expenses">Expenses</a>
     </div>
 
-    {# ═══════ OVERVIEW ═══════ #}
+    {# ═══════════════════════════════════════════ OVERVIEW ═══ #}
     {% if active_tab == 'overview' %}
 
-    {# ── KPI Cards ── #}
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff">
-            <div class="vp-kpi-icon">🔧</div>
-            <div class="vp-kpi-label">Jobs</div>
-            <div class="vp-kpi-value">{{ v.job_count }}</div>
-        </div>
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff">
-            <div class="vp-kpi-icon">💰</div>
-            <div class="vp-kpi-label">Total Cost</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(v.total_cost) }}</div>
-        </div>
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">
-            <div class="vp-kpi-icon">⛽</div>
-            <div class="vp-kpi-label">Fuel Cost</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
-        </div>
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff">
-            <div class="vp-kpi-icon">📦</div>
-            <div class="vp-kpi-label">Parts Cost</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(parts_total_net) }}</div>
-        </div>
+    <div class="vp-kpi-row">
+        <div class="vp-kpi"><div class="vp-kpi-icon">🔧</div><div class="vp-kpi-label">Jobs</div><div class="vp-kpi-value">{{ v.job_count }}</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">💰</div><div class="vp-kpi-label">Total Cost</div><div class="vp-kpi-value" style="color:#e65100">AED {{ "%.0f"|format(v.total_cost) }}</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">⛽</div><div class="vp-kpi-label">Fuel</div><div class="vp-kpi-value" style="color:#e65100">AED {{ "%.0f"|format(fuel_total_amount) }}</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">📦</div><div class="vp-kpi-label">Parts</div><div class="vp-kpi-value" style="color:#1565C0">AED {{ "%.0f"|format(parts_total_net) }}</div></div>
     </div>
 
-    {# ── Middle: Two-Column Layout ── #}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        {# Left Column #}
-        <div style="display:flex;flex-direction:column;gap:16px">
-            {# Vehicle Information #}
-            <div class="profile-card">
-                <h3 style="margin:0 0 12px;font-size:0.95rem">Vehicle Information</h3>
-                <table class="info-table" style="width:100%">
-                    <tr><td style="width:40%">Plate Number</td><td class="mono" style="font-weight:600">{{ v.plate_no }}</td></tr>
-                    <tr><td>Type</td><td>{{ v.vehicle_type }}</td></tr>
-                    <tr><td>Model</td><td>{{ v.model or '—' }}</td></tr>
-                    <tr><td>Year</td><td>{{ v.year or '—' }}</td></tr>
-                    <tr><td>Status</td><td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td></tr>
-                </table>
+    <div class="vp-info-grid">
+        <div>
+            <div class="vp-card">
+                <div class="vp-card-head"><h3>Vehicle Information</h3></div>
+                <div class="vp-card-body">
+                    <div class="vp-info-grid" style="gap:16px">
+                        <div class="vp-info-item"><span class="vp-info-label">Plate Number</span><span class="vp-info-value mono">{{ v.plate_no }}</span></div>
+                        <div class="vp-info-item"><span class="vp-info-label">Type</span><span class="vp-info-value">{{ v.vehicle_type }}</span></div>
+                        <div class="vp-info-item"><span class="vp-info-label">Model</span><span class="vp-info-value">{{ v.model or '—' }}</span></div>
+                        <div class="vp-info-item"><span class="vp-info-label">Year</span><span class="vp-info-value">{{ v.year or '—' }}</span></div>
+                        <div class="vp-info-item"><span class="vp-info-label">Status</span><span class="vp-info-value"><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></span></div>
+                        <div class="vp-info-item"><span class="vp-info-label">Ownership</span><span class="vp-info-value">{{ v.ownership_type }}{% if v.ownership_type == 'Partnership' %} — {{ v.partner_name }} ({{ "%.0f"|format(v.partner_percent) }}%){% endif %}</span></div>
+                    </div>
+                </div>
             </div>
-            {# Ownership #}
-            <div class="profile-card">
-                <h3 style="margin:0 0 12px;font-size:0.95rem">Ownership</h3>
-                <table class="info-table" style="width:100%">
-                    <tr><td style="width:40%">Type</td><td><strong>{{ v.ownership_type }}</strong></td></tr>
-                    {% if v.ownership_type == 'Partnership' %}
-                    <tr><td>Partner</td><td><strong>{{ v.partner_name }}</strong></td></tr>
-                    <tr><td>Share</td><td><strong>{{ "%.0f"|format(v.partner_percent) }}%</strong></td></tr>
+        </div>
+        <div>
+            <div class="vp-card">
+                <div class="vp-card-head"><h3>Current Driver{{ 's' if current_drivers|length > 1 else '' }}</h3></div>
+                <div class="vp-card-body">
+                    {% if current_drivers %}
+                    {% for cd in current_drivers %}
+                    <div style="display:flex;align-items:center;gap:14px;{% if not loop.last %}margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f1f3f5{% endif %}">
+                        <div style="width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:1rem;font-weight:700;color:#fff;background:var(--primary);flex-shrink:0">{{ cd.driver_name[:1]|upper }}</div>
+                        <div><div style="font-weight:700">{{ cd.driver_name }}</div><div class="mono" style="font-size:0.78rem;color:#868e96">{{ cd.driver_id }} &middot; Since {{ cd.assigned_from }}</div></div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p style="color:#adb5bd;text-align:center;padding:20px">No driver assigned.</p>
                     {% endif %}
-                </table>
-            </div>
-        </div>
-        {# Right Column #}
-        <div style="display:flex;flex-direction:column;gap:16px">
-            {# Current Driver #}
-            <div class="profile-card">
-                <h3 style="margin:0 0 12px;font-size:0.95rem">Current Driver{{ 's' if current_drivers|length > 1 else '' }}</h3>
-                {% if current_drivers %}
-                {% for cd in current_drivers %}
-                <div style="display:flex;align-items:center;gap:14px;{% if not loop.last %}margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #eee{% endif %}">
-                    <div class="emp-avatar-letter" style="width:52px;height:52px;font-size:1.1rem;background:linear-gradient(135deg,var(--primary),#1a4a7a);color:#fff;border-radius:50%">{{ cd.driver_name[:1]|upper }}</div>
-                    <div style="flex:1">
-                        <div style="font-weight:700;font-size:0.95rem">{{ cd.driver_name }}</div>
-                        <div class="mono" style="font-size:0.78rem;color:var(--muted)">{{ cd.driver_id }}</div>
-                        <div style="font-size:0.78rem;color:var(--muted)">Since {{ cd.assigned_from }}</div>
-                    </div>
-                </div>
-                {% endfor %}
-                {% else %}
-                <p class="empty-state" style="padding:20px">No driver assigned.</p>
-                {% endif %}
-            </div>
-            {# Status Badge #}
-            <div class="profile-card">
-                <h3 style="margin:0 0 12px;font-size:0.95rem">Status</h3>
-                <div style="display:flex;align-items:center;gap:12px">
-                    <span class="status-badge {{ v.status|lower }}" style="font-size:1rem;padding:8px 20px">{{ v.status }}</span>
-                    <div style="font-size:0.82rem;color:var(--muted)">
-                        {% if v.status == 'Active' %}Vehicle is in service
-                        {% elif v.status == 'Maintenance' %}Currently under maintenance
-                        {% elif v.status == 'Inactive' %}Vehicle is out of service
-                        {% else %}Current status{% endif %}
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    {# ── Bottom: Linked Vehicles ── #}
     {% if linked_vehicles %}
-    <div style="margin-top:20px;padding:14px 18px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1px solid #bae6fd;border-radius:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <svg viewBox="0 0 20 20" fill="none" stroke="#0284c7" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
-        <span style="font-weight:600;color:#0284c7;font-size:0.9rem">Linked Vehicles:</span>
-        {% for lv in linked_vehicles %}
-        <a href="{{ url_for('fleet.vehicle_edit', plate_no=lv.plate_no) }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:#fff;border:1px solid #bae6fd;border-radius:6px;text-decoration:none;color:#0369a1;font-weight:600;font-size:0.85rem">
-            {{ lv.plate_no }}
-            <span style="font-weight:400;color:#64748b;font-size:0.78rem">{{ lv.vehicle_type }}</span>
-            {% if lv.link_type %}<span style="font-size:0.72rem;color:#94a3b8">({{ lv.link_type }})</span>{% endif %}
-        </a>
-        {% endfor %}
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Linked Vehicles</h3></div>
+        <div class="vp-card-body" style="display:flex;gap:10px;flex-wrap:wrap">
+            {% for lv in linked_vehicles %}
+            <a href="{{ url_for('fleet.vehicle_profile', plate_no=lv.plate_no) }}" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#f8f9fb;border:1px solid #e9ecef;border-radius:8px;text-decoration:none;color:#212529;font-weight:600;font-size:0.85rem;transition:all .15s">
+                {{ lv.plate_no }} <span style="font-weight:400;color:#868e96;font-size:0.78rem">{{ lv.vehicle_type }}</span>
+                {% if lv.link_type %}<span style="font-size:0.72rem;color:#adb5bd">({{ lv.link_type }})</span>{% endif %}
+            </a>
+            {% endfor %}
+        </div>
     </div>
     {% endif %}
 
     {% if v.linked_plate_no and v.linked_plate_no != '' %}
-    <div style="margin-top:16px;padding:14px 16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:12px">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
-            <svg viewBox="0 0 20 20" fill="none" stroke="#16a34a" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
-            <span style="font-weight:600;color:#16a34a;font-size:0.9rem">Linked to Head:</span>
-            <a href="{{ url_for('fleet.vehicle_profile', plate_no=v.linked_plate_no) }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:#fff;border:1px solid #86efac;border-radius:6px;text-decoration:none;color:#15803d;font-weight:600;font-size:0.85rem">
-                {{ v.linked_plate_no }}
-                {% if v.link_type %}<span style="font-size:0.72rem;color:#94a3b8">({{ v.link_type }})</span>{% endif %}
-            </a>
-            <button onclick="document.getElementById('linkSection').style.display=document.getElementById('linkSection').style.display==='none'?'block':'none'" style="padding:4px 10px;background:#fff;border:1px solid #fbbf24;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#b45309;font-weight:600">✏️ Change</button>
-            <form method="POST" action="{{ url_for('fleet.vehicle_unlink', plate_no=v.plate_no) }}" onsubmit="return confirm('Unlink this vehicle from Head {{ v.linked_plate_no }}?')">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" style="padding:4px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-size:0.78rem;color:#c62828;font-weight:600">🔗 Unlink</button>
-            </form>
+    <div class="vp-card">
+        <div class="vp-card-head">
+            <h3>Linked to Head: <a href="{{ url_for('fleet.vehicle_profile', plate_no=v.linked_plate_no) }}" style="color:var(--primary);text-decoration:none">{{ v.linked_plate_no }}</a>{% if v.link_type %} <span style="font-weight:400;color:#868e96;font-size:0.8rem">({{ v.link_type }})</span>{% endif %}</h3>
+            <div style="display:flex;gap:8px">
+                <button onclick="var s=document.getElementById('linkSection');s.style.display=s.style.display==='none'?'block':'none'" class="btn btn-outline btn-sm">Change</button>
+                <form method="POST" action="{{ url_for('fleet.vehicle_unlink', plate_no=v.plate_no) }}" onsubmit="return confirm('Unlink from {{ v.linked_plate_no }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline btn-sm" style="color:#dc3545;border-color:#dc3545">Unlink</button>
+                </form>
+            </div>
         </div>
-        <div id="linkSection" style="display:none;margin-top:8px;padding:12px;background:#fff;border:1px solid #d1fae5;border-radius:10px">
-            <form method="POST" action="{{ url_for('fleet.vehicle_link_to_head', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div id="linkSection" style="display:none" class="vp-card-body">
+            <form method="POST" action="{{ url_for('fleet.vehicle_link_to_head', plate_no=v.plate_no) }}" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div style="flex:1;min-width:150px">
-                    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">New Head Vehicle</label>
-                    <select name="head_plate_no" class="form-control" required style="width:100%">
-                        <option value="">— Select Head —</option>
-                        {% for hv in head_vehicles %}
-                        <option value="{{ hv.plate_no }}" {% if v.linked_plate_no == hv.plate_no %}selected{% elif hv.plate_no in already_linked and hv.plate_no != v.linked_plate_no %}disabled{% endif %}>{{ hv.plate_no }} — {{ hv.vehicle_type }}{% if hv.model %} ({{ hv.model }}){% endif %}{% if hv.plate_no in already_linked and hv.plate_no != v.linked_plate_no %} ⛔{% endif %}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div style="min-width:120px">
-                    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">Link Type</label>
-                    <select name="link_type" class="form-control" style="width:100%">
-                        {% for lt in link_types %}
-                        <option value="{{ lt }}" {% if v.link_type == lt %}selected{% endif %}>{{ lt or '— None —' }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="submit" style="padding:7px 16px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.82rem;white-space:nowrap">💾 Save Link</button>
+                <div style="flex:1;min-width:160px"><label class="form-label">New Head</label><select name="head_plate_no" class="form-control" required><option value="">Select Head</option>{% for hv in head_vehicles %}<option value="{{ hv.plate_no }}" {% if v.linked_plate_no == hv.plate_no %}selected{% elif hv.plate_no in already_linked and hv.plate_no != v.linked_plate_no %}disabled{% endif %}>{{ hv.plate_no }} — {{ hv.vehicle_type }}</option>{% endfor %}</select></div>
+                <div style="min-width:130px"><label class="form-label">Link Type</label><select name="link_type" class="form-control">{% for lt in link_types %}<option value="{{ lt }}" {% if v.link_type == lt %}selected{% endif %}>{{ lt or 'None' }}</option>{% endfor %}</select></div>
+                <button type="submit" class="btn btn-primary btn-sm">Save</button>
             </form>
         </div>
     </div>
     {% else %}
-    <div style="margin-top:16px;padding:14px 16px;background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;border-radius:12px">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
-            <svg viewBox="0 0 20 20" fill="none" stroke="#e65100" stroke-width="2" width="18" height="18"><path d="M8 3v2m4-2v2M3 7h14M5 7v8a2 2 0 002 2h6a2 2 0 002-2V7"/><circle cx="7" cy="17" r="1.5"/><circle cx="13" cy="17" r="1.5"/></svg>
-            <span style="font-weight:600;color:#e65100;font-size:0.9rem">Not linked to any Head</span>
+    <div class="vp-card">
+        <div class="vp-card-head">
+            <h3 style="color:#e65100">Not linked to any Head</h3>
+            <button onclick="var s=document.getElementById('linkSectionNew');s.style.display=s.style.display==='none'?'block':'none'" class="btn btn-outline btn-sm" style="border-color:#e65100;color:#e65100">Link to Head</button>
         </div>
-        <button onclick="document.getElementById('linkSectionNew').style.display=document.getElementById('linkSectionNew').style.display==='none'?'block':'none'" style="padding:5px 14px;background:#fff;border:1px solid #f97316;border-radius:8px;cursor:pointer;font-size:0.78rem;color:#c2410c;font-weight:600">🔗 Link to Head</button>
-        <div id="linkSectionNew" style="display:none;margin-top:10px;padding:12px;background:#fff;border:1px solid #fed7aa;border-radius:10px">
-            <form method="POST" action="{{ url_for('fleet.vehicle_link_to_head', plate_no=v.plate_no) }}" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div id="linkSectionNew" style="display:none" class="vp-card-body">
+            <form method="POST" action="{{ url_for('fleet.vehicle_link_to_head', plate_no=v.plate_no) }}" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div style="flex:1;min-width:150px">
-                    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">Select Head Vehicle</label>
-                    <select name="head_plate_no" class="form-control" required style="width:100%">
-                        <option value="">— Select Head —</option>
-                        {% for hv in head_vehicles %}
-                        <option value="{{ hv.plate_no }}" {% if hv.plate_no in already_linked %}disabled{% endif %}>{{ hv.plate_no }} — {{ hv.vehicle_type }}{% if hv.model %} ({{ hv.model }}){% endif %}{% if hv.plate_no in already_linked %} ⛔{% endif %}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div style="min-width:120px">
-                    <label style="font-size:0.7rem;color:var(--muted);display:block;margin-bottom:3px;font-weight:600">Link Type</label>
-                    <select name="link_type" class="form-control" style="width:100%">
-                        {% for lt in link_types %}
-                        <option value="{{ lt }}">{{ lt or '— None —' }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="submit" style="padding:7px 16px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.82rem;white-space:nowrap">💾 Save Link</button>
+                <div style="flex:1;min-width:160px"><label class="form-label">Select Head</label><select name="head_plate_no" class="form-control" required><option value="">Select Head</option>{% for hv in head_vehicles %}<option value="{{ hv.plate_no }}" {% if hv.plate_no in already_linked %}disabled{% endif %}>{{ hv.plate_no }} — {{ hv.vehicle_type }}</option>{% endfor %}</select></div>
+                <div style="min-width:130px"><label class="form-label">Link Type</label><select name="link_type" class="form-control">{% for lt in link_types %}<option value="{{ lt }}">{{ lt or 'None' }}</option>{% endfor %}</select></div>
+                <button type="submit" class="btn btn-primary btn-sm">Save</button>
             </form>
         </div>
     </div>
     {% endif %}
 
-    {# ═══════ DRIVER ═══════ #}
+    {# ═══════════════════════════════════════════ DRIVER ═══ #}
     {% elif active_tab == 'driver' %}
 
-    {# Current Driver Hero #}
     {% if current_drivers %}
     {% for cd in current_drivers %}
-    <div class="vp-hero-card" style="margin-bottom:16px;border-left:4px solid var(--primary)">
-        <div class="vp-hero-avatar" style="background:linear-gradient(135deg,var(--primary),#1a4a7a)">{{ cd.driver_name[:1]|upper }}</div>
+    <div class="vp-driver-hero">
+        <div class="vp-driver-avatar">{{ cd.driver_name[:1]|upper }}</div>
         <div style="flex:1">
-            <div style="font-size:1.1rem;font-weight:700">{{ cd.driver_name }}</div>
-            <div class="mono" style="font-size:0.82rem;color:var(--muted)">{{ cd.driver_id }}</div>
-            <div style="font-size:0.82rem;color:var(--muted);margin-top:2px">Assigned since {{ cd.assigned_from }}</div>
+            <div style="font-size:1.05rem;font-weight:700">{{ cd.driver_name }}</div>
+            <div class="mono" style="font-size:0.82rem;color:#868e96">{{ cd.driver_id }} &middot; Assigned {{ cd.assigned_from }}</div>
         </div>
-        <a href="{{ url_for('hr.employee_detail', employee_id=cd.driver_id) }}" class="btn btn-primary btn-sm">View Profile →</a>
+        <a href="{{ url_for('hr.employee_detail', employee_id=cd.driver_id) }}" class="btn btn-primary btn-sm">View Profile</a>
     </div>
     {% endfor %}
     {% endif %}
 
-    {# Assign / Replace Form #}
-    <div class="vp-form-card">
-        <div class="vp-form-header">
-            <span style="font-size:1.3rem">👤</span>
-            <h3>Assign / Replace Driver</h3>
-        </div>
-        <div class="vp-form-body">
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Assign / Replace Driver</h3></div>
+        <div class="vp-card-body">
             <form method="POST" action="{{ url_for('fleet.vehicle_assign_driver', plate_no=v.plate_no) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end">
-                    <div class="form-row">
-                        <label class="form-label">Driver</label>
-                        <select name="driver_id" class="form-control" required>
-                            <option value="">— Select —</option>
-                            {% for d in all_drivers %}
-                            <option value="{{ d.employee_id }}">{{ d.full_name }} ({{ d.employee_id }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">Effective From</label>
-                        <input type="date" name="assigned_from" value="{{ date.today().isoformat() }}" class="form-control">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Assign Driver</button>
+                <div class="vp-form-grid">
+                    <div><label class="form-label">Driver</label><select name="driver_id" class="form-control" required><option value="">Select Driver</option>{% for d in all_drivers %}<option value="{{ d.employee_id }}">{{ d.full_name }} ({{ d.employee_id }})</option>{% endfor %}</select></div>
+                    <div><label class="form-label">Effective From</label><input type="date" name="assigned_from" value="{{ date.today().isoformat() }}" class="form-control"></div>
+                    <div><button type="submit" class="btn btn-primary">Assign Driver</button></div>
                 </div>
             </form>
         </div>
     </div>
 
-    {# Driver History #}
-    <div class="vp-form-card" style="margin-top:16px">
-        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
-            <span style="font-size:1.3rem">📋</span>
-            <h3>Driver History</h3>
-        </div>
-        <div class="vp-form-body">
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Driver History</h3></div>
+        <div class="vp-card-body">
             {% if driver_history %}
             <table class="smart-table">
                 <thead><tr><th>Driver</th><th>From</th><th>Until</th></tr></thead>
@@ -330,465 +248,286 @@
                 </tbody>
             </table>
             {% else %}
-            <p class="empty-state">No driver history.</p>
+            <p style="color:#adb5bd;text-align:center;padding:20px">No driver history.</p>
             {% endif %}
         </div>
     </div>
 
-    {# ═══════ MAINTENANCE JOBS ═══════ #}
+    {# ═══════════════════════════════════════════ MAINTENANCE JOBS ═══ #}
     {% elif active_tab == 'jobs' %}
 
-    {# Add Maintenance Form #}
-    <div class="vp-form-card">
-        <div class="vp-form-header">
-            <span style="font-size:1.3rem">🔧</span>
-            <h3>Add Maintenance Entry</h3>
-        </div>
-        <div class="vp-form-body">
-            <form method="POST" action="{{ url_for('fleet.vehicle_add_maintenance', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px 14px;align-items:end" class="responsive-four-grid">
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Add Maintenance Entry</h3></div>
+        <div class="vp-card-body">
+            <form method="POST" action="{{ url_for('fleet.vehicle_add_maintenance', plate_no=v.plate_no) }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Date</label>
-                    <input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:8px 10px;font-size:0.85rem">
+                <div class="vp-form-grid">
+                    <div><label class="form-label">Date</label><input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control"></div>
+                    <div><label class="form-label">Category</label><input type="text" name="category" placeholder="Engine, Tire, Brake..." list="catList" class="form-control"><datalist id="catList"><option value="Engine"><option value="Tire"><option value="Service"><option value="Brake"><option value="AC"><option value="Electrical"><option value="Body"><option value="Other"></datalist></div>
+                    <div><label class="form-label">Amount (AED)</label><input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control"></div>
+                    <div><label class="form-label">Attachment</label><input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.webp" style="font-size:0.82rem"></div>
+                    <div style="grid-column:1/-1"><label class="form-label">Description</label><input type="text" name="description" placeholder="Optional description" class="form-control"></div>
                 </div>
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Category</label>
-                    <input type="text" name="category" placeholder="e.g. Engine" list="catList" class="form-control" style="padding:8px 10px;font-size:0.85rem">
-                    <datalist id="catList">
-                        <option value="Engine"><option value="Tire"><option value="Service">
-                        <option value="Brake"><option value="AC"><option value="Electrical">
-                        <option value="Body"><option value="Other">
-                    </datalist>
-                </div>
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Amount (AED)</label>
-                    <input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem">
-                </div>
-                <div style="display:flex;gap:6px;align-items:end">
-                    <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.webp" style="flex:1;font-size:0.78rem">
-                    <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap">+ Add</button>
-                </div>
-                <div style="grid-column:1/-1">
-                    <input type="text" name="description" placeholder="Description (optional)" class="form-control" style="padding:8px 10px;font-size:0.85rem">
-                </div>
+                <div style="margin-top:12px"><button type="submit" class="btn btn-primary">Add Entry</button></div>
             </form>
         </div>
     </div>
 
-    {# Jobs List #}
-    <div class="vp-form-card" style="margin-top:16px">
-        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
-            <span style="font-size:1.3rem">📋</span>
-            <h3>Approved Maintenance Jobs</h3>
-            <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;margin-left:auto">{{ approved_jobs|length }} jobs</span>
+    <div class="vp-card">
+        {% set all_entries = approved_jobs + maintenance_papers_list %}
+        <div class="vp-card-head">
+            <h3>Maintenance Jobs</h3>
+            <span style="font-size:0.78rem;color:#868e96;font-weight:600">{{ all_entries|length }} entries</span>
         </div>
-        <div class="vp-form-body">
-            {% set all_entries = approved_jobs + maintenance_papers_list %}
+        <div class="vp-card-body">
             {% if all_entries %}
             {% set hl = highlight|string %}
             {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
             {% set is_hl = (j.id|string == hl) %}
-            <div class="vp-job-card{% if is_hl %} highlight-row{% endif %}" id="entry-row-{{ loop.index }}" onclick="togglePaper('paper-detail-{{ loop.index }}')">
-                <div class="vp-job-header">
-                    <div class="vp-job-meta">
-                        <span class="mono" style="font-size:0.85rem;font-weight:600">{{ (j.created_at or '')|string|truncate(10, True, '') }}</span>
-                        <span style="color:var(--muted);font-size:0.8rem">•</span>
-                        <span style="font-weight:600">{{ j.staff_name or '-' }}</span>
+            <div class="vp-job-item{% if is_hl %} highlight-row{% endif %}" id="entry-row-{{ loop.index }}" onclick="togglePaper('paper-detail-{{ loop.index }}')">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <span class="mono" style="font-size:0.82rem;font-weight:600;color:#495057">{{ (j.created_at or '')|string|truncate(10, True, '') }}</span>
+                        <span style="color:#dee2e6">|</span>
+                        <span style="font-weight:600;color:#212529">{{ j.staff_name or '-' }}</span>
                     </div>
-                    <div class="vp-job-meta">
+                    <div style="display:flex;align-items:center;gap:10px">
                         <span class="badge badge-type">{{ j.category }}</span>
-                        <span class="mono" style="font-weight:700;color:#e65100;font-size:1rem">AED {{ "%.0f"|format(j.amount|float) }}</span>
+                        <span class="mono" style="font-weight:700;color:#e65100;font-size:0.95rem">AED {{ "%.0f"|format(j.amount|float) }}</span>
                     </div>
                 </div>
-                {% if j.description %}
-                <div style="margin-top:8px;font-size:0.82rem;color:var(--muted)">{{ j.description }}</div>
-                {% endif %}
+                {% if j.description %}<div style="margin-top:6px;font-size:0.82rem;color:#868e96">{{ j.description }}</div>{% endif %}
             </div>
             <div id="paper-detail-{{ loop.index }}" style="{% if is_hl %}display:block{% else %}display:none{% endif %}">
-                <div style="margin:-4px 0 12px;padding:16px 20px;background:#f8fafd;border:1px solid var(--line);border-radius:12px">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:0.85rem">
+                <div style="margin:-2px 0 12px 12px;padding:16px 18px;background:#f8f9fb;border:1px solid #e9ecef;border-radius:10px">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:0.82rem">
                         <div><strong>Date:</strong> {{ (j.created_at or '')|string|truncate(10, True, '') }}</div>
                         <div><strong>Staff:</strong> {{ j.staff_name or '-' }}</div>
                         <div><strong>Amount:</strong> AED {{ "%.0f"|format(j.amount|float) }}</div>
                         <div><strong>Category:</strong> {{ j.category }}</div>
-                        {% if j.tax_mode %}<div><strong>Tax:</strong> {{ j.tax_mode }}{% if j.tax_mode == 'Tax Invoice' %} (VAT AED {{ "%.2f"|format(j.vat_amount|float) }}){% endif %}</div>{% endif %}
-                        {% if j.tax_mode == 'Tax Invoice' %}<div><strong>Net:</strong> AED {{ "%.2f"|format(j.net_amount|float) }} <span style="color:var(--muted)">(+VAT AED {{ "%.2f"|format(j.vat_amount|float) }})</span></div>{% endif %}
-                        {% if j.supplier_name %}<div><strong>Supplier:</strong> {{ j.supplier_name }}{% if j.supplier_trn %} (TRN: {{ j.supplier_trn }}){% endif %}</div>{% endif %}
+                        {% if j.tax_mode %}<div><strong>Tax:</strong> {{ j.tax_mode }}{% if j.tax_mode == 'Tax Invoice' %} (VAT {{ "%.2f"|format(j.vat_amount|float) }}){% endif %}</div>{% endif %}
+                        {% if j.tax_mode == 'Tax Invoice' %}<div><strong>Net:</strong> AED {{ "%.2f"|format(j.net_amount|float) }}</div>{% endif %}
+                        {% if j.supplier_name %}<div><strong>Supplier:</strong> {{ j.supplier_name }}{% if j.supplier_trn %} ({{ j.supplier_trn }}){% endif %}</div>{% endif %}
                         {% if j.description %}<div style="grid-column:1/-1"><strong>Description:</strong> {{ j.description }}</div>{% endif %}
                         {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
                         <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
                         {% if j.edit_vehicle_id %}
-                        {% if j.attachment_name %}
-                        <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
-                        {% else %}
-                        <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
-                        {% endif %}
-                        {% elif j.has_attachment %}
-                        <div style="grid-column:1/-1;margin-top:2px"><a href="/fleet/attachment/{{ j.id }}" class="btn btn-xs btn-outline">&#128206; View Attachment</a></div>
-                        {% else %}
-                        <div style="grid-column:1/-1;margin-top:2px"><span style="font-size:0.78rem;color:var(--muted)">No attachment</span></div>
-                        {% endif %}
-                        {% if j.edit_vehicle_id %}
-                        <div style="grid-column:1/-1;margin-top:6px;display:flex;gap:8px">
-                            <a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">&#9998; Edit</a>
-                            <form method="post" action="/fleet-maintenance/{{ j.id }}/delete" onsubmit="return confirm('Delete paper {{ j.id }}?');" style="display:inline">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-xs btn-outline" style="color:#dc3545;border-color:#dc3545">&#10005; Delete</button>
-                            </form>
+                        {% if j.attachment_name %}<div style="grid-column:1/-1"><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View Attachment</a></div>{% endif %}
+                        <div style="grid-column:1/-1;margin-top:4px;display:flex;gap:8px">
+                            <a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">Edit</a>
+                            <form method="post" action="/fleet-maintenance/{{ j.id }}/delete" onsubmit="return confirm('Delete paper {{ j.id }}?');" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-xs btn-outline" style="color:#dc3545;border-color:#dc3545">Delete</button></form>
                         </div>
                         {% else %}
-                        <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" style="grid-column:1/-1;margin-top:6px">&#9998; Edit Job</a>
+                        <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" style="grid-column:1/-1;margin-top:4px">Edit Job</a>
                         {% endif %}
                     </div>
                 </div>
             </div>
             {% endfor %}
             {% set total = all_entries|sum(attribute='amount') %}
-            <div style="margin-top:16px;padding:14px 20px;background:linear-gradient(135deg,#f8fafd,#eef2f7);border-radius:10px;display:flex;justify-content:space-between;align-items:center">
-                <span style="font-weight:600;color:var(--muted)">Total Maintenance Cost</span>
-                <span class="mono" style="font-size:1.15rem;font-weight:800;color:#e65100">AED {{ "%.0f"|format(total|float) }}</span>
+            <div class="vp-summary">
+                <span style="font-weight:600;color:#495057">Total Maintenance</span>
+                <span class="mono" style="font-size:1.05rem;font-weight:800;color:#e65100">AED {{ "%.0f"|format(total|float) }}</span>
             </div>
             {% else %}
-            <p class="empty-state">No maintenance jobs yet.</p>
+            <p style="color:#adb5bd;text-align:center;padding:24px">No maintenance jobs yet.</p>
             {% endif %}
         </div>
     </div>
 
-    {# ═══════ DOCUMENTS ═══════ #}
+    {# ═══════════════════════════════════════════ DOCUMENTS ═══ #}
     {% elif active_tab == 'documents' %}
     <style>
-    .doc-upload-box{border:2px dashed #cbd5e1;border-radius:16px;padding:32px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#fafbfc}
+    .doc-upload-box{border:2px dashed #dee2e6;border-radius:14px;padding:32px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#f8f9fb}
     .doc-upload-box:hover{border-color:var(--primary);background:#f0f7ff}
     .doc-upload-box.dragover{border-color:var(--primary);background:#eff6ff;transform:scale(1.01)}
-    .doc-upload-icon{font-size:2.5rem;margin-bottom:8px;opacity:.6}
-    .doc-upload-text{font-size:.88rem;font-weight:600;color:var(--ink)}
-    .doc-upload-hint{font-size:.75rem;color:var(--muted);margin-top:4px}
-    .doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-    .doc-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:all .25s;position:relative}
-    .doc-card:hover{box-shadow:0 8px 30px rgba(0,0,0,.1);transform:translateY(-2px)}
-    .doc-card-header{padding:16px 18px 12px;display:flex;align-items:flex-start;gap:12px}
-    .doc-card-icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:1.3rem;flex-shrink:0}
-    .doc-card-icon.pdf{background:linear-gradient(135deg,#fee2e2,#fecaca)}
-    .doc-card-icon.image{background:linear-gradient(135deg,#dbeafe,#bfdbfe)}
-    .doc-card-icon.other{background:linear-gradient(135deg,#f1f5f9,#e2e8f0)}
+    .doc-upload-icon{font-size:2.2rem;margin-bottom:8px;opacity:.5}
+    .doc-upload-text{font-size:.85rem;font-weight:600;color:#212529}
+    .doc-upload-hint{font-size:.75rem;color:#adb5bd;margin-top:4px}
+    .doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+    .doc-card{background:#fff;border:1px solid #e9ecef;border-radius:12px;overflow:hidden;transition:all .2s}
+    .doc-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.08);transform:translateY(-2px)}
+    .doc-card-header{padding:14px 16px 10px;display:flex;align-items:flex-start;gap:10px}
+    .doc-card-icon{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:1.2rem;flex-shrink:0}
+    .doc-card-icon.pdf{background:#fee2e2}
+    .doc-card-icon.image{background:#dbeafe}
+    .doc-card-icon.other{background:#f1f5f9}
     .doc-card-info{flex:1;min-width:0}
-    .doc-card-name{font-size:.88rem;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .doc-card-meta{font-size:.72rem;color:var(--muted);margin-top:3px;display:flex;gap:8px;align-items:center}
-    .doc-card-type{font-size:.68rem;padding:2px 8px;border-radius:20px;font-weight:600;background:#f1f5f9;color:var(--muted)}
-    .doc-card-body{padding:0 18px 14px}
-    .doc-card-notes{font-size:.78rem;color:var(--muted);line-height:1.4;max-height:2.8em;overflow:hidden}
-    .doc-card-exp{font-size:.7rem;padding:3px 10px;border-radius:20px;font-weight:600;display:inline-block;margin-top:6px}
+    .doc-card-name{font-size:.85rem;font-weight:700;color:#212529;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .doc-card-meta{font-size:.7rem;color:#868e96;margin-top:2px;display:flex;gap:6px;align-items:center}
+    .doc-card-type{font-size:.66rem;padding:2px 7px;border-radius:16px;font-weight:600;background:#f1f5f9;color:#868e96}
+    .doc-card-body{padding:0 16px 12px}
+    .doc-card-notes{font-size:.78rem;color:#868e96;line-height:1.4;max-height:2.8em;overflow:hidden}
+    .doc-card-exp{font-size:.68rem;padding:3px 10px;border-radius:16px;font-weight:600;display:inline-block;margin-top:4px}
     .doc-card-exp.valid{background:#dcfce7;color:#16a34a}
     .doc-card-exp.soon{background:#fef3c7;color:#d97706}
     .doc-card-exp.expired{background:#fee2e2;color:#dc2626}
-    .doc-card-footer{padding:10px 18px;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;background:#fafbfc}
-    .doc-card-date{font-size:.68rem;color:#94a3b8}
-    .doc-card-actions{display:flex;gap:6px}
-    .doc-card-actions button,.doc-card-actions a{width:30px;height:30px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;display:grid;place-items:center;font-size:.85rem;text-decoration:none;color:var(--muted);transition:all .15s}
-    .doc-card-actions button:hover,.doc-card-actions a:hover{background:#f1f5f9;border-color:#cbd5e1;color:var(--ink)}
+    .doc-card-footer{padding:8px 16px;border-top:1px solid #f1f3f5;display:flex;justify-content:space-between;align-items:center;background:#f8f9fb}
+    .doc-card-date{font-size:.66rem;color:#adb5bd}
+    .doc-card-actions{display:flex;gap:5px}
+    .doc-card-actions button,.doc-card-actions a{width:28px;height:28px;border-radius:7px;border:1px solid #e9ecef;background:#fff;cursor:pointer;display:grid;place-items:center;font-size:.82rem;text-decoration:none;color:#868e96;transition:all .15s}
+    .doc-card-actions button:hover,.doc-card-actions a:hover{background:#f1f3f5;color:#212529}
     .doc-card-actions .btn-del:hover{background:#fee2e2;border-color:#fca5a5;color:#dc2626}
     .doc-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);z-index:10000;display:none;align-items:center;justify-content:center}
     .doc-modal-overlay.is-open{display:flex}
-    .doc-modal{background:#fff;border-radius:20px;width:90%;max-width:550px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.18)}
-    .doc-modal-header{padding:22px 28px 16px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center}
-    .doc-modal-header h3{margin:0;font-size:1.05rem;font-weight:700}
-    .doc-modal-close{width:34px;height:34px;border-radius:10px;border:none;background:#f1f5f9;cursor:pointer;display:grid;place-items:center;font-size:1.1rem;color:#64748b;transition:all .15s}
-    .doc-modal-close:hover{background:#e2e8f0;color:var(--ink)}
-    .doc-modal-body{padding:24px 28px}
-    .doc-modal-footer{padding:16px 28px 22px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:10px}
-    .doc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .doc-modal{background:#fff;border-radius:16px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.18)}
+    .doc-modal-header{padding:20px 24px 14px;border-bottom:1px solid #f1f3f5;display:flex;justify-content:space-between;align-items:center}
+    .doc-modal-header h3{margin:0;font-size:1rem;font-weight:700}
+    .doc-modal-close{width:32px;height:32px;border-radius:8px;border:none;background:#f1f3f5;cursor:pointer;display:grid;place-items:center;font-size:1rem;color:#868e96}
+    .doc-modal-close:hover{background:#e9ecef;color:#212529}
+    .doc-modal-body{padding:20px 24px}
+    .doc-modal-footer{padding:14px 24px 18px;border-top:1px solid #f1f3f5;display:flex;justify-content:flex-end;gap:10px}
+    .doc-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .doc-form-group{display:flex;flex-direction:column}
     .doc-form-group.full{grid-column:1/-1}
-    .doc-form-group label{font-size:.72rem;font-weight:600;color:var(--ink);margin-bottom:5px}
-    .doc-form-group input,.doc-form-group textarea{width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.82rem;color:var(--ink);outline:none;transition:all .2s;font-family:inherit}
+    .doc-form-group label{font-size:.7rem;font-weight:600;color:#212529;margin-bottom:4px}
+    .doc-form-group input,.doc-form-group textarea{width:100%;padding:8px 12px;border:1.5px solid #dee2e6;border-radius:8px;font-size:.82rem;color:#212529;outline:none;transition:all .2s;font-family:inherit}
     .doc-form-group input:focus,.doc-form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(28,86,139,.08)}
     </style>
 
-    {# ─── Upload Section ─── #}
-    <div class="profile-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <h3 style="margin:0;font-size:0.95rem">📄 Vehicle Documents</h3>
-            <span style="font-size:.78rem;color:var(--muted)">{{ all_docs|length }} document{{ 's' if all_docs|length != 1 else '' }}</span>
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Vehicle Documents</h3><span style="font-size:.78rem;color:#868e96;font-weight:600">{{ all_docs|length }}</span></div>
+        <div class="vp-card-body">
+            <form method="POST" action="{{ url_for('fleet.vehicle_document_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data" id="docUploadForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="doc-upload-box" id="dropZone" onclick="document.getElementById('docFileInput').click()">
+                    <div class="doc-upload-icon">📁</div>
+                    <div class="doc-upload-text">Click or drag files here to upload</div>
+                    <div class="doc-upload-hint">Supports PDF, Images, and other document types</div>
+                    <input type="file" name="doc_file" id="docFileInput" style="display:none" onchange="handleFileSelect(this)">
+                </div>
+                <div id="fileInfo" style="display:none;margin-top:12px;padding:10px 14px;background:#f0f7ff;border-radius:8px;align-items:center;gap:8px">
+                    <span style="font-size:1.1rem">📎</span>
+                    <span id="fileName" style="font-size:.82rem;font-weight:600;flex:1"></span>
+                    <button type="button" onclick="clearFile()" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:.82rem">Remove</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+                    <div class="doc-form-group"><label>Document Name *</label><input type="text" name="doc_name" id="docNameInput" placeholder="e.g. Insurance Certificate" required></div>
+                    <div class="doc-form-group"><label>Notes</label><input type="text" name="notes" placeholder="Optional notes..."></div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top:12px;width:100%;padding:10px" id="uploadBtn" disabled>Upload Document</button>
+            </form>
         </div>
-        <form method="POST" action="{{ url_for('fleet.vehicle_document_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data" id="docUploadForm">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="doc-upload-box" id="dropZone" onclick="document.getElementById('docFileInput').click()">
-                <div class="doc-upload-icon">📁</div>
-                <div class="doc-upload-text">Click or drag files here to upload</div>
-                <div class="doc-upload-hint">Supports PDF, Images, and other document types</div>
-                <input type="file" name="doc_file" id="docFileInput" style="display:none" onchange="handleFileSelect(this)">
-            </div>
-            <div id="fileInfo" style="display:none;margin-top:12px;padding:12px 16px;background:#f0f7ff;border-radius:10px;align-items:center;gap:10px">
-                <span style="font-size:1.2rem">📎</span>
-                <span id="fileName" style="font-size:.85rem;font-weight:600;flex:1"></span>
-                <button type="button" onclick="clearFile()" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:.85rem">✕ Remove</button>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
-                <div class="doc-form-group">
-                    <label>Document Name <span style="color:#dc2626">*</span></label>
-                    <input type="text" name="doc_name" id="docNameInput" placeholder="e.g. Insurance Certificate" required>
-                </div>
-                <div class="doc-form-group">
-                    <label>Notes</label>
-                    <input type="text" name="notes" placeholder="Optional notes...">
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:12px;width:100%;padding:10px" id="uploadBtn" disabled>📁 Upload Document</button>
-        </form>
     </div>
 
     <script>
-    function handleFileSelect(input) {
-        if (input.files.length > 0) {
-            var f = input.files[0];
-            document.getElementById('fileInfo').style.display = 'flex';
-            document.getElementById('fileName').textContent = f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)';
-            document.getElementById('uploadBtn').disabled = false;
-            if (!document.getElementById('docNameInput').value) {
-                document.getElementById('docNameInput').value = f.name.replace(/\.[^/.]+$/, '');
-            }
-        }
-    }
-    function clearFile() {
-        document.getElementById('docFileInput').value = '';
-        document.getElementById('fileInfo').style.display = 'none';
-        document.getElementById('uploadBtn').disabled = true;
-    }
-    var dz = document.getElementById('dropZone');
-    dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('dragover'); });
-    dz.addEventListener('dragleave', function() { dz.classList.remove('dragover'); });
-    dz.addEventListener('drop', function(e) {
-        e.preventDefault(); dz.classList.remove('dragover');
-        var input = document.getElementById('docFileInput');
-        input.files = e.dataTransfer.files;
-        handleFileSelect(input);
-    });
-
-    function openEditModal(id, name, notes, expiry) {
-        document.getElementById('editDocId').value = id;
-        document.getElementById('editDocName').value = name;
-        document.getElementById('editDocNotes').value = notes || '';
-        document.getElementById('editDocExpiry').value = expiry || '';
-        var form = document.getElementById('editDocForm');
-        form.action = form.action.replace(/\/edit\/\d+/, '/edit/' + id);
-        document.getElementById('editModal').classList.add('is-open');
-    }
-    function closeEditModal() { document.getElementById('editModal').classList.remove('is-open'); }
+    function handleFileSelect(i){if(i.files.length>0){var f=i.files[0];document.getElementById('fileInfo').style.display='flex';document.getElementById('fileName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('uploadBtn').disabled=false;if(!document.getElementById('docNameInput').value)document.getElementById('docNameInput').value=f.name.replace(/\.[^/.]+$/,'')}}
+    function clearFile(){document.getElementById('docFileInput').value='';document.getElementById('fileInfo').style.display='none';document.getElementById('uploadBtn').disabled=true}
+    var dz=document.getElementById('dropZone');dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('dragover')});dz.addEventListener('dragleave',function(){dz.classList.remove('dragover')});dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('dragover');var i=document.getElementById('docFileInput');i.files=e.dataTransfer.files;handleFileSelect(i)});
+    function openEditModal(id,name,notes,expiry){document.getElementById('editDocId').value=id;document.getElementById('editDocName').value=name;document.getElementById('editDocNotes').value=notes||'';document.getElementById('editDocExpiry').value=expiry||'';var f=document.getElementById('editDocForm');f.action=f.action.replace(/\/edit\/\d+/,'/edit/'+id);document.getElementById('editModal').classList.add('is-open')}
+    function closeEditModal(){document.getElementById('editModal').classList.remove('is-open')}
     document.querySelectorAll('.doc-modal-overlay').forEach(function(o){o.addEventListener('click',function(e){if(e.target===o)closeEditModal()})});
     document.addEventListener('keydown',function(e){if(e.key==='Escape')closeEditModal()});
     </script>
 
-    {# ─── Mulkiya Cards ─── #}
     {% set mulkiyas = all_docs|selectattr('doc_category','equalto','Mulkiya')|list %}
     {% set other_docs = all_docs|rejectattr('doc_category','equalto','Mulkiya')|list %}
 
     {% if mulkiyas %}
-    <div class="profile-card" style="margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <h3 style="margin:0;font-size:0.95rem">🇦🇪 Vehicle Mulkiyas</h3>
-            <span style="font-size:.78rem;color:var(--muted)">{{ mulkiyas|length }} mulkiya</span>
-        </div>
-        <div class="doc-grid">
+    <div class="vp-card" style="margin-top:16px">
+        <div class="vp-card-head"><h3>Vehicle Mulkiyas</h3><span style="font-size:.78rem;color:#868e96">{{ mulkiyas|length }}</span></div>
+        <div class="vp-card-body"><div class="doc-grid">
         {% for d in mulkiyas %}
         {% set es = 'valid' %}
-        {% if d.expiry_date %}
-            {% set exp_str = d.expiry_date|string %}
-            {% if exp_str|length >= 10 %}
-                {% set today = date.today() %}
-                {% set exp_date = date.fromisoformat(exp_str[:10]) %}
-                {% set days_left = (exp_date - today).days %}
-            {% else %}
-                {% set days_left = 9999 %}
-            {% endif %}
-        {% else %}
-            {% set days_left = 9999 %}
-        {% endif %}
+        {% if d.expiry_date %}{% set exp_str = d.expiry_date|string %}{% if exp_str|length >= 10 %}{% set today = date.today() %}{% set exp_date = date.fromisoformat(exp_str[:10]) %}{% set days_left = (exp_date - today).days %}{% else %}{% set days_left = 9999 %}{% endif %}{% else %}{% set days_left = 9999 %}{% endif %}
         {% if days_left < 0 %}{% set es = 'expired' %}{% elif days_left <= 30 %}{% set es = 'soon' %}{% else %}{% set es = 'valid' %}{% endif %}
-
         <div class="doc-card">
             <div class="doc-card-header">
                 <div class="doc-card-icon pdf">🇦🇪</div>
-                <div class="doc-card-info">
-                    <div class="doc-card-name">{{ d.doc_name }}</div>
-                    <div class="doc-card-meta">
-                        <span class="doc-card-type">Mulkiya</span>
-                        <span>{{ v.plate_no }}</span>
-                    </div>
-                </div>
+                <div class="doc-card-info"><div class="doc-card-name">{{ d.doc_name }}</div><div class="doc-card-meta"><span class="doc-card-type">Mulkiya</span><span>{{ v.plate_no }}</span></div></div>
             </div>
-            {% if d.expiry_date %}
-            <div class="doc-card-body" style="padding-top:0">
-                <div class="doc-card-exp {{ es }}">
-                    {% if es == 'expired' %}❌ Expired {{ d.expiry_date }}{% elif es == 'soon' %}⚠️ Expires {{ d.expiry_date }} ({{ days_left }}d){% else %}✅ Valid until {{ d.expiry_date }}{% endif %}
-                </div>
-            </div>
-            {% endif %}
-            {% if d.notes %}
-            <div class="doc-card-body" style="padding-top:0">
-                <div class="doc-card-notes">{{ d.notes }}</div>
-            </div>
-            {% endif %}
+            {% if d.expiry_date %}<div class="doc-card-body" style="padding-top:0"><div class="doc-card-exp {{ es }}">{% if es == 'expired' %}Expired {{ d.expiry_date }}{% elif es == 'soon' %}Expires {{ d.expiry_date }} ({{ days_left }}d){% else %}Valid until {{ d.expiry_date }}{% endif %}</div></div>{% endif %}
+            {% if d.notes %}<div class="doc-card-body" style="padding-top:0"><div class="doc-card-notes">{{ d.notes }}</div></div>{% endif %}
             <div class="doc-card-footer">
                 <span class="doc-card-date">{{ d.uploaded_at|string|truncate(10, True, '') }}</span>
                 <div class="doc-card-actions">
-                    {% if d.doc_data or d.thumbnail_data %}
-                    <a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" target="_blank" title="View">👁️</a>
-                    {% endif %}
-                    <button type="button" onclick="openEditModal('{{ d.id }}','{{ d.doc_name|e }}','{{ (d.notes or '')|e }}','{{ d.expiry_date or '' }}')" title="Edit">✏️</button>
-                    <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" onsubmit="return confirm('Delete {{ d.doc_name }}?')" style="margin:0">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn-del" title="Delete">🗑️</button>
-                    </form>
+                    {% if d.doc_data or d.thumbnail_data %}<a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" target="_blank" title="View">👁</a>{% endif %}
+                    <button type="button" onclick="openEditModal('{{ d.id }}','{{ d.doc_name|e }}','{{ (d.notes or '')|e }}','{{ d.expiry_date or '' }}')" title="Edit">✏</button>
+                    <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" onsubmit="return confirm('Delete {{ d.doc_name }}?')" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn-del" title="Delete">🗑</button></form>
                 </div>
             </div>
         </div>
         {% endfor %}
-        </div>
+        </div></div>
     </div>
     {% endif %}
 
-    {# ─── Other Documents ─── #}
     {% if other_docs %}
-    <div class="profile-card" style="margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <h3 style="margin:0;font-size:0.95rem">📋 Other Documents</h3>
-            <span style="font-size:.78rem;color:var(--muted)">{{ other_docs|length }} document{{ 's' if other_docs|length != 1 else '' }}</span>
-        </div>
-        <div class="doc-grid">
+    <div class="vp-card" style="margin-top:16px">
+        <div class="vp-card-head"><h3>Other Documents</h3><span style="font-size:.78rem;color:#868e96">{{ other_docs|length }}</span></div>
+        <div class="vp-card-body"><div class="doc-grid">
         {% for d in other_docs %}
         <div class="doc-card">
             <div class="doc-card-header">
                 {% set ext = (d.doc_type or '')|lower %}
-                {% if 'pdf' in ext %}
-                <div class="doc-card-icon pdf">📄</div>
-                {% elif 'image' in ext %}
-                <div class="doc-card-icon image">🖼️</div>
-                {% else %}
-                <div class="doc-card-icon other">📁</div>
-                {% endif %}
-                <div class="doc-card-info">
-                    <div class="doc-card-name">{{ d.doc_name }}</div>
-                    <div class="doc-card-meta">
-                        <span class="doc-card-type">{{ d.doc_type or 'Unknown' }}</span>
-                    </div>
-                </div>
+                <div class="doc-card-icon {% if 'pdf' in ext %}pdf{% elif 'image' in ext %}image{% else %}other{% endif %}">{% if 'pdf' in ext %}📄{% elif 'image' in ext %}🖼{% else %}📁{% endif %}</div>
+                <div class="doc-card-info"><div class="doc-card-name">{{ d.doc_name }}</div><div class="doc-card-meta"><span class="doc-card-type">{{ d.doc_type or 'Unknown' }}</span></div></div>
             </div>
-            {% if d.notes %}
-            <div class="doc-card-body" style="padding-top:0">
-                <div class="doc-card-notes">{{ d.notes }}</div>
-            </div>
-            {% endif %}
+            {% if d.notes %}<div class="doc-card-body" style="padding-top:0"><div class="doc-card-notes">{{ d.notes }}</div></div>{% endif %}
             <div class="doc-card-footer">
                 <span class="doc-card-date">{{ d.uploaded_at|string|truncate(10, True, '') }}</span>
                 <div class="doc-card-actions">
-                    {% if d.doc_data %}
-                    <a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" target="_blank" title="View">👁️</a>
-                    {% endif %}
-                    <button type="button" onclick="openEditModal('{{ d.id }}','{{ d.doc_name|e }}','{{ (d.notes or '')|e }}','')" title="Edit">✏️</button>
-                    <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" onsubmit="return confirm('Delete {{ d.doc_name }}?')" style="margin:0">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn-del" title="Delete">🗑️</button>
-                    </form>
+                    {% if d.doc_data %}<a href="{{ url_for('fleet.vehicle_document_view', plate_no=v.plate_no, doc_id=d.id) }}" target="_blank" title="View">👁</a>{% endif %}
+                    <button type="button" onclick="openEditModal('{{ d.id }}','{{ d.doc_name|e }}','{{ (d.notes or '')|e }}','')" title="Edit">✏</button>
+                    <form method="post" action="{{ url_for('fleet.vehicle_document_delete', plate_no=v.plate_no, doc_id=d.id) }}" onsubmit="return confirm('Delete {{ d.doc_name }}?')" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn-del" title="Delete">🗑</button></form>
                 </div>
             </div>
         </div>
         {% endfor %}
-        </div>
+        </div></div>
     </div>
     {% endif %}
 
     {% if not all_docs %}
-    <div class="profile-card" style="margin-top:16px;text-align:center;padding:48px">
-        <div style="font-size:3rem;margin-bottom:12px;opacity:.5">📂</div>
-        <div style="font-weight:700;font-size:1rem;color:var(--ink);margin-bottom:6px">No documents uploaded yet</div>
-        <div style="font-size:.85rem;color:var(--muted);max-width:360px;margin:0 auto">Upload Mulkiya, Insurance, Registration, and other vehicle documents using the form above.</div>
-    </div>
+    <div class="vp-card" style="margin-top:16px"><div class="vp-card-body" style="text-align:center;padding:40px">
+        <div style="font-size:2.5rem;margin-bottom:10px;opacity:.4">📂</div>
+        <div style="font-weight:700;color:#495057;margin-bottom:4px">No documents uploaded yet</div>
+        <div style="font-size:.82rem;color:#adb5bd">Upload Mulkiya, Insurance, and other vehicle documents above.</div>
+    </div></div>
     {% endif %}
 
-    {# ─── Edit Modal ─── #}
     <div class="doc-modal-overlay" id="editModal">
         <div class="doc-modal">
-            <div class="doc-modal-header">
-                <h3>✏️ Edit Document</h3>
-                <button class="doc-modal-close" onclick="closeEditModal()">✕</button>
-            </div>
+            <div class="doc-modal-header"><h3>Edit Document</h3><button class="doc-modal-close" onclick="closeEditModal()">✕</button></div>
             <form id="editDocForm" method="POST" action="{{ url_for('fleet.vehicle_document_edit', plate_no=v.plate_no, doc_id=0) }}">
             <div class="doc-modal-body">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="doc_id" id="editDocId">
                 <div class="doc-form-grid">
-                    <div class="doc-form-group full">
-                        <label>Document Name <span style="color:#dc2626">*</span></label>
-                        <input type="text" name="doc_name" id="editDocName" required>
-                    </div>
-                    <div class="doc-form-group full">
-                        <label>Notes</label>
-                        <textarea name="notes" id="editDocNotes" rows="2" style="width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.82rem;resize:vertical;font-family:inherit"></textarea>
-                    </div>
-                    <div class="doc-form-group full">
-                        <label>Expiry Date (Mulkiya only)</label>
-                        <input type="date" name="expiry_date" id="editDocExpiry">
-                    </div>
+                    <div class="doc-form-group full"><label>Document Name *</label><input type="text" name="doc_name" id="editDocName" required></div>
+                    <div class="doc-form-group full"><label>Notes</label><textarea name="notes" id="editDocNotes" rows="2" style="width:100%;padding:8px 12px;border:1.5px solid #dee2e6;border-radius:8px;font-size:.82rem;resize:vertical;font-family:inherit"></textarea></div>
+                    <div class="doc-form-group full"><label>Expiry Date (Mulkiya only)</label><input type="date" name="expiry_date" id="editDocExpiry"></div>
                 </div>
             </div>
-            <div class="doc-modal-footer">
-                <button type="button" class="btn btn-outline" onclick="closeEditModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">💾 Save Changes</button>
-            </div>
+            <div class="doc-modal-footer"><button type="button" class="btn btn-outline" onclick="closeEditModal()">Cancel</button><button type="submit" class="btn btn-primary">Save Changes</button></div>
             </form>
         </div>
     </div>
 
-    {# ═══════ FUEL ═══════ #}
+    {# ═══════════════════════════════════════════ FUEL ═══ #}
     {% elif active_tab == 'fuel' %}
 
-    {# Add Fuel Form #}
-    <div class="vp-form-card">
-        <div class="vp-form-header" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
-            <span style="font-size:1.3rem">⛽</span>
-            <h3>Add Fuel Entry</h3>
-        </div>
-        <div class="vp-form-body">
-            <form method="POST" action="{{ url_for('fleet.fuel_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px 14px;align-items:end" class="responsive-four-grid">
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Add Fuel Entry</h3></div>
+        <div class="vp-card-body">
+            <form method="POST" action="{{ url_for('fleet.fuel_add') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="vehicle_plate" value="{{ v.plate_no }}">
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Date</label>
-                    <input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
+                <div class="vp-form-grid">
+                    <div><label class="form-label">Date</label><input type="date" name="entry_date" value="{{ date.today().isoformat() }}" class="form-control" required></div>
+                    <div><label class="form-label">Gallons</label><input type="number" name="gallons" step="0.01" min="0" placeholder="0" class="form-control" required></div>
+                    <div><label class="form-label">Rate/GLN</label><input type="number" name="rate_per_gallon" step="0.001" min="0" placeholder="0" class="form-control" required></div>
+                    <div><label class="form-label">Supplier</label><select name="supplier_id" class="form-control" required><option value="">Select</option>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.supplier_name }}</option>{% endfor %}</select></div>
+                    <div style="grid-column:1/-1"><label class="form-label">Notes</label><input type="text" name="notes" placeholder="Optional" class="form-control"></div>
                 </div>
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Gallons</label>
-                    <input type="number" name="gallons" step="0.01" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
-                </div>
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Rate/GLN</label>
-                    <input type="number" name="rate_per_gallon" step="0.001" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
-                </div>
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Supplier</label>
-                    <select name="supplier_id" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
-                        <option value="">— Select —</option>
-                        {% for s in suppliers %}
-                        <option value="{{ s.id }}">{{ s.supplier_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div style="grid-column:1/-1;display:flex;gap:8px;align-items:end">
-                    <input type="text" name="notes" placeholder="Notes (optional)" class="form-control" style="padding:8px 10px;font-size:0.85rem;flex:1">
-                    <button type="submit" class="btn btn-primary" style="padding:8px 16px;white-space:nowrap">+ Add Fuel</button>
-                </div>
+                <div style="margin-top:12px"><button type="submit" class="btn btn-primary">Add Fuel</button></div>
             </form>
         </div>
     </div>
 
-    {# Fuel History #}
-    <div class="vp-form-card" style="margin-top:16px">
-        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
-            <span style="font-size:1.3rem">📋</span>
-            <h3>Fuel History</h3>
-            <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;margin-left:auto">{{ fuel_entries|length }} entries</span>
-        </div>
-        <div class="vp-form-body">
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Fuel History</h3><span style="font-size:.78rem;color:#868e96;font-weight:600">{{ fuel_entries|length }} entries</span></div>
+        <div class="vp-card-body">
             {% if fuel_entries %}
             <div class="table-wrap">
                 <table class="smart-table">
@@ -801,86 +540,51 @@
                             <td class="r mono">{{ "%.3f"|format(fe.rate_per_gallon) }}</td>
                             <td class="r mono" style="font-weight:700;color:#e65100">{{ "%.2f"|format(fe.total_amount) }}</td>
                             <td>{{ fe.supplier_name }}</td>
-                            <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ fe.notes or '—' }}</td>
-                            <td>
-                                <div style="display:flex;gap:4px">
-                                    <a href="{{ url_for('fleet.fuel_edit', entry_id=fe.id) }}" class="btn btn-xs btn-outline">Edit</a>
-                                    <form method="post" action="{{ url_for('fleet.fuel_delete', entry_id=fe.id) }}" style="display:inline" onsubmit="return confirm('Delete this fuel entry?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
-                                    </form>
-                                </div>
-                            </td>
+                            <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:#868e96">{{ fe.notes or '—' }}</td>
+                            <td><div style="display:flex;gap:4px"><a href="{{ url_for('fleet.fuel_edit', entry_id=fe.id) }}" class="btn btn-xs btn-outline">Edit</a><form method="post" action="{{ url_for('fleet.fuel_delete', entry_id=fe.id) }}" style="display:inline" onsubmit="return confirm('Delete this fuel entry?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">✕</button></form></div></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top:16px;padding:14px 20px;background:linear-gradient(135deg,#fff7ed,#fed7aa);border:1px solid #fdba74;border-radius:10px;display:flex;justify-content:space-between">
-                <span style="font-weight:600;color:#92400e">⛽ Total Gallons: {{ "%.2f"|format(fuel_total_gallons) }}</span>
-                <span class="mono" style="font-weight:800;color:#e65100;font-size:1.05rem">AED {{ "%.2f"|format(fuel_total_amount) }}</span>
+            <div class="vp-summary">
+                <span style="font-weight:600;color:#495057">Total Gallons: <strong>{{ "%.2f"|format(fuel_total_gallons) }}</strong></span>
+                <span class="mono" style="font-weight:800;color:#e65100;font-size:1rem">AED {{ "%.2f"|format(fuel_total_amount) }}</span>
             </div>
             {% else %}
-            <p class="empty-state">No fuel entries for this vehicle.</p>
+            <p style="color:#adb5bd;text-align:center;padding:24px">No fuel entries for this vehicle.</p>
             {% endif %}
         </div>
     </div>
 
-    {# ═══════ PARTS ═══════ #}
+    {# ═══════════════════════════════════════════ PARTS ═══ #}
     {% elif active_tab == 'parts' %}
 
-    {# Add Supplier Bill Form #}
-    <div class="vp-form-card">
-        <div class="vp-form-header" style="background:linear-gradient(135deg,#10b981,#059669)">
-            <span style="font-size:1.3rem">📦</span>
-            <h3>Add Supplier Bill</h3>
-        </div>
-        <div class="vp-form-body">
-            <form method="POST" action="{{ url_for('supplier.supplier_bill_add') }}" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px 14px;align-items:end" class="responsive-four-grid">
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Add Supplier Bill</h3></div>
+        <div class="vp-card-body">
+            <form method="POST" action="{{ url_for('supplier.supplier_bill_add') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="vehicle_plate" value="{{ v.plate_no }}">
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Supplier</label>
-                    <select name="supplier_id" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
-                        <option value="">— Select —</option>
-                        {% for s in suppliers %}
-                        <option value="{{ s.id }}">{{ s.supplier_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Bill No</label>
-                    <input type="text" name="bill_no" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
-                </div>
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Date</label>
-                    <input type="date" name="bill_date" value="{{ date.today().isoformat() }}" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
-                </div>
-                <div>
-                    <label style="font-size:0.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:3px">Amount (excl. Tax)</label>
-                    <input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem" required>
-                </div>
-                <div style="grid-column:1/-1;display:flex;gap:8px;align-items:end">
-                    <input type="text" name="description" placeholder="Items (e.g. Oil filter, Diesel filter)" class="form-control" style="padding:8px 10px;font-size:0.85rem;flex:1">
-                    <input type="hidden" name="is_tax_bill" value="on">
-                    <div style="display:flex;gap:4px;align-items:end">
-                        <label style="font-size:0.7rem;font-weight:600;color:var(--muted);white-space:nowrap">Disc:</label>
-                        <input type="number" name="discount" step="0.01" min="0" placeholder="0" class="form-control" style="padding:8px 10px;font-size:0.85rem;width:70px">
+                <div class="vp-form-grid">
+                    <div><label class="form-label">Supplier</label><select name="supplier_id" class="form-control" required><option value="">Select</option>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.supplier_name }}</option>{% endfor %}</select></div>
+                    <div><label class="form-label">Bill No</label><input type="text" name="bill_no" class="form-control" required></div>
+                    <div><label class="form-label">Date</label><input type="date" name="bill_date" value="{{ date.today().isoformat() }}" class="form-control" required></div>
+                    <div><label class="form-label">Amount (excl. Tax)</label><input type="number" name="amount" step="0.01" min="0" placeholder="0" class="form-control" required></div>
+                    <div style="grid-column:1/-1;display:flex;gap:8px;align-items:end">
+                        <div style="flex:1"><label class="form-label">Items</label><input type="text" name="description" placeholder="Oil filter, Diesel filter..." class="form-control"></div>
+                        <input type="hidden" name="is_tax_bill" value="on">
+                        <div style="width:80px"><label class="form-label">Disc</label><input type="number" name="discount" step="0.01" min="0" placeholder="0" class="form-control"></div>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="padding:8px 16px;white-space:nowrap">+ Add Bill</button>
                 </div>
+                <div style="margin-top:12px"><button type="submit" class="btn btn-primary">Add Bill</button></div>
             </form>
         </div>
     </div>
 
-    {# Bills History #}
-    <div class="vp-form-card" style="margin-top:16px">
-        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
-            <span style="font-size:1.3rem">📋</span>
-            <h3>Parts History</h3>
-            <span class="badge" style="background:rgba(255,255,255,0.2);color:#fff;margin-left:auto">{{ supplier_bills|length }} bills</span>
-        </div>
-        <div class="vp-form-body">
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Parts History</h3><span style="font-size:.78rem;color:#868e96;font-weight:600">{{ supplier_bills|length }} bills</span></div>
+        <div class="vp-card-body">
             {% if supplier_bills %}
             <div class="table-wrap">
                 <table class="smart-table">
@@ -891,160 +595,82 @@
                             <td class="mono" style="font-weight:600">{{ b.bill_no }}</td>
                             <td class="mono">{{ b.bill_date }}</td>
                             <td>{{ b.supplier_name }}</td>
-                            <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:var(--muted)">{{ b.description or '—' }}</td>
+                            <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;color:#868e96">{{ b.description or '—' }}</td>
                             <td class="r mono">{{ "%.2f"|format(b.net_amount + b.discount) }}</td>
                             <td class="r mono" style="color:#7c3aed;font-size:0.78rem">{{ "%.2f"|format(b.vat_amount) if b.vat_amount > 0 else '—' }}</td>
                             <td class="r mono" style="font-weight:600;color:#e65100">{{ "%.2f"|format(b.total_amount) }}</td>
                             <td class="r mono" style="color:#2e7d32">{{ "%.2f"|format(b.discount) if b.discount > 0 else '—' }}</td>
                             <td class="r mono" style="font-weight:700;color:#1565C0">{{ "%.2f"|format(b.net_amount) }}</td>
-                            <td>
-                                <div style="display:flex;gap:4px">
-                                    <a href="{{ url_for('supplier.supplier_bill_edit', bill_id=b.id) }}" class="btn btn-xs btn-outline">Edit</a>
-                                    <form method="post" action="{{ url_for('supplier.supplier_bill_delete', bill_id=b.id) }}" style="display:inline" onsubmit="return confirm('Delete bill #{{ b.bill_no }}?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
-                                    </form>
-                                </div>
-                            </td>
+                            <td><div style="display:flex;gap:4px"><a href="{{ url_for('supplier.supplier_bill_edit', bill_id=b.id) }}" class="btn btn-xs btn-outline">Edit</a><form method="post" action="{{ url_for('supplier.supplier_bill_delete', bill_id=b.id) }}" style="display:inline" onsubmit="return confirm('Delete bill #{{ b.bill_no }}?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-xs btn-outline" style="color:#c62828">✕</button></form></div></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top:16px;padding:14px 20px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:10px;display:flex;justify-content:space-around;flex-wrap:wrap;gap:8px">
-                <span style="font-weight:600;color:#166534">Excl. VAT: <strong>AED {{ "%.2f"|format(parts_total_amount - parts_total_vat|default(0)) }}</strong></span>
+            <div class="vp-summary" style="flex-wrap:wrap;gap:10px">
+                <span style="font-weight:600;color:#495057">Excl VAT: <strong>AED {{ "%.2f"|format(parts_total_amount - parts_total_vat|default(0)) }}</strong></span>
                 <span style="font-weight:600;color:#7c3aed">VAT: <strong>AED {{ "%.2f"|format(parts_total_vat|default(0)) }}</strong></span>
-                <span style="font-weight:600;color:#e65100">Inc. VAT: <strong>AED {{ "%.2f"|format(parts_total_amount) }}</strong></span>
+                <span style="font-weight:600;color:#e65100">Inc VAT: <strong>AED {{ "%.2f"|format(parts_total_amount) }}</strong></span>
                 <span style="font-weight:600;color:#1565C0">Net: <strong>AED {{ "%.2f"|format(parts_total_net) }}</strong></span>
             </div>
             {% else %}
-            <p class="empty-state">No parts bills for this vehicle.</p>
+            <p style="color:#adb5bd;text-align:center;padding:24px">No parts bills for this vehicle.</p>
             {% endif %}
         </div>
     </div>
 
-    {# ═══════ TRAFFIC FINES ═══════ #}
+    {# ═══════════════════════════════════════════ TRAFFIC FINES ═══ #}
     {% elif active_tab == 'fines' %}
 
-    {# Summary Cards #}
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">
-            <div class="vp-kpi-icon">🚦</div>
-            <div class="vp-kpi-label">Total Fines</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(fines_total) }}</div>
-        </div>
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff">
-            <div class="vp-kpi-icon">✅</div>
-            <div class="vp-kpi-label">Paid</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(fines_paid) }}</div>
-        </div>
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">
-            <div class="vp-kpi-icon">⏳</div>
-            <div class="vp-kpi-label">Pending</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(fines_pending) }}</div>
-        </div>
+    <div class="vp-kpi-row" style="grid-template-columns:repeat(3,1fr)">
+        <div class="vp-kpi"><div class="vp-kpi-icon">🚦</div><div class="vp-kpi-label">Total Fines</div><div class="vp-kpi-value" style="color:#dc2626">AED {{ "%.0f"|format(fines_total) }}</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">✅</div><div class="vp-kpi-label">Paid</div><div class="vp-kpi-value" style="color:#16a34a">AED {{ "%.0f"|format(fines_paid) }}</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">⏳</div><div class="vp-kpi-label">Pending</div><div class="vp-kpi-value" style="color:#e65100">AED {{ "%.0f"|format(fines_pending) }}</div></div>
     </div>
 
-    {# Add Fine Form #}
-    <div class="vp-form-card">
-        <div class="vp-form-header" style="background:linear-gradient(135deg,#dc2626,#b91c1c)">
-            <span style="font-size:1.3rem">🚨</span>
-            <h3>Add Traffic Fine</h3>
-        </div>
-        <div class="vp-form-body">
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>Add Traffic Fine</h3></div>
+        <div class="vp-card-body">
             <form method="POST" action="{{ url_for('fleet.vehicle_traffic_fine_upload', plate_no=v.plate_no) }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-                    <div class="form-row">
-                        <label class="form-label">Fine Date <span style="color:red">*</span></label>
-                        <input type="date" name="fine_date" class="form-control" required value="{{ date.today().isoformat() }}">
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">Fine Type</label>
-                        <select name="fine_type" class="form-control">
-                            <option value="Traffic Fine">Traffic Fine</option>
-                            <option value="Salik Fine">Salik Fine</option>
-                            <option value="Parking Fine">Parking Fine</option>
-                            <option value="Speed Camera">Speed Camera</option>
-                            <option value="Red Light Fine">Red Light Fine</option>
-                            <option value="Overloading Fine">Overloading Fine</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">Amount (AED) <span style="color:red">*</span></label>
-                        <input type="number" step="0.01" name="fine_amount" class="form-control" required placeholder="0.00">
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">Status</label>
-                        <select name="fine_status" class="form-control">
-                            <option value="Pending">⏳ Pending</option>
-                            <option value="Paid">✅ Paid</option>
-                            <option value="Contested">🔄 Contested</option>
-                            <option value="Closed">Closed</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">Location</label>
-                        <input type="text" name="fine_location" class="form-control" placeholder="e.g. Sheikh Zayed Road">
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">Attachment</label>
-                        <input type="file" name="fine_attachment" class="form-control" accept="image/*,.pdf">
-                    </div>
-                    <div class="form-row" style="grid-column:1/-1">
-                        <label class="form-label">Description</label>
-                        <input type="text" name="fine_description" class="form-control" placeholder="e.g. Speeding 140km/h in 120 zone">
-                    </div>
-                    <div class="form-row" style="grid-column:1/-1">
-                        <label class="form-label">Notes</label>
-                        <input type="text" name="notes" class="form-control" placeholder="Internal notes...">
-                    </div>
+                <div class="vp-form-grid">
+                    <div><label class="form-label">Fine Date *</label><input type="date" name="fine_date" class="form-control" required value="{{ date.today().isoformat() }}"></div>
+                    <div><label class="form-label">Fine Type</label><select name="fine_type" class="form-control"><option value="Traffic Fine">Traffic Fine</option><option value="Salik Fine">Salik Fine</option><option value="Parking Fine">Parking Fine</option><option value="Speed Camera">Speed Camera</option><option value="Red Light Fine">Red Light Fine</option><option value="Overloading Fine">Overloading Fine</option><option value="Other">Other</option></select></div>
+                    <div><label class="form-label">Amount (AED) *</label><input type="number" step="0.01" name="fine_amount" class="form-control" required placeholder="0.00"></div>
+                    <div><label class="form-label">Status</label><select name="fine_status" class="form-control"><option value="Pending">Pending</option><option value="Paid">Paid</option><option value="Contested">Contested</option><option value="Closed">Closed</option></select></div>
+                    <div><label class="form-label">Location</label><input type="text" name="fine_location" class="form-control" placeholder="Sheikh Zayed Road"></div>
+                    <div><label class="form-label">Attachment</label><input type="file" name="fine_attachment" class="form-control" accept="image/*,.pdf"></div>
+                    <div style="grid-column:1/-1"><label class="form-label">Description</label><input type="text" name="fine_description" class="form-control" placeholder="Speeding 140km/h in 120 zone"></div>
+                    <div style="grid-column:1/-1"><label class="form-label">Notes</label><input type="text" name="notes" class="form-control" placeholder="Internal notes..."></div>
                 </div>
-                <button type="submit" class="btn btn-primary" style="margin-top:14px;background:#dc2626;border-color:#dc2626">🚦 Record Fine</button>
+                <div style="margin-top:12px"><button type="submit" class="btn btn-primary" style="background:#dc2626;border-color:#dc2626">Record Fine</button></div>
             </form>
         </div>
     </div>
 
-    {# Fine History #}
     {% if traffic_fines %}
-    <div class="vp-form-card" style="margin-top:16px">
-        <div class="vp-form-header" style="background:linear-gradient(135deg,#475569,#334155)">
-            <span style="font-size:1.3rem">📋</span>
-            <h3>Traffic Fine History</h3>
-        </div>
-        <div class="vp-form-body">
+    <div class="vp-card" style="margin-top:16px">
+        <div class="vp-card-head"><h3>Fine History</h3></div>
+        <div class="vp-card-body">
             {% for f in traffic_fines %}
-            <div class="vp-fine-card" style="border-left:4px solid {% if f.fine_status == 'Paid' %}#16a34a{% elif f.fine_status == 'Contested' %}#d97706{% elif f.fine_status == 'Closed' %}#64748b{% else %}#dc2626{% endif %}">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-                    <div>
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-                            <span class="mono" style="font-weight:600">{{ f.fine_date }}</span>
-                            <span class="badge" style="background:#fee2e2;color:#dc2626">{{ f.fine_type }}</span>
-                            {% if f.fine_status == 'Paid' %}
-                            <span class="badge" style="background:#dcfce7;color:#16a34a">✅ Paid</span>
-                            {% elif f.fine_status == 'Contested' %}
-                            <span class="badge" style="background:#fef3c7;color:#d97706">🔄 Contested</span>
-                            {% elif f.fine_status == 'Closed' %}
-                            <span class="badge" style="background:#f1f5f9;color:#64748b">Closed</span>
-                            {% else %}
-                            <span class="badge" style="background:#fee2e2;color:#dc2626">⏳ Pending</span>
-                            {% endif %}
-                        </div>
-                        {% if f.fine_location %}<div style="font-size:0.82rem;color:var(--muted)">📍 {{ f.fine_location }}</div>{% endif %}
-                        {% if f.fine_description %}<div style="font-size:0.82rem;margin-top:2px">{{ f.fine_description }}</div>{% endif %}
+            <div class="vp-fine-item" style="border-left:4px solid {% if f.fine_status == 'Paid' %}#16a34a{% elif f.fine_status == 'Contested' %}#d97706{% elif f.fine_status == 'Closed' %}#868e96{% else %}#dc2626{% endif %}">
+                <div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+                        <span class="mono" style="font-weight:600;font-size:0.85rem">{{ f.fine_date }}</span>
+                        <span class="badge" style="background:#fee2e2;color:#dc2626">{{ f.fine_type }}</span>
+                        {% if f.fine_status == 'Paid' %}<span class="badge" style="background:#dcfce7;color:#16a34a">Paid</span>
+                        {% elif f.fine_status == 'Contested' %}<span class="badge" style="background:#fef3c7;color:#d97706">Contested</span>
+                        {% elif f.fine_status == 'Closed' %}<span class="badge" style="background:#f1f5f9;color:#868e96">Closed</span>
+                        {% else %}<span class="badge" style="background:#fee2e2;color:#dc2626">Pending</span>{% endif %}
                     </div>
-                    <div style="text-align:right">
-                        <div class="mono" style="font-size:1.15rem;font-weight:800;color:#dc2626">AED {{ "%.2f"|format(f.fine_amount) }}</div>
-                        <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
-                            {% if f.attachment_data %}
-                            <a href="{{ url_for('fleet.vehicle_traffic_fine_attachment', plate_no=v.plate_no, fine_id=f.id) }}" target="_blank" class="btn btn-xs btn-outline">📎 View</a>
-                            {% endif %}
-                            <form method="POST" action="{{ url_for('fleet.vehicle_traffic_fine_delete', plate_no=v.plate_no, fine_id=f.id) }}" onsubmit="return confirm('Delete this fine entry?')">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-xs btn-outline" style="color:#dc2626">🗑️</button>
-                            </form>
-                        </div>
+                    {% if f.fine_location %}<div style="font-size:0.82rem;color:#868e96">{{ f.fine_location }}</div>{% endif %}
+                    {% if f.fine_description %}<div style="font-size:0.82rem;margin-top:2px">{{ f.fine_description }}</div>{% endif %}
+                </div>
+                <div style="text-align:right">
+                    <div class="mono" style="font-size:1rem;font-weight:800;color:#dc2626">AED {{ "%.2f"|format(f.fine_amount) }}</div>
+                    <div style="display:flex;gap:5px;margin-top:5px;justify-content:flex-end">
+                        {% if f.attachment_data %}<a href="{{ url_for('fleet.vehicle_traffic_fine_attachment', plate_no=v.plate_no, fine_id=f.id) }}" target="_blank" class="btn btn-xs btn-outline">View</a>{% endif %}
+                        <form method="POST" action="{{ url_for('fleet.vehicle_traffic_fine_delete', plate_no=v.plate_no, fine_id=f.id) }}" onsubmit="return confirm('Delete this fine?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-xs btn-outline" style="color:#dc2626">Delete</button></form>
                     </div>
                 </div>
             </div>
@@ -1052,92 +678,43 @@
         </div>
     </div>
     {% else %}
-    <div class="profile-card" style="margin-top:16px;text-align:center;padding:40px">
-        <div style="font-size:2rem;margin-bottom:8px">🚦</div>
-        <div style="font-weight:600;color:var(--muted)">No traffic fines recorded</div>
-        <div style="font-size:0.82rem;color:var(--muted)">Add a fine using the form above.</div>
-    </div>
+    <div class="vp-card" style="margin-top:16px"><div class="vp-card-body" style="text-align:center;padding:40px">
+        <div style="font-size:2rem;margin-bottom:8px;opacity:.4">🚦</div>
+        <div style="font-weight:600;color:#868e96">No traffic fines recorded</div>
+    </div></div>
     {% endif %}
 
-    {# ═══════ EXPENSES SUMMARY ═══════ #}
+    {# ═══════════════════════════════════════════ EXPENSES ═══ #}
     {% elif active_tab == 'expenses' %}
 
-    {# KPI Cards #}
     {% set grand_total = fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total %}
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">
-            <div class="vp-kpi-icon">⛽</div>
-            <div class="vp-kpi-label">Fuel</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(fuel_total_amount) }}</div>
-            <div style="font-size:0.72rem;opacity:0.85;margin-top:4px">{{ "%.1f"|format((fuel_total_amount / grand_total * 100) if grand_total > 0 else 0) }}% of total</div>
-        </div>
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff">
-            <div class="vp-kpi-icon">🔧</div>
-            <div class="vp-kpi-label">Maintenance</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(v.total_cost or 0) }}</div>
-            <div style="font-size:0.72rem;opacity:0.85;margin-top:4px">{{ "%.1f"|format(((v.total_cost or 0) / grand_total * 100) if grand_total > 0 else 0) }}% of total</div>
-        </div>
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff">
-            <div class="vp-kpi-icon">📦</div>
-            <div class="vp-kpi-label">Parts</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(parts_total_amount) }}</div>
-            <div style="font-size:0.72rem;opacity:0.85;margin-top:4px">{{ "%.1f"|format((parts_total_amount / grand_total * 100) if grand_total > 0 else 0) }}% of total</div>
-        </div>
-        <div class="vp-kpi" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff">
-            <div class="vp-kpi-icon">🚦</div>
-            <div class="vp-kpi-label">Fines</div>
-            <div class="vp-kpi-value">AED {{ "%.0f"|format(fines_total) }}</div>
-            <div style="font-size:0.72rem;opacity:0.85;margin-top:4px">{{ "%.1f"|format((fines_total / grand_total * 100) if grand_total > 0 else 0) }}% of total</div>
-        </div>
+
+    <div class="vp-kpi-row">
+        <div class="vp-kpi"><div class="vp-kpi-icon">⛽</div><div class="vp-kpi-label">Fuel</div><div class="vp-kpi-value" style="color:#e65100">AED {{ "%.0f"|format(fuel_total_amount) }}</div><div style="font-size:.68rem;color:#868e96;margin-top:3px">{{ "%.1f"|format((fuel_total_amount / grand_total * 100) if grand_total > 0 else 0) }}%</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">🔧</div><div class="vp-kpi-label">Maintenance</div><div class="vp-kpi-value" style="color:#1565C0">AED {{ "%.0f"|format(v.total_cost or 0) }}</div><div style="font-size:.68rem;color:#868e96;margin-top:3px">{{ "%.1f"|format(((v.total_cost or 0) / grand_total * 100) if grand_total > 0 else 0) }}%</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">📦</div><div class="vp-kpi-label">Parts</div><div class="vp-kpi-value" style="color:#16a34a">AED {{ "%.0f"|format(parts_total_amount) }}</div><div style="font-size:.68rem;color:#868e96;margin-top:3px">{{ "%.1f"|format((parts_total_amount / grand_total * 100) if grand_total > 0 else 0) }}%</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">🚦</div><div class="vp-kpi-label">Fines</div><div class="vp-kpi-value" style="color:#dc2626">AED {{ "%.0f"|format(fines_total) }}</div><div style="font-size:.68rem;color:#868e96;margin-top:3px">{{ "%.1f"|format((fines_total / grand_total * 100) if grand_total > 0 else 0) }}%</div></div>
     </div>
 
-    {# Grand Total + Bar Chart #}
-    <div class="profile-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:2px solid #e2e8f0;margin-bottom:16px">
-            <div>
-                <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Total Vehicle Cost</div>
-                <div style="font-size:1.6rem;font-weight:800;color:var(--primary)">AED {{ "%.0f"|format(grand_total) }}</div>
-            </div>
-            <div style="text-align:right">
-                <div style="font-size:0.75rem;color:var(--muted)">All categories combined</div>
-            </div>
+    <div class="vp-card">
+        <div class="vp-card-head">
+            <h3>Total Vehicle Cost</h3>
+            <span class="mono" style="font-size:1.15rem;font-weight:800;color:var(--primary)">AED {{ "%.0f"|format(grand_total) }}</span>
         </div>
-
-        {# Visual Bar Chart #}
-        <div style="margin-bottom:20px">
-            <div class="vp-expense-bar">
+        <div class="vp-card-body">
+            <div class="vp-bar">
                 {% if grand_total > 0 %}
-                <div style="width:{{ (fuel_total_amount / grand_total * 100) }}%;background:linear-gradient(90deg,#f59e0b,#d97706)" title="Fuel: AED {{ "%.0f"|format(fuel_total_amount) }}"></div>
-                <div style="width:{{ ((v.total_cost or 0) / grand_total * 100) }}%;background:linear-gradient(90deg,#3b82f6,#1d4ed8)" title="Maintenance: AED {{ "%.0f"|format(v.total_cost or 0) }}"></div>
-                <div style="width:{{ (parts_total_amount / grand_total * 100) }}%;background:linear-gradient(90deg,#10b981,#059669)" title="Parts: AED {{ "%.0f"|format(parts_total_amount) }}"></div>
-                <div style="width:{{ (fines_total / grand_total * 100) }}%;background:linear-gradient(90deg,#ef4444,#dc2626)" title="Fines: AED {{ "%.0f"|format(fines_total) }}"></div>
+                <div style="width:{{ (fuel_total_amount / grand_total * 100) }}%;background:#e65100" title="Fuel"></div>
+                <div style="width:{{ ((v.total_cost or 0) / grand_total * 100) }}%;background:#1565C0" title="Maintenance"></div>
+                <div style="width:{{ (parts_total_amount / grand_total * 100) }}%;background:#16a34a" title="Parts"></div>
+                <div style="width:{{ (fines_total / grand_total * 100) }}%;background:#dc2626" title="Fines"></div>
                 {% endif %}
             </div>
-            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:0.72rem;color:var(--muted)">
-                <div style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f59e07"></span> Fuel</div>
-                <div style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#3b82f6"></span> Maintenance</div>
-                <div style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#10b981"></span> Parts</div>
-                <div style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#ef4444"></span> Fines</div>
-            </div>
-        </div>
-
-        {# Percentage Breakdown #}
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
-            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#fff7ed;border-radius:8px;border:1px solid #fed7aa">
-                <span style="color:var(--muted)">⛽ Fuel</span>
-                <span style="font-weight:700;color:#e65100">{{ "%.1f"|format((fuel_total_amount / grand_total * 100) if grand_total > 0 else 0) }}%</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">
-                <span style="color:var(--muted)">🔧 Maintenance</span>
-                <span style="font-weight:700;color:#1d4ed8">{{ "%.1f"|format(((v.total_cost or 0) / grand_total * 100) if grand_total > 0 else 0) }}%</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
-                <span style="color:var(--muted)">📦 Parts</span>
-                <span style="font-weight:700;color:#16a34a">{{ "%.1f"|format((parts_total_amount / grand_total * 100) if grand_total > 0 else 0) }}%</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;padding:10px 14px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
-                <span style="color:var(--muted)">🚦 Fines</span>
-                <span style="font-weight:700;color:#dc2626">{{ "%.1f"|format((fines_total / grand_total * 100) if grand_total > 0 else 0) }}%</span>
+            <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:.7rem;color:#868e96;flex-wrap:wrap;gap:6px">
+                <div style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#e65100"></span> Fuel</div>
+                <div style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#1565C0"></span> Maintenance</div>
+                <div style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#16a34a"></span> Parts</div>
+                <div style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#dc2626"></span> Fines</div>
             </div>
         </div>
     </div>
@@ -1145,26 +722,9 @@
     {% endif %}
 </div>
 
-<style>
-.highlight-row { background:#fff8e1 !important; box-shadow:inset 3px 0 0 #ff8a1f; }
-</style>
+<style>.highlight-row{background:#fff8e1 !important;box-shadow:inset 3px 0 0 #ff8a1f}</style>
 <script>
-function togglePaper(id) {
-    var el = document.getElementById(id);
-    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-{% if highlight %}
-(function() {
-    var hl = '{{ highlight|string }}';
-    var els = document.querySelectorAll('[id^="entry-row-"]');
-    for (var i = 0; i < els.length; i++) {
-        var detail = document.getElementById(els[i].id.replace('entry-row-', 'paper-detail-'));
-        if (detail && detail.style.display === 'block') {
-            setTimeout(function() { els[i].scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
-            break;
-        }
-    }
-})();
-{% endif %}
+function togglePaper(id){var el=document.getElementById(id);if(el)el.style.display=el.style.display==='none'?'block':'none'}
+{% if highlight %}(function(){var hl='{{ highlight|string }}';var els=document.querySelectorAll('[id^="entry-row-"]');for(var i=0;i<els.length;i++){var d=document.getElementById(els[i].id.replace('entry-row-','paper-detail-'));if(d&&d.style.display==='block'){setTimeout(function(){els[i].scrollIntoView({behavior:'smooth',block:'center'})},300);break}}})();{% endif %}
 </script>
 {% endblock %}
