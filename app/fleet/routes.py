@@ -1101,7 +1101,7 @@ def vehicle_profile(plate_no):
         maintenance_papers_list=maintenance_papers_list,
         combined_jobs=combined,
         all_drivers=_all_employees_drivers(),
-        documents=documents,
+        all_docs=all_docs,
         fuel_entries=fuel_entries,
         fuel_total_gallons=fuel_total_gallons,
         fuel_total_amount=fuel_total_amount,
