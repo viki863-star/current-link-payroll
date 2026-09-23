@@ -7,481 +7,394 @@
 
 {% block content %}
 <style>
-* { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
-.app-layout .erp-sidebar { display: none !important; }
-.balance-value.orange { color: #F7931E; }
-.app-layout .main-content { margin-left: 0 !important; width: 100% !important; max-width:100% !important; padding:0 !important; }
-body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-.staff-nav { display:flex; align-items:center; gap:10px; padding:14px 24px; background:#fff; border-bottom:1px solid #eef2f6; }
-.staff-nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
-.staff-nav-video { width:38px; height:38px; border-radius:10px; object-fit:cover; border:2px solid rgba(247,147,30,0.4); display:block; background:#fff; }
-.staff-nav-name { font-size:1.1rem; font-weight:800; color:#0F2B52; letter-spacing:-0.3px; }
-.staff-nav-orange { color:#F7931E; }
-.staff-nav-links { margin-left:auto; display:flex; gap:16px; align-items:center; }
-.staff-nav-link { font-size:0.85rem; color:#5a6a7a; text-decoration:none; font-weight:500; transition:color 0.2s; }
-.staff-nav-link:hover { color:#F7931E; }
-.staff-nav-btn { font-size:0.85rem; padding:7px 18px; border-radius:8px; background:#F7931E; color:#fff; text-decoration:none; font-weight:600; }
-.staff-nav-btn:hover { background:#e6820e; }
-.staff-nav-icon { position:relative; background:none; border:none; cursor:pointer; padding:8px; border-radius:8px; color:#5a6a7a; display:flex; align-items:center; transition:background 0.2s; }
-.staff-nav-icon:hover { background:#f1f5f9; }
-.staff-nav-badge { position:absolute; top:2px; right:2px; min-width:16px; height:16px; border-radius:8px; background:#ef4444; color:#fff; font-size:0.6rem; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; }
-.staff-nav-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:0.8rem; }
-.staff-notif-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.15s; }
-.staff-notif-item:hover { background:#f8fafc; }
-.staff-notif-item:last-child { border-bottom:none; }
+* { -webkit-tap-highlight-color:transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
+html { font-size:16px; }
+body,input,select,textarea,button { font-size:16px !important; }
+.app-layout .erp-sidebar { display:none!important; }
+.app-layout .main-content { margin-left:0!important; width:100%!important; max-width:100%!important; padding:0!important; }
+body.staff-body { background:#f0f2f5; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+
+/* ── Top Nav ── */
+.ps-nav { display:flex; align-items:center; gap:10px; padding:12px 16px; background:#fff; border-bottom:1px solid #e5e7eb; position:sticky; top:0; z-index:100; }
+.ps-nav a { text-decoration:none; display:flex; align-items:center; gap:8px; }
+.ps-nav img { width:34px; height:34px; border-radius:10px; }
+.ps-nav b { font-size:1rem; color:#0F2B52; }
+.ps-nav b span { color:#F7931E; }
+.ps-nav-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
+.ps-nav-right a { font-size:0.82rem; color:#64748b; text-decoration:none; font-weight:500; padding:6px 10px; border-radius:8px; }
+.ps-nav-right a.active { background:#e8f0fe; color:#1c568b; font-weight:700; }
+.ps-nav-right .ps-logout { background:#fee2e2; color:#dc2626; font-weight:600; }
+
+/* ── Balance Cards ── */
+.ps-balance { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; padding:12px 16px; }
+.ps-bal-card { background:#fff; border-radius:12px; padding:10px 6px; text-align:center; border:1px solid #f1f5f9; }
+.ps-bal-label { font-size:0.58rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px; }
+.ps-bal-val { font-size:0.88rem; font-weight:800; }
+.ps-bal-val.green { color:#059669; }
+.ps-bal-val.red { color:#dc2626; }
+.ps-bal-val.blue { color:#1c568b; }
+.ps-bal-val.orange { color:#d97706; }
+
+/* ── Paper Cards Container ── */
+.ps-papers-wrap { padding:0 16px 100px; }
+.ps-add-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:16px; border:2px dashed #cbd5e1; border-radius:16px; background:#fff; color:#1c568b; font-size:0.95rem; font-weight:700; cursor:pointer; margin-bottom:12px; transition:all 0.15s; }
+.ps-add-btn:active { background:#e8f0fe; border-color:#1c568b; }
+
+/* ── Single Paper Card ── */
+.ps-card { background:#fff; border-radius:16px; border:1px solid #e5e7eb; margin-bottom:14px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+.ps-card-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid #f1f5f9; }
+.ps-card-num { font-size:0.9rem; font-weight:800; color:#0F2B52; }
+.ps-card-del { background:none; border:1px solid #fecaca; color:#dc2626; border-radius:8px; font-size:0.75rem; font-weight:700; padding:6px 10px; cursor:pointer; font-family:inherit; transition:all 0.12s; }
+.ps-card-del:active { background:#fee2e2; }
+.ps-card-body { padding:14px 16px 16px; }
+
+/* ── Field Group ── */
+.ps-field { margin-bottom:14px; }
+.ps-field:last-child { margin-bottom:0; }
+.ps-label { display:block; font-size:0.78rem; font-weight:600; color:#475569; margin-bottom:6px; }
+.ps-label .req { color:#dc2626; }
+.ps-input { width:100%; padding:14px 12px; border:1.5px solid #e2e8f0; border-radius:12px; font-size:16px; font-family:inherit; background:#fafbfc; color:#0f172a; transition:border-color 0.15s; -webkit-appearance:none; appearance:none; }
+.ps-input:focus { outline:none; border-color:#1c568b; background:#fff; box-shadow:0 0 0 3px rgba(28,86,139,0.08); }
+select.ps-input { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:36px; }
+
+/* ── Two Column Row ── */
+.ps-row { display:flex; gap:10px; }
+.ps-row .ps-field { flex:1; min-width:0; }
+
+/* ── Vehicle Picker ── */
+.ps-vehicle-wrap { position:relative; }
+.ps-vehicle-wrap .ps-input { padding-right:40px; }
+.ps-vehicle-clear { position:absolute; right:6px; top:50%; transform:translateY(-50%); width:32px; height:32px; border:none; border-radius:8px; background:#f1f5f9; color:#64748b; font-size:1rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+
+/* ── VAT Toggle ── */
+.ps-vat-row { display:flex; gap:8px; }
+.ps-vat-btn { flex:1; padding:14px 10px; border:1.5px solid #e2e8f0; border-radius:12px; font-size:0.88rem; font-weight:700; background:#fafbfc; color:#475569; cursor:pointer; text-align:center; transition:all 0.12s; font-family:inherit; }
+.ps-vat-btn.active-no { border-color:#059669; background:#ecfdf5; color:#059669; }
+.ps-vat-btn.active-yes { border-color:#d97706; background:#fffbeb; color:#92400e; }
+
+/* ── VAT Details (hidden by default) ── */
+.ps-vat-details { display:none; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px; margin-top:12px; }
+.ps-vat-details.show { display:block; }
+.ps-vat-note { font-size:0.75rem; color:#92400e; font-weight:600; margin-bottom:12px; line-height:1.4; background:#fef3c7; padding:10px; border-radius:8px; border:1px solid #fde68a; }
+.ps-vat-calc { margin-top:10px; border-top:1px dashed #fde68a; padding-top:10px; }
+.ps-vat-calc-row { display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; padding:3px 0; }
+.ps-vat-calc-row span { color:#92400e; }
+.ps-vat-calc-row strong { color:#b45309; }
+
+/* ── Photo Capture ── */
+.ps-photo-area { display:flex; gap:8px; align-items:stretch; }
+.ps-photo-btn { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:16px 12px; border:2px dashed #e2e8f0; border-radius:12px; background:#fafbfc; color:#64748b; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
+.ps-photo-btn:active { border-color:#1c568b; background:#e8f0fe; color:#1c568b; }
+.ps-photo-btn svg { flex-shrink:0; }
+.ps-photo-name { font-size:0.75rem; color:#059669; font-weight:600; margin-top:4px; word-break:break-all; }
+.ps-file-hidden { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; }
+
+/* ── Sticky Submit Bar ── */
+.ps-submit-bar { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e5e7eb; padding:12px 16px; z-index:200; display:flex; gap:10px; align-items:center; box-shadow:0 -4px 12px rgba(0,0,0,0.06); }
+.ps-submit-count { font-size:0.82rem; font-weight:700; color:#475569; }
+.ps-submit-count span { color:#1c568b; }
+.ps-submit-btn { flex:1; padding:16px; background:#1c568b; color:#fff; border:none; border-radius:14px; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity 0.15s; }
+.ps-submit-btn:active { opacity:0.8; }
+.ps-submit-btn:disabled { background:#94a3b8; cursor:not-allowed; }
+
+/* ── Swipe hint animation ── */
+@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+.ps-card { animation:fadeIn 0.25s ease-out; }
+
+/* ── Empty state ── */
+.ps-empty { text-align:center; padding:40px 20px; color:#94a3b8; }
+.ps-empty svg { margin-bottom:12px; opacity:0.4; }
+.ps-empty p { font-size:0.88rem; margin:0; }
+
+/* ── Mobile ── */
+@media(max-width:480px){
+  .ps-balance { grid-template-columns:repeat(5,1fr); gap:4px; padding:10px 12px; }
+  .ps-bal-card { padding:8px 4px; }
+  .ps-bal-val { font-size:0.78rem; }
+  .ps-papers-wrap { padding:0 12px 100px; }
+}
 </style>
-<nav class="staff-nav">
-    <a class="staff-nav-brand" href="{{ url_for('technician_simple') }}">
-        <video class="staff-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
-            <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
-        </video>
-        <span class="staff-nav-name"><span>Current</span> <span class="staff-nav-orange">Link</span></span>
-    </a>
-    <div class="staff-nav-links">
-        <a class="staff-nav-link" href="{{ url_for('technician_simple') }}">New Papers</a>
-        <a class="staff-nav-link" href="{{ url_for('technician_my_jobs') }}">My Papers</a>
-        <button class="staff-nav-icon" id="staffNotifBell" aria-label="Notifications">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-                <path d="M10 2a6 6 0 0 0-6 6c0 4-2 5-2 5h16s-2-1-2-5a6 6 0 0 0-6-6z"/><path d="M8 17a2 2 0 0 0 4 0"/>
-            </svg>
-            <span class="staff-nav-badge" id="staffNotifBadge" style="display:none"></span>
-        </button>
-        {% if current_staff_photo %}<img src="{{ current_staff_photo }}" class="staff-nav-avatar" alt="My photo" style="border:2px solid #F7931E;object-fit:cover;background:#fff">{% else %}<div class="staff-nav-avatar" style="background:{{ tc }}">{{ (current_user_name or 'S')[0]|upper }}</div>{% endif %}
-        <span style="font-size:0.85rem;font-weight:600;color:#0F2B52">{{ current_user_name }}</span>
-        <a class="staff-nav-btn" href="{{ url_for('logout') }}">Logout</a>
-    </div>
+
+<!-- ── Nav ── -->
+<nav class="ps-nav">
+  <a href="{{ url_for('technician_simple') }}">
+    <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="CL">
+    <b><span>Current</span> Link</b>
+  </a>
+  <div class="ps-nav-right">
+    <a href="{{ url_for('technician_simple') }}" class="active">New</a>
+    <a href="{{ url_for('technician_my_jobs') }}">My Papers</a>
+    <a href="{{ url_for('logout') }}" class="ps-logout">Logout</a>
+  </div>
 </nav>
-<div class="staff-container">
-    <div class="staff-header">
-        <h1 class="staff-title">New Maintenance Papers</h1>
-        <a href="{{ url_for('technician_my_jobs') }}" style="font-size:0.85rem;color:var(--primary);text-decoration:none;padding:6px 12px;border:1px solid var(--line);border-radius:8px">My Papers</a>
-    </div>
 
-    <div class="balance-strip">
-        <div class="balance-item">
-            <div class="balance-label">Received</div>
-            <div class="balance-value green">AED {{ "%.0f"|format(total_received or 0) }}</div>
-        </div>
-        <div class="balance-item">
-            <div class="balance-label">Spent</div>
-            <div class="balance-value red">AED {{ "%.0f"|format(total_spent or 0) }}</div>
-        </div>
-        <div class="balance-item">
-            <div class="balance-label">Balance</div>
-            <div class="balance-value blue">AED {{ "%.0f"|format(balance or 0) }}</div>
-        </div>
-        <div class="balance-item">
-            <div class="balance-label">Approved</div>
-            <div class="balance-value green">{{ approved_count or 0 }}</div>
-        </div>
-        <div class="balance-item">
-            <div class="balance-label">Pending</div>
-            <div class="balance-value orange">{{ pending_count or 0 }}</div>
-        </div>
-    </div>
-
-    <form method="POST" enctype="multipart/form-data" class="staff-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="row_count" id="row_count" value="0">
-
-        <datalist id="supplierNameList">
-            {% for s in supplier_suggestions or [] %}
-            <option value="{{ s }}">{{ supplier_trn_map.get(s, '') }}</option>
-            {% endfor %}
-        </datalist>
-
-        <datalist id="vehicleList">
-            {% for v in vehicles %}
-            <option value="{{ v.plate_no }}">{{ v.vehicle_type }}</option>
-            {% endfor %}
-        </datalist>
-
-        <div class="staff-card staff-section">
-            <div class="staff-section-label">Papers</div>
-            <h2 class="staff-section-title" style="margin-bottom:4px">Bulk Paper Entry</h2>
-            <p class="bulk-intro">Add one or more papers here — each paper can have its own date, vehicle, amount, VAT status and photo. Submit them all together.</p>
-            <div id="bulkRows"></div>
-            <button type="button" class="bulk-add-btn" onclick="addRow({})">
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-                Add Another Paper
-            </button>
-        </div>
-
-        <button type="submit" class="staff-submit-btn" id="submitBtn">Submit Papers</button>
-    </form>
+<!-- ── Balance Strip ── -->
+<div class="ps-balance">
+  <div class="ps-bal-card"><div class="ps-bal-label">Received</div><div class="ps-bal-val green">AED {{ "%.0f"|format(total_received or 0) }}</div></div>
+  <div class="ps-bal-card"><div class="ps-bal-label">Spent</div><div class="ps-bal-val red">AED {{ "%.0f"|format(total_spent or 0) }}</div></div>
+  <div class="ps-bal-card"><div class="ps-bal-label">Balance</div><div class="ps-bal-val blue">AED {{ "%.0f"|format(balance or 0) }}</div></div>
+  <div class="ps-bal-card"><div class="ps-bal-label">Approved</div><div class="ps-bal-val green">{{ approved_count or 0 }}</div></div>
+  <div class="ps-bal-card"><div class="ps-bal-label">Pending</div><div class="ps-bal-val orange">{{ pending_count or 0 }}</div></div>
 </div>
 
-<script id="serverRowsJson" type="application/json">{{ rows|tojson }}</script>
+<!-- ── Form ── -->
+<form method="POST" enctype="multipart/form-data" id="paperForm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="row_count" id="row_count" value="0">
+
+  <datalist id="vehicleDL">
+    {% for v in vehicles %}
+    <option value="{{ v.plate_no }}">{{ v.vehicle_type }} | {{ v.model }}</option>
+    {% endfor %}
+  </datalist>
+
+  <datalist id="supplierDL">
+    {% for s in supplier_suggestions or [] %}
+    <option value="{{ s }}">{{ supplier_trn_map.get(s, '') }}</option>
+    {% endfor %}
+  </datalist>
+
+  <div class="ps-papers-wrap">
+    <button type="button" class="ps-add-btn" id="addPaperBtn" onclick="addCard({})">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" width="20" height="20"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+      Add Paper
+    </button>
+    <div id="cards"></div>
+  </div>
+
+  <!-- ── Sticky Submit ── -->
+  <div class="ps-submit-bar">
+    <div class="ps-submit-count"><span id="cardCount">1</span> paper</div>
+    <button type="submit" class="ps-submit-btn" id="submitBtn">Submit</button>
+  </div>
+</form>
 
 <script>
-var categoryOpts = {{ categories|tojson }};
-var supplierTrnMap = JSON.parse('{{ supplier_trn_map|tojson }}' || '{}');
+var catOpts = {{ categories|tojson }};
+var trnMap = JSON.parse('{{ supplier_trn_map|tojson }}' || '{}');
 
 function todayISO() {
-    var d = new Date();
-    var m = ('0' + (d.getMonth()+1)).slice(-2);
-    var day = ('0' + d.getDate()).slice(-2);
-    return d.getFullYear() + '-' + m + '-' + day;
+  var d = new Date(), m = ('0'+(d.getMonth()+1)).slice(-2), day = ('0'+d.getDate()).slice(-2);
+  return d.getFullYear()+'-'+m+'-'+day;
 }
 
-function rowHTML(v) {
-    v = v || {};
-    var cats = '<option value="">Select category (optional)</option>';
-    categoryOpts.forEach(function(c) {
-        cats += '<option value="' + c + '"' + (v.category === c ? ' selected' : '') + '>' + c + '</option>';
+function catOptions(sel) {
+  var h = '<option value="">Category</option>';
+  catOpts.forEach(function(c){ h += '<option value="'+c+'"'+(sel===c?' selected':'')+'>'+c+'</option>'; });
+  return h;
+}
+
+function cardHTML(v) {
+  v = v || {};
+  return ''
+  + '<div class="ps-card">'
+    + '<div class="ps-card-head">'
+      + '<span class="ps-card-num">Paper</span>'
+      + '<button type="button" class="ps-card-del" onclick="delCard(this)">Remove</button>'
+    + '</div>'
+    + '<div class="ps-card-body">'
+
+      /* Date + Vehicle */
+      + '<div class="ps-row">'
+        + '<div class="ps-field"><label class="ps-label">Date</label>'
+          + '<input type="date" class="ps-input" data-name="paper_date" value="'+(v.paper_date||todayISO())+'"></div>'
+        + '<div class="ps-field"><label class="ps-label">Vehicle <span style="color:#94a3b8;font-weight:400">(optional)</span></label>'
+          + '<div class="ps-vehicle-wrap">'
+            + '<input type="text" class="ps-input" data-name="vehicle_id" list="vehicleDL" placeholder="Plate number" autocomplete="off" value="'+(v.vehicle_id||'')+'">'
+            + '<button type="button" class="ps-vehicle-clear" onclick="this.previousElementSibling.value=\'\';this.previousElementSibling.focus()">✕</button>'
+          + '</div></div>'
+      + '</div>'
+
+      /* Amount + Category */
+      + '<div class="ps-row">'
+        + '<div class="ps-field"><label class="ps-label">Amount (AED) <span class="req">*</span></label>'
+          + '<input type="number" class="ps-input" data-name="amount" step="0.01" min="0" placeholder="0.00" value="'+(v.amount||'')+'" inputmode="decimal"></div>'
+        + '<div class="ps-field"><label class="ps-label">Category</label>'
+          + '<select class="ps-input" data-name="category">'+catOptions(v.category)+'</select></div>'
+      + '</div>'
+
+      /* VAT Toggle */
+      + '<div class="ps-field"><label class="ps-label">Bill Type</label>'
+        + '<div class="ps-vat-row">'
+          + '<button type="button" class="ps-vat-btn active-no" data-vat="no" onclick="toggleVAT(this,\'no\')">Without VAT</button>'
+          + '<button type="button" class="ps-vat-btn" data-vat="yes" onclick="toggleVAT(this,\'yes\')">VAT 5%</button>'
+        + '</div>'
+        + '<input type="hidden" data-name="tax_mode" value="Without Tax">'
+      + '</div>'
+
+      /* VAT Hidden Fields */
+      + '<div class="ps-vat-details">'
+        + '<div class="ps-vat-note">VAT bill: enter amount <b>without VAT</b> — 5% is added automatically. Workshop name & bill number are required.</div>'
+        + '<div class="ps-field"><label class="ps-label">Workshop Name <span class="req">*</span></label>'
+          + '<input type="text" class="ps-input" data-name="supplier_name" list="supplierDL" placeholder="Workshop name" autocomplete="off" value="'+(v.supplier_name||'')+'"></div>'
+        + '<div class="ps-row">'
+          + '<div class="ps-field"><label class="ps-label">Bill Number <span class="req">*</span></label>'
+            + '<input type="text" class="ps-input" data-name="supplier_bill_no" placeholder="e.g. INV-0042" value="'+(v.supplier_bill_no||'')+'"></div>'
+          + '<div class="ps-field"><label class="ps-label">TRN (optional)</label>'
+            + '<input type="text" class="ps-input" data-name="supplier_trn" placeholder="TRN" value="'+(v.supplier_trn||'')+'"></div>'
+        + '</div>'
+        + '<div class="ps-vat-calc" style="display:none">'
+          + '<div class="ps-vat-calc-row"><span>Net</span><strong class="v-net">AED 0</strong></div>'
+          + '<div class="ps-vat-calc-row"><span>VAT 5%</span><strong class="v-tax">AED 0</strong></div>'
+          + '<div class="ps-vat-calc-row"><span>Total</span><strong class="v-total">AED 0</strong></div>'
+        + '</div>'
+      + '</div>'
+
+      /* Description */
+      + '<div class="ps-field"><label class="ps-label">Description</label>'
+        + '<input type="text" class="ps-input" data-name="description" placeholder="What work was done?" value="'+(v.description||'')+'"></div>'
+
+      /* Photo */
+      + '<div class="ps-field"><label class="ps-label">Photo / Receipt</label>'
+        + '<div class="ps-photo-area">'
+          + '<label class="ps-photo-btn" id="photoLabel">'
+            + '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><rect x="2" y="5" width="16" height="12" rx="2"/><circle cx="10" cy="11" r="3"/><path d="M7 5V4a1 1 0 011-1h4a1 1 0 011 1v1"/></svg>'
+            + '<span>Take Photo or Choose</span>'
+            + '<input type="file" class="ps-file-hidden" data-name="attachment" accept="image/*,.pdf" capture="environment">'
+          + '</label>'
+        + '</div>'
+        + '<div class="ps-photo-name"></div>'
+      + '</div>'
+
+    + '</div>'
+  + '</div>';
+}
+
+function addCard(v) {
+  var d = document.createElement('div');
+  d.innerHTML = cardHTML(v);
+  var card = d.firstElementChild;
+  document.getElementById('cards').appendChild(card);
+  renNum();
+  sync();
+}
+
+function delCard(btn) {
+  var card = btn.closest('.ps-card');
+  var total = document.querySelectorAll('.ps-card').length;
+  if (total <= 1) {
+    card.querySelectorAll('.ps-input').forEach(function(inp) {
+      if (inp.type !== 'file') inp.value = '';
+      if (inp.tagName === 'SELECT') inp.selectedIndex = 0;
     });
-    return '' +
-    '<div class="bulk-row-head">' +
-        '<span class="bulk-row-num">Paper 1</span>' +
-        '<button type="button" class="bulk-row-remove" onclick="removeRow(this)" aria-label="Remove paper">\u2715 Remove</button>' +
-    '</div>' +
-    '<div class="bulk-cols">' +
-        '<div class="bulk-field">' +
-            '<label class="staff-label">Paper Date</label>' +
-            '<input type="date" class="staff-input" data-name="paper_date" value="' + (v.paper_date || todayISO()) + '">' +
-        '</div>' +
-        '<div class="bulk-field bulk-field-wide">' +
-            '<label class="staff-label">Vehicle</label>' +
-            '<div class="vehicle-combo">' +
-                '<input type="text" class="staff-input" data-name="vehicle_id" list="vehicleList" placeholder="Search vehicle number..." autocomplete="off" value="' + (v.vehicle_id || '') + '">' +
-                '<button type="button" class="vehicle-clear" onclick="clearVehicle(this)" aria-label="General Expense" title="General Expense (no vehicle)">\u2715</button>' +
-            '</div>' +
-            '<small class="vehicle-hint">Type the vehicle number and pick from the list, or tap \u2715 for General Expense.</small>' +
-        '</div>' +
-    '</div>' +
-    '<div class="bulk-cols">' +
-        '<div class="bulk-field">' +
-            '<label class="staff-label">Amount (AED)</label>' +
-            '<input type="number" class="staff-input" data-name="amount" step="0.01" min="0" placeholder="e.g. 500" value="' + (v.amount || '') + '">' +
-        '</div>' +
-        '<div class="bulk-field">' +
-            '<label class="staff-label">Category</label>' +
-            '<select class="staff-input" data-name="category">' + cats + '</select>' +
-        '</div>' +
-    '</div>' +
-    '<div class="bulk-field">' +
-        '<label class="staff-label">Does the bill include VAT 5%?</label>' +
-        '<div class="vat-toggle">' +
-            '<button type="button" class="vat-btn active" data-vat="no" onclick="setVatForRow(this, \'no\')">Without VAT</button>' +
-            '<button type="button" class="vat-btn" data-vat="yes" onclick="setVatForRow(this, \'yes\')">VAT 5%</button>' +
-        '</div>' +
-        '<input type="hidden" data-name="tax_mode" value="Without Tax">' +
-    '</div>' +
-    '<div class="bulk-vat-fields" style="display:none">' +
-        '<div class="vat-note">VAT 5% bill — Enter the amount <strong>without VAT</strong>; 5% VAT is added automatically. Workshop name and bill number are required for the VAT report. TRN is optional.</div>' +
-        '<div class="bulk-field">' +
-            '<label class="staff-label">Workshop Name <span class="req-star">*</span></label>' +
-            '<input type="text" class="staff-input" data-name="supplier_name" list="supplierNameList" placeholder="Type or choose previous workshop..." autocomplete="off" value="' + (v.supplier_name || '') + '">' +
-        '</div>' +
-        '<div class="bulk-cols">' +
-            '<div class="bulk-field">' +
-                '<label class="staff-label">Bill Number <span class="req-star">*</span></label>' +
-                '<input type="text" class="staff-input" data-name="supplier_bill_no" placeholder="e.g. INV-0042" value="' + (v.supplier_bill_no || '') + '">' +
-            '</div>' +
-            '<div class="bulk-field">' +
-                '<label class="staff-label">Supplier TRN (optional)</label>' +
-                '<input type="text" class="staff-input" data-name="supplier_trn" placeholder="e.g. 100000000000003" value="' + (v.supplier_trn || '') + '">' +
-            '</div>' +
-        '</div>' +
-        '<div class="vat-calc" style="display:none">' +
-            '<div><span>Net Amount</span><strong class="vat-net" style="color:#b45309">AED 0.00</strong></div>' +
-            '<div><span>VAT 5%</span><strong class="vat-tax" style="color:#b45309">AED 0.00</strong></div>' +
-            '<div><span>Total</span><strong class="vat-total" style="color:#e65100">AED 0.00</strong></div>' +
-        '</div>' +
-    '</div>' +
-    '<div class="bulk-field">' +
-        '<label class="staff-label">Description</label>' +
-        '<input type="text" class="staff-input" data-name="description" placeholder="What work was done?" value="' + (v.description || '') + '">' +
-    '</div>' +
-    '<div class="bulk-field">' +
-        '<label class="staff-label">Attach Photo / Paper</label>' +
-        '<div class="staff-file-area">' +
-            '<label class="staff-file-label">Tap to add photo' +
-                '<input type="file" class="bulk-file-input" data-name="attachment" accept="image/*,.pdf">' +
-            '</label>' +
-            '<span class="staff-file-name"></span>' +
-        '</div>' +
-    '</div>';
+    toggleVAT(card.querySelector('[data-vat="no"]'), 'no');
+    card.querySelector('.ps-photo-name').textContent = '';
+  } else {
+    card.style.transition = 'all 0.2s';
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(60px)';
+    setTimeout(function(){ card.remove(); renNum(); sync(); }, 200);
+  }
 }
 
-function addRow(values) {
-    var r = document.createElement('div');
-    r.className = 'bulk-row';
-    r.innerHTML = rowHTML(values);
-    document.getElementById('bulkRows').appendChild(r);
-    renumberRows();
-    setVatForRow(r.querySelector('.vat-btn[data-vat="no"]'), 'no');
-    if (values && values.tax_mode === 'Tax Invoice') {
-        setVatForRow(r.querySelector('.vat-btn[data-vat="yes"]'), 'yes');
-    }
-    updateSubmitLabel();
-}
-
-function removeRow(btn) {
-    var row = btn.closest('.bulk-row');
-    if (!row) return;
-    if (document.querySelectorAll('.bulk-row').length <= 1) {
-        row.querySelectorAll('[data-name]').forEach(function(inp) {
-            if (inp.type !== 'file') inp.value = '';
-        });
-        setVatForRow(row.querySelector('.vat-btn[data-vat="no"]'), 'no');
-    } else {
-        row.remove();
-    }
-    renumberRows();
-    updateSubmitLabel();
-}
-
-function renumberRows() {
-    var cnt = 0;
-    document.querySelectorAll('.bulk-row').forEach(function(row) {
-        row.dataset.idx = cnt;
-        var num = row.querySelector('.bulk-row-num');
-        if (num) num.textContent = 'Paper ' + (cnt + 1);
-        row.querySelectorAll('[data-name]').forEach(function(inp) {
-            inp.name = inp.dataset.name + '_' + cnt;
-        });
-        cnt++;
+function renNum() {
+  var n = 0;
+  document.querySelectorAll('.ps-card').forEach(function(c) {
+    c.querySelector('.ps-card-num').textContent = 'Paper ' + (++n);
+    c.querySelectorAll('[data-name]').forEach(function(inp) {
+      inp.name = inp.dataset.name + '_' + (n-1);
     });
-    var rc = document.getElementById('row_count');
-    if (rc) rc.value = cnt;
+  });
+  document.getElementById('row_count').value = n;
+  document.getElementById('cardCount').textContent = n;
+  document.getElementById('submitBtn').textContent = 'Submit ' + n + ' Paper' + (n===1?'':'s');
 }
 
-function updateSubmitLabel() {
-    var btn = document.getElementById('submitBtn');
-    if (!btn) return;
-    var n = document.querySelectorAll('.bulk-row').length;
-    btn.textContent = 'Submit ' + n + ' Paper' + (n === 1 ? '' : 's');
+function sync() { renNum(); }
+
+function toggleVAT(btn, val) {
+  var card = btn.closest('.ps-card');
+  var isYes = (val === 'yes');
+  card.querySelector('[data-name="tax_mode"]').value = isYes ? 'Tax Invoice' : 'Without Tax';
+  card.querySelectorAll('.ps-vat-btn').forEach(function(b) {
+    b.classList.remove('active-no','active-yes');
+    if (b.dataset.vat === val) b.classList.add(isYes ? 'active-yes' : 'active-no');
+  });
+  var det = card.querySelector('.ps-vat-details');
+  if (det) { isYes ? det.classList.add('show') : det.classList.remove('show'); }
+  recalcVAT(card);
 }
 
-function setVatForRow(btn, value) {
-    var row = btn.closest('.bulk-row');
-    if (!row) return;
-    var isVat = (value === 'yes');
-    row.querySelector('[data-name="tax_mode"]').value = isVat ? 'Tax Invoice' : 'Without Tax';
-    row.querySelectorAll('.vat-btn').forEach(function(b) {
-        b.classList.toggle('active', b.getAttribute('data-vat') === value);
-    });
-    var fields = row.querySelector('.bulk-vat-fields');
-    if (fields) fields.style.display = isVat ? '' : 'none';
-    if (!isVat) {
-        row.querySelectorAll('.vat-field-error').forEach(function(el) { el.remove(); });
-    }
-    recalcForRow(row);
+function recalcVAT(card) {
+  var calc = card.querySelector('.ps-vat-calc');
+  if (!calc) return;
+  if (card.querySelector('[data-name="tax_mode"]').value !== 'Tax Invoice') { calc.style.display='none'; return; }
+  var net = parseFloat(card.querySelector('[data-name="amount"]').value)||0;
+  var tax = Math.round(net*0.05*100)/100;
+  var total = Math.round((net+tax)*100)/100;
+  card.querySelector('.v-net').textContent = 'AED '+net.toFixed(2);
+  card.querySelector('.v-tax').textContent = 'AED '+tax.toFixed(2);
+  card.querySelector('.v-total').textContent = 'AED '+total.toFixed(2);
+  calc.style.display = 'block';
 }
 
-function recalcForRow(row) {
-    if (!row) return;
-    var isVat = (row.querySelector('[data-name="tax_mode"]').value === 'Tax Invoice');
-    var calc = row.querySelector('.vat-calc');
-    var amountInput = row.querySelector('[data-name="amount"]');
-    if (!isVat) { if (calc) calc.style.display = 'none'; return; }
-    var net = parseFloat(amountInput.value) || 0;
-    var tax = Math.round(net * 0.05 * 100) / 100;
-    var total = Math.round((net + tax) * 100) / 100;
-    var netEl = row.querySelector('.vat-net');
-    var taxEl = row.querySelector('.vat-tax');
-    var totalEl = row.querySelector('.vat-total');
-    if (netEl) netEl.textContent = 'AED ' + net.toFixed(2);
-    if (taxEl) taxEl.textContent = 'AED ' + tax.toFixed(2);
-    if (totalEl) totalEl.textContent = 'AED ' + total.toFixed(2);
-    if (calc) calc.style.display = 'block';
-}
-
-function clearVehicle(btn) {
-    var combo = btn.closest('.vehicle-combo');
-    if (!combo) return;
-    var input = combo.querySelector('[data-name="vehicle_id"]');
-    if (input) {
-        input.value = '';
-        input.focus();
-    }
-}
-
-function showRowError(row, msg, dataName) {
-    var input = row.querySelector('[data-name="' + dataName + '"]');
-    if (!input) return;
-    var err = document.createElement('div');
-    err.className = 'vat-field-error';
-    err.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px';
-    err.textContent = msg;
-    input.parentNode.appendChild(err);
-}
-
+/* Event delegation */
 document.addEventListener('input', function(e) {
-    var t = e.target;
-    if (!t || !t.dataset) return;
-    var row = t.closest('.bulk-row');
-    if (!row) return;
-    if (t.dataset.name === 'amount') {
-        recalcForRow(row);
-    } else if (t.dataset.name === 'supplier_name') {
-        var trn = row.querySelector('[data-name="supplier_trn"]');
-        if (trn && supplierTrnMap[t.value.trim()]) {
-            trn.value = supplierTrnMap[t.value.trim()];
-        }
-    }
+  var t = e.target;
+  if (!t.dataset || !t.dataset.name) return;
+  var card = t.closest('.ps-card');
+  if (!card) return;
+  if (t.dataset.name === 'amount') recalcVAT(card);
+  if (t.dataset.name === 'supplier_name' && trnMap[t.value.trim()]) {
+    var trn = card.querySelector('[data-name="supplier_trn"]');
+    if (trn) trn.value = trnMap[t.value.trim()];
+  }
 });
 
 document.addEventListener('change', function(e) {
-    var t = e.target;
-    if (!t || !t.classList || !t.classList.contains('bulk-file-input')) return;
-    var nameEl = t.closest('.staff-file-area').querySelector('.staff-file-name');
-    if (nameEl) nameEl.textContent = t.files.length > 0 ? t.files[0].name : '';
+  var t = e.target;
+  if (t.dataset && t.dataset.name === 'attachment') {
+    var nameEl = t.closest('.ps-field').querySelector('.ps-photo-name');
+    if (nameEl) nameEl.textContent = t.files.length ? t.files[0].name : '';
+  }
 });
 
-document.querySelector('form.staff-form').addEventListener('submit', function(e) {
-    var ok = true;
-    document.querySelectorAll('.bulk-row').forEach(function(row) {
-        row.querySelectorAll('.vat-field-error').forEach(function(el) { el.remove(); });
-        var amtV = row.querySelector('[data-name="amount"]').value.trim();
-        if (!amtV) {
-            showRowError(row, 'Amount is required', 'amount');
-            ok = false;
-            return;
-        }
-        var taxMode = row.querySelector('[data-name="tax_mode"]').value;
-        if (taxMode === 'Tax Invoice') {
-            if (!row.querySelector('[data-name="supplier_name"]').value.trim()) {
-                showRowError(row, 'Workshop name is required for a VAT bill', 'supplier_name');
-                ok = false;
-            }
-            if (!row.querySelector('[data-name="supplier_bill_no"]').value.trim()) {
-                showRowError(row, 'Bill number is required for a VAT bill', 'supplier_bill_no');
-                ok = false;
-            }
-        }
-    });
-    if (!ok) {
-        e.preventDefault();
-        renumberRows();
+/* Validation */
+document.getElementById('paperForm').addEventListener('submit', function(e) {
+  var ok = true;
+  document.querySelectorAll('.ps-card').forEach(function(card) {
+    card.querySelectorAll('.ps-field-error').forEach(function(x){ x.remove(); });
+    var amt = card.querySelector('[data-name="amount"]').value.trim();
+    if (!amt) {
+      var err = document.createElement('div');
+      err.className = 'ps-field-error';
+      err.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px;font-weight:600';
+      err.textContent = 'Amount required';
+      card.querySelector('[data-name="amount"]').parentNode.appendChild(err);
+      ok = false;
     }
+    if (card.querySelector('[data-name="tax_mode"]').value === 'Tax Invoice') {
+      if (!card.querySelector('[data-name="supplier_name"]').value.trim()) {
+        var e2 = document.createElement('div');
+        e2.className = 'ps-field-error';
+        e2.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px;font-weight:600';
+        e2.textContent = 'Workshop name required';
+        card.querySelector('[data-name="supplier_name"]').parentNode.appendChild(e2);
+        ok = false;
+      }
+      if (!card.querySelector('[data-name="supplier_bill_no"]').value.trim()) {
+        var e3 = document.createElement('div');
+        e3.className = 'ps-field-error';
+        e3.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px;font-weight:600';
+        e3.textContent = 'Bill number required';
+        card.querySelector('[data-name="supplier_bill_no"]').parentNode.appendChild(e3);
+        ok = false;
+      }
+    }
+  });
+  if (!ok) { e.preventDefault(); return; }
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Submitting...';
 });
 
-(function() {
-    var raw = document.getElementById('serverRowsJson');
-    var serverRows = [];
-    if (raw) {
-        try { serverRows = JSON.parse(raw.textContent) || []; }
-        catch (err) { serverRows = []; }
-    }
-    if (!Array.isArray(serverRows) || serverRows.length === 0) {
-        addRow({});
-    } else {
-        serverRows.forEach(addRow);
-    }
-})();
-</script>
-
-<style>
-.staff-container { max-width: 100%; margin: 0; padding: 16px; padding-bottom: 32px; }
-.staff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap:8px; }
-.staff-title { margin: 0; font-size: 1.1rem; font-weight: 700; white-space:nowrap; }
-.staff-section { margin-bottom: 16px; }
-.staff-section-label { font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
-.staff-section-title { margin: 0 0 12px; font-size: 1rem; font-weight: 600; }
-.staff-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
-.bulk-intro { margin: 0 0 14px; font-size: 0.85rem; color: #5a6a7a; line-height: 1.45; }
-.bulk-row { border: 1.5px solid var(--line); border-radius: 14px; background: #fff; padding: 14px; margin-bottom: 14px; }
-.bulk-row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px dashed #e5eaf1; }
-.bulk-row-num { font-weight: 800; font-size: 0.9rem; color: #0F2B52; }
-.bulk-row-remove { background: none; border: 1px solid #fecaca; color: #dc2626; border-radius: 8px; font-size: 0.78rem; font-weight: 700; padding: 6px 12px; cursor: pointer; font-family: inherit; transition: all 0.12s; }
-.bulk-row-remove:hover { background: #fef2f2; }
-.bulk-cols { display: flex; gap: 10px; }
-.bulk-cols .bulk-field { flex: 1; min-width: 0; }
-.bulk-field { margin-bottom: 12px; }
-.bulk-field-wide { flex: 1.4 !important; }
-.vehicle-combo { position: relative; }
-.vehicle-combo .staff-input { padding-right: 46px; }
-.vehicle-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border: none; border-radius: 8px; background: #eef2f6; color: #64748b; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; }
-.vehicle-clear:hover { background: #fecaca; color: #dc2626; }
-.vehicle-hint { display: block; margin-top: 5px; font-size: 0.72rem; color: #7a8aa3; line-height: 1.35; }
-.bulk-add-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 15px; border: 2px dashed #b6c6dc; border-radius: 14px; background: #f8fafc; color: var(--primary); font-size: 0.95rem; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-.bulk-add-btn:hover { border-color: var(--primary); background: #f0f4ff; }
-.staff-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text); }
-.staff-input { width: 100%; padding: 14px; border: 1.5px solid var(--line); border-radius: 12px; font-size: 1rem; font-family: inherit; background: #fff; box-sizing: border-box; }
-.staff-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(28,86,139,0.1); }
-.vat-toggle { display: flex; gap: 10px; }
-.vat-btn { flex: 1; padding: 14px; border: 1.5px solid var(--line); border-radius: 12px; font-size: 0.95rem; font-weight: 700; background: #fff; color: var(--text); cursor: pointer; transition: all 0.12s; font-family: inherit; }
-.vat-btn.active { border-color: var(--primary); background: #e8f0fe; color: var(--primary); box-shadow: 0 0 0 3px rgba(28,86,139,0.1); }
-.vat-btn[data-vat="yes"].active { border-color: #b45309; background: #fef3c7; color: #92400e; box-shadow: 0 0 0 3px rgba(217,119,6,0.12); }
-.vat-note { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: 10px 12px; border-radius: 10px; font-size: 0.78rem; font-weight: 600; margin-bottom: 12px; line-height: 1.4; }
-.vat-calc { background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:12px 14px; margin-top:12px; }
-.vat-calc > div { display:flex; justify-content:space-between; align-items:center; font-size:0.88rem; padding:4px 0; }
-.vat-calc > div + div { border-top:1px dashed #fde68a; }
-.vat-calc span { color:#6b7280; }
-.vat-calc strong { font-weight:700; }
-.req-star { color: #dc2626; }
-.bulk-vat-fields { border: 1.5px solid #fde68a; background: #fffbeb; padding: 14px; border-radius: 12px; margin-bottom: 12px; }
-.staff-file-area { position: relative; }
-.staff-file-area input[type=file] { position: absolute; opacity: 0; width: 0.1px; height: 0.1px; }
-.staff-file-label { display: flex; align-items: center; gap: 10px; padding: 16px; border: 2px dashed var(--line); border-radius: 12px; cursor: pointer; font-size: 0.88rem; color: var(--muted); justify-content: center; transition: all 0.15s; }
-.staff-file-label:hover { border-color: var(--primary); color: var(--primary); background: #f0f4ff; }
-.staff-file-name { display: block; margin-top: 6px; font-size: 0.8rem; color: var(--green); text-align: center; }
-.staff-submit-btn { width: 100%; padding: 16px; background: var(--primary); color: #fff; border: none; border-radius: 14px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s; margin-top: 8px; }
-.staff-submit-btn:active { opacity: 0.75; }
-.balance-strip { display:flex; gap:8px; margin-bottom:16px; }
-.balance-item { flex:1; background:#fff; border-radius:14px; padding:12px 8px; text-align:center; border:1px solid #e8ecf2; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
-.balance-label { font-size:0.6rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
-.balance-value { font-size:1.05rem; font-weight:800; }
-.balance-value.green { color:#1a7a4e; }
-.balance-value.red { color:#c0392b; }
-.balance-value.blue { color:#1c568b; }
-@media (max-width: 480px) {
- .staff-container { padding:12px; }
- .balance-strip { gap:6px; }
- .balance-item { padding:10px 4px; }
- .balance-value { font-size:0.95rem; }
- .bulk-cols { flex-direction: column; gap: 0; }
-}
-</style>
-<script>
-document.querySelectorAll('.staff-nav-video').forEach(function(v) {
-    function doPlay() { v.play().catch(function(){}); }
-    if (v.readyState >= 2) { doPlay(); }
-    else { v.addEventListener('loadeddata', doPlay, {once:true}); }
-});
-
+/* Init */
 (function(){
-    var bell = document.getElementById('staffNotifBell');
-    var badge = document.getElementById('staffNotifBadge');
-    if (!bell) return;
-    var dropdown = null;
-    function fetchNotifs() {
-        fetch('/notifications').then(function(r){ return r.json(); }).then(function(data){
-            var c = data.unread || 0;
-            if (c > 0) { badge.style.display = 'flex'; badge.textContent = c > 99 ? '99+' : c; }
-            else { badge.style.display = 'none'; }
-        }).catch(function(){});
-    }
-    bell.addEventListener('click', function(e){
-        e.stopPropagation();
-        if (dropdown && dropdown.parentNode) { dropdown.remove(); dropdown = null; return; }
-        fetch('/notifications').then(function(r){ return r.json(); }).then(function(data){
-            var existing = document.querySelector('.staff-notif-dropdown');
-            if (existing) existing.remove();
-            dropdown = document.createElement('div');
-            dropdown.className = 'staff-notif-dropdown';
-            dropdown.innerHTML = '<div style="padding:10px 14px;border-bottom:1px solid #eef2f6;display:flex;justify-content:space-between;align-items:center"><strong style="font-size:0.82rem">Notifications</strong><button type="button" class="staff-notif-mark-read" style="background:none;border:none;color:#F7931E;cursor:pointer;font-size:0.72rem;font-weight:600">Mark all read</button></div><div class="staff-notif-list" style="max-height:300px;overflow-y:auto">' + (data.notifications.length ? data.notifications.map(function(n){ return '<div class="staff-notif-item" data-id="'+n.id+'"><div style="font-size:0.82rem;font-weight:600;color:#0f172a">'+n.title+'</div><div style="font-size:0.72rem;color:#64748b;margin-top:2px">'+(n.message||'')+'</div></div>'; }).join('') : '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:0.82rem">No new notifications</div>') + '</div>';
-            dropdown.style.cssText = 'position:absolute;top:100%;right:0;width:340px;background:#fff;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:9999;margin-top:8px;border:1px solid #eef2f6;';
-            bell.parentNode.style.position = 'relative';
-            bell.parentNode.appendChild(dropdown);
-            dropdown.querySelector('.staff-notif-mark-read')?.addEventListener('click', function(){
-                fetch('/notifications/read-all', {method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}','Content-Type':'application/json'}}).then(function(){ fetchNotifs(); if(dropdown)dropdown.remove(); dropdown=null; });
-            });
-            dropdown.querySelectorAll('.staff-notif-item').forEach(function(item){
-                item.addEventListener('click', function(){
-                    var id = this.dataset.id;
-                    fetch('/notifications/read/'+id, {method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}','Content-Type':'application/json'}}).then(function(){ fetchNotifs(); });
-                });
-            });
-        }).catch(function(){});
-    });
-    document.addEventListener('click', function(e){
-        if (dropdown && !dropdown.contains(e.target) && e.target !== bell) { dropdown.remove(); dropdown = null; }
-    });
-    fetchNotifs();
-    setInterval(fetchNotifs, 15000);
+  var raw = document.getElementById('serverRowsJson');
+  var rows = [];
+  if (raw) { try { rows = JSON.parse(raw.textContent)||[]; } catch(e){} }
+  if (!rows.length) addCard({}); else rows.forEach(addCard);
 })();
 </script>
+
+<script id="serverRowsJson" type="application/json">{{ rows|tojson }}</script>
 {% endblock %}
