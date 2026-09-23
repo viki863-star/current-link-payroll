@@ -25,25 +25,36 @@ body.staff-body { background:#f0f2f5; font-family:-apple-system,BlinkMacSystemFo
 .ps-nav-right a.active { background:#e8f0fe; color:#1c568b; font-weight:700; }
 .ps-nav-right .ps-logout { background:#fee2e2; color:#dc2626; font-weight:600; }
 
-/* ── Balance Cards ── */
-.ps-balance { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; padding:12px 16px; }
-.ps-bal-card { background:#fff; border-radius:12px; padding:10px 6px; text-align:center; border:1px solid #f1f5f9; }
-.ps-bal-label { font-size:0.58rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:3px; }
-.ps-bal-val { font-size:0.88rem; font-weight:800; }
-.ps-bal-val.green { color:#059669; }
-.ps-bal-val.red { color:#dc2626; }
-.ps-bal-val.blue { color:#1c568b; }
-.ps-bal-val.orange { color:#d97706; }
+/* ── Hero Dashboard ── */
+.ps-hero { background:linear-gradient(135deg,#0F2B52 0%,#1c568b 100%); padding:20px 16px 24px; color:#fff; }
+.ps-hero-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.ps-hero-title { font-size:1rem; font-weight:700; }
+.ps-hero-badge { font-size:0.72rem; background:rgba(255,255,255,0.18); border-radius:20px; padding:4px 12px; font-weight:600; backdrop-filter:blur(4px); }
 
-/* ── Paper Cards Container ── */
-.ps-papers-wrap { padding:0 16px 100px; }
-.ps-add-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:16px; border:2px dashed #cbd5e1; border-radius:16px; background:#fff; color:#1c568b; font-size:0.95rem; font-weight:700; cursor:pointer; margin-bottom:12px; transition:all 0.15s; }
-.ps-add-btn:active { background:#e8f0fe; border-color:#1c568b; }
+.ps-balance { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:0; }
+.ps-bal-card { background:rgba(255,255,255,0.12); border-radius:14px; padding:14px 10px; text-align:center; border:1px solid rgba(255,255,255,0.1); backdrop-filter:blur(8px); }
+.ps-bal-label { font-size:0.6rem; font-weight:600; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+.ps-bal-val { font-size:1.05rem; font-weight:800; color:#fff; }
+
+.ps-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:10px; }
+.ps-stat-card { background:rgba(255,255,255,0.1); border-radius:10px; padding:10px 8px; text-align:center; border:1px solid rgba(255,255,255,0.08); }
+.ps-stat-card .ps-bal-label { font-size:0.55rem; }
+.ps-stat-val { font-size:0.95rem; font-weight:800; }
+.ps-stat-val.green { color:#6ee7b7; }
+.ps-stat-val.orange { color:#fbbf24; }
+
+/* ── Section ── */
+.ps-section-wrap { padding:16px 16px 120px; }
+.ps-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.ps-section-title { font-size:0.95rem; font-weight:700; color:#0F2B52; }
+.ps-section-count { font-size:0.75rem; color:#94a3b8; font-weight:600; }
 
 /* ── Single Paper Card ── */
 .ps-card { background:#fff; border-radius:16px; border:1px solid #e5e7eb; margin-bottom:14px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
 .ps-card-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid #f1f5f9; }
-.ps-card-num { font-size:0.9rem; font-weight:800; color:#0F2B52; }
+.ps-card-num { display:flex; align-items:center; gap:8px; }
+.ps-card-num-badge { width:28px; height:28px; border-radius:8px; background:#e8f0fe; color:#1c568b; font-size:0.75rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+.ps-card-num-text { font-size:0.88rem; font-weight:700; color:#0F2B52; }
 .ps-card-del { background:none; border:1px solid #fecaca; color:#dc2626; border-radius:8px; font-size:0.75rem; font-weight:700; padding:6px 10px; cursor:pointer; font-family:inherit; transition:all 0.12s; }
 .ps-card-del:active { background:#fee2e2; }
 .ps-card-body { padding:14px 16px 16px; }
@@ -72,7 +83,7 @@ select.ps-input { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
 .ps-vat-btn.active-no { border-color:#059669; background:#ecfdf5; color:#059669; }
 .ps-vat-btn.active-yes { border-color:#d97706; background:#fffbeb; color:#92400e; }
 
-/* ── VAT Details (hidden by default) ── */
+/* ── VAT Details ── */
 .ps-vat-details { display:none; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px; margin-top:12px; }
 .ps-vat-details.show { display:block; }
 .ps-vat-note { font-size:0.75rem; color:#92400e; font-weight:600; margin-bottom:12px; line-height:1.4; background:#fef3c7; padding:10px; border-radius:8px; border:1px solid #fde68a; }
@@ -89,29 +100,31 @@ select.ps-input { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
 .ps-photo-name { font-size:0.75rem; color:#059669; font-weight:600; margin-top:4px; word-break:break-all; }
 .ps-file-hidden { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; }
 
-/* ── Sticky Submit Bar ── */
-.ps-submit-bar { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e5e7eb; padding:12px 16px; z-index:200; display:flex; gap:10px; align-items:center; box-shadow:0 -4px 12px rgba(0,0,0,0.06); }
-.ps-submit-count { font-size:0.82rem; font-weight:700; color:#475569; }
-.ps-submit-count span { color:#1c568b; }
-.ps-submit-btn { flex:1; padding:16px; background:#1c568b; color:#fff; border:none; border-radius:14px; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity 0.15s; }
-.ps-submit-btn:active { opacity:0.8; }
-.ps-submit-btn:disabled { background:#94a3b8; cursor:not-allowed; }
+/* ── Add Paper Button (inside cards area) ── */
+.ps-add-card { width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:18px; border:2px dashed #cbd5e1; border-radius:16px; background:rgba(255,255,255,0.6); color:#1c568b; font-size:0.95rem; font-weight:700; cursor:pointer; margin-top:4px; margin-bottom:14px; transition:all 0.15s; font-family:inherit; }
+.ps-add-card:active { background:#e8f0fe; border-color:#1c568b; }
 
-/* ── Swipe hint animation ── */
+/* ── Sticky Bottom Bar ── */
+.ps-bottom-bar { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e5e7eb; z-index:200; box-shadow:0 -4px 16px rgba(0,0,0,0.08); }
+.ps-bottom-row { display:flex; align-items:center; gap:10px; padding:10px 16px; }
+.ps-bottom-add { display:flex; align-items:center; justify-content:center; gap:6px; padding:12px 16px; border:1.5px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1c568b; font-size:0.85rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.12s; white-space:nowrap; }
+.ps-bottom-add:active { background:#e8f0fe; border-color:#1c568b; }
+.ps-bottom-info { flex:1; text-align:center; }
+.ps-bottom-count { font-size:0.82rem; font-weight:700; color:#475569; }
+.ps-bottom-count span { color:#1c568b; }
+.ps-bottom-submit { padding:14px 24px; background:#1c568b; color:#fff; border:none; border-radius:12px; font-size:0.95rem; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity 0.15s; white-space:nowrap; }
+.ps-bottom-submit:active { opacity:0.8; }
+.ps-bottom-submit:disabled { background:#94a3b8; cursor:not-allowed; }
+
+/* ── Animation ── */
 @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
 .ps-card { animation:fadeIn 0.25s ease-out; }
 
-/* ── Empty state ── */
-.ps-empty { text-align:center; padding:40px 20px; color:#94a3b8; }
-.ps-empty svg { margin-bottom:12px; opacity:0.4; }
-.ps-empty p { font-size:0.88rem; margin:0; }
-
 /* ── Mobile ── */
 @media(max-width:480px){
-  .ps-balance { grid-template-columns:repeat(5,1fr); gap:4px; padding:10px 12px; }
-  .ps-bal-card { padding:8px 4px; }
-  .ps-bal-val { font-size:0.78rem; }
-  .ps-papers-wrap { padding:0 12px 100px; }
+  .ps-hero { padding:16px 12px 20px; }
+  .ps-section-wrap { padding:12px 12px 120px; }
+  .ps-bottom-row { padding:8px 12px; }
 }
 </style>
 
@@ -128,16 +141,39 @@ select.ps-input { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
   </div>
 </nav>
 
-<!-- ── Balance Strip ── -->
-<div class="ps-balance">
-  <div class="ps-bal-card"><div class="ps-bal-label">Received</div><div class="ps-bal-val green">AED {{ "%.0f"|format(total_received or 0) }}</div></div>
-  <div class="ps-bal-card"><div class="ps-bal-label">Spent</div><div class="ps-bal-val red">AED {{ "%.0f"|format(total_spent or 0) }}</div></div>
-  <div class="ps-bal-card"><div class="ps-bal-label">Balance</div><div class="ps-bal-val blue">AED {{ "%.0f"|format(balance or 0) }}</div></div>
-  <div class="ps-bal-card"><div class="ps-bal-label">Approved</div><div class="ps-bal-val green">{{ approved_count or 0 }}</div></div>
-  <div class="ps-bal-card"><div class="ps-bal-label">Pending</div><div class="ps-bal-val orange">{{ pending_count or 0 }}</div></div>
+<!-- ── Hero Dashboard ── -->
+<div class="ps-hero">
+  <div class="ps-hero-top">
+    <div class="ps-hero-title">My Account</div>
+    <div class="ps-hero-badge">{{ current_user_name or 'Field Staff' }}</div>
+  </div>
+  <div class="ps-balance">
+    <div class="ps-bal-card">
+      <div class="ps-bal-label">Received</div>
+      <div class="ps-bal-val">AED {{ "%.0f"|format(total_received or 0) }}</div>
+    </div>
+    <div class="ps-bal-card">
+      <div class="ps-bal-label">Spent</div>
+      <div class="ps-bal-val">AED {{ "%.0f"|format(total_spent or 0) }}</div>
+    </div>
+    <div class="ps-bal-card">
+      <div class="ps-bal-label">Balance</div>
+      <div class="ps-bal-val" style="color:#fbbf24">AED {{ "%.0f"|format(balance or 0) }}</div>
+    </div>
+  </div>
+  <div class="ps-stats">
+    <div class="ps-stat-card">
+      <div class="ps-bal-label">Approved Papers</div>
+      <div class="ps-stat-val green">{{ approved_count or 0 }}</div>
+    </div>
+    <div class="ps-stat-card">
+      <div class="ps-bal-label">Pending Papers</div>
+      <div class="ps-stat-val orange">{{ pending_count or 0 }}</div>
+    </div>
+  </div>
 </div>
 
-<!-- ── Form ── -->
+<!-- ── Papers Section ── -->
 <form method="POST" enctype="multipart/form-data" id="paperForm">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="row_count" id="row_count" value="0">
@@ -154,18 +190,32 @@ select.ps-input { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://
     {% endfor %}
   </datalist>
 
-  <div class="ps-papers-wrap">
-    <button type="button" class="ps-add-btn" id="addPaperBtn" onclick="addCard({})">
+  <div class="ps-section-wrap">
+    <div class="ps-section-header">
+      <div class="ps-section-title">Maintenance Papers</div>
+      <div class="ps-section-count"><span id="cardCount">1</span> paper</div>
+    </div>
+
+    <div id="cards"></div>
+
+    <button type="button" class="ps-add-card" onclick="addCard({})">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" width="20" height="20"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
       Add Paper
     </button>
-    <div id="cards"></div>
   </div>
 
-  <!-- ── Sticky Submit ── -->
-  <div class="ps-submit-bar">
-    <div class="ps-submit-count"><span id="cardCount">1</span> paper</div>
-    <button type="submit" class="ps-submit-btn" id="submitBtn">Submit</button>
+  <!-- ── Sticky Bottom Bar ── -->
+  <div class="ps-bottom-bar">
+    <div class="ps-bottom-row">
+      <button type="button" class="ps-bottom-add" onclick="addCard({})">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" width="18" height="18"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+        Add
+      </button>
+      <div class="ps-bottom-info">
+        <div class="ps-bottom-count"><span id="bottomCount">1</span> paper</div>
+      </div>
+      <button type="submit" class="ps-bottom-submit" id="submitBtn">Submit</button>
+    </div>
   </div>
 </form>
 
@@ -189,12 +239,11 @@ function cardHTML(v) {
   return ''
   + '<div class="ps-card">'
     + '<div class="ps-card-head">'
-      + '<span class="ps-card-num">Paper</span>'
+      + '<div class="ps-card-num"><div class="ps-card-num-badge">1</div><span class="ps-card-num-text">Paper</span></div>'
       + '<button type="button" class="ps-card-del" onclick="delCard(this)">Remove</button>'
     + '</div>'
     + '<div class="ps-card-body">'
 
-      /* Date + Vehicle */
       + '<div class="ps-row">'
         + '<div class="ps-field"><label class="ps-label">Date</label>'
           + '<input type="date" class="ps-input" data-name="paper_date" value="'+(v.paper_date||todayISO())+'"></div>'
@@ -205,7 +254,6 @@ function cardHTML(v) {
           + '</div></div>'
       + '</div>'
 
-      /* Amount + Category */
       + '<div class="ps-row">'
         + '<div class="ps-field"><label class="ps-label">Amount (AED) <span class="req">*</span></label>'
           + '<input type="number" class="ps-input" data-name="amount" step="0.01" min="0" placeholder="0.00" value="'+(v.amount||'')+'" inputmode="decimal"></div>'
@@ -213,7 +261,6 @@ function cardHTML(v) {
           + '<select class="ps-input" data-name="category">'+catOptions(v.category)+'</select></div>'
       + '</div>'
 
-      /* VAT Toggle */
       + '<div class="ps-field"><label class="ps-label">Bill Type</label>'
         + '<div class="ps-vat-row">'
           + '<button type="button" class="ps-vat-btn active-no" data-vat="no" onclick="toggleVAT(this,\'no\')">Without VAT</button>'
@@ -222,7 +269,6 @@ function cardHTML(v) {
         + '<input type="hidden" data-name="tax_mode" value="Without Tax">'
       + '</div>'
 
-      /* VAT Hidden Fields */
       + '<div class="ps-vat-details">'
         + '<div class="ps-vat-note">VAT bill: enter amount <b>without VAT</b> — 5% is added automatically. Workshop name & bill number are required.</div>'
         + '<div class="ps-field"><label class="ps-label">Workshop Name <span class="req">*</span></label>'
@@ -240,14 +286,12 @@ function cardHTML(v) {
         + '</div>'
       + '</div>'
 
-      /* Description */
       + '<div class="ps-field"><label class="ps-label">Description</label>'
         + '<input type="text" class="ps-input" data-name="description" placeholder="What work was done?" value="'+(v.description||'')+'"></div>'
 
-      /* Photo */
       + '<div class="ps-field"><label class="ps-label">Photo / Receipt</label>'
         + '<div class="ps-photo-area">'
-          + '<label class="ps-photo-btn" id="photoLabel">'
+          + '<label class="ps-photo-btn">'
             + '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><rect x="2" y="5" width="16" height="12" rx="2"/><circle cx="10" cy="11" r="3"/><path d="M7 5V4a1 1 0 011-1h4a1 1 0 011 1v1"/></svg>'
             + '<span>Take Photo or Choose</span>'
             + '<input type="file" class="ps-file-hidden" data-name="attachment" accept="image/*,.pdf" capture="environment">'
@@ -264,9 +308,10 @@ function addCard(v) {
   var d = document.createElement('div');
   d.innerHTML = cardHTML(v);
   var card = d.firstElementChild;
-  document.getElementById('cards').appendChild(card);
+  var container = document.getElementById('cards');
+  container.appendChild(card);
   renNum();
-  sync();
+  card.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 function delCard(btn) {
@@ -290,13 +335,16 @@ function delCard(btn) {
 function renNum() {
   var n = 0;
   document.querySelectorAll('.ps-card').forEach(function(c) {
-    c.querySelector('.ps-card-num').textContent = 'Paper ' + (++n);
+    n++;
+    c.querySelector('.ps-card-num-badge').textContent = n;
+    c.querySelector('.ps-card-num-text').textContent = 'Paper';
     c.querySelectorAll('[data-name]').forEach(function(inp) {
       inp.name = inp.dataset.name + '_' + (n-1);
     });
   });
   document.getElementById('row_count').value = n;
   document.getElementById('cardCount').textContent = n;
+  document.getElementById('bottomCount').textContent = n;
   document.getElementById('submitBtn').textContent = 'Submit ' + n + ' Paper' + (n===1?'':'s');
 }
 
@@ -328,7 +376,6 @@ function recalcVAT(card) {
   calc.style.display = 'block';
 }
 
-/* Event delegation */
 document.addEventListener('input', function(e) {
   var t = e.target;
   if (!t.dataset || !t.dataset.name) return;
@@ -349,7 +396,6 @@ document.addEventListener('change', function(e) {
   }
 });
 
-/* Validation */
 document.getElementById('paperForm').addEventListener('submit', function(e) {
   var ok = true;
   document.querySelectorAll('.ps-card').forEach(function(card) {
@@ -387,7 +433,6 @@ document.getElementById('paperForm').addEventListener('submit', function(e) {
   document.getElementById('submitBtn').textContent = 'Submitting...';
 });
 
-/* Init */
 (function(){
   var raw = document.getElementById('serverRowsJson');
   var rows = [];
