@@ -1,257 +1,257 @@
 {% extends "base.html" %}
-{% block title %}My Jobs — Staff Portal{% endblock %}
+{% block title %}My Papers — Staff Portal{% endblock %}
 {% block body_class %}staff-body{% endblock %}
-{% block page_title %}My Jobs{% endblock %}
+{% block page_title %}{% endblock %}
 
 {% block shell_header %}{% endblock %}
 
 {% block content %}
 <style>
-* { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
-.app-layout .erp-sidebar { display: none !important; }
-.app-layout .main-content { margin-left: 0 !important; width: 100% !important; max-width:100% !important; padding:0 !important; }
-body.staff-body { background:#f4f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-.staff-nav { display:flex; align-items:center; gap:10px; padding:14px 24px; background:#fff; border-bottom:1px solid #eef2f6; }
-.staff-nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
-.staff-nav-video { width:38px; height:38px; border-radius:10px; object-fit:cover; border:2px solid rgba(247,147,30,0.4); display:block; background:#fff; }
-.staff-nav-name { font-size:1.1rem; font-weight:800; color:#0F2B52; letter-spacing:-0.3px; }
-.staff-nav-orange { color:#F7931E; }
-.staff-nav-links { margin-left:auto; display:flex; gap:16px; align-items:center; }
-.staff-nav-link { font-size:0.85rem; color:#5a6a7a; text-decoration:none; font-weight:500; transition:color 0.2s; }
-.staff-nav-link:hover { color:#F7931E; }
-.staff-nav-btn { font-size:0.85rem; padding:7px 18px; border-radius:8px; background:#F7931E; color:#fff; text-decoration:none; font-weight:600; }
-.staff-nav-btn:hover { background:#e6820e; }
-.staff-nav-icon { position:relative; background:none; border:none; cursor:pointer; padding:8px; border-radius:8px; color:#5a6a7a; display:flex; align-items:center; transition:background 0.2s; }
-.staff-nav-icon:hover { background:#f1f5f9; }
-.staff-nav-badge { position:absolute; top:2px; right:2px; min-width:16px; height:16px; border-radius:8px; background:#ef4444; color:#fff; font-size:0.6rem; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; }
-.staff-nav-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:0.8rem; }
-.staff-notif-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.15s; }
-.staff-notif-item:hover { background:#f8fafc; }
-.staff-notif-item:last-child { border-bottom:none; }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html{font-size:16px}
+body,input,select,textarea,button{font-size:16px!important;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif!important}
+.app-layout .erp-sidebar{display:none!important}
+.app-layout .main-content{margin-left:0!important;width:100%!important;max-width:100%!important;padding:0!important}
+body.staff-body{background:#f0f2f5;color:#1a1a2e;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+
+/* ═══ NAV ═══ */
+.sp-nav{position:sticky;top:0;z-index:200;background:rgba(255,255,255,0.92);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:0.5px solid rgba(0,0,0,0.08);padding:0 16px}
+.sp-nav-inner{display:flex;align-items:center;height:56px;max-width:600px;margin:0 auto}
+.sp-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.sp-logo{width:36px;height:36px;border-radius:10px;object-fit:cover}
+.sp-brand-text{display:flex;flex-direction:column;line-height:1.1}
+.sp-brand-name{font-size:0.95rem;font-weight:800;color:#0F2B52;letter-spacing:-0.3px}
+.sp-brand-sub{font-size:0.6rem;font-weight:600;color:#F7931E;text-transform:uppercase;letter-spacing:1px}
+.sp-tabs{display:flex;gap:4px;margin-left:auto;background:#f1f5f9;border-radius:10px;padding:3px}
+.sp-tab{padding:7px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;color:#64748b;text-decoration:none;transition:all 0.2s;white-space:nowrap}
+.sp-tab-active{background:#fff;color:#0F2B52;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.sp-tab:not(.sp-tab-active):active{background:rgba(0,0,0,0.04)}
+.sp-logout{font-size:0.72rem;font-weight:600;color:#ef4444;background:none;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;margin-left:8px;white-space:nowrap}
+.sp-logout:active{background:#fee2e2}
+
+/* ═══ HERO ═══ */
+.sp-hero{background:linear-gradient(145deg,#0a1628 0%,#0F2B52 40%,#1a4a7a 100%);padding:28px 16px 32px;color:#fff;position:relative;overflow:hidden}
+.sp-hero::before{content:'';position:absolute;top:-40%;right:-20%;width:300px;height:300px;background:radial-gradient(circle,rgba(247,147,30,0.15) 0%,transparent 70%);pointer-events:none}
+.sp-hero-inner{max-width:600px;margin:0 auto;position:relative;z-index:1}
+.sp-hero-greeting{font-size:0.82rem;color:rgba(255,255,255,0.55);font-weight:500;margin-bottom:2px}
+.sp-hero-name{font-size:1.25rem;font-weight:800;margin-bottom:20px;letter-spacing:-0.3px}
+.sp-hero-name span{color:#F7931E}
+
+.sp-bal-row{display:flex;gap:10px;margin-bottom:16px}
+.sp-bal-main{flex:1;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;backdrop-filter:blur(12px)}
+.sp-bal-main-label{font-size:0.65rem;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
+.sp-bal-main-val{font-size:1.6rem;font-weight:800;letter-spacing:-0.5px;color:#fbbf24}
+.sp-bal-side{display:flex;flex-direction:column;gap:10px;width:100px}
+.sp-bal-sm{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:10px 8px;text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center}
+.sp-bal-sm-label{font-size:0.52rem;font-weight:600;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+.sp-bal-sm-val{font-size:0.88rem;font-weight:800;color:#fff}
+
+.sp-counts{display:flex;gap:8px}
+.sp-count{flex:1;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:10px 12px}
+.sp-count-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sp-count-icon.green{background:rgba(5,150,105,0.2);color:#6ee7b7}
+.sp-count-icon.amber{background:rgba(217,119,6,0.2);color:#fbbf24}
+.sp-count-text{display:flex;flex-direction:column}
+.sp-count-num{font-size:1rem;font-weight:800;color:#fff;line-height:1}
+.sp-count-label{font-size:0.55rem;font-weight:600;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.3px}
+
+/* ═══ CONTENT ═══ */
+.sp-content{max-width:600px;margin:0 auto;padding:16px 16px 32px}
+.sp-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sp-section-title{font-size:0.88rem;font-weight:700;color:#0F2B52;display:flex;align-items:center;gap:8px}
+.sp-section-title::before{content:'';width:4px;height:16px;border-radius:2px;background:#1c568b;flex-shrink:0}
+.sp-section-badge{font-size:0.7rem;font-weight:700;color:#1c568b;background:#e8f0fe;border-radius:8px;padding:3px 8px}
+
+/* ═══ FILTER TABS ═══ */
+.sp-filter{display:flex;gap:6px;margin-bottom:14px}
+.sp-filter-btn{padding:8px 16px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s}
+.sp-filter-btn.active{border-color:#1c568b;background:#e8f0fe;color:#1c568b}
+.sp-filter-btn .count{margin-left:4px;font-weight:800}
+
+/* ═══ PAPER CARD ═══ */
+.sp-card{background:#fff;border-radius:16px;border:1px solid rgba(0,0,0,0.05);margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04);transition:transform 0.15s}
+.sp-card:active{transform:scale(0.99)}
+.sp-card-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f1f5f9}
+.sp-card-info{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.sp-card-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem}
+.sp-card-icon.pending{background:#fff7ed;color:#ea580c}
+.sp-card-icon.approved{background:#ecfdf5;color:#059669}
+.sp-card-icon.rejected{background:#fef2f2;color:#dc2626}
+.sp-card-meta{min-width:0}
+.sp-card-plate{font-size:0.88rem;font-weight:700;color:#0F2B52;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-card-date{font-size:0.68rem;color:#94a3b8;font-weight:500}
+.sp-card-status{font-size:0.65rem;padding:4px 10px;border-radius:20px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;flex-shrink:0}
+.sp-st-pending{background:#fff7ed;color:#ea580c}
+.sp-st-approved{background:#ecfdf5;color:#059669}
+.sp-st-rejected{background:#fef2f2;color:#dc2626}
+
+.sp-card-body{padding:12px 16px 14px}
+.sp-card-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:0.82rem}
+.sp-card-row-label{color:#94a3b8;font-weight:500}
+.sp-card-row-val{font-weight:600;color:#1e293b}
+.sp-card-row-val.amount{color:#ea580c;font-weight:800}
+.sp-card-row-val.cat{background:#e8f0fe;color:#1c568b;padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:700}
+.sp-card-note{margin-top:8px;padding:8px 10px;background:#fef2f2;border-radius:8px;font-size:0.75rem;color:#dc2626;font-weight:500;line-height:1.4}
+
+.sp-card-actions{display:flex;gap:8px;padding:0 16px 14px}
+.sp-card-action{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:10px;border-radius:10px;font-size:0.78rem;font-weight:600;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:all 0.12s}
+.sp-card-action:active{transform:scale(0.97)}
+.sp-a-view{background:#f0f4ff;color:#1c568b;border:1px solid #dbeafe}
+.sp-a-edit{background:#fff7ed;color:#ea580c;border:1px solid #fed7aa}
+.sp-a-delete{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+
+/* ═══ EMPTY ═══ */
+.sp-empty{text-align:center;padding:48px 24px}
+.sp-empty-icon{width:64px;height:64px;border-radius:16px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#cbd5e1}
+.sp-empty-title{font-size:0.95rem;font-weight:700;color:#0F2B52;margin-bottom:4px}
+.sp-empty-text{font-size:0.82rem;color:#94a3b8;margin-bottom:16px;line-height:1.4}
+.sp-empty-btn{display:inline-flex;align-items:center;gap:6px;padding:12px 24px;background:linear-gradient(135deg,#1c568b,#0F2B52);color:#fff;border:none;border-radius:12px;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;box-shadow:0 2px 8px rgba(28,86,139,0.3)}
+.sp-empty-btn:active{transform:scale(0.97)}
+
+/* ═══ ANIM ═══ */
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.sp-card{animation:slideUp 0.3s cubic-bezier(0.22,1,0.36,1)}
+
+@media(min-width:600px){.sp-nav-inner,.sp-hero-inner,.sp-content{max-width:540px}}
+@media(max-width:380px){.sp-brand-text{display:none}.sp-tabs{gap:2px;padding:2px}.sp-tab{padding:6px 10px;font-size:0.72rem}.sp-bal-side{width:80px}.sp-bal-sm-val{font-size:0.78rem}}
 </style>
-<nav class="staff-nav">
-    <a class="staff-nav-brand" href="{{ url_for('technician_simple') }}">
-        <video class="staff-nav-video" autoplay muted playsinline preload="auto" poster="{{ url_for('static', filename='logo.png') }}?v=2">
-            <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
-        </video>
-        <span class="staff-nav-name"><span>Current</span> <span class="staff-nav-orange">Link</span></span>
+
+<!-- ═══ NAV ═══ -->
+<nav class="sp-nav">
+  <div class="sp-nav-inner">
+    <a class="sp-brand" href="{{ url_for('technician_simple') }}">
+      <img class="sp-logo" src="{{ url_for('static', filename='logo.png') }}?v=3" alt="CL">
+      <div class="sp-brand-text"><div class="sp-brand-name">Current Link</div><div class="sp-brand-sub">Field Staff</div></div>
     </a>
-    <div class="staff-nav-links">
-        <a class="staff-nav-link" href="{{ url_for('technician_simple') }}">New Job</a>
-        <a class="staff-nav-link" href="{{ url_for('technician_my_jobs') }}">My Jobs</a>
-        <button class="staff-nav-icon" id="staffNotifBell" aria-label="Notifications">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
-                <path d="M10 2a6 6 0 0 0-6 6c0 4-2 5-2 5h16s-2-1-2-5a6 6 0 0 0-6-6z"/><path d="M8 17a2 2 0 0 0 4 0"/>
-            </svg>
-            <span class="staff-nav-badge" id="staffNotifBadge" style="display:none"></span>
-        </button>
-        {% if current_staff_photo %}<img src="{{ current_staff_photo }}" class="staff-nav-avatar" alt="My photo" style="border:2px solid #F7931E;object-fit:cover;background:#fff">{% else %}<div class="staff-nav-avatar" style="background:{{ tc }}">{{ (current_user_name or 'S')[0]|upper }}</div>{% endif %}
-        <span style="font-size:0.85rem;font-weight:600;color:#0F2B52">{{ current_user_name }}</span>
-        <a class="staff-nav-btn" href="{{ url_for('logout') }}">Logout</a>
+    <div class="sp-tabs">
+      <a class="sp-tab" href="{{ url_for('technician_simple') }}">New Papers</a>
+      <a class="sp-tab sp-tab-active" href="{{ url_for('technician_my_jobs') }}">My Papers</a>
     </div>
+    <button class="sp-logout" onclick="location.href='{{ url_for('logout') }}'">Logout</button>
+  </div>
 </nav>
-<div class="staff-container">
-    <div class="staff-header">
-        <h1 class="staff-title">My Job History</h1>
-        <a href="{{ url_for('technician_simple') }}" class="staff-back-btn">&#8592; New Job</a>
+
+<!-- ═══ HERO ═══ -->
+<div class="sp-hero">
+  <div class="sp-hero-inner">
+    <div class="sp-hero-greeting">My Submissions</div>
+    <div class="sp-hero-name"><span>{{ current_user_name or 'Field Staff' }}</span></div>
+
+    <div class="sp-bal-row">
+      <div class="sp-bal-main">
+        <div class="sp-bal-main-label">Available Balance</div>
+        <div class="sp-bal-main-val">AED {{ "%.2f"|format(balance or 0) }}</div>
+      </div>
+      <div class="sp-bal-side">
+        <div class="sp-bal-sm"><div class="sp-bal-sm-label">Received</div><div class="sp-bal-sm-val">{{ "%.0f"|format(total_received or 0) }}</div></div>
+        <div class="sp-bal-sm"><div class="sp-bal-sm-label">Spent</div><div class="sp-bal-sm-val">{{ "%.0f"|format(total_spent or 0) }}</div></div>
+      </div>
     </div>
 
-    <div class="balance-strip">
-        <div class="balance-item">
-            <div class="balance-label">Received</div>
-            <div class="balance-value green">AED {{ "%.0f"|format(total_received or 0) }}</div>
-        </div>
-        <div class="balance-item">
-            <div class="balance-label">Spent</div>
-            <div class="balance-value red">AED {{ "%.0f"|format(total_spent or 0) }}</div>
-        </div>
-        <div class="balance-item">
-            <div class="balance-label">Balance</div>
-            <div class="balance-value" style="color:{{ '#1a7a4e' if (balance or 0) >= 0 else '#c0392b' }}">AED {{ "%.0f"|format((balance or 0)|abs) }} {{ 'Left' if (balance or 0) >= 0 else 'Due' }}</div>
-        </div>
+    <div class="sp-counts">
+      <div class="sp-count">
+        <div class="sp-count-icon green"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <div class="sp-count-text"><div class="sp-count-num">{{ approved_count or 0 }}</div><div class="sp-count-label">Approved</div></div>
+      </div>
+      <div class="sp-count">
+        <div class="sp-count-icon amber"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+        <div class="sp-count-text"><div class="sp-count-num">{{ pending_count or 0 }}</div><div class="sp-count-label">Pending</div></div>
+      </div>
     </div>
-
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-        <a href="{{ url_for('technician_simple') }}" class="staff-action-btn" style="flex:1;text-align:center;padding:12px;font-size:0.9rem">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-            New Job
-        </a>
-    </div>
-
-    {% set has_jobs = jobs or papers %}
-    {% if has_jobs %}
-    <div class="staff-card" style="padding:0">
-        {% for j in jobs %}
-        <div class="staff-job-item">
-            <div class="staff-job-item-top">
-                <span class="staff-job-item-plate">{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted);font-weight:400">General Expense</span>{% else %}{{ j.vehicle_id }}{% endif %}</span>
-                <span class="staff-job-status staff-status-{{ j.status }}">{{ j.status }}</span>
-            </div>
-            <div class="staff-job-item-body">
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Amount</span>
-                    <span class="staff-job-item-value">AED {{ "%.0f"|format(j.amount) }}</span>
-                </div>
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Category</span>
-                    <span><span class="job-cat-badge">{{ j.category }}</span></span>
-                </div>
-                {% if j.description %}
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Details</span>
-                    <span style="font-size:0.8rem;color:var(--text)">{{ j.description }}</span>
-                </div>
-                {% endif %}
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Date</span>
-                    <span class="mono" style="font-size:0.78rem;color:var(--muted)">{{ j.created_at.strftime("%Y-%m-%d") }}</span>
-                </div>
-                {% if j.status == 'rejected' and j.admin_notes %}
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Reason</span>
-                    <span style="font-size:0.78rem;color:var(--danger)">{{ j.admin_notes }}</span>
-                </div>
-                {% endif %}
-            </div>
-            {% if j.status != 'approved' %}
-            <div style="display:flex;gap:8px;margin-top:10px">
-                <a href="{{ url_for('technician_job_view', job_id=j.id) }}" class="staff-job-action" style="background:#f0f4ff;color:var(--primary)">View</a>
-                <a href="{{ url_for('technician_job_edit', job_id=j.id) }}" class="staff-job-action" style="background:#e3f0ff;color:var(--primary)">Edit</a>
-                <form method="POST" action="{{ url_for('technician_job_delete', job_id=j.id) }}" style="margin:0;flex:1" onsubmit="return confirm('Delete this job?')">
-                    <button type="submit" class="staff-job-action" style="background:#ffebee;color:#c62828;width:100%;border:none;cursor:pointer;font-family:inherit;font-size:0.8rem;font-weight:600;border-radius:8px;padding:8px 12px">Delete</button>
-                </form>
-            </div>
-            {% else %}
-            <div style="margin-top:10px">
-                <a href="{{ url_for('technician_job_view', job_id=j.id) }}" class="staff-job-action" style="background:#f0f4ff;color:var(--primary);text-align:center">View</a>
-            </div>
-            {% endif %}
-        </div>
-        {% endfor %}
-        {% for p in papers %}
-        <div class="staff-job-item">
-            <div class="staff-job-item-top">
-                <span class="staff-job-item-plate">{{ p.vehicle_id or 'N/A' }}</span>
-                <span class="staff-job-status staff-status-{{ p.status|lower }}">{{ p.status }}</span>
-            </div>
-            <div class="staff-job-item-body">
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Amount</span>
-                    <span class="staff-job-item-value">AED {{ "%.0f"|format(p.amount) }}</span>
-                </div>
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Category</span>
-                    <span><span class="job-cat-badge">{{ p.category }}</span></span>
-                </div>
-                {% if p.description %}
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Details</span>
-                    <span style="font-size:0.8rem;color:var(--text)">{{ p.description }}</span>
-                </div>
-                {% endif %}
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Date</span>
-                    <span class="mono" style="font-size:0.78rem;color:var(--muted)">{{ (p.created_at or '')|string|truncate(10, True, '') }}</span>
-                </div>
-                {% if p.admin_notes %}
-                <div class="staff-job-item-row">
-                    <span class="staff-job-item-label">Reason</span>
-                    <span style="font-size:0.78rem;color:var(--danger)">{{ p.admin_notes }}</span>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="staff-card" style="text-align:center;padding:40px 20px">
-        <p style="color:var(--muted);margin:0">No jobs submitted yet.</p>
-        <a href="{{ url_for('technician_simple') }}" class="staff-action-btn" style="margin-top:16px;display:inline-flex">Submit Your First Job</a>
-    </div>
-    {% endif %}
+  </div>
 </div>
 
-<style>
-.staff-container { max-width: 100%; margin: 0; padding: 16px; padding-bottom:32px; }
-.staff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap:8px; }
-.staff-title { margin: 0; font-size: 1.1rem; font-weight: 700; }
-.staff-back-btn { font-size: 0.85rem; color: var(--primary); text-decoration: none; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; display:inline-flex;align-items:center;gap:4px; }
-.staff-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
-.staff-action-btn { display: inline-flex; align-items: center; justify-content:center; gap: 6px; background: var(--primary); color: #fff; border-radius: 12px; text-decoration: none; font-size: 0.95rem; font-weight: 600; padding:14px; transition: opacity 0.15s; touch-action:manipulation; }
-.staff-action-btn:active { opacity:0.75; }
-.staff-job-item { border-bottom: 1px solid var(--line); padding: 16px; }
-.staff-job-item:last-child { border-bottom: none; }
-.staff-job-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.staff-job-item-plate { font-weight: 700; font-size: 1rem; }
-.staff-job-status { font-size: 0.7rem; padding: 3px 12px; border-radius: 20px; font-weight: 600; text-transform: uppercase; }
-.staff-status-pending { background: #fff3e0; color: #e65100; }
-.staff-status-approved { background: #e8f5e9; color: #2e7d32; }
-.staff-status-rejected { background: #ffebee; color: #c62828; }
-.staff-job-item-body { margin-left: 0; }
-.staff-job-item-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 0.85rem; }
-.staff-job-item-label { color: var(--muted); font-size: 0.8rem; }
-.staff-job-item-value { font-weight: 600; color: #e65100; }
-.job-cat-badge { background: #e3f0ff; color: #1c568b; padding: 3px 12px; border-radius: 20px; font-size: 0.74rem; font-weight: 600; }
-.staff-job-action { display: block; text-align:center; padding: 10px 12px; border-radius: 10px; font-size: 0.82rem; font-weight: 600; text-decoration: none; }
-.balance-strip { display:flex; gap:8px; margin-bottom:16px; }
-.balance-item { flex:1; background:#fff; border-radius:14px; padding:12px 8px; text-align:center; border:1px solid #e8ecf2; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
-.balance-label { font-size:0.6rem; font-weight:600; color:#7a8aa3; text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px; }
-.balance-value { font-size:1.05rem; font-weight:800; }
-.balance-value.green { color:#1a7a4e; }
-.balance-value.red { color:#c0392b; }
-@media (max-width:480px) {
- .staff-container { padding:12px; }
- .balance-strip { gap:6px; }
- .balance-item { padding:10px 4px; }
- .balance-value { font-size:0.95rem; }
-}
-</style>
+<!-- ═══ CONTENT ═══ -->
+<div class="sp-content">
+  <div class="sp-section-head">
+    <div class="sp-section-title">Submission History</div>
+  </div>
+
+  <div class="sp-filter">
+    <button class="sp-filter-btn active" data-f="all" onclick="filterCards('all',this)">All <span class="count">{{ (jobs|length) + (papers|length) }}</span></button>
+    <button class="sp-filter-btn" data-f="pending" onclick="filterCards('pending',this)">Pending <span class="count">{{ pending_count or 0 }}</span></button>
+    <button class="sp-filter-btn" data-f="approved" onclick="filterCards('approved',this)">Approved <span class="count">{{ approved_count or 0 }}</span></button>
+  </div>
+
+  {% set all_items = [] %}
+  {% for j in jobs %}
+    {% set _ = all_items.append({'type':'job','id':j.id,'vehicle':j.vehicle_id,'amount':j.amount,'category':j.category,'description':j.description,'status':j.status,'admin_notes':j.admin_notes,'date':j.created_at.strftime('%Y-%m-%d') if j.created_at else '','has_edit':j.status != 'approved'}) %}
+  {% endfor %}
+  {% for p in papers %}
+    {% set _ = all_items.append({'type':'paper','id':p.id,'vehicle':p.vehicle_id,'amount':p.amount,'category':p.category,'description':p.description,'status':p.status|lower,'admin_notes':p.admin_notes,'date':(p.created_at or '')|string|truncate(10,True,''),'has_edit':False}) %}
+  {% endfor %}
+
+  {% if all_items %}
+  <div id="papersList">
+    {% for item in all_items %}
+    <div class="sp-card" data-status="{{ item.status }}">
+      <div class="sp-card-top">
+        <div class="sp-card-info">
+          <div class="sp-card-icon {{ item.status }}">
+            {% if item.status == 'approved' %}
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+            {% elif item.status == 'rejected' %}
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            {% else %}
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            {% endif %}
+          </div>
+          <div class="sp-card-meta">
+            <div class="sp-card-plate">{% if item.vehicle and item.vehicle != 'N/A' %}{{ item.vehicle }}{% else %}General Expense{% endif %}</div>
+            <div class="sp-card-date">{{ item.date }}</div>
+          </div>
+        </div>
+        <div class="sp-card-status sp-st-{{ item.status }}">{{ item.status }}</div>
+      </div>
+      <div class="sp-card-body">
+        <div class="sp-card-row"><span class="sp-card-row-label">Amount</span><span class="sp-card-row-val amount">AED {{ "%.0f"|format(item.amount) }}</span></div>
+        {% if item.category %}
+        <div class="sp-card-row"><span class="sp-card-row-label">Category</span><span class="sp-card-row-val cat">{{ item.category }}</span></div>
+        {% endif %}
+        {% if item.description %}
+        <div class="sp-card-row"><span class="sp-card-row-label">Details</span><span class="sp-card-row-val" style="font-size:0.78rem">{{ item.description }}</span></div>
+        {% endif %}
+        {% if item.admin_notes %}
+        <div class="sp-card-note">{{ item.admin_notes }}</div>
+        {% endif %}
+      </div>
+      <div class="sp-card-actions">
+        {% if item.type == 'job' %}
+          <a href="{{ url_for('technician_job_view', job_id=item.id) }}" class="sp-card-action sp-a-view"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View</a>
+          {% if item.has_edit %}
+          <a href="{{ url_for('technician_job_edit', job_id=item.id) }}" class="sp-card-action sp-a-edit"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</a>
+          <form method="POST" action="{{ url_for('technician_job_delete', job_id=item.id) }}" style="margin:0;flex:1" onsubmit="return confirm('Delete this?')">
+            <button type="submit" class="sp-card-action sp-a-delete" style="width:100%"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg> Delete</button>
+          </form>
+          {% endif %}
+        {% else %}
+          <a href="{{ url_for('technician_job_view', job_id=item.id) }}" class="sp-card-action sp-a-view" style="flex:1"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View Details</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="sp-empty">
+    <div class="sp-empty-icon"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg></div>
+    <div class="sp-empty-title">No papers yet</div>
+    <div class="sp-empty-text">Submit your first maintenance paper to get started.</div>
+    <a href="{{ url_for('technician_simple') }}" class="sp-empty-btn"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Submit Paper</a>
+  </div>
+  {% endif %}
+</div>
+
 <script>
-document.querySelectorAll('.staff-nav-video').forEach(function(v) {
-    function doPlay() { v.play().catch(function(){}); }
-    if (v.readyState >= 2) { doPlay(); }
-    else { v.addEventListener('loadeddata', doPlay, {once:true}); }
-});
-(function(){
-    var bell = document.getElementById('staffNotifBell');
-    var badge = document.getElementById('staffNotifBadge');
-    if (!bell) return;
-    var dropdown = null;
-    function fetchNotifs() {
-        fetch('/notifications').then(function(r){ return r.json(); }).then(function(data){
-            var c = data.unread || 0;
-            if (c > 0) { badge.style.display = 'flex'; badge.textContent = c > 99 ? '99+' : c; }
-            else { badge.style.display = 'none'; }
-        }).catch(function(){});
+function filterCards(status, btn) {
+  document.querySelectorAll('.sp-filter-btn').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  document.querySelectorAll('.sp-card').forEach(function(card) {
+    if (status === 'all' || card.dataset.status === status) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
     }
-    bell.addEventListener('click', function(e){
-        e.stopPropagation();
-        if (dropdown && dropdown.parentNode) { dropdown.remove(); dropdown = null; return; }
-        fetch('/notifications').then(function(r){ return r.json(); }).then(function(data){
-            var existing = document.querySelector('.staff-notif-dropdown');
-            if (existing) existing.remove();
-            dropdown = document.createElement('div');
-            dropdown.className = 'staff-notif-dropdown';
-            dropdown.innerHTML = '<div style="padding:10px 14px;border-bottom:1px solid #eef2f6;display:flex;justify-content:space-between;align-items:center"><strong style="font-size:0.82rem">Notifications</strong><button type="button" class="staff-notif-mark-read" style="background:none;border:none;color:#F7931E;cursor:pointer;font-size:0.72rem;font-weight:600">Mark all read</button></div><div class="staff-notif-list" style="max-height:300px;overflow-y:auto">' + (data.notifications.length ? data.notifications.map(function(n){ return '<div class="staff-notif-item" data-id="'+n.id+'"><div style="font-size:0.82rem;font-weight:600;color:#0f172a">'+n.title+'</div><div style="font-size:0.72rem;color:#64748b;margin-top:2px">'+(n.message||'')+'</div></div>'; }).join('') : '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:0.82rem">No new notifications</div>') + '</div>';
-            dropdown.style.cssText = 'position:absolute;top:100%;right:0;width:340px;background:#fff;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.12);z-index:9999;margin-top:8px;border:1px solid #eef2f6;';
-            bell.parentNode.style.position = 'relative';
-            bell.parentNode.appendChild(dropdown);
-            dropdown.querySelector('.staff-notif-mark-read')?.addEventListener('click', function(){
-                fetch('/notifications/read-all', {method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}','Content-Type':'application/json'}}).then(function(){ fetchNotifs(); if(dropdown)dropdown.remove(); dropdown=null; });
-            });
-            dropdown.querySelectorAll('.staff-notif-item').forEach(function(item){
-                item.addEventListener('click', function(){
-                    var id = this.dataset.id;
-                    fetch('/notifications/read/'+id, {method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}','Content-Type':'application/json'}}).then(function(){ fetchNotifs(); });
-                });
-            });
-        }).catch(function(){});
-    });
-    document.addEventListener('click', function(e){
-        if (dropdown && !dropdown.contains(e.target) && e.target !== bell) { dropdown.remove(); dropdown = null; }
-    });
-    fetchNotifs();
-    setInterval(fetchNotifs, 15000);
-})();
+  });
+}
 </script>
 {% endblock %}

@@ -1401,7 +1401,9 @@ def register_routes(app: Flask) -> None:
             if isinstance(d.get("created_at"), datetime):
                 d["created_at"] = d["created_at"].strftime("%Y-%m-%d %H:%M:%S")
             papers.append(d)
-        return render_template("fleet/staff_jobs.html", jobs=jobs, papers=papers, total_received=total_received, total_spent=total_spent, balance=balance)
+        pending_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Pending'", (technician_code,)).fetchone()["c"] or 0
+        approved_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["c"] or 0
+        return render_template("fleet/staff_jobs.html", jobs=jobs, papers=papers, total_received=total_received, total_spent=total_spent, balance=balance, pending_count=pending_count, approved_count=approved_count)
 
     @app.route("/portal/technician/my-jobs/<int:job_id>/edit", methods=["GET", "POST"])
     def technician_job_edit(job_id):
