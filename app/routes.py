@@ -196,6 +196,9 @@ class ValidationError(ValueError):
 def register_routes(app: Flask) -> None:
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
+        if session.get("role") == "technician" or session.get("technician_code"):
+            flash("Your session has expired. Please log in again.", "error")
+            return redirect(url_for("technician_login"))
         flash("Your session has expired. Please log in again.", "error")
         return redirect(url_for("login"))
 
