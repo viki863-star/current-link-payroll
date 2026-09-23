@@ -231,7 +231,7 @@ select.sp-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://ww
 </div>
 
 <!-- ════════ PAPER FORM ════════ -->
-<form method="POST" enctype="multipart/form-data" id="paperForm">
+<form method="POST" enctype="multipart/form-data" id="paperForm" action="{{ url_for('technician_simple') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="row_count" id="row_count" value="0">
 
