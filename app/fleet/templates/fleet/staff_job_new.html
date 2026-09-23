@@ -1,445 +1,388 @@
 {% extends "base.html" %}
-{% block title %}New Papers — Staff Portal{% endblock %}
+{% block title %}Staff Portal — Current Link{% endblock %}
 {% block body_class %}staff-body{% endblock %}
-{% block page_title %}New Papers{% endblock %}
+{% block page_title %}{% endblock %}
 
 {% block shell_header %}{% endblock %}
 
 {% block content %}
 <style>
-* { -webkit-tap-highlight-color:transparent; -webkit-text-size-adjust:100%; text-size-adjust:100%; box-sizing:border-box; }
-html { font-size:16px; }
-body,input,select,textarea,button { font-size:16px !important; }
-.app-layout .erp-sidebar { display:none!important; }
-.app-layout .main-content { margin-left:0!important; width:100%!important; max-width:100%!important; padding:0!important; }
-body.staff-body { background:#f0f2f5; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif; margin:0; padding:0; -webkit-font-smoothing:antialiased; }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html{font-size:16px}
+body,input,select,textarea,button{font-size:16px!important;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif!important}
+.app-layout .erp-sidebar{display:none!important}
+.app-layout .main-content{margin-left:0!important;width:100%!important;max-width:100%!important;padding:0!important}
+body.staff-body{background:#f0f2f5;color:#1a1a2e;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden}
 
-/* ── Top Nav ── */
-.ps-nav { display:flex; align-items:center; gap:10px; padding:12px 16px; background:#fff; border-bottom:1px solid #e5e7eb; position:sticky; top:0; z-index:100; }
-.ps-nav a { text-decoration:none; display:flex; align-items:center; gap:8px; }
-.ps-nav img { width:34px; height:34px; border-radius:10px; }
-.ps-nav b { font-size:1rem; color:#0F2B52; }
-.ps-nav b span { color:#F7931E; }
-.ps-nav-right { margin-left:auto; display:flex; align-items:center; gap:12px; }
-.ps-nav-right a { font-size:0.82rem; color:#64748b; text-decoration:none; font-weight:500; padding:6px 10px; border-radius:8px; }
-.ps-nav-right a.active { background:#e8f0fe; color:#1c568b; font-weight:700; }
-.ps-nav-right .ps-logout { background:#fee2e2; color:#dc2626; font-weight:600; }
+/* ══════════════════════════════════════════
+   NAVIGATION BAR
+   ══════════════════════════════════════════ */
+.sp-nav{position:sticky;top:0;z-index:200;background:rgba(255,255,255,0.92);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:0.5px solid rgba(0,0,0,0.08);padding:0 16px}
+.sp-nav-inner{display:flex;align-items:center;height:56px;max-width:600px;margin:0 auto}
+.sp-brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.sp-logo{width:36px;height:36px;border-radius:10px;object-fit:cover}
+.sp-brand-text{display:flex;flex-direction:column;line-height:1.1}
+.sp-brand-name{font-size:0.95rem;font-weight:800;color:#0F2B52;letter-spacing:-0.3px}
+.sp-brand-sub{font-size:0.6rem;font-weight:600;color:#F7931E;text-transform:uppercase;letter-spacing:1px}
+.sp-tabs{display:flex;gap:4px;margin-left:auto;background:#f1f5f9;border-radius:10px;padding:3px}
+.sp-tab{padding:7px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;color:#64748b;text-decoration:none;transition:all 0.2s;white-space:nowrap}
+.sp-tab-active{background:#fff;color:#0F2B52;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.sp-tab:not(.sp-tab-active):active{background:rgba(0,0,0,0.04)}
+.sp-user{display:flex;align-items:center;gap:8px;margin-left:12px;text-decoration:none}
+.sp-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1c568b,#0F2B52);color:#fff;font-size:0.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.1)}
+.sp-logout{font-size:0.72rem;font-weight:600;color:#ef4444;background:none;border:none;padding:6px 10px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.sp-logout:active{background:#fee2e2}
 
-/* ── Hero Dashboard ── */
-.ps-hero { background:linear-gradient(135deg,#0F2B52 0%,#1c568b 100%); padding:20px 16px 24px; color:#fff; }
-.ps-hero-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-.ps-hero-title { font-size:1rem; font-weight:700; }
-.ps-hero-badge { font-size:0.72rem; background:rgba(255,255,255,0.18); border-radius:20px; padding:4px 12px; font-weight:600; backdrop-filter:blur(4px); }
+/* ══════════════════════════════════════════
+   HERO DASHBOARD
+   ══════════════════════════════════════════ */
+.sp-hero{background:linear-gradient(145deg,#0a1628 0%,#0F2B52 40%,#1a4a7a 100%);padding:28px 16px 32px;color:#fff;position:relative;overflow:hidden}
+.sp-hero::before{content:'';position:absolute;top:-40%;right:-20%;width:300px;height:300px;background:radial-gradient(circle,rgba(247,147,30,0.15) 0%,transparent 70%);pointer-events:none}
+.sp-hero::after{content:'';position:absolute;bottom:-30%;left:-10%;width:250px;height:250px;background:radial-gradient(circle,rgba(28,86,139,0.2) 0%,transparent 70%);pointer-events:none}
+.sp-hero-inner{max-width:600px;margin:0 auto;position:relative;z-index:1}
+.sp-hero-greeting{font-size:0.82rem;color:rgba(255,255,255,0.55);font-weight:500;margin-bottom:2px}
+.sp-hero-name{font-size:1.25rem;font-weight:800;margin-bottom:20px;letter-spacing:-0.3px}
+.sp-hero-name span{color:#F7931E}
 
-.ps-balance { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:0; }
-.ps-bal-card { background:rgba(255,255,255,0.12); border-radius:14px; padding:14px 10px; text-align:center; border:1px solid rgba(255,255,255,0.1); backdrop-filter:blur(8px); }
-.ps-bal-label { font-size:0.6rem; font-weight:600; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
-.ps-bal-val { font-size:1.05rem; font-weight:800; color:#fff; }
+.sp-balance-row{display:flex;gap:10px;margin-bottom:16px}
+.sp-bal-main{flex:1;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.sp-bal-main-label{font-size:0.65rem;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px}
+.sp-bal-main-val{font-size:1.6rem;font-weight:800;letter-spacing:-0.5px}
+.sp-bal-main-val.amber{color:#fbbf24}
+.sp-bal-side{display:flex;flex-direction:column;gap:10px;width:100px}
+.sp-bal-sm{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:10px 8px;text-align:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);flex:1;display:flex;flex-direction:column;justify-content:center}
+.sp-bal-sm-label{font-size:0.52rem;font-weight:600;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+.sp-bal-sm-val{font-size:0.88rem;font-weight:800;color:#fff}
 
-.ps-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:10px; }
-.ps-stat-card { background:rgba(255,255,255,0.1); border-radius:10px; padding:10px 8px; text-align:center; border:1px solid rgba(255,255,255,0.08); }
-.ps-stat-card .ps-bal-label { font-size:0.55rem; }
-.ps-stat-val { font-size:0.95rem; font-weight:800; }
-.ps-stat-val.green { color:#6ee7b7; }
-.ps-stat-val.orange { color:#fbbf24; }
+.sp-counts{display:flex;gap:8px}
+.sp-count{flex:1;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:10px 12px}
+.sp-count-icon{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sp-count-icon.green{background:rgba(5,150,105,0.2);color:#6ee7b7}
+.sp-count-icon.amber{background:rgba(217,119,6,0.2);color:#fbbf24}
+.sp-count-text{display:flex;flex-direction:column}
+.sp-count-num{font-size:1rem;font-weight:800;color:#fff;line-height:1}
+.sp-count-label{font-size:0.55rem;font-weight:600;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.3px}
 
-/* ── Section ── */
-.ps-section-wrap { padding:16px 16px 120px; }
-.ps-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.ps-section-title { font-size:0.95rem; font-weight:700; color:#0F2B52; }
-.ps-section-count { font-size:0.75rem; color:#94a3b8; font-weight:600; }
+/* ══════════════════════════════════════════
+   PAPERS SECTION
+   ══════════════════════════════════════════ */
+.sp-content{max-width:600px;margin:0 auto;padding:16px 16px 130px}
+.sp-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sp-section-title{font-size:0.88rem;font-weight:700;color:#0F2B52;display:flex;align-items:center;gap:8px}
+.sp-section-title::before{content:'';width:4px;height:16px;border-radius:2px;background:#1c568b;flex-shrink:0}
+.sp-section-badge{font-size:0.7rem;font-weight:700;color:#1c568b;background:#e8f0fe;border-radius:8px;padding:3px 8px}
 
-/* ── Single Paper Card ── */
-.ps-card { background:#fff; border-radius:16px; border:1px solid #e5e7eb; margin-bottom:14px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.ps-card-head { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid #f1f5f9; }
-.ps-card-num { display:flex; align-items:center; gap:8px; }
-.ps-card-num-badge { width:28px; height:28px; border-radius:8px; background:#e8f0fe; color:#1c568b; font-size:0.75rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
-.ps-card-num-text { font-size:0.88rem; font-weight:700; color:#0F2B52; }
-.ps-card-del { background:none; border:1px solid #fecaca; color:#dc2626; border-radius:8px; font-size:0.75rem; font-weight:700; padding:6px 10px; cursor:pointer; font-family:inherit; transition:all 0.12s; }
-.ps-card-del:active { background:#fee2e2; }
-.ps-card-body { padding:14px 16px 16px; }
+/* ══════════════════════════════════════════
+   PAPER CARD
+   ══════════════════════════════════════════ */
+.sp-card{background:#fff;border-radius:18px;border:1px solid rgba(0,0,0,0.05);margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.02);transition:transform 0.2s,box-shadow 0.2s}
+.sp-card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f1f5f9;background:#fafbfc}
+.sp-card-badge{display:flex;align-items:center;gap:10px}
+.sp-card-num{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#1c568b,#0F2B52);color:#fff;font-size:0.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(28,86,139,0.25)}
+.sp-card-title{font-size:0.88rem;font-weight:700;color:#0F2B52}
+.sp-card-del{display:flex;align-items:center;gap:4px;background:none;border:1px solid #fee2e2;color:#ef4444;border-radius:8px;font-size:0.72rem;font-weight:600;padding:6px 10px;cursor:pointer;font-family:inherit;transition:all 0.15s}
+.sp-card-del:active{background:#fef2f2;border-color:#fecaca;transform:scale(0.96)}
+.sp-card-body{padding:16px}
 
-/* ── Field Group ── */
-.ps-field { margin-bottom:14px; }
-.ps-field:last-child { margin-bottom:0; }
-.ps-label { display:block; font-size:0.78rem; font-weight:600; color:#475569; margin-bottom:6px; }
-.ps-label .req { color:#dc2626; }
-.ps-input { width:100%; padding:14px 12px; border:1.5px solid #e2e8f0; border-radius:12px; font-size:16px; font-family:inherit; background:#fafbfc; color:#0f172a; transition:border-color 0.15s; -webkit-appearance:none; appearance:none; }
-.ps-input:focus { outline:none; border-color:#1c568b; background:#fff; box-shadow:0 0 0 3px rgba(28,86,139,0.08); }
-select.ps-input { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:36px; }
+/* ══════════════════════════════════════════
+   FORM FIELDS
+   ══════════════════════════════════════════ */
+.sp-field{margin-bottom:14px}
+.sp-field:last-child{margin-bottom:0}
+.sp-label{display:flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:600;color:#64748b;margin-bottom:6px}
+.sp-label .req{color:#ef4444;font-weight:700}
+.sp-input{width:100%;padding:13px 14px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:16px;background:#f8fafc;color:#0f172a;transition:all 0.2s;-webkit-appearance:none;appearance:none;outline:none}
+.sp-input:focus{border-color:#1c568b;background:#fff;box-shadow:0 0 0 3px rgba(28,86,139,0.08)}
+.sp-input::placeholder{color:#94a3b8}
+select.sp-input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
 
-/* ── Two Column Row ── */
-.ps-row { display:flex; gap:10px; }
-.ps-row .ps-field { flex:1; min-width:0; }
+.sp-row{display:flex;gap:10px}
+.sp-row .sp-field{flex:1;min-width:0}
 
-/* ── Vehicle Picker ── */
-.ps-vehicle-wrap { position:relative; }
-.ps-vehicle-wrap .ps-input { padding-right:40px; }
-.ps-vehicle-clear { position:absolute; right:6px; top:50%; transform:translateY(-50%); width:32px; height:32px; border:none; border-radius:8px; background:#f1f5f9; color:#64748b; font-size:1rem; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+/* Vehicle */
+.sp-veh-wrap{position:relative}
+.sp-veh-wrap .sp-input{padding-right:40px}
+.sp-veh-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:none;border-radius:8px;background:#f1f5f9;color:#94a3b8;font-size:0.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sp-veh-x:active{background:#e2e8f0}
 
-/* ── VAT Toggle ── */
-.ps-vat-row { display:flex; gap:8px; }
-.ps-vat-btn { flex:1; padding:14px 10px; border:1.5px solid #e2e8f0; border-radius:12px; font-size:0.88rem; font-weight:700; background:#fafbfc; color:#475569; cursor:pointer; text-align:center; transition:all 0.12s; font-family:inherit; }
-.ps-vat-btn.active-no { border-color:#059669; background:#ecfdf5; color:#059669; }
-.ps-vat-btn.active-yes { border-color:#d97706; background:#fffbeb; color:#92400e; }
+/* VAT */
+.sp-vat-row{display:flex;gap:8px}
+.sp-vat-btn{flex:1;padding:13px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:0.85rem;font-weight:700;background:#f8fafc;color:#64748b;cursor:pointer;text-align:center;transition:all 0.15s;font-family:inherit}
+.sp-vat-btn.on-no{border-color:#059669;background:#ecfdf5;color:#059669;box-shadow:0 0 0 2px rgba(5,150,105,0.1)}
+.sp-vat-btn.on-yes{border-color:#d97706;background:#fffbeb;color:#92400e;box-shadow:0 0 0 2px rgba(217,119,6,0.1)}
 
-/* ── VAT Details ── */
-.ps-vat-details { display:none; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:14px; margin-top:12px; }
-.ps-vat-details.show { display:block; }
-.ps-vat-note { font-size:0.75rem; color:#92400e; font-weight:600; margin-bottom:12px; line-height:1.4; background:#fef3c7; padding:10px; border-radius:8px; border:1px solid #fde68a; }
-.ps-vat-calc { margin-top:10px; border-top:1px dashed #fde68a; padding-top:10px; }
-.ps-vat-calc-row { display:flex; justify-content:space-between; align-items:center; font-size:0.85rem; padding:3px 0; }
-.ps-vat-calc-row span { color:#92400e; }
-.ps-vat-calc-row strong { color:#b45309; }
+.sp-vat-box{display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px;margin-top:12px}
+.sp-vat-box.show{display:block}
+.sp-vat-info{font-size:0.72rem;color:#92400e;font-weight:600;line-height:1.4;background:#fef3c7;padding:10px;border-radius:8px;border:1px solid #fde68a;margin-bottom:12px}
+.sp-vat-calc{border-top:1px dashed #fde68a;padding-top:10px;margin-top:10px}
+.sp-vat-calc-row{display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:3px 0}
+.sp-vat-calc-row span{color:#92400e}
+.sp-vat-calc-row strong{color:#b45309;font-weight:700}
 
-/* ── Photo Capture ── */
-.ps-photo-area { display:flex; gap:8px; align-items:stretch; }
-.ps-photo-btn { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:16px 12px; border:2px dashed #e2e8f0; border-radius:12px; background:#fafbfc; color:#64748b; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
-.ps-photo-btn:active { border-color:#1c568b; background:#e8f0fe; color:#1c568b; }
-.ps-photo-btn svg { flex-shrink:0; }
-.ps-photo-name { font-size:0.75rem; color:#059669; font-weight:600; margin-top:4px; word-break:break-all; }
-.ps-file-hidden { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; }
+/* Photo */
+.sp-photo-label{display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;border:2px dashed #e2e8f0;border-radius:14px;background:#f8fafc;color:#94a3b8;font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.15s}
+.sp-photo-label:active{border-color:#1c568b;background:#f0f4ff;color:#1c568b}
+.sp-photo-name{font-size:0.72rem;color:#059669;font-weight:600;margin-top:6px;text-align:center;word-break:break-all}
+.sp-file-hid{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
 
-/* ── Add Paper Button (inside cards area) ── */
-.ps-add-card { width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:18px; border:2px dashed #cbd5e1; border-radius:16px; background:rgba(255,255,255,0.6); color:#1c568b; font-size:0.95rem; font-weight:700; cursor:pointer; margin-top:4px; margin-bottom:14px; transition:all 0.15s; font-family:inherit; }
-.ps-add-card:active { background:#e8f0fe; border-color:#1c568b; }
+/* ══════════════════════════════════════════
+   ADD PAPER (inline)
+   ══════════════════════════════════════════ */
+.sp-add-inline{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border:2px dashed #d1d9e6;border-radius:16px;background:rgba(255,255,255,0.5);color:#1c568b;font-size:0.9rem;font-weight:700;cursor:pointer;margin-top:4px;transition:all 0.15s;font-family:inherit}
+.sp-add-inline:active{background:#e8f0fe;border-color:#1c568b;transform:scale(0.98)}
 
-/* ── Sticky Bottom Bar ── */
-.ps-bottom-bar { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e5e7eb; z-index:200; box-shadow:0 -4px 16px rgba(0,0,0,0.08); }
-.ps-bottom-row { display:flex; align-items:center; gap:10px; padding:10px 16px; }
-.ps-bottom-add { display:flex; align-items:center; justify-content:center; gap:6px; padding:12px 16px; border:1.5px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1c568b; font-size:0.85rem; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.12s; white-space:nowrap; }
-.ps-bottom-add:active { background:#e8f0fe; border-color:#1c568b; }
-.ps-bottom-info { flex:1; text-align:center; }
-.ps-bottom-count { font-size:0.82rem; font-weight:700; color:#475569; }
-.ps-bottom-count span { color:#1c568b; }
-.ps-bottom-submit { padding:14px 24px; background:#1c568b; color:#fff; border:none; border-radius:12px; font-size:0.95rem; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity 0.15s; white-space:nowrap; }
-.ps-bottom-submit:active { opacity:0.8; }
-.ps-bottom-submit:disabled { background:#94a3b8; cursor:not-allowed; }
+/* ══════════════════════════════════════════
+   STICKY BOTTOM BAR
+   ══════════════════════════════════════════ */
+.sp-bar{position:fixed;bottom:0;left:0;right:0;z-index:200;background:rgba(255,255,255,0.92);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:0.5px solid rgba(0,0,0,0.06);padding-bottom:env(safe-area-inset-bottom)}
+.sp-bar-inner{max-width:600px;margin:0 auto;display:flex;align-items:center;gap:10px;padding:10px 16px}
+.sp-bar-add{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;color:#1c568b;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.12s;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.sp-bar-add:active{background:#f0f4ff;border-color:#1c568b;transform:scale(0.96)}
+.sp-bar-count{flex:1;text-align:center}
+.sp-bar-count-num{font-size:0.85rem;font-weight:800;color:#0F2B52}
+.sp-bar-count-label{font-size:0.6rem;color:#94a3b8;font-weight:500}
+.sp-bar-submit{padding:14px 28px;background:linear-gradient(135deg,#1c568b,#0F2B52);color:#fff;border:none;border-radius:14px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;box-shadow:0 2px 8px rgba(28,86,139,0.3);white-space:nowrap}
+.sp-bar-submit:active{transform:scale(0.97);box-shadow:0 1px 4px rgba(28,86,139,0.2)}
+.sp-bar-submit:disabled{background:#94a3b8;box-shadow:none;cursor:not-allowed}
 
-/* ── Animation ── */
-@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-.ps-card { animation:fadeIn 0.25s ease-out; }
+/* ══════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════ */
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.sp-card{animation:slideUp 0.3s cubic-bezier(0.22,1,0.36,1)}
 
-/* ── Mobile ── */
-@media(max-width:480px){
-  .ps-hero { padding:16px 12px 20px; }
-  .ps-section-wrap { padding:12px 12px 120px; }
-  .ps-bottom-row { padding:8px 12px; }
+/* ══════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════ */
+@media(min-width:600px){
+  .sp-nav-inner,.sp-hero-inner,.sp-content,.sp-bar-inner{max-width:540px}
+}
+@media(max-width:380px){
+  .sp-brand-text{display:none}
+  .sp-tabs{gap:2px;padding:2px}
+  .sp-tab{padding:6px 10px;font-size:0.72rem}
+  .sp-bal-side{width:80px}
+  .sp-bal-sm-val{font-size:0.78rem}
 }
 </style>
 
-<!-- ── Nav ── -->
-<nav class="ps-nav">
-  <a href="{{ url_for('technician_simple') }}">
-    <img src="{{ url_for('static', filename='logo.png') }}?v=2" alt="CL">
-    <b><span>Current</span> Link</b>
-  </a>
-  <div class="ps-nav-right">
-    <a href="{{ url_for('technician_simple') }}" class="active">New</a>
-    <a href="{{ url_for('technician_my_jobs') }}">My Papers</a>
-    <a href="{{ url_for('logout') }}" class="ps-logout">Logout</a>
+<!-- ════════ NAVIGATION ════════ -->
+<nav class="sp-nav">
+  <div class="sp-nav-inner">
+    <a class="sp-brand" href="{{ url_for('technician_simple') }}">
+      <img class="sp-logo" src="{{ url_for('static', filename='logo.png') }}?v=3" alt="Current Link">
+      <div class="sp-brand-text">
+        <div class="sp-brand-name">Current Link</div>
+        <div class="sp-brand-sub">Field Staff</div>
+      </div>
+    </a>
+    <div class="sp-tabs">
+      <a class="sp-tab sp-tab-active" href="{{ url_for('technician_simple') }}">New Papers</a>
+      <a class="sp-tab" href="{{ url_for('technician_my_jobs') }}">My Papers</a>
+    </div>
+    <button class="sp-logout" onclick="location.href='{{ url_for('logout') }}'">Logout</button>
   </div>
 </nav>
 
-<!-- ── Hero Dashboard ── -->
-<div class="ps-hero">
-  <div class="ps-hero-top">
-    <div class="ps-hero-title">My Account</div>
-    <div class="ps-hero-badge">{{ current_user_name or 'Field Staff' }}</div>
-  </div>
-  <div class="ps-balance">
-    <div class="ps-bal-card">
-      <div class="ps-bal-label">Received</div>
-      <div class="ps-bal-val">AED {{ "%.0f"|format(total_received or 0) }}</div>
+<!-- ════════ HERO DASHBOARD ════════ -->
+<div class="sp-hero">
+  <div class="sp-hero-inner">
+    <div class="sp-hero-greeting">Welcome back,</div>
+    <div class="sp-hero-name"><span>{{ current_user_name or 'Field Staff' }}</span></div>
+
+    <div class="sp-balance-row">
+      <div class="sp-bal-main">
+        <div class="sp-bal-main-label">Available Balance</div>
+        <div class="sp-bal-main-val amber">AED {{ "%.2f"|format(balance or 0) }}</div>
+      </div>
+      <div class="sp-bal-side">
+        <div class="sp-bal-sm">
+          <div class="sp-bal-sm-label">Received</div>
+          <div class="sp-bal-sm-val">{{ "%.0f"|format(total_received or 0) }}</div>
+        </div>
+        <div class="sp-bal-sm">
+          <div class="sp-bal-sm-label">Spent</div>
+          <div class="sp-bal-sm-val">{{ "%.0f"|format(total_spent or 0) }}</div>
+        </div>
+      </div>
     </div>
-    <div class="ps-bal-card">
-      <div class="ps-bal-label">Spent</div>
-      <div class="ps-bal-val">AED {{ "%.0f"|format(total_spent or 0) }}</div>
-    </div>
-    <div class="ps-bal-card">
-      <div class="ps-bal-label">Balance</div>
-      <div class="ps-bal-val" style="color:#fbbf24">AED {{ "%.0f"|format(balance or 0) }}</div>
-    </div>
-  </div>
-  <div class="ps-stats">
-    <div class="ps-stat-card">
-      <div class="ps-bal-label">Approved Papers</div>
-      <div class="ps-stat-val green">{{ approved_count or 0 }}</div>
-    </div>
-    <div class="ps-stat-card">
-      <div class="ps-bal-label">Pending Papers</div>
-      <div class="ps-stat-val orange">{{ pending_count or 0 }}</div>
+
+    <div class="sp-counts">
+      <div class="sp-count">
+        <div class="sp-count-icon green">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div class="sp-count-text">
+          <div class="sp-count-num">{{ approved_count or 0 }}</div>
+          <div class="sp-count-label">Approved</div>
+        </div>
+      </div>
+      <div class="sp-count">
+        <div class="sp-count-icon amber">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="sp-count-text">
+          <div class="sp-count-num">{{ pending_count or 0 }}</div>
+          <div class="sp-count-label">Pending</div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ── Papers Section ── -->
+<!-- ════════ PAPER FORM ════════ -->
 <form method="POST" enctype="multipart/form-data" id="paperForm">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="row_count" id="row_count" value="0">
 
-  <datalist id="vehicleDL">
+  <datalist id="vDL">
     {% for v in vehicles %}
     <option value="{{ v.plate_no }}">{{ v.vehicle_type }} | {{ v.model }}</option>
     {% endfor %}
   </datalist>
-
-  <datalist id="supplierDL">
+  <datalist id="sDL">
     {% for s in supplier_suggestions or [] %}
     <option value="{{ s }}">{{ supplier_trn_map.get(s, '') }}</option>
     {% endfor %}
   </datalist>
 
-  <div class="ps-section-wrap">
-    <div class="ps-section-header">
-      <div class="ps-section-title">Maintenance Papers</div>
-      <div class="ps-section-count"><span id="cardCount">1</span> paper</div>
+  <div class="sp-content">
+    <div class="sp-section-head">
+      <div class="sp-section-title">Maintenance Papers</div>
+      <div class="sp-section-badge"><span id="cardCount">1</span> paper</div>
     </div>
 
     <div id="cards"></div>
 
-    <button type="button" class="ps-add-card" onclick="addCard({})">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" width="20" height="20"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-      Add Paper
+    <button type="button" class="sp-add-inline" onclick="addCard({})">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" width="20" height="20"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
+      Add Another Paper
     </button>
   </div>
 
-  <!-- ── Sticky Bottom Bar ── -->
-  <div class="ps-bottom-bar">
-    <div class="ps-bottom-row">
-      <button type="button" class="ps-bottom-add" onclick="addCard({})">
+  <!-- ════════ STICKY BOTTOM BAR ════════ -->
+  <div class="sp-bar">
+    <div class="sp-bar-inner">
+      <button type="button" class="sp-bar-add" onclick="addCard({})">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" width="18" height="18"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
         Add
       </button>
-      <div class="ps-bottom-info">
-        <div class="ps-bottom-count"><span id="bottomCount">1</span> paper</div>
+      <div class="sp-bar-count">
+        <div class="sp-bar-count-num" id="bottomNum">1</div>
+        <div class="sp-bar-count-label">paper to submit</div>
       </div>
-      <button type="submit" class="ps-bottom-submit" id="submitBtn">Submit</button>
+      <button type="submit" class="sp-bar-submit" id="submitBtn">Submit Paper</button>
     </div>
   </div>
 </form>
 
-<script>
-var catOpts = {{ categories|tojson }};
-var trnMap = JSON.parse('{{ supplier_trn_map|tojson }}' || '{}');
-
-function todayISO() {
-  var d = new Date(), m = ('0'+(d.getMonth()+1)).slice(-2), day = ('0'+d.getDate()).slice(-2);
-  return d.getFullYear()+'-'+m+'-'+day;
-}
-
-function catOptions(sel) {
-  var h = '<option value="">Category</option>';
-  catOpts.forEach(function(c){ h += '<option value="'+c+'"'+(sel===c?' selected':'')+'>'+c+'</option>'; });
-  return h;
-}
-
-function cardHTML(v) {
-  v = v || {};
-  return ''
-  + '<div class="ps-card">'
-    + '<div class="ps-card-head">'
-      + '<div class="ps-card-num"><div class="ps-card-num-badge">1</div><span class="ps-card-num-text">Paper</span></div>'
-      + '<button type="button" class="ps-card-del" onclick="delCard(this)">Remove</button>'
-    + '</div>'
-    + '<div class="ps-card-body">'
-
-      + '<div class="ps-row">'
-        + '<div class="ps-field"><label class="ps-label">Date</label>'
-          + '<input type="date" class="ps-input" data-name="paper_date" value="'+(v.paper_date||todayISO())+'"></div>'
-        + '<div class="ps-field"><label class="ps-label">Vehicle <span style="color:#94a3b8;font-weight:400">(optional)</span></label>'
-          + '<div class="ps-vehicle-wrap">'
-            + '<input type="text" class="ps-input" data-name="vehicle_id" list="vehicleDL" placeholder="Plate number" autocomplete="off" value="'+(v.vehicle_id||'')+'">'
-            + '<button type="button" class="ps-vehicle-clear" onclick="this.previousElementSibling.value=\'\';this.previousElementSibling.focus()">✕</button>'
-          + '</div></div>'
-      + '</div>'
-
-      + '<div class="ps-row">'
-        + '<div class="ps-field"><label class="ps-label">Amount (AED) <span class="req">*</span></label>'
-          + '<input type="number" class="ps-input" data-name="amount" step="0.01" min="0" placeholder="0.00" value="'+(v.amount||'')+'" inputmode="decimal"></div>'
-        + '<div class="ps-field"><label class="ps-label">Category</label>'
-          + '<select class="ps-input" data-name="category">'+catOptions(v.category)+'</select></div>'
-      + '</div>'
-
-      + '<div class="ps-field"><label class="ps-label">Bill Type</label>'
-        + '<div class="ps-vat-row">'
-          + '<button type="button" class="ps-vat-btn active-no" data-vat="no" onclick="toggleVAT(this,\'no\')">Without VAT</button>'
-          + '<button type="button" class="ps-vat-btn" data-vat="yes" onclick="toggleVAT(this,\'yes\')">VAT 5%</button>'
-        + '</div>'
-        + '<input type="hidden" data-name="tax_mode" value="Without Tax">'
-      + '</div>'
-
-      + '<div class="ps-vat-details">'
-        + '<div class="ps-vat-note">VAT bill: enter amount <b>without VAT</b> — 5% is added automatically. Workshop name & bill number are required.</div>'
-        + '<div class="ps-field"><label class="ps-label">Workshop Name <span class="req">*</span></label>'
-          + '<input type="text" class="ps-input" data-name="supplier_name" list="supplierDL" placeholder="Workshop name" autocomplete="off" value="'+(v.supplier_name||'')+'"></div>'
-        + '<div class="ps-row">'
-          + '<div class="ps-field"><label class="ps-label">Bill Number <span class="req">*</span></label>'
-            + '<input type="text" class="ps-input" data-name="supplier_bill_no" placeholder="e.g. INV-0042" value="'+(v.supplier_bill_no||'')+'"></div>'
-          + '<div class="ps-field"><label class="ps-label">TRN (optional)</label>'
-            + '<input type="text" class="ps-input" data-name="supplier_trn" placeholder="TRN" value="'+(v.supplier_trn||'')+'"></div>'
-        + '</div>'
-        + '<div class="ps-vat-calc" style="display:none">'
-          + '<div class="ps-vat-calc-row"><span>Net</span><strong class="v-net">AED 0</strong></div>'
-          + '<div class="ps-vat-calc-row"><span>VAT 5%</span><strong class="v-tax">AED 0</strong></div>'
-          + '<div class="ps-vat-calc-row"><span>Total</span><strong class="v-total">AED 0</strong></div>'
-        + '</div>'
-      + '</div>'
-
-      + '<div class="ps-field"><label class="ps-label">Description</label>'
-        + '<input type="text" class="ps-input" data-name="description" placeholder="What work was done?" value="'+(v.description||'')+'"></div>'
-
-      + '<div class="ps-field"><label class="ps-label">Photo / Receipt</label>'
-        + '<div class="ps-photo-area">'
-          + '<label class="ps-photo-btn">'
-            + '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><rect x="2" y="5" width="16" height="12" rx="2"/><circle cx="10" cy="11" r="3"/><path d="M7 5V4a1 1 0 011-1h4a1 1 0 011 1v1"/></svg>'
-            + '<span>Take Photo or Choose</span>'
-            + '<input type="file" class="ps-file-hidden" data-name="attachment" accept="image/*,.pdf" capture="environment">'
-          + '</label>'
-        + '</div>'
-        + '<div class="ps-photo-name"></div>'
-      + '</div>'
-
-    + '</div>'
-  + '</div>';
-}
-
-function addCard(v) {
-  var d = document.createElement('div');
-  d.innerHTML = cardHTML(v);
-  var card = d.firstElementChild;
-  var container = document.getElementById('cards');
-  container.appendChild(card);
-  renNum();
-  card.scrollIntoView({behavior:'smooth', block:'center'});
-}
-
-function delCard(btn) {
-  var card = btn.closest('.ps-card');
-  var total = document.querySelectorAll('.ps-card').length;
-  if (total <= 1) {
-    card.querySelectorAll('.ps-input').forEach(function(inp) {
-      if (inp.type !== 'file') inp.value = '';
-      if (inp.tagName === 'SELECT') inp.selectedIndex = 0;
-    });
-    toggleVAT(card.querySelector('[data-vat="no"]'), 'no');
-    card.querySelector('.ps-photo-name').textContent = '';
-  } else {
-    card.style.transition = 'all 0.2s';
-    card.style.opacity = '0';
-    card.style.transform = 'translateX(60px)';
-    setTimeout(function(){ card.remove(); renNum(); sync(); }, 200);
-  }
-}
-
-function renNum() {
-  var n = 0;
-  document.querySelectorAll('.ps-card').forEach(function(c) {
-    n++;
-    c.querySelector('.ps-card-num-badge').textContent = n;
-    c.querySelector('.ps-card-num-text').textContent = 'Paper';
-    c.querySelectorAll('[data-name]').forEach(function(inp) {
-      inp.name = inp.dataset.name + '_' + (n-1);
-    });
-  });
-  document.getElementById('row_count').value = n;
-  document.getElementById('cardCount').textContent = n;
-  document.getElementById('bottomCount').textContent = n;
-  document.getElementById('submitBtn').textContent = 'Submit ' + n + ' Paper' + (n===1?'':'s');
-}
-
-function sync() { renNum(); }
-
-function toggleVAT(btn, val) {
-  var card = btn.closest('.ps-card');
-  var isYes = (val === 'yes');
-  card.querySelector('[data-name="tax_mode"]').value = isYes ? 'Tax Invoice' : 'Without Tax';
-  card.querySelectorAll('.ps-vat-btn').forEach(function(b) {
-    b.classList.remove('active-no','active-yes');
-    if (b.dataset.vat === val) b.classList.add(isYes ? 'active-yes' : 'active-no');
-  });
-  var det = card.querySelector('.ps-vat-details');
-  if (det) { isYes ? det.classList.add('show') : det.classList.remove('show'); }
-  recalcVAT(card);
-}
-
-function recalcVAT(card) {
-  var calc = card.querySelector('.ps-vat-calc');
-  if (!calc) return;
-  if (card.querySelector('[data-name="tax_mode"]').value !== 'Tax Invoice') { calc.style.display='none'; return; }
-  var net = parseFloat(card.querySelector('[data-name="amount"]').value)||0;
-  var tax = Math.round(net*0.05*100)/100;
-  var total = Math.round((net+tax)*100)/100;
-  card.querySelector('.v-net').textContent = 'AED '+net.toFixed(2);
-  card.querySelector('.v-tax').textContent = 'AED '+tax.toFixed(2);
-  card.querySelector('.v-total').textContent = 'AED '+total.toFixed(2);
-  calc.style.display = 'block';
-}
-
-document.addEventListener('input', function(e) {
-  var t = e.target;
-  if (!t.dataset || !t.dataset.name) return;
-  var card = t.closest('.ps-card');
-  if (!card) return;
-  if (t.dataset.name === 'amount') recalcVAT(card);
-  if (t.dataset.name === 'supplier_name' && trnMap[t.value.trim()]) {
-    var trn = card.querySelector('[data-name="supplier_trn"]');
-    if (trn) trn.value = trnMap[t.value.trim()];
-  }
-});
-
-document.addEventListener('change', function(e) {
-  var t = e.target;
-  if (t.dataset && t.dataset.name === 'attachment') {
-    var nameEl = t.closest('.ps-field').querySelector('.ps-photo-name');
-    if (nameEl) nameEl.textContent = t.files.length ? t.files[0].name : '';
-  }
-});
-
-document.getElementById('paperForm').addEventListener('submit', function(e) {
-  var ok = true;
-  document.querySelectorAll('.ps-card').forEach(function(card) {
-    card.querySelectorAll('.ps-field-error').forEach(function(x){ x.remove(); });
-    var amt = card.querySelector('[data-name="amount"]').value.trim();
-    if (!amt) {
-      var err = document.createElement('div');
-      err.className = 'ps-field-error';
-      err.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px;font-weight:600';
-      err.textContent = 'Amount required';
-      card.querySelector('[data-name="amount"]').parentNode.appendChild(err);
-      ok = false;
-    }
-    if (card.querySelector('[data-name="tax_mode"]').value === 'Tax Invoice') {
-      if (!card.querySelector('[data-name="supplier_name"]').value.trim()) {
-        var e2 = document.createElement('div');
-        e2.className = 'ps-field-error';
-        e2.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px;font-weight:600';
-        e2.textContent = 'Workshop name required';
-        card.querySelector('[data-name="supplier_name"]').parentNode.appendChild(e2);
-        ok = false;
-      }
-      if (!card.querySelector('[data-name="supplier_bill_no"]').value.trim()) {
-        var e3 = document.createElement('div');
-        e3.className = 'ps-field-error';
-        e3.style.cssText = 'color:#dc2626;font-size:0.75rem;margin-top:4px;font-weight:600';
-        e3.textContent = 'Bill number required';
-        card.querySelector('[data-name="supplier_bill_no"]').parentNode.appendChild(e3);
-        ok = false;
-      }
-    }
-  });
-  if (!ok) { e.preventDefault(); return; }
-  document.getElementById('submitBtn').disabled = true;
-  document.getElementById('submitBtn').textContent = 'Submitting...';
-});
-
-(function(){
-  var raw = document.getElementById('serverRowsJson');
-  var rows = [];
-  if (raw) { try { rows = JSON.parse(raw.textContent)||[]; } catch(e){} }
-  if (!rows.length) addCard({}); else rows.forEach(addCard);
-})();
-</script>
-
 <script id="serverRowsJson" type="application/json">{{ rows|tojson }}</script>
+<script>
+var _cats={{ categories|tojson }};
+var _trn=JSON.parse('{{ supplier_trn_map|tojson }}'||'{}');
+
+function _today(){var d=new Date(),m=('0'+(d.getMonth()+1)).slice(-2),dy=('0'+d.getDate()).slice(-2);return d.getFullYear()+'-'+m+'-'+dy}
+function _catH(sel){var h='<option value="">Category</option>';_cats.forEach(function(c){h+='<option value="'+c+'"'+(sel===c?' selected':'')+'>'+c+'</option>'});return h}
+
+function _card(v){
+  v=v||{};
+  return'<div class="sp-card">'
+    +'<div class="sp-card-head"><div class="sp-card-badge"><div class="sp-card-num">1</div><div class="sp-card-title">Paper</div></div><button type="button" class="sp-card-del" onclick="_del(this)"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Remove</button></div>'
+    +'<div class="sp-card-body">'
+      +'<div class="sp-row"><div class="sp-field"><label class="sp-label">Date</label><input type="date" class="sp-input" data-n="paper_date" value="'+(v.paper_date||_today())+'"></div><div class="sp-field"><label class="sp-label">Vehicle <span style="color:#94a3b8;font-weight:400">(optional)</span></label><div class="sp-veh-wrap"><input type="text" class="sp-input" data-n="vehicle_id" list="vDL" placeholder="Plate number" autocomplete="off" value="'+(v.vehicle_id||'')+'"><button type="button" class="sp-veh-x" onclick="this.previousElementSibling.value=\'\';this.previousElementSibling.focus()">\u2715</button></div></div></div>'
+
+      +'<div class="sp-row"><div class="sp-field"><label class="sp-label">Amount (AED) <span class="req">*</span></label><input type="number" class="sp-input" data-n="amount" step="0.01" min="0" placeholder="0.00" value="'+(v.amount||'')+'" inputmode="decimal"></div><div class="sp-field"><label class="sp-label">Category</label><select class="sp-input" data-n="category">'+_catH(v.category)+'</select></div></div>'
+
+      +'<div class="sp-field"><label class="sp-label">Bill Type</label><div class="sp-vat-row"><button type="button" class="sp-vat-btn on-no" data-v="no" onclick="_vat(this,\'no\')">Without VAT</button><button type="button" class="sp-vat-btn" data-v="yes" onclick="_vat(this,\'yes\')">VAT 5%</button></div><input type="hidden" data-n="tax_mode" value="Without Tax"></div>'
+
+      +'<div class="sp-vat-box"><div class="sp-vat-info">VAT bill: enter amount <b>without VAT</b> — 5% is added automatically. Workshop name & bill number required.</div><div class="sp-field"><label class="sp-label">Workshop Name <span class="req">*</span></label><input type="text" class="sp-input" data-n="supplier_name" list="sDL" placeholder="Workshop name" autocomplete="off" value="'+(v.supplier_name||'')+'"></div><div class="sp-row"><div class="sp-field"><label class="sp-label">Bill Number <span class="req">*</span></label><input type="text" class="sp-input" data-n="supplier_bill_no" placeholder="INV-0042" value="'+(v.supplier_bill_no||'')+'"></div><div class="sp-field"><label class="sp-label">TRN</label><input type="text" class="sp-input" data-n="supplier_trn" placeholder="Optional" value="'+(v.supplier_trn||'')+'"></div></div><div class="sp-vat-calc" style="display:none"><div class="sp-vat-calc-row"><span>Net</span><strong class="vn">AED 0</strong></div><div class="sp-vat-calc-row"><span>VAT 5%</span><strong class="vt">AED 0</strong></div><div class="sp-vat-calc-row"><span>Total</span><strong class="vtt">AED 0</strong></div></div></div>'
+
+      +'<div class="sp-field"><label class="sp-label">Description</label><input type="text" class="sp-input" data-n="description" placeholder="What work was done?" value="'+(v.description||'')+'"></div>'
+
+      +'<div class="sp-field"><label class="sp-label">Photo / Receipt</label><label class="sp-photo-label"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="22" height="22"><rect x="2" y="5" width="16" height="12" rx="2"/><circle cx="10" cy="11" r="3"/><path d="M7 5V4a1 1 0 011-1h4a1 1 0 011 1v1"/></svg> Take Photo or Choose<input type="file" class="sp-file-hid" data-n="attachment" accept="image/*,.pdf" capture="environment"></label><div class="sp-photo-name"></div></div>'
+
+    +'</div></div>';
+}
+
+function addCard(v){
+  var d=document.createElement('div');d.innerHTML=_card(v);var c=d.firstElementChild;
+  document.getElementById('cards').appendChild(c);
+  _ren();c.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function _del(btn){
+  var card=btn.closest('.sp-card');
+  if(document.querySelectorAll('.sp-card').length<=1){
+    card.querySelectorAll('.sp-input').forEach(function(i){if(i.type!=='file')i.value='';if(i.tagName==='SELECT')i.selectedIndex=0});
+    _vat(card.querySelector('[data-v="no"]'),'no');
+    card.querySelector('.sp-photo-name').textContent='';
+  }else{
+    card.style.transition='all 0.2s';card.style.opacity='0';card.style.transform='translateX(40px) scale(0.95)';
+    setTimeout(function(){card.remove();_ren()},220);
+  }
+}
+
+function _ren(){
+  var n=0;
+  document.querySelectorAll('.sp-card').forEach(function(c){
+    n++;c.querySelector('.sp-card-num').textContent=n;
+    c.querySelectorAll('[data-n]').forEach(function(i){i.name=i.dataset.n+'_'+(n-1)});
+  });
+  document.getElementById('row_count').value=n;
+  document.getElementById('cardCount').textContent=n;
+  document.getElementById('bottomNum').textContent=n;
+  var b=document.getElementById('submitBtn');
+  b.textContent=n===1?'Submit Paper':'Submit '+n+' Papers';
+}
+
+function _vat(btn,v){
+  var card=btn.closest('.sp-card'),yes=(v==='yes');
+  card.querySelector('[data-n="tax_mode"]').value=yes?'Tax Invoice':'Without Tax';
+  card.querySelectorAll('.sp-vat-btn').forEach(function(b){b.classList.remove('on-no','on-yes');if(b.dataset.v===v)b.classList.add(yes?'on-yes':'on-no')});
+  var box=card.querySelector('.sp-vat-box');if(box){yes?box.classList.add('show'):box.classList.remove('show')}
+  _rcalc(card);
+}
+
+function _rcalc(card){
+  var calc=card.querySelector('.sp-vat-calc');if(!calc)return;
+  if(card.querySelector('[data-n="tax_mode"]').value!=='Tax Invoice'){calc.style.display='none';return}
+  var net=parseFloat(card.querySelector('[data-n="amount"]').value)||0;
+  var tax=Math.round(net*0.05*100)/100;
+  var tot=Math.round((net+tax)*100)/100;
+  card.querySelector('.vn').textContent='AED '+net.toFixed(2);
+  card.querySelector('.vt').textContent='AED '+tax.toFixed(2);
+  card.querySelector('.vtt').textContent='AED '+tot.toFixed(2);
+  calc.style.display='block';
+}
+
+document.addEventListener('input',function(e){
+  var t=e.target;if(!t.dataset||!t.dataset.n)return;
+  var card=t.closest('.sp-card');if(!card)return;
+  if(t.dataset.n==='amount')_rcalc(card);
+  if(t.dataset.n==='supplier_name'&&_trn[t.value.trim()]){var tr=card.querySelector('[data-n="supplier_trn"]');if(tr)tr.value=_trn[t.value.trim()]}
+});
+
+document.addEventListener('change',function(e){
+  var t=e.target;if(t.dataset&&t.dataset.n==='attachment'){var n=t.closest('.sp-field').querySelector('.sp-photo-name');if(n)n.textContent=t.files.length?t.files[0].name:''}
+});
+
+document.getElementById('paperForm').addEventListener('submit',function(e){
+  var ok=true;
+  document.querySelectorAll('.sp-card').forEach(function(card){
+    card.querySelectorAll('.sp-ferr').forEach(function(x){x.remove()});
+    if(!card.querySelector('[data-n="amount"]').value.trim()){
+      var d=document.createElement('div');d.className='sp-ferr';d.style.cssText='color:#ef4444;font-size:0.72rem;margin-top:4px;font-weight:600';d.textContent='Amount required';
+      card.querySelector('[data-n="amount"]').parentNode.appendChild(d);ok=false;
+    }
+    if(card.querySelector('[data-n="tax_mode"]').value==='Tax Invoice'){
+      if(!card.querySelector('[data-n="supplier_name"]').value.trim()){var d2=document.createElement('div');d2.className='sp-ferr';d2.style.cssText='color:#ef4444;font-size:0.72rem;margin-top:4px;font-weight:600';d2.textContent='Workshop required';card.querySelector('[data-n="supplier_name"]').parentNode.appendChild(d2);ok=false}
+      if(!card.querySelector('[data-n="supplier_bill_no"]').value.trim()){var d3=document.createElement('div');d3.className='sp-ferr';d3.style.cssText='color:#ef4444;font-size:0.72rem;margin-top:4px;font-weight:600';d3.textContent='Bill # required';card.querySelector('[data-n="supplier_bill_no"]').parentNode.appendChild(d3);ok=false}
+    }
+  });
+  if(!ok){e.preventDefault();return}
+  document.getElementById('submitBtn').disabled=true;document.getElementById('submitBtn').textContent='Submitting...';
+});
+
+(function(){var r=document.getElementById('serverRowsJson');var rows=[];if(r){try{rows=JSON.parse(r.textContent)||[]}catch(e){}}if(!rows.length)addCard({});else rows.forEach(addCard)})();
+</script>
 {% endblock %}
