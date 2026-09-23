@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Login — Current Link</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0F2B52">
+    <title>Portal Login — Current Link</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -14,13 +16,16 @@
         body {
             font-family: 'Inter', sans-serif;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
             display: flex;
             align-items: center;
             justify-content: center;
             background: #0F2B52;
             position: relative;
             overflow: hidden;
+            -webkit-text-size-adjust: 100%;
         }
+        html { height: -webkit-fill-available; }
 
         /* ── Dot Grid ── */
         .vp-grid {
@@ -59,6 +64,7 @@
         }
         .vp-flash > div {
             background: rgba(255,255,255,0.97);
+            -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
             border-left: 4px solid #ef4444;
             padding: 13px 18px;
@@ -89,6 +95,7 @@
             width: 100%;
             max-width: 420px;
             background: rgba(255,255,255,0.97);
+            -webkit-backdrop-filter: blur(20px);
             backdrop-filter: blur(20px);
             border-radius: 20px;
             padding: 40px 34px 32px;
@@ -161,12 +168,14 @@
             padding: 13px 16px;
             border: 1.5px solid #e2e8f0;
             border-radius: 12px;
-            font-size: 0.88rem;
+            font-size: 16px;
             color: #0F2B52;
             background: #f8fafc;
             outline: none;
             transition: all 0.2s;
             font-family: 'Inter', sans-serif;
+            -webkit-appearance: none;
+            appearance: none;
         }
         .vp-form input:focus {
             border-color: #F7931E;
@@ -370,7 +379,7 @@
                     <label for="vpDriverPhone">Phone Number</label>
                     <input type="text" id="vpDriverPhone" name="phone_number" placeholder="Enter phone number" inputmode="tel">
                     <label for="vpDriverPin">Password / PIN</label>
-                    <input type="password" id="vpDriverPin" name="driver_pin" placeholder="Enter your PIN" inputmode="numeric">
+                    <input type="password" id="vpDriverPin" name="driver_pin" placeholder="Enter your PIN">
                 </div>
                 <div class="vp-fields" data-group="technician">
                     <label for="vpStaffUser">Username / Email</label>
