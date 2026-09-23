@@ -3768,22 +3768,24 @@ def supplier_bill_edit(bill_id):
 def supplier_bills_batch():
     _ensure_tables()
     db = _get_db()
-    supplier_id = request.form.get("batch_supplier", "").strip()
-    if not supplier_id:
-        flash("Missing supplier.", "error")
-        return redirect(url_for("supplier.supplier_bill_add"))
-    supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
-    if not supplier:
-        flash("Supplier not found.", "error")
-        return redirect(url_for("supplier.supplier_bill_add"))
     import re
     v_keys = [k for k in request.form.keys() if re.match(r'^v_\d+$', k)]
     if not v_keys:
         flash("No bill rows found.", "error")
         return redirect(url_for("supplier.supplier_bill_add"))
     count = 0
+    last_supplier_name = ""
     for vk in v_keys:
         idx = vk.split("_", 1)[1]
+        supplier_id = request.form.get(f"batch_supplier_{idx}", "").strip()
+        if not supplier_id:
+            supplier_id = request.form.get("batch_supplier", "").strip()
+        if not supplier_id:
+            continue
+        supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+        if not supplier:
+            continue
+        last_supplier_name = supplier["supplier_name"]
         vehicle_plate = request.form.get(f"v_{idx}", "").strip()
         bill_no = request.form.get(f"bn_{idx}", "").strip()
         bill_date = request.form.get(f"bd_{idx}", "").strip()
@@ -3836,7 +3838,10 @@ def supplier_bills_batch():
         db.execute("UPDATE supplier_bills SET source_expense_id = ? WHERE id = ?", (expense_id, bill_id))
         count += 1
     db.commit()
-    flash(f"{count} bill(s) added successfully for {supplier['supplier_name']}.", "success")
+    if count == 0:
+        flash("No bills were saved. Please check all required fields.", "error")
+        return redirect(url_for("supplier.supplier_bill_add"))
+    flash(f"{count} bill(s) added successfully.", "success")
     return redirect(url_for("supplier.supplier_bill_list"))
 
 

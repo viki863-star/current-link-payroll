@@ -4,233 +4,342 @@
 {% block body_class %}detail-body{% endblock %}
 {% block content %}
 <style>
-.bill-shell { max-width:1100px; margin:0 auto; }
-.bill-hero { background:linear-gradient(135deg,#1c568b 0%,#0d3b66 100%); border-radius:16px; padding:28px 32px; color:#fff; margin-bottom:20px; position:relative; overflow:hidden; }
-.bill-hero::before { content:''; position:absolute; top:-40px; right:-40px; width:160px; height:160px; background:rgba(255,255,255,0.06); border-radius:50%; }
-.bill-hero::after { content:''; position:absolute; bottom:-60px; right:80px; width:200px; height:200px; background:rgba(255,255,255,0.03); border-radius:50%; }
-.bill-hero h2 { margin:0 0 4px; font-size:1.4rem; font-weight:700; position:relative; z-index:1; }
-.bill-hero p { margin:0; font-size:0.82rem; opacity:0.75; position:relative; z-index:1; }
-.bill-hero .hero-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:4px 12px; font-size:0.72rem; font-weight:600; margin-top:10px; position:relative; z-index:1; }
-.bill-hero .hero-badge .dot { width:6px; height:6px; background:#4ade80; border-radius:50%; animation:pulse-dot 2s infinite; }
-@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.bb-shell { max-width:600px; margin:0 auto; padding-bottom:120px; }
 
-.bill-supplier-card { background:#fff; border-radius:14px; border:1px solid #e8ecf1; padding:20px 24px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.bill-supplier-card label { font-size:0.72rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:6px; }
-.bill-supplier-card select { width:100%; padding:10px 14px; border:2px solid #e2e8f0; border-radius:10px; font-size:0.9rem; font-weight:500; background:#f8fafc; transition:all 0.2s; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
-.bill-supplier-card select:focus { outline:none; border-color:#1c568b; box-shadow:0 0 0 3px rgba(28,86,139,0.1); background-color:#fff; }
+/* ── Header ── */
+.bb-hdr { background:var(--primary); border-radius:14px; padding:20px 22px; color:#fff; margin-bottom:16px; position:relative; overflow:hidden; }
+.bb-hdr::before { content:''; position:absolute; top:-30px; right:-30px; width:120px; height:120px; background:rgba(255,255,255,0.06); border-radius:50%; }
+.bb-hdr h2 { margin:0 0 2px; font-size:1.15rem; font-weight:700; position:relative; }
+.bb-hdr p { margin:0; font-size:0.78rem; opacity:0.75; position:relative; }
+.bb-hdr .back-link { position:absolute; top:18px; right:18px; color:rgba(255,255,255,0.8); text-decoration:none; font-size:0.82rem; font-weight:600; z-index:1; }
 
-.bill-table-wrap { background:#fff; border-radius:14px; border:1px solid #e8ecf1; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.bill-table { width:100%; border-collapse:collapse; }
-.bill-table thead th { background:linear-gradient(180deg,#f8fafc,#f1f5f9); padding:10px 12px; font-size:0.68rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; text-align:left; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
-.bill-table thead th.r { text-align:right; }
-.bill-table thead th.c { text-align:center; }
-.bill-table tbody tr { transition:background 0.15s; }
-.bill-table tbody tr:hover { background:#f8fafd; }
-.bill-table tbody tr:not(:last-child) td { border-bottom:1px solid #f1f5f9; }
-.bill-table tbody td { padding:6px 8px; vertical-align:middle; }
-.bill-table .row-num { width:36px; text-align:center; font-size:0.7rem; font-weight:700; color:#cbd5e1; }
-.bill-table select, .bill-table input { width:100%; padding:7px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.82rem; font-weight:500; transition:all 0.2s; background:#fff; }
-.bill-table select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; padding-right:26px; cursor:pointer; }
-.bill-table select:focus, .bill-table input:focus { outline:none; border-color:#1c568b; box-shadow:0 0 0 2px rgba(28,86,139,0.08); background-color:#fff; }
-.bill-table input[type="number"] { text-align:right; font-family:'JetBrains Mono',monospace; }
-.bill-table input[type="date"] { cursor:pointer; }
-.bill-table .tax-check { width:18px; height:18px; accent-color:#1c568b; cursor:pointer; }
-.bill-table .del-btn { width:28px; height:28px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:0.85rem; display:flex; align-items:center; justify-content:center; transition:all 0.15s; opacity:0.5; }
-.bill-table .del-btn:hover { opacity:1; background:#fecaca; transform:scale(1.1); }
+/* ── Bill Card ── */
+.bb-card { background:#fff; border:1.5px solid var(--line); border-radius:14px; margin-bottom:14px; overflow:hidden; transition:box-shadow 0.2s; }
+.bb-card:focus-within { box-shadow:0 0 0 3px rgba(28,86,139,0.08); }
+.bb-card-hdr { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:linear-gradient(180deg,#f8fafc,#f1f5f9); border-bottom:1px solid var(--line); }
+.bb-card-num { font-size:0.78rem; font-weight:700; color:var(--ink); display:flex; align-items:center; gap:6px; }
+.bb-card-num .num { background:var(--primary); color:#fff; width:22px; height:22px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:700; }
+.bb-card-del { width:30px; height:30px; border:none; background:#fee2e2; color:#dc2626; border-radius:8px; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; transition:all 0.15s; }
+.bb-card-del:hover { background:#fecaca; transform:scale(1.1); }
+.bb-card-body { padding:16px; }
 
-.bill-add-row { display:flex; align-items:center; gap:8px; padding:12px 16px; }
-.bill-add-row button { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border:2px dashed #cbd5e1; background:transparent; color:#64748b; border-radius:10px; font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-.bill-add-row button:hover { border-color:#1c568b; color:#1c568b; background:rgba(28,86,139,0.04); }
-.bill-add-row button .plus { width:22px; height:22px; background:#1c568b; color:#fff; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1rem; font-weight:700; }
+/* ── Fields ── */
+.bb-field { margin-bottom:14px; }
+.bb-field:last-child { margin-bottom:0; }
+.bb-label { display:block; font-size:0.68rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:5px; }
+.bb-label .req { color:var(--danger); }
+.bb-input { width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; font-size:16px; color:var(--ink); background:#f8fafc; outline:none; transition:all 0.2s; font-family:inherit; -webkit-appearance:none; appearance:none; }
+.bb-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.1); background:#fff; }
+.bb-input::placeholder { color:#94a3b8; }
+.bb-input:disabled { opacity:0.5; cursor:not-allowed; }
+.bb-input[type="date"] { cursor:pointer; }
+.bb-select { width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; font-size:16px; color:var(--ink); background:#f8fafc; outline:none; transition:all 0.2s; font-family:inherit; -webkit-appearance:none; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:36px; cursor:pointer; }
+.bb-select:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.1); background-color:#fff; }
 
-.bill-summary { background:linear-gradient(135deg,#f0f4ff 0%,#e8edf4 100%); border:1px solid #d0daf0; border-radius:14px; padding:16px 24px; margin-top:16px; display:grid; grid-template-columns:1fr auto auto auto; gap:20px; align-items:center; }
-.bill-summary .stat { text-align:center; }
-.bill-summary .stat-label { font-size:0.65rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
-.bill-summary .stat-value { font-size:1.1rem; font-weight:800; color:#1c568b; font-family:'JetBrains Mono',monospace; }
-.bill-summary .stat-value.total { color:#e65100; font-size:1.3rem; }
+/* ── 2-Column Grid ── */
+.bb-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 
-.bill-actions { display:flex; gap:10px; margin-top:16px; justify-content:flex-end; }
-.bill-actions .btn-primary { padding:12px 28px; font-size:0.9rem; font-weight:700; border-radius:10px; background:linear-gradient(135deg,#1c568b,#0d3b66); box-shadow:0 4px 12px rgba(28,86,139,0.3); }
-.bill-actions .btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(28,86,139,0.4); }
-.bill-actions .btn-outline { padding:12px 20px; font-size:0.9rem; border-radius:10px; }
+/* ── Amount Row ── */
+.bb-amount-wrap { position:relative; }
+.bb-amount-prefix { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:0.78rem; font-weight:700; color:var(--muted); pointer-events:none; }
+.bb-amount-input { padding-left:52px !important; font-size:18px !important; font-weight:700; text-align:right; font-family:'JetBrains Mono',monospace; }
 
-@media (max-width:768px) {
-  .bill-table-wrap { overflow-x:auto; }
-  .bill-table { min-width:700px; }
-  .bill-summary { grid-template-columns:1fr 1fr; }
-  .bill-hero { padding:20px; }
+/* ── Tax Toggle ── */
+.bb-tax-wrap { display:flex; align-items:center; gap:10px; padding:10px 0; }
+.bb-toggle { position:relative; width:48px; height:26px; flex-shrink:0; }
+.bb-toggle input { opacity:0; width:0; height:0; position:absolute; }
+.bb-toggle .slider { position:absolute; inset:0; background:#cbd5e1; border-radius:26px; cursor:pointer; transition:all 0.3s; }
+.bb-toggle .slider::before { content:''; position:absolute; width:20px; height:20px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:all 0.3s; box-shadow:0 1px 3px rgba(0,0,0,0.15); }
+.bb-toggle input:checked + .slider { background:var(--primary); }
+.bb-toggle input:checked + .slider::before { transform:translateX(22px); }
+.bb-tax-label { font-size:0.82rem; font-weight:600; color:var(--ink); }
+.bb-tax-hint { font-size:0.7rem; color:var(--muted); }
+
+/* ── Description ── */
+.bb-textarea { width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:10px; font-size:16px; color:var(--ink); background:#f8fafc; outline:none; transition:all 0.2s; font-family:inherit; resize:vertical; min-height:44px; }
+.bb-textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(28,86,139,0.1); background:#fff; }
+
+/* ── Add Bill Button ── */
+.bb-add-btn { width:100%; padding:16px; border:2px dashed #cbd5e1; background:transparent; color:var(--muted); border-radius:12px; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:14px; font-family:inherit; }
+.bb-add-btn:hover { border-color:var(--primary); color:var(--primary); background:rgba(28,86,139,0.03); }
+.bb-add-btn .plus { width:24px; height:24px; background:var(--primary); color:#fff; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:700; flex-shrink:0; }
+
+/* ── Summary Bar (Sticky) ── */
+.bb-summary { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1.5px solid var(--line); padding:12px 16px; z-index:100; box-shadow:0 -4px 20px rgba(0,0,0,0.08); }
+.bb-summary-inner { max-width:600px; margin:0 auto; }
+.bb-summary-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.bb-summary-stats { display:flex; gap:16px; }
+.bb-stat { text-align:center; }
+.bb-stat-label { font-size:0.6rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; }
+.bb-stat-value { font-size:0.9rem; font-weight:700; color:var(--ink); font-family:'JetBrains Mono',monospace; }
+.bb-stat-value.total { color:var(--orange); font-size:1rem; font-weight:800; }
+.bb-actions { display:flex; gap:8px; }
+.bb-save-btn { flex:1; padding:14px; border:none; border-radius:10px; background:var(--primary); color:#fff; font-size:0.9rem; font-weight:700; cursor:pointer; transition:all 0.2s; font-family:inherit; min-height:48px; }
+.bb-save-btn:hover { background:var(--primary-dark); }
+.bb-save-btn:disabled { opacity:0.6; cursor:not-allowed; }
+.bb-cancel-btn { padding:14px 18px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-size:0.85rem; font-weight:600; cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; font-family:inherit; min-height:48px; }
+
+/* ── Empty State ── */
+.bb-empty { text-align:center; padding:30px 20px; color:var(--muted); font-size:0.85rem; }
+
+/* ── Mobile ── */
+@media (max-width:500px) {
+  .bb-shell { padding:0 4px 140px; }
+  .bb-hdr { padding:16px 16px; border-radius:12px; }
+  .bb-hdr h2 { font-size:1rem; }
+  .bb-card-body { padding:14px; }
+  .bb-grid-2 { grid-template-columns:1fr; gap:10px; }
+  .bb-summary-stats { gap:10px; }
+}
+
+/* ── Safe area (iPhone notch) ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .bb-summary { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
 </style>
 
-<div class="bill-shell">
-  <div class="bill-hero">
+<div class="bb-shell">
+  <div class="bb-hdr">
+    <a href="{{ url_for('supplier.supplier_bill_list') }}" class="back-link">&larr; Back</a>
     <h2>Add Supplier Bills</h2>
-    <p>Quickly add multiple spare parts bills for your vehicles</p>
-    <div class="hero-badge"><span class="dot"></span> Batch Entry Mode</div>
+    <p>Enter bills from your paper slips</p>
   </div>
 
   <form id="billForm" method="POST" action="{{ url_for('supplier.supplier_bills_batch') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <div class="bill-supplier-card">
-      <label>Supplier</label>
-      <select name="batch_supplier" required>
-        <option value="">— Select Supplier —</option>
-        {% for s in suppliers %}
-        <option value="{{ s.id }}">{{ s.supplier_name }} ({{ s.supplier_code }})</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="bill-table-wrap">
-      <table class="bill-table">
-        <thead>
-          <tr>
-            <th class="c">#</th>
-            <th style="width:130px">Vehicle</th>
-            <th style="width:100px">Bill No</th>
-            <th style="width:120px">Date</th>
-            <th>Items / Description</th>
-            <th class="r" style="width:100px">Amount</th>
-            <th class="r" style="width:80px">Disc</th>
-            <th class="c" style="width:50px" title="5% VAT">Tax</th>
-            <th class="c" style="width:40px"></th>
-          </tr>
-        </thead>
-        <tbody id="billRows">
-          <tr data-idx="0">
-            <td class="row-num">1</td>
-            <td>
-              <select name="v_0" required>
-                <option value="">— Select —</option>
-                {% for v in vehicles %}<option value="{{ v.plate_no }}">{{ v.plate_no }}</option>{% endfor %}
-              </select>
-            </td>
-            <td><input type="text" name="bn_0" placeholder="e.g. 56255" required></td>
-            <td><input type="date" name="bd_0" required></td>
-            <td><input type="text" name="desc_0" placeholder="Oil filter, Diesel filter..."></td>
-            <td><input type="number" name="amt_0" step="0.01" min="0" placeholder="0.00" required></td>
-            <td><input type="number" name="disc_0" step="0.01" min="0" placeholder="0"></td>
-            <td class="c"><input type="checkbox" name="tax_0" class="tax-check" checked title="5% VAT"></td>
-            <td class="c"><button type="button" class="del-btn" onclick="delRow(this)" title="Remove">&times;</button></td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="bill-add-row">
-        <button type="button" onclick="addRow()"><span class="plus">+</span> Add Another Bill</button>
+    <div id="billCards">
+      <div class="bb-card" data-idx="0">
+        <div class="bb-card-hdr">
+          <span class="bb-card-num"><span class="num">1</span> Bill</span>
+          <button type="button" class="bb-card-del" onclick="delCard(this)" title="Remove">&times;</button>
+        </div>
+        <div class="bb-card-body">
+          <div class="bb-field">
+            <label class="bb-label">Supplier <span class="req">*</span></label>
+            <select name="batch_supplier_0" class="bb-select" required>
+              <option value="">— Select Supplier —</option>
+              {% for s in suppliers %}
+              <option value="{{ s.id }}">{{ s.supplier_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="bb-grid-2">
+            <div class="bb-field">
+              <label class="bb-label">Bill No <span class="req">*</span></label>
+              <input type="text" name="bn_0" class="bb-input" placeholder="e.g. 56255" required>
+            </div>
+            <div class="bb-field">
+              <label class="bb-label">Date <span class="req">*</span></label>
+              <input type="date" name="bd_0" class="bb-input" required>
+            </div>
+          </div>
+          <div class="bb-field">
+            <label class="bb-label">Vehicle <span class="req">*</span></label>
+            <select name="v_0" class="bb-select" required>
+              <option value="">— Select Vehicle —</option>
+              {% for v in vehicles %}<option value="{{ v.plate_no }}">{{ v.plate_no }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="bb-field">
+            <label class="bb-label">Description</label>
+            <textarea name="desc_0" class="bb-textarea" rows="1" placeholder="Oil filter, Diesel filter..."></textarea>
+          </div>
+          <div class="bb-grid-2">
+            <div class="bb-field">
+              <label class="bb-label">Amount (AED) <span class="req">*</span></label>
+              <div class="bb-amount-wrap">
+                <span class="bb-amount-prefix">AED</span>
+                <input type="number" name="amt_0" class="bb-input bb-amount-input" step="0.01" min="0" placeholder="0.00" required>
+              </div>
+            </div>
+            <div class="bb-field">
+              <label class="bb-label">Tax</label>
+              <div class="bb-tax-wrap">
+                <label class="bb-toggle">
+                  <input type="checkbox" name="tax_0" checked>
+                  <span class="slider"></span>
+                </label>
+                <div>
+                  <div class="bb-tax-label">5% VAT</div>
+                  <div class="bb-tax-hint">Auto-adds if on</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="bill-summary">
-      <div class="stat">
-        <div class="stat-label">Total Bills</div>
-        <div class="stat-value" id="billCount">1</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Subtotal</div>
-        <div class="stat-value" id="subtotalPreview">0.00</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">VAT (5%)</div>
-        <div class="stat-value" id="vatPreview">0.00</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Grand Total</div>
-        <div class="stat-value total" id="totalPreview">0.00</div>
-      </div>
-    </div>
-
-    <div class="bill-actions">
-      <a href="{{ url_for('supplier.supplier_bill_list') }}" class="btn btn-outline">Cancel</a>
-      <button type="submit" class="btn btn-primary" id="saveBtn">Save All Bills</button>
-    </div>
+    <button type="button" class="bb-add-btn" onclick="addCard()">
+      <span class="plus">+</span> Add Another Bill
+    </button>
   </form>
 </div>
 
+<div class="bb-summary">
+  <div class="bb-summary-inner">
+    <div class="bb-summary-row">
+      <div class="bb-summary-stats">
+        <div class="bb-stat">
+          <div class="bb-stat-label">Bills</div>
+          <div class="bb-stat-value" id="billCount">1</div>
+        </div>
+        <div class="bb-stat">
+          <div class="bb-stat-label">Subtotal</div>
+          <div class="bb-stat-value" id="subtotalPreview">0.00</div>
+        </div>
+        <div class="bb-stat">
+          <div class="bb-stat-label">VAT</div>
+          <div class="bb-stat-value" id="vatPreview">0.00</div>
+        </div>
+        <div class="bb-stat">
+          <div class="bb-stat-label">Total</div>
+          <div class="bb-stat-value total" id="totalPreview">AED 0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="bb-actions">
+      <a href="{{ url_for('supplier.supplier_bill_list') }}" class="bb-cancel-btn">Cancel</a>
+      <button type="submit" form="billForm" class="bb-save-btn" id="saveBtn">Save All Bills</button>
+    </div>
+  </div>
+</div>
+
 <script>
-var rowIdx = 1;
+var cardIdx = 1;
+var suppliersHtml = '{% for s in suppliers %}<option value="{{ s.id }}">{{ s.supplier_name }}</option>{% endfor %}';
+var vehiclesHtml = '<option value="">— Select Vehicle —</option>{% for v in vehicles %}<option value="{{ v.plate_no }}">{{ v.plate_no }}</option>{% endfor %}';
 
-document.getElementById('billRows').addEventListener('input', function(e) {
-    if (e.target.matches('input[name^="amt_"], input[name^="disc_"]')) updateTotal();
-});
-document.getElementById('billRows').addEventListener('change', function(e) {
-    if (e.target.matches('input[name^="tax_"]')) updateTotal();
-});
-
-document.getElementById('billForm').addEventListener('submit', function(e) {
-    var rows = document.querySelectorAll('#billRows tr');
-    var supplier = document.querySelector('select[name="batch_supplier"]').value;
-    if (!supplier) { e.preventDefault(); alert('Select a supplier first.'); return; }
-    for (var i = 0; i < rows.length; i++) {
-        var r = rows[i];
-        var idx = r.dataset.idx;
-        var vehicle = r.querySelector('select[name="v_' + idx + '"]');
-        var billNo = r.querySelector('input[name="bn_' + idx + '"]');
-        var billDate = r.querySelector('input[name="bd_' + idx + '"]');
-        var amt = r.querySelector('input[name="amt_' + idx + '"]');
-        if (!vehicle || !billNo || !billDate || !amt) continue;
-        if (!vehicle.value.trim() || !billNo.value.trim() || !billDate.value || !parseFloat(amt.value)) {
-            e.preventDefault();
-            alert('Row ' + (i+1) + ': Vehicle, Bill No, Date, and Amount are required.');
-            return;
-        }
-    }
-    document.getElementById('saveBtn').disabled = true;
-    document.getElementById('saveBtn').innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M12 2v4m0 12v4m-7-9H1m22 0h-4m-2.5-6.5L14 7m-4 10l-2.5 2.5m11-2.5L14 17M7 7L4.5 4.5"/></svg> Saving...</span>';
-});
-
-function addRow() {
-    var html = '<tr data-idx="' + rowIdx + '">' +
-        '<td class="row-num">' + (document.querySelectorAll('#billRows tr').length + 1) + '</td>' +
-        '<td><select name="v_' + rowIdx + '" required><option value="">— Select —</option>{% for v in vehicles %}<option value="{{ v.plate_no }}">{{ v.plate_no }}</option>{% endfor %}</select></td>' +
-        '<td><input type="text" name="bn_' + rowIdx + '" placeholder="e.g. 56255" required></td>' +
-        '<td><input type="date" name="bd_' + rowIdx + '" required></td>' +
-        '<td><input type="text" name="desc_' + rowIdx + '" placeholder="Oil filter, Diesel filter..."></td>' +
-        '<td><input type="number" name="amt_' + rowIdx + '" step="0.01" min="0" placeholder="0.00" required></td>' +
-        '<td><input type="number" name="disc_' + rowIdx + '" step="0.01" min="0" placeholder="0"></td>' +
-        '<td class="c"><input type="checkbox" name="tax_' + rowIdx + '" class="tax-check" checked title="5% VAT"></td>' +
-        '<td class="c"><button type="button" class="del-btn" onclick="delRow(this)" title="Remove">&times;</button></td>' +
-        '</tr>';
-    document.getElementById('billRows').insertAdjacentHTML('beforeend', html);
-    rowIdx++;
-    renumber();
-    updateTotal();
+function getToday() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-function delRow(btn) {
-    var rows = document.querySelectorAll('#billRows tr');
-    if (rows.length <= 1) { alert('At least one bill row is required.'); return; }
-    btn.closest('tr').remove();
-    renumber();
-    updateTotal();
+function addCard() {
+  var html = '<div class="bb-card" data-idx="' + cardIdx + '">' +
+    '<div class="bb-card-hdr">' +
+      '<span class="bb-card-num"><span class="num">' + (document.querySelectorAll('.bb-card').length + 1) + '</span> Bill</span>' +
+      '<button type="button" class="bb-card-del" onclick="delCard(this)" title="Remove">&times;</button>' +
+    '</div>' +
+    '<div class="bb-card-body">' +
+      '<div class="bb-field">' +
+        '<label class="bb-label">Supplier <span class="req">*</span></label>' +
+        '<select name="batch_supplier_' + cardIdx + '" class="bb-select" required>' +
+          '<option value="">— Select Supplier —</option>' + suppliersHtml +
+        '</select>' +
+      '</div>' +
+      '<div class="bb-grid-2">' +
+        '<div class="bb-field">' +
+          '<label class="bb-label">Bill No <span class="req">*</span></label>' +
+          '<input type="text" name="bn_' + cardIdx + '" class="bb-input" placeholder="e.g. 56255" required>' +
+        '</div>' +
+        '<div class="bb-field">' +
+          '<label class="bb-label">Date <span class="req">*</span></label>' +
+          '<input type="date" name="bd_' + cardIdx + '" class="bb-input" value="' + getToday() + '" required>' +
+        '</div>' +
+      '</div>' +
+      '<div class="bb-field">' +
+        '<label class="bb-label">Vehicle <span class="req">*</span></label>' +
+        '<select name="v_' + cardIdx + '" class="bb-select" required>' + vehiclesHtml + '</select>' +
+      '</div>' +
+      '<div class="bb-field">' +
+        '<label class="bb-label">Description</label>' +
+        '<textarea name="desc_' + cardIdx + '" class="bb-textarea" rows="1" placeholder="Oil filter, Diesel filter..."></textarea>' +
+      '</div>' +
+      '<div class="bb-grid-2">' +
+        '<div class="bb-field">' +
+          '<label class="bb-label">Amount (AED) <span class="req">*</span></label>' +
+          '<div class="bb-amount-wrap">' +
+            '<span class="bb-amount-prefix">AED</span>' +
+            '<input type="number" name="amt_' + cardIdx + '" class="bb-input bb-amount-input" step="0.01" min="0" placeholder="0.00" required>' +
+          '</div>' +
+        '</div>' +
+        '<div class="bb-field">' +
+          '<label class="bb-label">Tax</label>' +
+          '<div class="bb-tax-wrap">' +
+            '<label class="bb-toggle">' +
+              '<input type="checkbox" name="tax_' + cardIdx + '" checked>' +
+              '<span class="slider"></span>' +
+            '</label>' +
+            '<div>' +
+              '<div class="bb-tax-label">5% VAT</div>' +
+              '<div class="bb-tax-hint">Auto-adds if on</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+  document.getElementById('billCards').insertAdjacentHTML('beforeend', html);
+  cardIdx++;
+  renumber();
+  updateTotal();
+  var lastCard = document.querySelectorAll('.bb-card');
+  lastCard[lastCard.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function delCard(btn) {
+  var cards = document.querySelectorAll('.bb-card');
+  if (cards.length <= 1) { alert('At least one bill is required.'); return; }
+  var card = btn.closest('.bb-card');
+  card.style.opacity = '0';
+  card.style.transform = 'translateX(20px)';
+  card.style.transition = 'all 0.25s';
+  setTimeout(function() { card.remove(); renumber(); updateTotal(); }, 250);
 }
 
 function renumber() {
-    var rows = document.querySelectorAll('#billRows tr');
-    rows.forEach(function(r, i) { r.querySelector('.row-num').textContent = i + 1; });
-    document.getElementById('billCount').textContent = rows.length;
+  var cards = document.querySelectorAll('.bb-card');
+  cards.forEach(function(c, i) {
+    c.querySelector('.bb-card-num .num').textContent = i + 1;
+  });
+  document.getElementById('billCount').textContent = cards.length;
 }
 
 function updateTotal() {
-    var subtotal = 0;
-    var vat = 0;
-    var rows = document.querySelectorAll('#billRows tr');
-    for (var i = 0; i < rows.length; i++) {
-        var amtInput = rows[i].querySelector('input[name^="amt_"]');
-        var discInput = rows[i].querySelector('input[name^="disc_"]');
-        var taxCheck = rows[i].querySelector('input[name^="tax_"]');
-        var amt = parseFloat(amtInput ? amtInput.value : 0) || 0;
-        var disc = parseFloat(discInput ? discInput.value : 0) || 0;
-        var net = amt - disc;
-        if (net < 0) net = 0;
-        subtotal += net;
-        if (taxCheck && taxCheck.checked) vat += net * 0.05;
-    }
-    document.getElementById('subtotalPreview').textContent = subtotal.toFixed(2);
-    document.getElementById('vatPreview').textContent = vat.toFixed(2);
-    document.getElementById('totalPreview').textContent = (subtotal + vat).toFixed(2);
-    document.getElementById('billCount').textContent = rows.length;
+  var subtotal = 0;
+  var vat = 0;
+  document.querySelectorAll('.bb-card').forEach(function(card) {
+    var amt = parseFloat(card.querySelector('input[name^="amt_"]').value) || 0;
+    var tax = card.querySelector('input[name^="tax_"]').checked;
+    subtotal += amt;
+    if (tax) vat += amt * 0.05;
+  });
+  document.getElementById('subtotalPreview').textContent = subtotal.toFixed(2);
+  document.getElementById('vatPreview').textContent = vat.toFixed(2);
+  document.getElementById('totalPreview').textContent = 'AED ' + (subtotal + vat).toFixed(2);
 }
+
+document.getElementById('billCards').addEventListener('input', function(e) {
+  if (e.target.matches('input[name^="amt_"]')) updateTotal();
+});
+document.getElementById('billCards').addEventListener('change', function(e) {
+  if (e.target.matches('input[name^="tax_"]')) updateTotal();
+});
+
+document.getElementById('billForm').addEventListener('submit', function(e) {
+  var cards = document.querySelectorAll('.bb-card');
+  for (var i = 0; i < cards.length; i++) {
+    var c = cards[i];
+    var supplier = c.querySelector('select[name^="batch_supplier_"]');
+    var vehicle = c.querySelector('select[name^="v_"]');
+    var billNo = c.querySelector('input[name^="bn_"]');
+    var billDate = c.querySelector('input[name^="bd_"]');
+    var amt = c.querySelector('input[name^="amt_"]');
+    if (!supplier.value || !vehicle.value || !billNo.value.trim() || !billDate.value || !parseFloat(amt.value)) {
+      e.preventDefault();
+      alert('Bill ' + (i+1) + ': Supplier, Vehicle, Bill No, Date, and Amount are required.');
+      c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+  }
+  document.getElementById('saveBtn').disabled = true;
+  document.getElementById('saveBtn').textContent = 'Saving...';
+});
+
+document.querySelectorAll('.bb-card input[type="date"]').forEach(function(d) {
+  if (!d.value) d.value = getToday();
+});
 </script>
-<style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
 {% endblock %}
