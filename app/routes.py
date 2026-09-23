@@ -195,8 +195,16 @@ class ValidationError(ValueError):
 def register_routes(app: Flask) -> None:
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
-        flash("Your session form expired or the request was not secure. Please try again.", "error")
-        return redirect(request.referrer or url_for(_role_home_endpoint()))
+        flash("Your session has expired. Please log in again.", "error")
+        return redirect(url_for("login"))
+
+    @app.after_request
+    def set_security_headers(response):
+        if request.endpoint == "login":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
     @app.errorhandler(500)
     def handle_500(error):
