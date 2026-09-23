@@ -375,6 +375,14 @@
                                     <a class="mini-action-link" href="{{ url_for('technicians', edit=tech.technician_code) }}#technician-form">Edit</a>
                                     <a class="mini-action-link" href="{{ url_for('technicians', pay=tech.technician_code) }}#payment-form">Pay</a>
                                     <a class="mini-action-link" href="{{ url_for('technician_jobs') }}?technician_code={{ tech.technician_code }}">Jobs</a>
+                                    {% if tech.direct_login_token %}
+                                    <button type="button" class="mini-action-link" style="color:#16a34a" onclick="copyDirectLink('{{ tech.direct_login_token }}', this)">Copy Login Link</button>
+                                    {% else %}
+                                    <form method="post" style="display:inline" action="{{ url_for('generate_direct_link', technician_code=tech.technician_code) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="mini-action-link" style="color:#ea580c">Generate Link</button>
+                                    </form>
+                                    {% endif %}
                                     <form method="post" class="inline-form" onsubmit="return confirm('Delete this field staff account? Linked records will be kept inactive instead.');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="action" value="delete">
@@ -1187,4 +1195,27 @@
     }
 }
 </style>
+<script>
+function copyDirectLink(token, btn) {
+    var url = window.location.origin + '/technician/go/' + token;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(function() {
+            var orig = btn.textContent;
+            btn.textContent = 'Copied!';
+            btn.style.color = '#16a34a';
+            setTimeout(function() { btn.textContent = orig; }, 2000);
+        });
+    } else {
+        var ta = document.createElement('textarea');
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        var orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = orig; }, 2000);
+    }
+}
+</script>
 {% endblock %}

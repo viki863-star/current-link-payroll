@@ -806,6 +806,7 @@ CREATE TABLE IF NOT EXISTS technicians (
     phone_number TEXT,
     specialization TEXT,
     status TEXT DEFAULT 'Active',
+    direct_login_token TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code) ON DELETE SET NULL
 );
@@ -1728,6 +1729,7 @@ CREATE TABLE IF NOT EXISTS technicians (
     phone_number TEXT,
     specialization TEXT,
     status TEXT DEFAULT 'Active',
+    direct_login_token TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(party_code) REFERENCES parties(party_code) ON DELETE SET NULL
 );
