@@ -993,40 +993,7 @@ def register_routes(app: Flask) -> None:
                     details=lock_info["message"],
                 )
                 db.commit()
-        return render_template("technician_login.html", values=values)
-
-    @app.route("/technician/go/<token>")
-    def technician_direct_login(token):
-        """Direct login link for field staff — no password needed."""
-        db = open_db()
-        technician = db.execute(
-            "SELECT technician_code, party_code, user_id, status FROM technicians WHERE direct_login_token = ?",
-            (token,),
-        ).fetchone()
-        if not technician or (technician["status"] or "") != "Active":
-            flash("Invalid or inactive login link.", "error")
-            return redirect(url_for("login"))
-        _set_session("technician", display_name=f"Field Staff {technician['technician_code']}")
-        session["technician_code"] = technician["technician_code"]
-        session["technician_party_code"] = technician["party_code"]
-        _audit_log(db, "login_success", entity_type="auth", entity_id=technician["technician_code"], details="Direct login link")
-        db.commit()
-        return redirect(url_for("technician_simple"))
-
-    @app.route("/technicians/<technician_code>/direct-link", methods=["POST"])
-    @_login_required("admin")
-    def generate_direct_link(technician_code):
-        """Generate or regenerate a direct login token for a field staff member."""
-        db = open_db()
-        tech = db.execute("SELECT technician_code FROM technicians WHERE technician_code = ?", (technician_code,)).fetchone()
-        if not tech:
-            flash("Field staff not found.", "error")
-            return redirect(url_for("technicians"))
-        token = secrets.token_urlsafe(32)
-        db.execute("UPDATE technicians SET direct_login_token = ? WHERE technician_code = ?", (token, technician_code))
-        db.commit()
-        flash(f"Direct link generated for {technician_code}.", "success")
-        return redirect(url_for("technicians"))
+                return render_template("technician_login.html", values=values)
             
             try:
                 technician, party = _technician_login_target(db, values["user_id"])
@@ -1083,7 +1050,40 @@ def register_routes(app: Flask) -> None:
                 flash(_latest_login_error(db, "technician", identifier, str(exc)), "error")
         
         return render_template("technician_login.html", values=values)
-    
+
+    @app.route("/technician/go/<token>")
+    def technician_direct_login(token):
+        """Direct login link for field staff — no password needed."""
+        db = open_db()
+        technician = db.execute(
+            "SELECT technician_code, party_code, user_id, status FROM technicians WHERE direct_login_token = ?",
+            (token,),
+        ).fetchone()
+        if not technician or (technician["status"] or "") != "Active":
+            flash("Invalid or inactive login link.", "error")
+            return redirect(url_for("login"))
+        _set_session("technician", display_name=f"Field Staff {technician['technician_code']}")
+        session["technician_code"] = technician["technician_code"]
+        session["technician_party_code"] = technician["party_code"]
+        _audit_log(db, "login_success", entity_type="auth", entity_id=technician["technician_code"], details="Direct login link")
+        db.commit()
+        return redirect(url_for("technician_simple"))
+
+    @app.route("/technicians/<technician_code>/direct-link", methods=["POST"])
+    @_login_required("admin")
+    def generate_direct_link(technician_code):
+        """Generate or regenerate a direct login token for a field staff member."""
+        db = open_db()
+        tech = db.execute("SELECT technician_code FROM technicians WHERE technician_code = ?", (technician_code,)).fetchone()
+        if not tech:
+            flash("Field staff not found.", "error")
+            return redirect(url_for("technicians"))
+        token = secrets.token_urlsafe(32)
+        db.execute("UPDATE technicians SET direct_login_token = ? WHERE technician_code = ?", (token, technician_code))
+        db.commit()
+        flash(f"Direct link generated for {technician_code}.", "success")
+        return redirect(url_for("technicians"))
+
     @app.route("/admin/supplier-registrations", methods=["GET", "POST"])
     @_login_required("admin")
     def supplier_registrations():
