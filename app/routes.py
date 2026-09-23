@@ -1067,7 +1067,31 @@ def register_routes(app: Flask) -> None:
         session["technician_party_code"] = technician["party_code"]
         _audit_log(db, "login_success", entity_type="auth", entity_id=technician["technician_code"], details="Direct login link")
         db.commit()
-        return redirect(url_for("technician_simple"))
+        # Render page directly instead of redirect — iOS Safari loses session cookie on redirect.
+        vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, created_at FROM vehicles WHERE status = 'Active' ORDER BY vehicle_type, plate_no").fetchall()
+        _categories_list = ["Oil Change", "Tyre", "Engine", "Body", "Electrical", "Brakes", "AC", "Other"]
+        _ensure_maintenance_suppliers_table(db)
+        supplier_rows = db.execute(
+            "SELECT DISTINCT supplier_name FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT supplier_name FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' UNION SELECT DISTINCT name FROM maintenance_suppliers WHERE name IS NOT NULL AND name != '' ORDER BY supplier_name ASC"
+        ).fetchall()
+        supplier_suggestions = [r[0] for r in supplier_rows]
+        supplier_trn_rows = db.execute(
+            "SELECT supplier_name, supplier_trn FROM maintenance_jobs WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT supplier_name, supplier_trn FROM maintenance_papers WHERE supplier_name IS NOT NULL AND supplier_name != '' AND supplier_trn IS NOT NULL AND supplier_trn != '' UNION SELECT name, trn FROM maintenance_suppliers WHERE trn IS NOT NULL AND trn != ''"
+        ).fetchall()
+        supplier_trn_map = {}
+        for row in supplier_trn_rows:
+            if row[0] and not supplier_trn_map.get(row[0]):
+                supplier_trn_map[row[0]] = row[1]
+        total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician["technician_code"],)).fetchone()["t"] or 0
+        spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician["technician_code"],)).fetchone()["t"] or 0
+        spent_jobs = db.execute("SELECT COALESCE(SUM(COALESCE(staff_amount, amount - tax_amount)),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician["technician_code"],)).fetchone()["t"] or 0
+        total_spent = float(spent_papers) + float(spent_jobs)
+        balance = float(total_received) - total_spent
+        pending_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Pending'", (technician["technician_code"],)).fetchone()["c"] or 0
+        approved_count = db.execute("SELECT COUNT(*) AS c FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician["technician_code"],)).fetchone()["c"] or 0
+        return render_template("fleet/staff_job_new.html", vehicles=vehicles, categories=_categories_list, supplier_suggestions=supplier_suggestions, supplier_trn_map=supplier_trn_map, v={}, rows=[],
+                               total_received=total_received, total_spent=total_spent, balance=balance,
+                               pending_count=pending_count, approved_count=approved_count)
 
     @app.route("/technicians/<technician_code>/direct-link", methods=["POST"])
     @_login_required("admin")
