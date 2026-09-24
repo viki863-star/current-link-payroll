@@ -24,8 +24,6 @@
 .me-add-btn:hover{border-color:var(--primary);background:rgba(15,43,82,.03)}
 .me-submit{width:100%;padding:12px;font-size:.95rem;font-weight:700;border:none;border-radius:12px;background:var(--primary);color:#fff;cursor:pointer;transition:background .2s}
 .me-submit:hover{opacity:.9}
-.me-shared{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 20px;margin-bottom:16px}
-.me-shared h4{margin:0 0 10px;font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 @media(max-width:500px){.me-grid{grid-template-columns:1fr}}
 </style>
 
@@ -37,13 +35,6 @@
 
   <form method="POST" enctype="multipart/form-data" id="bulkForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    <div class="me-shared">
-      <h4>Shared Date (applies to all entries)</h4>
-      <div class="me-field" style="margin-bottom:0">
-        <input type="date" name="entry_date[]" value="{{ today }}">
-      </div>
-    </div>
 
     <div id="entries">
       <div class="me-card" data-idx="0">
@@ -61,6 +52,10 @@
             </select>
           </div>
           <div class="me-field">
+            <label>Date</label>
+            <input type="date" name="entry_date[]" value="{{ today }}">
+          </div>
+          <div class="me-field">
             <label>Category</label>
             <input type="text" name="category[]" placeholder="e.g. Engine, Tire, Service" list="catList0">
             <datalist id="catList0">
@@ -73,11 +68,11 @@
             <label>Amount (AED)</label>
             <input type="number" name="amount[]" step="0.01" min="0" placeholder="0.00">
           </div>
-          <div class="me-field me-full">
+          <div class="me-field">
             <label>Description</label>
             <textarea name="description[]" rows="2" placeholder="Describe the maintenance work..."></textarea>
           </div>
-          <div class="me-field me-full">
+          <div class="me-field">
             <label>Attach Paper (PDF / Image)</label>
             <input type="file" name="attachment_0" accept=".pdf,.jpg,.jpeg,.png,.webp">
           </div>
