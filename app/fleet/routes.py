@@ -1617,7 +1617,6 @@ def fleet_maintenance_entry():
     ensure_fleet_tables()
     db = open_db()
     vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles ORDER BY plate_no").fetchall()
-    # Ensure admin pseudo-staff exists for direct entries
     if not db.execute("SELECT staff_id FROM field_staff WHERE staff_id='admin'").fetchone():
         try:
             db.execute("INSERT INTO field_staff (staff_id, full_name, username, password_hash, phone, is_active) VALUES ('admin','System Admin','admin','',NULL,1)")
@@ -1626,35 +1625,52 @@ def fleet_maintenance_entry():
             pass
     if request.method == "POST":
         import base64
-        vehicle_id = request.form.get("vehicle_id", "").strip()
-        amount = request.form.get("amount", "0").strip()
-        category = request.form.get("category", "").strip()
-        description = request.form.get("description", "").strip()
-        entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
-        if not vehicle_id:
+        vehicle_ids = request.form.getlist("vehicle_id[]")
+        amounts = request.form.getlist("amount[]")
+        categories = request.form.getlist("category[]")
+        descriptions = request.form.getlist("description[]")
+        entry_dates = request.form.getlist("entry_date[]")
+        if not vehicle_ids or not vehicle_ids[0].strip():
             flash("Please select a vehicle.", "error")
             return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())
-        try:
-            amount = float(amount) if amount else 0
-        except ValueError:
-            amount = 0
-        attachment_name = None
-        attachment_data = None
-        attachment_type = None
-        if request.files and "attachment" in request.files:
-            f = request.files["attachment"]
-            if f and f.filename:
-                attachment_name = f.filename
-                attachment_data = base64.b64encode(f.read()).decode("utf-8")
-                attachment_type = f.content_type or "application/octet-stream"
-        db.execute(
-            "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, created_at, attachment_name, attachment_data, attachment_type) VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?)",
-            (vehicle_id, 'admin', amount, category, description, entry_date, attachment_name, attachment_data, attachment_type)
-        )
+        inserted = 0
+        last_vehicle = vehicle_ids[0].strip()
+        for i, vid in enumerate(vehicle_ids):
+            vid = vid.strip()
+            if not vid:
+                continue
+            last_vehicle = vid
+            try:
+                amt = float(amounts[i]) if i < len(amounts) and amounts[i].strip() else 0
+            except (ValueError, IndexError):
+                amt = 0
+            cat = categories[i].strip() if i < len(categories) else ""
+            desc = descriptions[i].strip() if i < len(descriptions) else ""
+            edate = entry_dates[i].strip() if i < len(entry_dates) else ""
+            if not edate:
+                edate = date.today().isoformat()
+            att_name = None
+            att_data = None
+            att_type = None
+            att_key = f"attachment_{i}"
+            if request.files and att_key in request.files:
+                f = request.files[att_key]
+                if f and f.filename:
+                    att_name = f.filename
+                    att_data = base64.b64encode(f.read()).decode("utf-8")
+                    att_type = f.content_type or "application/octet-stream"
+            db.execute(
+                "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, created_at, attachment_name, attachment_data, attachment_type) VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?)",
+                (vid, 'admin', amt, cat, desc, edate, att_name, att_data, att_type)
+            )
+            inserted += 1
         db.commit()
         db.close()
-        flash(f"Maintenance entry added and approved for vehicle {vehicle_id}.", "success")
-        return redirect(url_for("fleet.vehicle_profile", plate_no=vehicle_id))
+        if inserted == 1:
+            flash(f"Maintenance entry added and approved for vehicle {last_vehicle}.", "success")
+        else:
+            flash(f"{inserted} maintenance entries added and approved.", "success")
+        return redirect(url_for("fleet.fleet_maintenance_entry"))
     return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())
 
 

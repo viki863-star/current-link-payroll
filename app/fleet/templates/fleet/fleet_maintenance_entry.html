@@ -1,65 +1,145 @@
 {% extends "base.html" %}
 {% block title %}Maintenance Entry — Fleet{% endblock %}
 {% block body_class %}profile-body{% endblock %}
-{% block page_title %}Add Maintenance Entry{% endblock %}
+{% block page_title %}Bulk Maintenance Entry{% endblock %}
 
 {% block content %}
 <style>
-.me-container { max-width:550px; margin:0 auto; }
-.me-card { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:24px; }
-.me-card h3 { margin:0 0 4px; font-size:1.05rem; font-weight:700; }
-.me-card p { margin:0 0 18px; font-size:0.82rem; color:var(--muted); }
-.me-field { margin-bottom:14px; }
-.me-field label { display:block; font-size:0.72rem; font-weight:600; color:var(--muted); margin-bottom:3px; text-transform:uppercase; letter-spacing:0.3px; }
-.me-field select, .me-field input, .me-field textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:0.88rem; background:#fff; }
-.me-field select:focus, .me-field input:focus, .me-field textarea:focus { border-color:var(--primary); outline:none; }
+.me-wrap{max-width:680px;margin:0 auto;padding:0 12px}
+.me-top{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.me-top .btn{font-size:.8rem}
+.me-counter{margin-left:auto;font-size:.78rem;color:var(--muted);font-weight:600;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:4px 14px}
+.me-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:14px;position:relative;transition:box-shadow .2s}
+.me-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.me-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.me-card-num{font-size:.7rem;font-weight:700;color:#fff;background:var(--primary);border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.me-card-remove{background:none;border:none;color:#dc3545;font-size:1.1rem;cursor:pointer;padding:2px 6px;border-radius:6px;transition:background .15s}
+.me-card-remove:hover{background:#fde8e8}
+.me-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.me-grid .me-full{grid-column:1/-1}
+.me-field label{display:block;font-size:.68rem;font-weight:600;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
+.me-field select,.me-field input,.me-field textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:.85rem;background:#fff;transition:border-color .15s}
+.me-field select:focus,.me-field input:focus,.me-field textarea:focus{border-color:var(--primary);outline:none}
+.me-add-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:2px dashed var(--line);border-radius:14px;background:transparent;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;transition:all .2s;margin-bottom:16px}
+.me-add-btn:hover{border-color:var(--primary);background:rgba(15,43,82,.03)}
+.me-submit{width:100%;padding:12px;font-size:.95rem;font-weight:700;border:none;border-radius:12px;background:var(--primary);color:#fff;cursor:pointer;transition:background .2s}
+.me-submit:hover{opacity:.9}
+.me-shared{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 20px;margin-bottom:16px}
+.me-shared h4{margin:0 0 10px;font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+@media(max-width:500px){.me-grid{grid-template-columns:1fr}}
 </style>
 
-<div class="me-container">
-  <div style="margin-bottom:14px">
+<div class="me-wrap">
+  <div class="me-top">
     <a href="{{ url_for('fleet.fleet_dashboard') }}" class="btn btn-outline btn-sm">&larr; Fleet Dashboard</a>
+    <span class="me-counter" id="counter">1 entry</span>
   </div>
-  <div class="me-card">
-    <h3>Maintenance Entry</h3>
-    <p>Add a direct approved maintenance entry for a vehicle.</p>
-    <form method="POST" enctype="multipart/form-data">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="me-field">
-        <label>Vehicle</label>
-        <select name="vehicle_id" required>
-          <option value="">— Select Vehicle —</option>
-          {% for v in vehicles %}
-          <option value="{{ v.plate_no }}">{{ v.plate_no }} | {{ v.vehicle_type or '' }} {{ v.model or '' }}</option>
-          {% endfor %}
-        </select>
+
+  <form method="POST" enctype="multipart/form-data" id="bulkForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="me-shared">
+      <h4>Shared Date (applies to all entries)</h4>
+      <div class="me-field" style="margin-bottom:0">
+        <input type="date" name="entry_date[]" value="{{ today }}">
       </div>
-      <div class="me-field">
-        <label>Date</label>
-        <input type="date" name="entry_date" value="{{ today }}">
+    </div>
+
+    <div id="entries">
+      <div class="me-card" data-idx="0">
+        <div class="me-card-head">
+          <span class="me-card-num">1</span>
+        </div>
+        <div class="me-grid">
+          <div class="me-field me-full">
+            <label>Vehicle</label>
+            <select name="vehicle_id[]" required>
+              <option value="">— Select Vehicle —</option>
+              {% for v in vehicles %}
+              <option value="{{ v.plate_no }}">{{ v.plate_no }} | {{ v.vehicle_type or '' }} {{ v.model or '' }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="me-field">
+            <label>Category</label>
+            <input type="text" name="category[]" placeholder="e.g. Engine, Tire, Service" list="catList0">
+            <datalist id="catList0">
+              <option value="Oil Change"><option value="Tyre"><option value="Engine">
+              <option value="Brakes"><option value="AC"><option value="Electrical">
+              <option value="Body"><option value="Service"><option value="Other">
+            </datalist>
+          </div>
+          <div class="me-field">
+            <label>Amount (AED)</label>
+            <input type="number" name="amount[]" step="0.01" min="0" placeholder="0.00">
+          </div>
+          <div class="me-field me-full">
+            <label>Description</label>
+            <textarea name="description[]" rows="2" placeholder="Describe the maintenance work..."></textarea>
+          </div>
+          <div class="me-field me-full">
+            <label>Attach Paper (PDF / Image)</label>
+            <input type="file" name="attachment_0" accept=".pdf,.jpg,.jpeg,.png,.webp">
+          </div>
+        </div>
       </div>
-      <div class="me-field">
-        <label>Category</label>
-        <input type="text" name="category" placeholder="e.g. Engine, Tire, Service" list="catList">
-        <datalist id="catList">
-          <option value="Engine"><option value="Tire"><option value="Service">
-          <option value="Brake"><option value="AC"><option value="Electrical">
-          <option value="Body"><option value="Other">
-        </datalist>
-      </div>
-      <div class="me-field">
-        <label>Amount (AED)</label>
-        <input type="number" name="amount" step="0.01" min="0" placeholder="0.00">
-      </div>
-      <div class="me-field">
-        <label>Description</label>
-        <textarea name="description" rows="3" placeholder="Describe the maintenance work..."></textarea>
-      </div>
-      <div class="me-field">
-        <label>Attach Paper (PDF / Image)</label>
-        <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png,.webp">
-      </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;padding:10px;font-size:0.95rem;font-weight:700">&#10003; Submit &amp; Approve</button>
-    </form>
-  </div>
+    </div>
+
+    <button type="button" class="me-add-btn" id="addRowBtn">+ Add Another Vehicle</button>
+    <button type="submit" class="me-submit">&#10003; Submit All Entries</button>
+  </form>
 </div>
+
+<script>
+(function(){
+  const container = document.getElementById('entries');
+  const addBtn = document.getElementById('addRowBtn');
+  const counter = document.getElementById('counter');
+  const form = document.getElementById('bulkForm');
+  let idx = 1;
+
+  function updateNumbers(){
+    container.querySelectorAll('.me-card').forEach((card, i) => {
+      card.querySelector('.me-card-num').textContent = i + 1;
+      card.dataset.idx = i;
+    });
+    const count = container.querySelectorAll('.me-card').length;
+    counter.textContent = count + (count === 1 ? ' entry' : ' entries');
+  }
+
+  addBtn.addEventListener('click', function(){
+    const tpl = container.querySelector('.me-card').cloneNode(true);
+    tpl.dataset.idx = idx;
+    tpl.querySelector('.me-card-num').textContent = idx + 1;
+    tpl.querySelector('select').selectedIndex = 0;
+    tpl.querySelector('select').removeAttribute('required');
+    tpl.querySelectorAll('input[type="number"], textarea').forEach(el => el.value = '');
+    tpl.querySelector('input[type="file"]').value = '';
+    tpl.querySelector('input[type="file"]').name = 'attachment_' + idx;
+    const dl = tpl.querySelector('datalist');
+    if(dl){ dl.id = 'catList' + idx; const inp = tpl.querySelector('input[list]'); if(inp) inp.setAttribute('list', dl.id); }
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'me-card-remove';
+    removeBtn.innerHTML = '&times;';
+    removeBtn.title = 'Remove';
+    removeBtn.addEventListener('click', function(){
+      tpl.remove();
+      updateNumbers();
+    });
+    tpl.querySelector('.me-card-head').appendChild(removeBtn);
+    container.appendChild(tpl);
+    idx++;
+    updateNumbers();
+    tpl.scrollIntoView({behavior:'smooth', block:'center'});
+  });
+
+  container.querySelector('.me-card-remove')?.addEventListener('click', function(){
+    if(container.querySelectorAll('.me-card').length > 1){
+      this.closest('.me-card').remove();
+      updateNumbers();
+    }
+  });
+})();
+</script>
 {% endblock %}
