@@ -20,6 +20,19 @@
 .me-field label{display:block;font-size:.68rem;font-weight:600;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.3px}
 .me-field select,.me-field input,.me-field textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:.85rem;background:#fff;transition:border-color .15s}
 .me-field select:focus,.me-field input:focus,.me-field textarea:focus{border-color:var(--primary);outline:none}
+.me-tax-toggle{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.me-tax-toggle label{flex:1;text-align:center;padding:7px 0;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;margin:0;border:none}
+.me-tax-toggle input[type="radio"]{display:none}
+.me-tax-toggle input[type="radio"]:checked+span{color:#fff}
+.me-tax-notax input[type="radio"]:checked+span{color:#fff}
+.me-tax-toggle .me-tog-notax{background:var(--line);color:var(--muted)}
+.me-tax-toggle .me-tog-notax.active{background:#6c757d;color:#fff}
+.me-tax-toggle .me-tog-tax{background:var(--line);color:var(--muted)}
+.me-tax-toggle .me-tog-tax.active{background:#198754;color:#fff}
+.me-tax-fields{display:none;margin-top:12px;padding:12px;background:#f8f9fa;border:1px solid var(--line);border-radius:10px}
+.me-tax-fields.show{display:block}
+.me-tax-summary{display:flex;gap:12px;margin-top:10px;font-size:.78rem;color:var(--muted)}
+.me-tax-summary strong{color:var(--primary)}
 .me-add-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border:2px dashed var(--line);border-radius:14px;background:transparent;color:var(--primary);font-size:.88rem;font-weight:700;cursor:pointer;transition:all .2s;margin-bottom:16px}
 .me-add-btn:hover{border-color:var(--primary);background:rgba(15,43,82,.03)}
 .me-submit{width:100%;padding:12px;font-size:.95rem;font-weight:700;border:none;border-radius:12px;background:var(--primary);color:#fff;cursor:pointer;transition:background .2s}
@@ -66,15 +79,39 @@
           </div>
           <div class="me-field">
             <label>Amount (AED)</label>
-            <input type="number" name="amount[]" step="0.01" min="0" placeholder="0.00">
+            <input type="number" name="amount[]" step="0.01" min="0" placeholder="0.00" class="me-amt-input">
           </div>
           <div class="me-field">
+            <label>Tax Mode</label>
+            <div class="me-tax-toggle">
+              <label class="me-tog-notax active" onclick="setTax(this,'no')"><input type="radio" name="tax_mode[]" value="Without Tax" checked><span>Without Tax</span></label>
+              <label class="me-tog-tax" onclick="setTax(this,'yes')"><input type="radio" name="tax_mode[]" value="Tax Invoice"><span>Tax Invoice 5%</span></label>
+            </div>
+          </div>
+          <div class="me-field me-full">
             <label>Description</label>
             <textarea name="description[]" rows="2" placeholder="Describe the maintenance work..."></textarea>
           </div>
-          <div class="me-field">
+          <div class="me-field me-full">
             <label>Attach Paper (PDF / Image)</label>
             <input type="file" name="attachment_0" accept=".pdf,.jpg,.jpeg,.png,.webp">
+          </div>
+        </div>
+        <div class="me-tax-fields">
+          <div class="me-grid">
+            <div class="me-field">
+              <label>Supplier / Workshop Name *</label>
+              <input type="text" name="supplier_name[]" placeholder="Supplier name (required for tax bill)">
+            </div>
+            <div class="me-field">
+              <label>Bill Number *</label>
+              <input type="text" name="supplier_bill_no[]" placeholder="Bill / Invoice number">
+            </div>
+          </div>
+          <div class="me-tax-summary">
+            <span>Net: <strong class="me-net-val">0.00</strong></span>
+            <span>VAT 5%: <strong class="me-vat-val">0.00</strong></span>
+            <span>Total: <strong class="me-total-val">0.00</strong></span>
           </div>
         </div>
       </div>
@@ -86,11 +123,50 @@
 </div>
 
 <script>
+function setTax(label, mode){
+  const card = label.closest('.me-card');
+  const taxFields = card.querySelector('.me-tax-fields');
+  const radio = label.querySelector('input[type="radio"]');
+  radio.checked = true;
+  card.querySelectorAll('.me-tax-toggle label').forEach(l => l.classList.remove('active'));
+  label.classList.add('active');
+  if(mode === 'yes'){
+    taxFields.classList.add('show');
+    card.querySelector('input[name="supplier_name[]"]').required = true;
+    card.querySelector('input[name="supplier_bill_no[]"]').required = true;
+  } else {
+    taxFields.classList.remove('show');
+    card.querySelector('input[name="supplier_name[]"]').required = false;
+    card.querySelector('input[name="supplier_bill_no[]"]').required = false;
+  }
+  calcTax(card);
+}
+function calcTax(card){
+  const amt = parseFloat(card.querySelector('.me-amt-input').value) || 0;
+  const isTax = card.querySelector('input[name="tax_mode[]"]:checked').value === 'Tax Invoice';
+  const netEl = card.querySelector('.me-net-val');
+  const vatEl = card.querySelector('.me-vat-val');
+  const totalEl = card.querySelector('.me-total-val');
+  if(isTax){
+    const vat = Math.round(amt * 0.05 * 100) / 100;
+    const total = Math.round((amt + vat) * 100) / 100;
+    netEl.textContent = amt.toFixed(2);
+    vatEl.textContent = vat.toFixed(2);
+    totalEl.textContent = total.toFixed(2);
+  } else {
+    netEl.textContent = amt.toFixed(2);
+    vatEl.textContent = '0.00';
+    totalEl.textContent = amt.toFixed(2);
+  }
+}
+document.querySelectorAll('.me-amt-input').forEach(inp => {
+  inp.addEventListener('input', function(){ calcTax(this.closest('.me-card')); });
+});
+
 (function(){
   const container = document.getElementById('entries');
   const addBtn = document.getElementById('addRowBtn');
   const counter = document.getElementById('counter');
-  const form = document.getElementById('bulkForm');
   let idx = 1;
 
   function updateNumbers(){
@@ -113,6 +189,19 @@
     tpl.querySelector('input[type="file"]').name = 'attachment_' + idx;
     const dl = tpl.querySelector('datalist');
     if(dl){ dl.id = 'catList' + idx; const inp = tpl.querySelector('input[list]'); if(inp) inp.setAttribute('list', dl.id); }
+    tpl.querySelector('input[name="supplier_name[]"]').value = '';
+    tpl.querySelector('input[name="supplier_bill_no[]"]').value = '';
+    tpl.querySelector('.me-tax-fields').classList.remove('show');
+    tpl.querySelectorAll('.me-tax-toggle label').forEach((l,i) => {
+      l.classList.remove('active');
+      if(i===0) l.classList.add('active');
+    });
+    tpl.querySelector('input[name="tax_mode[]"][value="Without Tax"]').checked = true;
+    tpl.querySelector('input[name="supplier_name[]"]').required = false;
+    tpl.querySelector('input[name="supplier_bill_no[]"]').required = false;
+    tpl.querySelector('.me-net-val').textContent = '0.00';
+    tpl.querySelector('.me-vat-val').textContent = '0.00';
+    tpl.querySelector('.me-total-val').textContent = '0.00';
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'me-card-remove';

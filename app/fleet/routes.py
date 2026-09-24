@@ -1630,8 +1630,27 @@ def fleet_maintenance_entry():
         categories = request.form.getlist("category[]")
         descriptions = request.form.getlist("description[]")
         entry_dates = request.form.getlist("entry_date[]")
+        tax_modes = request.form.getlist("tax_mode[]")
+        supplier_names = request.form.getlist("supplier_name[]")
+        supplier_bill_nos = request.form.getlist("supplier_bill_no[]")
         if not vehicle_ids or not vehicle_ids[0].strip():
             flash("Please select a vehicle.", "error")
+            return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())
+        errors = []
+        for i, vid in enumerate(vehicle_ids):
+            vid = vid.strip()
+            if not vid:
+                continue
+            tm = tax_modes[i].strip() if i < len(tax_modes) else "Without Tax"
+            if tm == "Tax Invoice":
+                sn = supplier_names[i].strip() if i < len(supplier_names) else ""
+                sbn = supplier_bill_nos[i].strip() if i < len(supplier_bill_nos) else ""
+                if not sn:
+                    errors.append(f"Entry {i+1} ({vid}): Supplier name is required for Tax Invoice bill.")
+                if not sbn:
+                    errors.append(f"Entry {i+1} ({vid}): Bill number is required for Tax Invoice bill.")
+        if errors:
+            flash(" ".join(errors), "error")
             return render_template("fleet/fleet_maintenance_entry.html", vehicles=vehicles, today=date.today().isoformat())
         inserted = 0
         last_vehicle = vehicle_ids[0].strip()
@@ -1649,6 +1668,15 @@ def fleet_maintenance_entry():
             edate = entry_dates[i].strip() if i < len(entry_dates) else ""
             if not edate:
                 edate = date.today().isoformat()
+            tm = tax_modes[i].strip() if i < len(tax_modes) else "Without Tax"
+            sn = supplier_names[i].strip() if i < len(supplier_names) else ""
+            sbn = supplier_bill_nos[i].strip() if i < len(supplier_bill_nos) else ""
+            tax_amount = 0.0
+            staff_amount = amt
+            if tm == "Tax Invoice":
+                tax_amount = round(amt * 0.05, 2)
+                staff_amount = amt
+                amt = round(amt + tax_amount, 2)
             att_name = None
             att_data = None
             att_type = None
@@ -1660,8 +1688,8 @@ def fleet_maintenance_entry():
                     att_data = base64.b64encode(f.read()).decode("utf-8")
                     att_type = f.content_type or "application/octet-stream"
             db.execute(
-                "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, created_at, attachment_name, attachment_data, attachment_type) VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?)",
-                (vid, 'admin', amt, cat, desc, edate, att_name, att_data, att_type)
+                "INSERT INTO maintenance_jobs (vehicle_id, staff_id, amount, category, description, status, created_at, attachment_name, attachment_data, attachment_type, tax_mode, tax_amount, staff_amount, supplier_name, supplier_bill_no) VALUES (?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (vid, 'admin', amt, cat, desc, edate, att_name, att_data, att_type, tm, tax_amount, staff_amount, sn, sbn)
             )
             inserted += 1
         db.commit()
