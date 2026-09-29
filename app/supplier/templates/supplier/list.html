@@ -43,6 +43,7 @@
       <a href="{{ url_for('supplier.supplier_list', status='deleted') }}" class="btn btn-xs {{ 'btn-primary' if status_filter == 'deleted' else 'btn-outline' }}">Deleted</a>
     </div>
     <div class="sl-actions">
+      <a href="{{ url_for('supplier.compliance_register') }}" class="btn btn-outline btn-sm">🛡 VAT Register</a>
       <a href="{{ url_for('supplier.supplier_add') }}" class="btn btn-primary btn-sm">+ Add Supplier</a>
     </div>
   </div>
@@ -62,6 +63,7 @@
             <th>Name</th>
             <th>Phone</th>
             <th>TRN</th>
+            <th>VAT Verification</th>
             <th>Status</th>
             <th class="c" style="width:90px">Action</th>
           </tr>
@@ -74,6 +76,14 @@
             <td><a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" style="font-weight:600;color:#0f172a;text-decoration:none">{{ s.supplier_name }}</a></td>
             <td class="mono" style="font-size:0.8rem;color:#000">{{ s.phone or '—' }}</td>
             <td class="mono" style="font-size:0.8rem;color:#000">{{ s.trn or '—' }}</td>
+            <td>
+              {% set st = comp_states.get(s.id) if comp_states else None %}
+              {% if st %}
+              <a href="{{ url_for('supplier.supplier_compliance', sup_id=s.id) }}"
+                 title="{{ 'Next due: ' ~ st.next_due if st.next_due else 'Not verified — required before deducting input tax (FTA Decision 13/2026)' }}"
+                 style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:0.67rem;font-weight:700;text-decoration:none;background:{{ st.bg }};color:{{ st.fg }}">{{ st.label }}</a>
+              {% else %}<span style="color:#94a3b8">—</span>{% endif %}
+            </td>
             <td>{% if s.is_deleted %}<span class="status-badge pending">Deleted</span>{% elif s.status == 'Inactive' %}<span class="status-badge pending">Blocked</span>{% else %}<span class="status-badge active">Active</span>{% endif %}</td>
             <td class="c">
               <div style="display:flex;gap:4px;justify-content:center">

@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% block title %}VAT Verification — {{ s.supplier_name }}{% endblock %}
+{% block page_title %}Supplier VAT Verification{% endblock %}
+
+{% block content %}
+<style>
+.cv-shell { max-width:960px; margin:0 auto; }
+.cv-card { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:16px; }
+.cv-hdr { background:var(--primary); padding:14px 22px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.cv-hdr h3 { margin:0; font-size:0.95rem; font-weight:700; color:#fff; }
+.cv-hdr .back { margin-left:auto; color:rgba(255,255,255,0.85); font-size:0.78rem; text-decoration:none; }
+.cv-body { padding:20px 22px 22px; }
+.cv-sec-title { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--primary);
+  border-bottom:2px solid #eef2f6; padding-bottom:6px; margin:18px 0 12px; display:flex; gap:8px; align-items:center; }
+.cv-sec-title:first-child { margin-top:0; }
+.cv-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.cv-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+.cv-row label { display:block; font-size:0.68rem; font-weight:600; color:#64748b; text-transform:uppercase;
+  letter-spacing:0.3px; margin-bottom:4px; }
+.cv-row .hint { font-size:0.72rem; color:#94a3b8; margin-top:3px; text-transform:none; letter-spacing:0; font-weight:400; }
+.cv-span2 { grid-column:1 / -1; }
+.cv-status { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 18px; background:#f8fafc;
+  border-bottom:1px solid var(--line); }
+.cv-pill { display:inline-block; padding:4px 12px; border-radius:999px; font-size:0.72rem; font-weight:700; }
+.cv-facts { display:flex; gap:22px; flex-wrap:wrap; font-size:0.78rem; color:#475569; }
+.cv-facts b { color:#0f172a; }
+.cv-warn { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:8px; padding:10px 14px;
+  font-size:0.79rem; margin-bottom:8px; }
+.cv-ok { background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; border-radius:8px; padding:10px 14px; font-size:0.79rem; }
+.cv-docs { width:100%; border-collapse:collapse; }
+.cv-docs th { text-align:left; font-size:0.65rem; text-transform:uppercase; color:#64748b; padding:8px 10px;
+  border-bottom:2px solid #e2e8f0; }
+.cv-docs td { font-size:0.8rem; padding:8px 10px; border-bottom:1px solid #f1f5f9; }
+.cv-doc-yes { color:#15803d; font-weight:700; }
+.cv-doc-no { color:#b45309; font-weight:700; }
+@media (max-width:760px) { .cv-grid, .cv-grid-3 { grid-template-columns:1fr; } }
+</style>
+
+<div class="cv-shell">
+  <div class="cv-card">
+    <div class="cv-hdr">
+      <h3>🛡️ Supplier Information Form — VAT Input Tax Verification</h3>
+      <a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" class="back">← Supplier Profile</a>
+    </div>
+
+    <div class="cv-status">
+      <span class="cv-pill" style="background:{{ state.bg }};color:{{ state.fg }}">{{ state.label }}</span>
+      <div class="cv-facts">
+        <span>Supplier: <b>{{ s.supplier_name }}</b> ({{ s.supplier_code }})</span>
+        <span>Verified on: <b>{{ state.verified_on or '—' }}</b></span>
+        <span>Next verification due: <b>{{ state.next_due or '—' }}</b></span>
+        <span>12-month supplies (excl. VAT): <b>AED {{ "%.2f"|format(state.spend) }}</b></span>
+        <span>Expected next 12m: <b>AED {{ "%.2f"|format(state.expected) }}</b></span>
+      </div>
+    </div>
+
+    <div class="cv-body">
+      <p style="font-size:0.78rem;color:#64748b;margin:0 0 12px">
+        Federal Tax Authority Decision No. 13 of 2026 — measures, procedures and conditions required before
+        deduction of input tax (Art. 54(bis) of the VAT Law). Effective 1 October 2026.
+        Authority to retain all steps and supporting records (Art. 5.3).
+      </p>
+
+      {% if state.warnings %}
+        {% for w in state.warnings %}<div class="cv-warn">⚠ {{ w }}</div>{% endfor %}
+      {% else %}
+        <div class="cv-ok">✔ Threshold checks: supplier is below AED 100,000 and AED 375,000 — the reduced
+        obligations of Art. 6.1 apply, but records must still be kept.</div>
+      {% endif %}
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {# ───────── SECTION A ───────── #}
+        <div class="cv-sec-title">Section A — Supplier Identity &amp; Establishment (Art. 3.1)</div>
+        <div class="cv-grid">
+          <div class="cv-row">
+            <label>Supplier legal form *</label>
+            <select name="legal_form" class="form-control">
+              <option value="">— Select —</option>
+              <option value="Legal person" {% if comp and comp.legal_form == 'Legal person' %}selected{% endif %}>Legal person (LLC / SPC / Branch)</option>
+              <option value="Natural person" {% if comp and comp.legal_form == 'Natural person' %}selected{% endif %}>Natural person (sole proprietor)</option>
+            </select>
+            <div class="hint">Art. 3.1.a applies to natural persons, Art. 3.1.b to legal persons.</div>
+          </div>
+          <div class="cv-row">
+            <label>Premises type</label>
+            <select name="premises_type" class="form-control">
+              <option value="">— Select —</option>
+              {% for o in ['Owned', 'Rented', 'Shared / Co-working', 'Other'] %}
+              <option value="{{ o }}" {% if comp and comp.premises_type == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="cv-sec-title">Trade Licence &amp; Incorporation Verification (Art. 3.1.b.1)</div>
+        <div class="cv-grid-3">
+          <div class="cv-row"><label>Trade licence no.</label>
+            <input type="text" name="trade_license_no" class="form-control" value="{{ comp.trade_license_no if comp else '' }}"></div>
+          <div class="cv-row"><label>Issuing authority</label>
+            <input type="text" name="trade_license_authority" class="form-control" value="{{ comp.trade_license_authority if comp else '' }}"></div>
+          <div class="cv-row"><label>Expiry date</label>
+            <input type="date" name="trade_license_expiry" class="form-control" value="{{ comp.trade_license_expiry if comp else '' }}"></div>
+          <div class="cv-row"><label>Verified via official database</label>
+            <input type="text" name="incorporation_source" class="form-control" placeholder="e.g. Dubai DED / ADDED / Chamber portal"
+              value="{{ comp.incorporation_source if comp else '' }}">
+            <div class="hint">Art. 3.1.b.1 — verify incorporation through official databases or a certificate of incorporation.</div>
+          </div>
+          <div class="cv-row"><label>Verification reference / URL</label>
+            <input type="text" name="incorporation_ref" class="form-control" value="{{ comp.incorporation_ref if comp else '' }}"></div>
+          <div class="cv-row"><label>Verified on</label>
+            <input type="date" name="incorporation_verified_on" class="form-control" value="{{ comp.incorporation_verified_on if comp else '' }}"></div>
+          <div class="cv-row"><label>Verified by</label>
+            <input type="text" name="incorporation_verified_by" class="form-control" value="{{ comp.incorporation_verified_by if comp else '' }}"></div>
+          <div class="cv-row"><label>Name / address / employees identical to licence?</label>
+            <select name="details_match" class="form-control">
+              <option value="">— Select —</option>
+              {% for o in ['Yes', 'No', 'N/A'] %}
+              <option value="{{ o }}" {% if comp and comp.details_match == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+            <div class="hint">Art. 3.1.b.1 — incorporation details must be valid and identical.</div>
+          </div>
+        </div>
+
+        <div class="cv-sec-title">Authorised Representative (Art. 3.1.b.2)</div>
+        <div class="cv-grid-3">
+          <div class="cv-row"><label>Name</label>
+            <input type="text" name="rep_name" class="form-control" value="{{ comp.rep_name if comp else '' }}"></div>
+          <div class="cv-row"><label>Designation</label>
+            <input type="text" name="rep_designation" class="form-control" placeholder="General Manager / Owner / Agent"
+              value="{{ comp.rep_designation if comp else '' }}"></div>
+          <div class="cv-row"><label>Listed in the trade licence?</label>
+            <select name="rep_in_licence" class="form-control">
+              <option value="">— Select —</option>
+              {% for o in ['Yes', 'No'] %}
+              <option value="{{ o }}" {% if comp and comp.rep_in_licence == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="cv-row"><label>ID type</label>
+            <select name="rep_id_type" class="form-control">
+              <option value="">— Select —</option>
+              {% for o in ['Emirates ID', 'Passport'] %}
+              <option value="{{ o }}" {% if comp and comp.rep_id_type == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="cv-row"><label>ID number</label>
+            <input type="text" name="rep_id_no" class="form-control" value="{{ comp.rep_id_no if comp else '' }}"></div>
+          <div class="cv-row"><label>ID expiry</label>
+            <input type="date" name="rep_id_expiry" class="form-control" value="{{ comp.rep_id_expiry if comp else '' }}"></div>
+          <div class="cv-row"><label>POA reference (if not GM/owner)</label>
+            <input type="text" name="poa_ref" class="form-control" value="{{ comp.poa_ref if comp else '' }}"></div>
+          <div class="cv-row cv-span2"><label>Record of meeting with the supplier before the supply (Art. 3.1.a.2)</label>
+            <input type="text" name="meeting_note" class="form-control" placeholder="In person / virtual — date, attendees, notes"
+              value="{{ comp.meeting_note if comp else '' }}"></div>
+        </div>
+
+        {# ───────── SECTION B ───────── #}
+        <div class="cv-sec-title">Section B — Commercial &amp; Threshold Details (Art. 3.4 / Art. 6)</div>
+        <div class="cv-grid-3">
+          <div class="cv-row"><label>Supplies received — last 12 months (AED, excl. VAT)</label>
+            <input type="number" step="0.01" min="0" name="supplies_12m" class="form-control"
+              value="{{ comp.supplies_12m if comp else state.spend }}"></div>
+          <div class="cv-row"><label>Expected supplies — next 12 months (AED)</label>
+            <input type="number" step="0.01" min="0" name="supplies_next_12m" class="form-control"
+              value="{{ comp.supplies_next_12m if comp else 0 }}"></div>
+          <div class="cv-row"><label>Bank + media check required (≥ AED 375,000)?</label>
+            <input type="text" class="form-control" style="background:#f5f7fa"
+              value="{{ state.flag_bank }} (auto: Art. 3.4)" readonly></div>
+          <div class="cv-row"><label>Bank confirmation reference</label>
+            <input type="text" name="bank_confirmation_ref" class="form-control" placeholder="Authorised bank in the State, no reservations"
+              value="{{ comp.bank_confirmation_ref if comp else '' }}"></div>
+          <div class="cv-row"><label>Bank confirmation date</label>
+            <input type="date" name="bank_confirmation_date" class="form-control" value="{{ comp.bank_confirmation_date if comp else '' }}"></div>
+          <div class="cv-row"><label>Media / public review check date</label>
+            <input type="date" name="media_review_on" class="form-control" value="{{ comp.media_review_on if comp else '' }}"></div>
+          <div class="cv-row cv-span2"><label>Media / public reviews reviewed (Art. 3.4.b)</label>
+            <input type="text" name="media_review_sources" class="form-control" placeholder="Sources checked — reliable sources consistent with size/nature"
+              value="{{ comp.media_review_sources if comp else '' }}"></div>
+          <div class="cv-row cv-span2"><label>Finding — any indicator of suspected tax evasion?</label>
+            <input type="text" name="media_review_findings" class="form-control" placeholder="None identified / describe"
+              value="{{ comp.media_review_findings if comp else '' }}"></div>
+          <div class="cv-row"><label>Credit bureau score (if available)</label>
+            <input type="text" name="credit_bureau_score" class="form-control" placeholder="N/A for a legal person"
+              value="{{ comp.credit_bureau_score if comp else '' }}"></div>
+          <div class="cv-row"><label>Credit bureau report date</label>
+            <input type="date" name="credit_bureau_date" class="form-control" value="{{ comp.credit_bureau_date if comp else '' }}"></div>
+        </div>
+
+        {# ───────── SECTION C ───────── #}
+        <div class="cv-sec-title">Section C — Supplier Risk Assessment (Art. 3.3)</div>
+        <div class="cv-grid-3">
+          <div class="cv-row"><label>Address changed more than twice in 12 months?</label>
+            <select name="risk_addr_change" class="form-control">
+              {% for o in ['No', 'Yes'] %}
+              <option value="{{ o }}" {% if comp and comp.risk_addr_change == o %}selected{% elif not comp and o == 'No' %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="cv-row"><label>Key personnel changed more than twice in 12 months?</label>
+            <select name="risk_people_change" class="form-control">
+              {% for o in ['No', 'Yes'] %}
+              <option value="{{ o }}" {% if comp and comp.risk_people_change == o %}selected{% elif not comp and o == 'No' %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="cv-row"><label>Transactions disproportionate to size / history?</label>
+            <select name="risk_disproportionate" class="form-control">
+              {% for o in ['No', 'Yes'] %}
+              <option value="{{ o }}" {% if comp and comp.risk_disproportionate == o %}selected{% elif not comp and o == 'No' %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select>
+            <div class="hint">Art. 3.3.a.3 — volume, value or nature vs. size of the business.</div>
+          </div>
+          <div class="cv-row cv-span2"><label>Written justification where any indicator applies (Art. 3.3.b — retain &amp; submit to the Authority)</label>
+            <textarea name="risk_justification" class="form-control" rows="2">{{ comp.risk_justification if comp else '' }}</textarea></div>
+          <div class="cv-row"><label>Overall risk rating</label>
+            <select name="risk_rating" class="form-control">
+              <option value="">— Select —</option>
+              {% for o in ['Low', 'Medium', 'High'] %}
+              <option value="{{ o }}" {% if comp and comp.risk_rating == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select></div>
+        </div>
+
+        {# ───────── SECTION E ───────── #}
+        <div class="cv-sec-title">Section C2 — Place of Business Verification (Art. 3.2)</div>
+        <div class="cv-grid-3">
+          <div class="cv-row"><label>Verification method</label>
+            <select name="place_verify_method" class="form-control">
+              <option value="">— Select —</option>
+              {% for o in ['Electronic means', 'Field visit', 'Both'] %}
+              <option value="{{ o }}" {% if comp and comp.place_verify_method == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="cv-row"><label>Verified on</label>
+            <input type="date" name="place_verify_on" class="form-control" value="{{ comp.place_verify_on if comp else '' }}"></div>
+          <div class="cv-row"><label>Verified by</label>
+            <input type="text" name="place_verify_by" class="form-control" value="{{ comp.place_verify_by if comp else '' }}"></div>
+          <div class="cv-row"><label>Premises compatible with the licensed activity?</label>
+            <select name="place_compatible" class="form-control">
+              <option value="">— Select —</option>
+              {% for o in ['Yes', 'No'] %}
+              <option value="{{ o }}" {% if comp and comp.place_compatible == o %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="cv-row"><label>Latest premises photo date (within 3 months)</label>
+            <input type="date" name="place_photo_on" class="form-control" value="{{ comp.place_photo_on if comp else '' }}"></div>
+        </div>
+
+        {# ───────── SECTION H ───────── #}
+        <div class="cv-sec-title">Section D2 — Sign-off, Policy &amp; Re-verification (Art. 5)</div>
+        <div class="cv-grid-3">
+          <div class="cv-row"><label>Status</label>
+            <select name="status" class="form-control">
+              {% for o in ['Not Started', 'Pending Docs', 'Verified', 'Expired', 'Rejected'] %}
+              <option value="{{ o }}" {% if comp and comp.status == o %}selected{% elif not comp and o == 'Not Started' %}selected{% endif %}>{{ o }}</option>
+              {% endfor %}
+            </select></div>
+          <div class="cv-row"><label>Verified by</label>
+            <input type="text" name="verified_by" class="form-control" value="{{ comp.verified_by if comp else '' }}"></div>
+          <div class="cv-row"><label>Verified on</label>
+            <input type="date" name="verified_on" class="form-control" value="{{ comp.verified_on if comp else '' }}"></div>
+          <div class="cv-row"><label>Next verification due (auto +12 months)</label>
+            <input type="date" name="next_due" class="form-control" value="{{ comp.next_due if comp else '' }}"></div>
+          <div class="cv-row"><label>Policy reference / version (Art. 5.4)</label>
+            <input type="text" name="policy_ref" class="form-control" placeholder="VAT-VER-POL-01 v1.0"
+              value="{{ comp.policy_ref if comp else '' }}"></div>
+          <div class="cv-row cv-span2"><label>Notes / records retained at</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Designated location for the required documents and records">{{ comp.notes if comp else '' }}</textarea></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;padding:10px">Save Verification Record</button>
+      </form>
+    </div>
+  </div>
+
+  {# ───────── SECTION D — DOCUMENTS ───────── #}
+  <div class="cv-card">
+    <div class="cv-hdr" style="background:#0f172a">
+      <h3>📎 Section E — Documentation Checklist (Art. 5.3)</h3>
+      <a href="{{ url_for('supplier.supplier_doc_add', sup_id=s.id) }}" class="back">+ Upload document</a>
+    </div>
+    <div class="cv-body" style="padding-top:14px">
+      {% if docs %}
+      <table class="cv-docs">
+        <thead><tr><th>Document</th><th>Name</th><th>Reference</th><th>Expiry</th></tr></thead>
+        <tbody>
+          {% for d in docs %}
+          <tr>
+            <td><span class="cv-doc-yes">✔</span> {{ d.doc_type }}</td>
+            <td>{{ d.doc_name }}</td>
+            <td class="mono">{{ d.doc_ref or '—' }}</td>
+            <td class="mono">{{ d.expiry_date or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      <table class="cv-docs" style="margin-top:{{ 12 if docs else 0 }}px">
+        <thead><tr><th>Required enclosure</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for dt in doc_types %}
+          <tr>
+            <td>{{ dt }}</td>
+            {% if attached.get(dt) %}
+            <td><span class="cv-doc-yes">✔ Attached ({{ attached[dt]|length }})</span></td>
+            {% else %}
+            <td><span class="cv-doc-no">✗ Missing</span></td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p style="font-size:0.75rem;color:#94a3b8;margin:12px 0 0">
+        Keep the completed form, all enclosures and the verification steps for the period required by the
+        applicable tax legislation. Documents are stored against this supplier only — no existing records are changed.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

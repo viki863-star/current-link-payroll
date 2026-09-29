@@ -71,6 +71,87 @@
         <span class="val">AED <span id="invTotalAmt">0.00</span></span>
       </div>
 
+      {% if comp_state and not comp_state.is_verified %}
+      <div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:9px 12px;font-size:0.76rem;margin-bottom:12px">
+        ⚠ Supplier verification: <b>{{ comp_state.label }}</b> —
+        <a href="{{ url_for('supplier.supplier_compliance', sup_id=s.id) }}" style="color:#92400e;font-weight:700">open the record</a>
+        before deducting input tax (FTA Decision No. 13 of 2026).
+      </div>
+      {% endif %}
+
+      {# ── FTA Decision No. 13 of 2026 — Article 4 (per-supply verification) ── #}
+      <div id="vatChecks" style="display:none;border:1px solid #c7d2fe;border-radius:10px;padding:14px 16px;background:#f8faff;margin-bottom:14px">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:#1c568b;margin-bottom:4px">
+          VAT Input Tax Verification — Art. 4
+        </div>
+        <p style="font-size:0.73rem;color:#64748b;margin:0 0 12px">
+          FTA Decision No. 13 of 2026: every taxable supply received must be verified before the input tax
+          on it is deducted. Answer all checks — a “No” needs a written justification.
+        </p>
+
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:0.78rem;font-weight:600;color:#0f172a;margin-bottom:12px">
+          <input type="checkbox" name="exception_applied" style="margin-top:2px"
+            {% if chk and chk.exception_applied == 'Yes' %}checked{% endif %}
+            onchange="document.querySelectorAll('#chkTbl select').forEach(function(el){el.disabled=this.checked}.bind(this))">
+          <span>Art. 6.1 exception applies — supply is below AED 10,000 excl. VAT
+            <span style="color:#94a3b8;font-weight:400">(and this supplier is below AED 100,000 in the last 12 months)</span></span>
+        </label>
+
+        <table id="chkTbl" style="width:100%;border-collapse:collapse;margin-bottom:10px">
+          <tbody>
+            {% set checks = [
+              ('chk_general', 'General assessment of the supply conditions (4.1.a)'),
+              ('chk_genuine_reason', "Supplier's engagement is based on genuine commercial reasons (4.1.b)"),
+              ('chk_payment_justified', 'Payment method & conditions justified for commercial reasons (4.2.a)'),
+              ('payment_electronic', 'Consideration paid by electronic means (4.2.b)'),
+              ('price_justified', 'Price / profit margin not commercially unjustifiable vs. market (4.3.a)'),
+              ('within_licence_activity', 'Supply is within the supplier\'s ordinary / licensed activity (4.3.b)'),
+              ('goods_origin_verified', "Authenticity & origin of goods, supplier's right to dispose (4.3.c)"),
+            ] %}
+            {% for name, label in checks %}
+            <tr>
+              <td style="font-size:0.76rem;padding:4px 8px 4px 0;color:#334155">{{ label }}</td>
+              <td style="width:110px;padding:4px 0">
+                <select name="{{ name }}" class="form-control" style="font-size:0.78rem;padding:4px 6px">
+                  <option value="">—</option>
+                  <option value="Yes" {% if chk and chk[name] == 'Yes' %}selected{% endif %}>Yes</option>
+                  <option value="No" {% if chk and chk[name] == 'No' %}selected{% endif %}>No</option>
+                </select>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="if-grid-2">
+          <div class="if-row">
+            <label>Third party paying / receiving, or bank account outside supplier's country?</label>
+            <select name="third_party_payment" class="form-control" style="font-size:0.78rem">
+              <option value="">No / —</option>
+              <option value="Yes" {% if chk and chk.third_party_payment == 'Yes' %}selected{% endif %}>Yes</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="if-row">
+          <label>Commercial explanation — third party / foreign bank account (Art. 4.2.a)</label>
+          <textarea name="payment_explanation" class="form-control" rows="2" style="font-size:0.78rem">{{ chk.payment_explanation if chk else '' }}</textarea>
+        </div>
+        <div class="if-row">
+          <label>Documented commercial reason if paid in cash (Art. 4.2.b)</label>
+          <textarea name="cash_reason" class="form-control" rows="2" style="font-size:0.78rem">{{ chk.cash_reason if chk else '' }}</textarea>
+        </div>
+        <div class="if-row">
+          <label>Supplier acting as intermediary — justification (Art. 4.3.d)</label>
+          <textarea name="intermediary_note" class="form-control" rows="2" style="font-size:0.78rem">{{ chk.intermediary_note if chk else '' }}</textarea>
+        </div>
+        <div class="if-row">
+          <label>Justification for any “No” above / other notes (Art. 3.3.b — retained &amp; submitted on request)</label>
+          <textarea name="verification_note" class="form-control" rows="2" style="font-size:0.78rem">{{ chk.verification_note if chk else '' }}</textarea>
+        </div>
+        <p style="font-size:0.7rem;color:#94a3b8;margin:0">Recorded against this invoice (Art. 5.2) with the verification date and person.</p>
+      </div>
+
       <div class="if-row">
         <label>Linked LPO</label>
         <select name="lpo_id" class="form-control">
@@ -99,7 +180,7 @@
         <textarea name="notes" class="form-control" rows="2">{{ inv.notes or '' }}</textarea>
       </div>
 
-      {% if inv %}
+      {% if inv and inv.id %}
       <div class="if-grid-3">
         <div class="if-row">
           <label>Status</label>
@@ -143,7 +224,19 @@ function calcIFVAT() {
   var vat = amt * pct / 100;
   document.getElementById('invVatAmt').value = vat.toFixed(2);
   document.getElementById('invTotalAmt').textContent = (amt + vat).toFixed(2);
+  // Art. 4 checklist is only required when input VAT is being claimed.
+  var box = document.getElementById('vatChecks');
+  if (box) box.style.display = vat > 0 ? 'block' : 'none';
 }
+function syncExceptionBox() {
+  var cb = document.querySelector('input[name="exception_applied"]');
+  if (!cb) return;
+  document.querySelectorAll('#chkTbl select').forEach(function (el) { el.disabled = cb.checked; });
+  document.querySelectorAll('#vatChecks textarea').forEach(function (el) { el.disabled = cb.checked; });
+}
+var _exc = document.querySelector('input[name="exception_applied"]');
+if (_exc) _exc.addEventListener('change', syncExceptionBox);
 calcIFVAT();
+syncExceptionBox();
 </script>
 {% endblock %}

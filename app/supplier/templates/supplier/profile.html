@@ -66,6 +66,13 @@
       <span class="mono">{{ s.supplier_code }}</span>
       {% if s.phone %}<span class="dot">·</span><span>{{ s.phone }}</span>{% endif %}
       {% if s.trn %}<span class="dot">·</span><span>TRN: <span class="mono">{{ s.trn }}</span></span>{% endif %}
+      {% if comp_state %}
+      <span class="dot">·</span>
+      <a href="{{ url_for('supplier.supplier_compliance', sup_id=s.id) }}"
+         style="display:inline-block;padding:2px 10px;border-radius:999px;font-size:0.68rem;font-weight:700;text-decoration:none;background:{{ comp_state.bg }};color:{{ comp_state.fg }}">
+        VAT: {{ comp_state.label }}
+      </a>
+      {% endif %}
     </div>
   </div>
   <div class="profile-actions">
@@ -81,8 +88,19 @@
   <a href="?tab=payments" class="tab-btn {% if active_tab == 'payments' %}is-active{% endif %}">Payments</a>
   <a href="?tab=lpos" class="tab-btn {% if active_tab == 'lpos' %}is-active{% endif %}">LPOs</a>
   <a href="?tab=loans" class="tab-btn {% if active_tab == 'loans' %}is-active{% endif %}">Loans</a>
+  <a href="?tab=documents" class="tab-btn {% if active_tab == 'documents' %}is-active{% endif %}">Documents</a>
+  <a href="{{ url_for('supplier.supplier_compliance', sup_id=s.id) }}" class="tab-btn {% if active_tab == 'compliance' %}is-active{% endif %}" style="{% if comp_state and not comp_state.is_verified %}color:#b45309;font-weight:700{% endif %}">VAT Verification</a>
   <a href="{{ url_for('supplier.supplier_soa', sup_id=s.id) }}" class="tab-btn">SOA</a>
 </div>
+
+{% if comp_state and not comp_state.is_verified %}
+<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:11px 16px;margin-bottom:14px;font-size:0.8rem">
+  ⚠ <b>Input tax risk:</b> this supplier is <b>{{ comp_state.label|lower }}</b>.
+  FTA Decision No. 13 of 2026 requires supplier verification before deducting input tax —
+  <a href="{{ url_for('supplier.supplier_compliance', sup_id=s.id) }}" style="color:#92400e;font-weight:700">complete the verification record</a>.
+  {% if comp_state.next_due %} Next due: {{ comp_state.next_due }}.{% endif %}
+</div>
+{% endif %}
 
 {# ═══════════════════════════════════════════════════ #}
 {# DASHBOARD OVERVIEW                                  #}
@@ -484,6 +502,43 @@
 </div>
 {% else %}
 <p class="empty-state">No loans recorded. <a href="{{ url_for('supplier.supplier_loan_add', sup_id=s.id) }}">Add first loan entry</a>.</p>
+{% endif %}
+
+{# ═══════════════════════════════════════════════════════════ #}
+{# TAB: DOCUMENTS (Art. 5.3 — retain supporting records)      #}
+{# ═══════════════════════════════════════════════════════════ #}
+{% elif active_tab == 'documents' %}
+<div class="action-bar">
+  <a href="{{ url_for('supplier.supplier_doc_add', sup_id=s.id) }}" class="btn btn-primary btn-sm">+ Upload Document</a>
+  <a href="{{ url_for('supplier.supplier_compliance', sup_id=s.id) }}" class="btn btn-outline btn-sm">VAT Verification Record</a>
+</div>
+
+{% if docs %}
+<div class="profile-card">
+  <div class="section-header"><h3>Documents ({{ docs|length }})</h3></div>
+  <div class="table-wrap">
+    <table class="smart-table">
+      <thead><tr><th>Type</th><th>Name</th><th>Reference</th><th>Expiry</th><th>Uploaded</th><th></th></tr></thead>
+      <tbody>
+        {% for d in docs %}
+        <tr>
+          <td style="font-weight:600">{{ d.doc_type }}</td>
+          <td>{{ d.doc_name }}</td>
+          <td class="mono">{{ d.doc_ref or '—' }}</td>
+          <td class="mono">{% if d.expiry_date and d.expiry_date < today %}<span style="color:#b91c1c;font-weight:700">{{ d.expiry_date }} (expired)</span>{% else %}{{ d.expiry_date or '—' }}{% endif %}</td>
+          <td class="mono">{{ d.created_at[:10] if d.created_at else '—' }}</td>
+          <td>
+            <a class="btn btn-xs btn-outline" target="_blank"
+               href="{{ url_for('supplier.supplier_doc_download', sup_id=s.id, doc_id=d.id) }}">Open</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<p class="empty-state">No documents on file yet. <a href="{{ url_for('supplier.supplier_doc_add', sup_id=s.id) }}">Upload the first enclosure</a>.</p>
 {% endif %}
 
 {% endif %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}VAT Verification Register{% endblock %}
+{% block page_title %}Supplier VAT Verification Register{% endblock %}
+
+{% block content %}
+<style>
+.vr-shell { max-width:1100px; margin:0 auto; }
+.vr-card { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:16px; }
+.vr-hdr { background:var(--primary); padding:14px 22px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.vr-hdr h3 { margin:0; font-size:0.95rem; font-weight:700; color:#fff; }
+.vr-hdr .back { margin-left:auto; color:rgba(255,255,255,0.85); font-size:0.78rem; text-decoration:none; }
+.vr-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:16px 18px 0; }
+.vr-kpi { background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center; }
+.vr-kpi .l { font-size:0.6rem; color:#64748b; text-transform:uppercase; letter-spacing:0.3px; }
+.vr-kpi .v { font-size:1.15rem; font-weight:700; color:#0f172a; }
+.vr-table { width:100%; border-collapse:collapse; margin-top:16px; }
+.vr-table th { text-align:left; font-size:0.63rem; text-transform:uppercase; color:#64748b; padding:9px 12px;
+  border-bottom:2px solid #e2e8f0; white-space:nowrap; }
+.vr-table td { font-size:0.8rem; padding:9px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.vr-table tbody tr:hover { background:#f0f4fe; }
+.vr-pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.68rem; font-weight:700; white-space:nowrap; }
+.vr-warn { color:#b45309; font-weight:700; }
+.vr-r { text-align:right; }
+@media (max-width:800px) { .vr-kpis { grid-template-columns:repeat(2,1fr); } }
+</style>
+
+<div class="vr-shell">
+  <div class="vr-card">
+    <div class="vr-hdr">
+      <h3>🛡️ VAT Input Tax Verification Register</h3>
+      <a href="{{ url_for('supplier.supplier_list') }}" class="back">← Suppliers</a>
+    </div>
+
+    <div class="vr-kpis">
+      <div class="vr-kpi"><div class="l">Suppliers</div><div class="v">{{ rows|length }}</div></div>
+      {% set verified = rows|selectattr('state.is_verified')|list|length %}
+      {% set pending = rows|rejectattr('state.is_verified')|list|length %}
+      {% set flagged = rows|selectattr('state.flag_bank', 'equalto', 'Yes')|list|length %}
+      <div class="vr-kpi"><div class="l">Verified</div><div class="v" style="color:#15803d">{{ verified }}</div></div>
+      <div class="vr-kpi"><div class="l">Not Verified / Expired</div><div class="v" style="color:#b45309">{{ pending }}</div></div>
+      <div class="vr-kpi"><div class="l">Above {{ th_bank_label }} (Art. 3.4)</div><div class="v" style="color:#b91c1c">{{ flagged }}</div></div>
+    </div>
+
+    <div style="padding:0 0 8px">
+      <table class="vr-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Supplier</th>
+            <th>TRN</th>
+            <th>Verification</th>
+            <th>Verified on</th>
+            <th>Next due</th>
+            <th class="vr-r">12m supplies (AED)</th>
+            <th class="vr-r">Expected 12m (AED)</th>
+            <th>Art. 3.4 / 6 flags</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% set sup = row.supplier %}
+          {% set st = row.state %}
+          <tr>
+            <td class="mono" style="font-weight:600;color:var(--primary)">{{ sup.supplier_code }}</td>
+            <td style="font-weight:600">{{ sup.supplier_name }}</td>
+            <td class="mono">{{ sup.trn or '—' }}</td>
+            <td><span class="vr-pill" style="background:{{ st.bg }};color:{{ st.fg }}">{{ st.label }}</span></td>
+            <td class="mono">{{ st.verified_on or '—' }}</td>
+            <td class="mono">{{ st.next_due or '—' }}</td>
+            <td class="vr-r mono">{{ "%.2f"|format(st.spend) }}</td>
+            <td class="vr-r mono">{{ "%.2f"|format(st.expected) }}</td>
+            <td>
+              {% if st.flag_bank == 'Yes' %}<span class="vr-warn">375k bank+media</span>{% endif %}
+              {% if st.flag_spend == 'Yes' %}{% if st.flag_bank == 'Yes' %}<br>{% endif %}<span class="vr-warn">100k no exception</span>{% endif %}
+              {% if st.flag_bank != 'Yes' and st.flag_spend != 'Yes' %}<span style="color:#94a3b8">—</span>{% endif %}
+            </td>
+            <td><a class="btn btn-xs btn-outline" href="{{ url_for('supplier.supplier_compliance', sup_id=sup.id) }}">Open</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10" style="text-align:center;padding:40px;color:#94a3b8">No suppliers found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="vr-card" style="padding:16px 22px">
+    <p style="margin:0;font-size:0.78rem;color:#64748b">
+      <b>Art. 5.1</b> — verify a supplier when dealing for the first time, or when it has not been verified in
+      the previous 12 months. <b>Art. 6.1</b> — measures may be disregarded below {{ th_small_label }} excl. VAT per supply.
+      <b>Art. 6.2</b> — that exception is withdrawn once supplies from the supplier exceed {{ th_spend_label }}
+      in the last 12 months or are expected to exceed it in the next 12 months.
+      Register generated {{ today }}.
+    </p>
+  </div>
+</div>
+{% endblock %}

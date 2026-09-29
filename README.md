@@ -140,6 +140,35 @@ To restore the local SQLite database:
 - Mobile-friendly driver portal
 - Landing page plus dedicated services page
 
+## Supplier VAT Verification (FTA Decision No. 13 of 2026)
+
+Implements the supplier verification and per-supply measures required before input
+VAT is deducted (UAE VAT Law Art. 54(bis)). Effective 1 October 2026.
+
+- **Supplier Information Form** at `/supplier/<id>/compliance` — Sections A–H:
+  identity and incorporation verification, authorised representative, trade licence,
+  commercial/threshold details, risk assessment, place of business, documentation
+  checklist, sign-off, policy reference and 12-month re-verification.
+- **Verification register** at `/supplier/compliance/register` — status, next due
+  date, 12-month supplies and the Article 3.4 / 6 threshold flags per supplier.
+- **Thresholds (auto-calculated)**
+  - AED 10,000 excluding VAT — per-supply exception (Art. 6.1).
+  - AED 100,000 over the rolling 12 months — that exception is withdrawn (Art. 6.2).
+  - AED 375,000 — bank account confirmation and media/public review become mandatory (Art. 3.4).
+  - 12 months — a supplier that has not been verified in the previous 12 months must be re-verified (Art. 5.1).
+- **Per-supply checklist** — saving a supplier invoice with VAT > 0 requires the
+  Article 4 verification (genuine commercial reason, payment method, electronic
+  payment, price, licensed activity, authenticity/origin) plus a written
+  justification for any negative answer. The completed checklist is stored with
+  the invoice in `supplier_supply_verification`.
+- **UI** — verification badge on the supplier list, warning banner and new
+  *Documents* and *VAT Verification* tabs on the supplier profile.
+- **Data safety** — additive only: two new tables (`supplier_compliance`,
+  `supplier_supply_verification`), extra `DOC_TYPES` entries. No existing table is
+  dropped, rewritten or deleted.
+
+Tests: `tests/test_supplier_compliance.py` (13 tests).
+
 ## Driver Folders
 
 Generated assets are stored inside:

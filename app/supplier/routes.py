@@ -1,7 +1,7 @@
 import os
 import base64
 from io import BytesIO
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import (
     redirect,
@@ -178,6 +178,91 @@ def _ensure_tables():
             expiry_date TEXT,
             notes TEXT,
             created_at TEXT NOT NULL DEFAULT {now_val},
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+        );
+    """)
+
+    # ── FTA Decision No. 13 of 2026 (input tax verification) ──────────────
+    # NEW tables only. Nothing existing is altered, dropped or rewritten.
+    db.executescript(f"""
+        CREATE TABLE IF NOT EXISTS supplier_compliance (
+            {id_col},
+            supplier_id INTEGER NOT NULL UNIQUE,
+            legal_form TEXT,
+            incorporation_source TEXT,
+            incorporation_ref TEXT,
+            incorporation_verified_on TEXT,
+            incorporation_verified_by TEXT,
+            details_match TEXT,
+            premises_type TEXT,
+            trade_license_no TEXT,
+            trade_license_authority TEXT,
+            trade_license_expiry TEXT,
+            rep_name TEXT,
+            rep_designation TEXT,
+            rep_in_licence TEXT,
+            rep_id_type TEXT,
+            rep_id_no TEXT,
+            rep_id_expiry TEXT,
+            poa_ref TEXT,
+            meeting_note TEXT,
+            place_verify_method TEXT,
+            place_verify_on TEXT,
+            place_verify_by TEXT,
+            place_compatible TEXT,
+            place_photo_on TEXT,
+            risk_addr_change TEXT DEFAULT 'No',
+            risk_people_change TEXT DEFAULT 'No',
+            risk_disproportionate TEXT DEFAULT 'No',
+            risk_justification TEXT,
+            risk_rating TEXT,
+            supplies_12m REAL DEFAULT 0,
+            supplies_next_12m REAL DEFAULT 0,
+            bank_check_required TEXT DEFAULT 'No',
+            bank_confirmation_ref TEXT,
+            bank_confirmation_date TEXT,
+            media_review_sources TEXT,
+            media_review_on TEXT,
+            media_review_findings TEXT,
+            credit_bureau_score TEXT,
+            credit_bureau_date TEXT,
+            status TEXT NOT NULL DEFAULT 'Not Started',
+            verified_by TEXT,
+            verified_on TEXT,
+            next_due TEXT,
+            policy_ref TEXT,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT {now_val},
+            updated_at TEXT,
+            FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS supplier_supply_verification (
+            {id_col},
+            supplier_id INTEGER NOT NULL,
+            ref_type TEXT NOT NULL DEFAULT 'invoice',
+            ref_id INTEGER,
+            supply_ref TEXT,
+            supply_date TEXT,
+            value_excl_vat {real_type} DEFAULT 0,
+            vat_amount {real_type} DEFAULT 0,
+            chk_general TEXT,
+            chk_genuine_reason TEXT,
+            chk_payment_justified TEXT,
+            third_party_payment TEXT,
+            payment_explanation TEXT,
+            payment_electronic TEXT,
+            cash_reason TEXT,
+            price_justified TEXT,
+            within_licence_activity TEXT,
+            goods_origin_verified TEXT,
+            intermediary_note TEXT,
+            exception_applied TEXT DEFAULT 'No',
+            verification_note TEXT,
+            verified_by TEXT,
+            verified_on TEXT,
+            created_at TEXT NOT NULL DEFAULT {now_val},
+            updated_at TEXT,
             FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
         );
     """)
@@ -790,30 +875,45 @@ def supplier_list():
     q = request.args.get("q", "").strip()
     typ = request.args.get("type", "")
     status_filter = request.args.get("status", "").strip().lower()
-    sql = "SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers"
+    sql = (
+        "SELECT p.id, p.supplier_code, p.supplier_name, p.supplier_type, p.contact_person, p.phone, "
+        "p.email, p.address, p.trn, p.payment_terms, p.category, p.bank_name, p.bank_account, p.iban, "
+        "p.status, p.notes, p.created_at, p.is_deleted, c.status AS comp_status "
+        "FROM suppliers p LEFT JOIN supplier_compliance c ON c.supplier_id = p.id"
+    )
     params = []
     conditions = []
     if status_filter == "blocked":
-        conditions.append("COALESCE(is_deleted,0) = 0 AND status = 'Inactive'")
+        conditions.append("COALESCE(p.is_deleted,0) = 0 AND p.status = 'Inactive'")
     elif status_filter == "deleted":
-        conditions.append("COALESCE(is_deleted,0) = 1")
+        conditions.append("COALESCE(p.is_deleted,0) = 1")
     else:
-        conditions.append("COALESCE(is_deleted,0) = 0 AND status = 'Active'")
+        conditions.append("COALESCE(p.is_deleted,0) = 0 AND p.status = 'Active'")
     if q:
         conditions.append(
-            "(supplier_name LIKE ? OR supplier_code LIKE ? OR phone LIKE ? OR email LIKE ?)"
+            "(p.supplier_name LIKE ? OR p.supplier_code LIKE ? OR p.phone LIKE ? OR p.email LIKE ?)"
         )
         like = f"%{q}%"
         params.extend([like, like, like, like])
     if typ:
-        conditions.append("supplier_type = ?")
+        conditions.append("p.supplier_type = ?")
         params.append(typ)
     if conditions:
         sql += " WHERE " + " AND ".join(conditions)
-    sql += " ORDER BY COALESCE(is_deleted,0), supplier_name"
+    sql += " ORDER BY COALESCE(p.is_deleted,0), p.supplier_name"
     suppliers = db.execute(sql, params).fetchall()
 
-    return render_template("supplier/list.html", suppliers=suppliers, q=q, typ=typ, status_filter=status_filter)
+    # FTA Decision No. 13 of 2026 — verification badge per supplier
+    comp_states = {row["id"]: _compliance_state(db, row["id"]) for row in suppliers}
+
+    return render_template(
+        "supplier/list.html",
+        suppliers=suppliers,
+        comp_states=comp_states,
+        q=q,
+        typ=typ,
+        status_filter=status_filter,
+    )
 
 
 # ═══════════════════════════════════════════════════════════
@@ -986,6 +1086,9 @@ def supplier_profile(sup_id):
 
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
 
+    # VAT input-tax verification status (FTA Decision No. 13 of 2026)
+    comp_state = _compliance_state(db, sup_id)
+
     # Monthly chart data
     monthly_map = {}
     for inv in invoices:
@@ -1025,7 +1128,319 @@ def supplier_profile(sup_id):
         earn_invoices=earn_invoices,
         earn_expenses=earn_expenses,
         today=date.today().isoformat(),
+        comp_state=comp_state,
     )
+
+
+# ═══════════════════════════════════════════════════════════
+# VAT INPUT TAX VERIFICATION — FTA Decision No. 13 of 2026
+# Article 54(bis) of the VAT Law. Effective 1 October 2026.
+# All writes below are INSERT/UPDATE on NEW tables only.
+# ═══════════════════════════════════════════════════════════
+
+THRESHOLD_BANK_CHECK = 375000.0      # Art. 3.4 — bank account + media review
+THRESHOLD_SUPPLIER_SPEND = 100000.0  # Art. 6.2 — small-supply exception withdrawn
+THRESHOLD_SMALL_SUPPLY = 10000.0     # Art. 6.1 — per-supply exception
+REVERIFY_DAYS = 365                  # Art. 5.1 — verify every 12 months
+
+COMPLIANCE_TEXT_FIELDS = [
+    "legal_form", "incorporation_source", "incorporation_ref",
+    "incorporation_verified_on", "incorporation_verified_by", "details_match",
+    "premises_type", "trade_license_no", "trade_license_authority",
+    "trade_license_expiry", "rep_name", "rep_designation", "rep_in_licence",
+    "rep_id_type", "rep_id_no", "rep_id_expiry", "poa_ref", "meeting_note",
+    "place_verify_method", "place_verify_on", "place_verify_by",
+    "place_compatible", "place_photo_on",
+    "risk_addr_change", "risk_people_change", "risk_disproportionate",
+    "risk_justification", "risk_rating",
+    "bank_check_required", "bank_confirmation_ref", "bank_confirmation_date",
+    "media_review_sources", "media_review_on", "media_review_findings",
+    "credit_bureau_score", "credit_bureau_date",
+    "status", "verified_by", "verified_on", "next_due", "policy_ref", "notes",
+]
+COMPLIANCE_NUM_FIELDS = ["supplies_12m", "supplies_next_12m"]
+
+
+def _compliance_row(db, sup_id):
+    return db.execute("SELECT * FROM supplier_compliance WHERE supplier_id = ?", (sup_id,)).fetchone()
+
+
+def _spend_last_12m(db, sup_id):
+    """Value of supplies received from this supplier over the last 12 months, excl. VAT."""
+    cutoff = (date.today() - timedelta(days=REVERIFY_DAYS)).isoformat()
+    inv = db.execute(
+        "SELECT COALESCE(SUM(amount),0) FROM supplier_invoices WHERE supplier_id = ? AND invoice_date >= ?",
+        (sup_id, cutoff),
+    ).fetchone()[0] or 0
+    exp = db.execute(
+        "SELECT COALESCE(SUM(amount),0) FROM supplier_expenses WHERE supplier_id = ? AND expense_date >= ?",
+        (sup_id, cutoff),
+    ).fetchone()[0] or 0
+    return round(float(inv) + float(exp), 2)
+
+
+def _compliance_state(db, sup_id, comp=None):
+    """Status badge + Article 3.4 / Article 6 thresholds for one supplier."""
+    if comp is None:
+        comp = _compliance_row(db, sup_id)
+    spend = _spend_last_12m(db, sup_id)
+    expected = float(comp["supplies_next_12m"] or 0) if comp else 0.0
+
+    today = date.today().isoformat()
+    status = (comp["status"] or "Not Started") if comp else "Not Started"
+    if status == "Verified" and comp["next_due"] and comp["next_due"] < today:
+        status = "Expired"
+
+    palette = {
+        "Verified": ("Verified", "#15803d", "#dcfce7"),
+        "Expired": ("Expired", "#b91c1c", "#fee2e2"),
+        "Rejected": ("Rejected", "#b91c1c", "#fee2e2"),
+        "Pending Docs": ("Pending Docs", "#b45309", "#fef3c7"),
+        "Not Started": ("Not Verified", "#b45309", "#fef3c7"),
+    }
+    label, fg, bg = palette.get(status, (status, "#b45309", "#fef3c7"))
+
+    warnings = []
+    if spend > THRESHOLD_SUPPLIER_SPEND or expected > THRESHOLD_SUPPLIER_SPEND:
+        warnings.append(
+            "Art. 6.2: supplies over AED 100,000 in the last/next 12 months — "
+            "the AED 10,000 exception does NOT apply to this supplier."
+        )
+    if spend > THRESHOLD_BANK_CHECK or expected > THRESHOLD_BANK_CHECK:
+        warnings.append(
+            "Art. 3.4: supplies over AED 375,000 — bank account confirmation and "
+            "media / public review are mandatory."
+        )
+    if status == "Verified" and comp["next_due"] and comp["next_due"] <= (date.today() + timedelta(days=30)).isoformat():
+        warnings.append("Art. 5.1: supplier verification is due for renewal within 30 days.")
+
+    return {
+        "comp": comp,
+        "label": label,
+        "fg": fg,
+        "bg": bg,
+        "status": status,
+        "verified_on": (comp["verified_on"] if comp else "") or "",
+        "next_due": (comp["next_due"] if comp else "") or "",
+        "spend": spend,
+        "expected": expected,
+        "flag_bank": "Yes" if (spend > THRESHOLD_BANK_CHECK or expected > THRESHOLD_BANK_CHECK) else "No",
+        "flag_spend": "Yes" if (spend > THRESHOLD_SUPPLIER_SPEND or expected > THRESHOLD_SUPPLIER_SPEND) else "No",
+        "warnings": warnings,
+        "is_verified": status == "Verified",
+    }
+
+
+def _save_compliance(db, sup_id, form):
+    """Upsert the supplier verification record (Section A/B/C/E/H of the form)."""
+    data = {k: (form.get(k, "") or "").strip() for k in COMPLIANCE_TEXT_FIELDS}
+    for k in COMPLIANCE_NUM_FIELDS:
+        raw = (form.get(k, "") or "").strip().replace(",", "")
+        try:
+            data[k] = float(raw) if raw else 0.0
+        except ValueError:
+            data[k] = 0.0
+
+    # Art. 3.4 — bank + media checks are mandatory above AED 375,000.
+    data["bank_check_required"] = (
+        "Yes" if (data["supplies_12m"] > THRESHOLD_BANK_CHECK or data["supplies_next_12m"] > THRESHOLD_BANK_CHECK) else "No"
+    )
+
+    if data["verified_on"]:
+        if data["status"] in ("", "Not Started"):
+            data["status"] = "Verified"
+        if not data["next_due"]:
+            try:
+                data["next_due"] = (date.fromisoformat(data["verified_on"]) + timedelta(days=REVERIFY_DAYS)).isoformat()
+            except ValueError:
+                data["next_due"] = ""
+    elif not data["status"]:
+        data["status"] = "Not Started"
+
+    data["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    existing = _compliance_row(db, sup_id)
+    if existing:
+        assigns = ", ".join(f"{k} = ?" for k in data)
+        db.execute(
+            f"UPDATE supplier_compliance SET {assigns} WHERE supplier_id = ?",
+            (*data.values(), sup_id),
+        )
+    else:
+        cols = ", ".join(["supplier_id"] + list(data))
+        marks = ", ".join(["?"] * (len(data) + 1))
+        db.execute(
+            f"INSERT INTO supplier_compliance ({cols}) VALUES ({marks})",
+            (sup_id, *data.values()),
+        )
+    db.commit()
+    return _compliance_row(db, sup_id)
+
+
+@supplier_bp.route("/<int:sup_id>/compliance", methods=["GET", "POST"])
+def supplier_compliance(sup_id):
+    """Section A–H of the Supplier Information Form (FTA Decision No. 13 of 2026)."""
+    _ensure_tables()
+    db = _get_db()
+    s = db.execute(
+        "SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, "
+        "address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, "
+        "created_at, is_deleted FROM suppliers WHERE id = ?",
+        (sup_id,),
+    ).fetchone()
+    if not s:
+        flash("Supplier not found.", "error")
+        return redirect(url_for("supplier.supplier_list"))
+
+    if request.method == "POST":
+        _save_compliance(db, sup_id, request.form)
+        flash("Supplier VAT verification record saved.", "success")
+        return redirect(url_for("supplier.supplier_compliance", sup_id=sup_id))
+
+    comp = _compliance_row(db, sup_id)
+    state = _compliance_state(db, sup_id, comp)
+    docs = db.execute(
+        "SELECT id, supplier_id, doc_type, doc_name, doc_ref, file_type, expiry_date, notes, created_at "
+        "FROM supplier_documents WHERE supplier_id = ? ORDER BY created_at DESC",
+        (sup_id,),
+    ).fetchall()
+    attached = {}
+    for d in docs:
+        attached.setdefault(d["doc_type"], []).append(d)
+
+    return render_template(
+        "supplier/compliance.html",
+        s=s,
+        comp=comp,
+        state=state,
+        docs=docs,
+        attached=attached,
+        doc_types=DOC_TYPES,
+        today=date.today().isoformat(),
+    )
+
+
+@supplier_bp.route("/compliance/register")
+def compliance_register():
+    """Verification register: status, next due date and Article 3.4 / 6 thresholds."""
+    _ensure_tables()
+    db = _get_db()
+    suppliers = db.execute(
+        "SELECT id, supplier_code, supplier_name, supplier_type, trn, status, is_deleted "
+        "FROM suppliers WHERE COALESCE(is_deleted,0) = 0 ORDER BY supplier_name"
+    ).fetchall()
+    rows = []
+    for sup in suppliers:
+        st = _compliance_state(db, sup["id"])
+        rows.append({"supplier": sup, "state": st})
+    return render_template(
+        "supplier/compliance_register.html",
+        rows=rows,
+        today=date.today().isoformat(),
+        th_bank=THRESHOLD_BANK_CHECK,
+        th_spend=THRESHOLD_SUPPLIER_SPEND,
+        th_bank_label=f"AED {THRESHOLD_BANK_CHECK:,.0f}",
+        th_spend_label=f"AED {THRESHOLD_SUPPLIER_SPEND:,.0f}",
+        th_small_label=f"AED {THRESHOLD_SMALL_SUPPLY:,.0f}",
+    )
+
+
+# ── Article 4 — verification of each supply received ───────────────────────
+
+SUPPLY_CHECK_FIELDS = [
+    "chk_general", "chk_genuine_reason", "chk_payment_justified",
+    "third_party_payment", "payment_explanation", "payment_electronic",
+    "cash_reason", "price_justified", "within_licence_activity",
+    "goods_origin_verified", "intermediary_note", "verification_note",
+]
+SUPPLY_REQUIRED_CHECKS = [
+    "chk_general",              # Art. 4.1.a — general assessment of the supply
+    "chk_genuine_reason",       # Art. 4.1.b — genuine commercial reason
+    "chk_payment_justified",    # Art. 4.2.a — payment method/conditions justified
+    "payment_electronic",       # Art. 4.2.b — electronic payment (cash = reason)
+    "price_justified",          # Art. 4.3.a — price / margin not unjustifiable
+    "within_licence_activity",  # Art. 4.3.b — within the supplier's licensed activity
+    "goods_origin_verified",    # Art. 4.3.c — authenticity, origin, ownership
+]
+
+
+def _validate_supply_check(form, value_excl_vat, spend_12m=0.0):
+    """Return (data, error). Enforces Art. 4 + Art. 6 before input tax is deducted."""
+    data = {k: (form.get(k, "") or "").strip() for k in SUPPLY_CHECK_FIELDS}
+    data["exception_applied"] = "Yes" if form.get("exception_applied") == "on" else "No"
+
+    if data["exception_applied"] == "Yes":
+        # Art. 6.1 / 6.2 — exception only under AED 10,000 per supply, and never
+        # once the supplier is above AED 100,000 in the rolling 12 months.
+        if value_excl_vat >= THRESHOLD_SMALL_SUPPLY:
+            return data, (
+                "The AED 10,000 exception (Art. 6.1) only applies below AED 10,000 "
+                "excluding VAT. Complete the Article 4 checklist."
+            )
+        if spend_12m > THRESHOLD_SUPPLIER_SPEND:
+            return data, (
+                "The exception is withdrawn (Art. 6.2): supplies from this supplier "
+                "already exceed AED 100,000 in the last 12 months. Complete the "
+                "Article 4 checklist."
+            )
+        return data, None
+
+    missing = [f for f in SUPPLY_REQUIRED_CHECKS if not data[f]]
+    if missing:
+        return data, (
+            "Input VAT cannot be deducted until the Article 4 verification is "
+            "completed (FTA Decision No. 13 of 2026). Answer every check."
+        )
+
+    if any(data[f] == "No" for f in SUPPLY_REQUIRED_CHECKS) and not data["verification_note"]:
+        return data, (
+            "A check was answered No — record the clear and justified explanation "
+            "required by the Decision before saving."
+        )
+    if data["third_party_payment"] == "Yes" and not data["payment_explanation"]:
+        return data, (
+            "Third-party payment, or payment to a bank account outside the supplier's "
+            "country of incorporation, needs a written commercial explanation (Art. 4.2.a)."
+        )
+    if data["payment_electronic"] == "No" and not data["cash_reason"]:
+        return data, (
+            "Cash payment needs a documented commercial reason, must stay within the "
+            "statutory threshold, and must be easily verifiable (Art. 4.2.b)."
+        )
+    return data, None
+
+
+def _save_supply_verification(db, sup_id, ref_type, ref_id, supply_ref, supply_date, value, vat, data):
+    """Store the per-supply checklist (Art. 5.2 — verify each taxable supply)."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    payload = dict(data)
+    payload["supply_ref"] = supply_ref
+    payload["supply_date"] = supply_date
+    payload["value_excl_vat"] = float(value or 0)
+    payload["vat_amount"] = float(vat or 0)
+    payload["verified_on"] = now
+    payload["updated_at"] = now
+    if not payload.get("verified_by"):
+        payload["verified_by"] = (request.form.get("verified_by", "") or "").strip() or "Admin"
+
+    existing = db.execute(
+        "SELECT id FROM supplier_supply_verification WHERE ref_type = ? AND ref_id = ?",
+        (ref_type, ref_id),
+    ).fetchone()
+    if existing:
+        assigns = ", ".join(f"{k} = ?" for k in payload)
+        db.execute(
+            f"UPDATE supplier_supply_verification SET {assigns} WHERE id = ?",
+            (*payload.values(), existing["id"]),
+        )
+    else:
+        cols = ", ".join(["supplier_id", "ref_type", "ref_id"] + list(payload))
+        marks = ", ".join(["?"] * (len(payload) + 3))
+        db.execute(
+            f"INSERT INTO supplier_supply_verification ({cols}) VALUES ({marks})",
+            (sup_id, ref_type, ref_id, *payload.values()),
+        )
+    db.commit()
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1054,12 +1469,40 @@ def supplier_invoice_add(sup_id):
 
         if not invoice_no or not invoice_date or not amount:
             flash("Invoice number, date, and amount are required.", "error")
-            return render_template("supplier/invoice_form.html", s=s, inv={}, lpos=[], categories=SUPPLIER_CATEGORIES)
+            return render_template(
+                "supplier/invoice_form.html",
+                s=s,
+                inv=request.form,
+                lpos=[],
+                categories=SUPPLIER_CATEGORIES,
+                chk=None,
+                comp_state=_compliance_state(db, sup_id),
+            )
 
         amount_f = float(amount)
         vat_pct_f = float(vat_pct)
         vat_amt = round(amount_f * vat_pct_f / 100, 2)
         total = round(amount_f + vat_amt, 2)
+
+        # ── FTA Decision No. 13 of 2026, Art. 4 + Art. 6 ──────────────────
+        # Verify each taxable supply BEFORE the input tax on it is deducted.
+        chk, chk_err = _validate_supply_check(request.form, amount_f, _spend_last_12m(db, sup_id))
+        if vat_amt > 0 and chk_err:
+            flash(chk_err, "error")
+            lpos = db.execute(
+                "SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at "
+                "FROM supplier_lpos WHERE supplier_id=? AND status='open' ORDER BY lpo_date DESC",
+                (sup_id,),
+            ).fetchall()
+            return render_template(
+                "supplier/invoice_form.html",
+                s=s,
+                inv=request.form,
+                lpos=lpos,
+                categories=SUPPLIER_CATEGORIES,
+                chk=chk,
+                comp_state=_compliance_state(db, sup_id),
+            )
 
         attachment_name = None
         attachment_data = None
@@ -1084,13 +1527,30 @@ def supplier_invoice_add(sup_id):
         )
         db.commit()
 
+        # Art. 5.2 — retain the checklist with this specific supply
+        inv_row = db.execute(
+            "SELECT id FROM supplier_invoices WHERE supplier_id=? AND invoice_no=? ORDER BY id DESC",
+            (sup_id, invoice_no),
+        ).fetchone()
+        if inv_row and (vat_amt > 0 or chk.get("exception_applied") == "Yes"):
+            _save_supply_verification(db, sup_id, "invoice", inv_row["id"], invoice_no, invoice_date, amount_f, vat_amt, chk)
+
         flash("Invoice added.", "success")
-        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="invoices"))
+        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="earnings"))
 
 
     lpos = _get_db().execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at FROM supplier_lpos WHERE supplier_id=? AND status='open' ORDER BY lpo_date DESC", (sup_id,)).fetchall()
     preselected = int(preselected_lpo) if preselected_lpo.isdigit() else None
-    return render_template("supplier/invoice_form.html", s=s, inv={}, lpos=lpos, categories=SUPPLIER_CATEGORIES, preselected_lpo=preselected)
+    return render_template(
+        "supplier/invoice_form.html",
+        s=s,
+        inv={},
+        lpos=lpos,
+        categories=SUPPLIER_CATEGORIES,
+        preselected_lpo=preselected,
+        chk=None,
+        comp_state=_compliance_state(db, sup_id),
+    )
 
 
 @supplier_bp.route("/<int:sup_id>/invoices/<int:inv_id>/edit", methods=["GET", "POST"])
@@ -1122,6 +1582,25 @@ def supplier_invoice_edit(sup_id, inv_id):
         vat_amt = round(amount_f * vat_pct_f / 100, 2)
         total = round(amount_f + vat_amt, 2)
 
+        # ── FTA Decision No. 13 of 2026, Art. 4 + Art. 6 ──────────────────
+        chk, chk_err = _validate_supply_check(request.form, amount_f, _spend_last_12m(db, sup_id))
+        if vat_amt > 0 and chk_err:
+            flash(chk_err, "error")
+            lpos = db.execute(
+                "SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at "
+                "FROM supplier_lpos WHERE supplier_id=? ORDER BY lpo_date DESC",
+                (sup_id,),
+            ).fetchall()
+            return render_template(
+                "supplier/invoice_form.html",
+                s=s,
+                inv={**inv, **request.form.to_dict()},
+                lpos=lpos,
+                categories=SUPPLIER_CATEGORIES,
+                chk=chk,
+                comp_state=_compliance_state(db, sup_id),
+            )
+
         attachment_name = inv["attachment_name"]
         attachment_data = inv["attachment_data"]
         attachment_type = inv["attachment_type"]
@@ -1146,12 +1625,26 @@ def supplier_invoice_edit(sup_id, inv_id):
         )
         db.commit()
 
+        if vat_amt > 0 or chk.get("exception_applied") == "Yes":
+            _save_supply_verification(db, sup_id, "invoice", inv_id, invoice_no, invoice_date, amount_f, vat_amt, chk)
+
         flash("Invoice updated.", "success")
-        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="invoices"))
+        return redirect(url_for("supplier.supplier_profile", sup_id=sup_id, tab="earnings"))
 
 
     lpos = _get_db().execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at FROM supplier_lpos WHERE supplier_id=? ORDER BY lpo_date DESC", (sup_id,)).fetchall()
-    return render_template("supplier/invoice_form.html", s=s, inv=inv, lpos=lpos, categories=SUPPLIER_CATEGORIES)
+    chk_row = db.execute(
+        "SELECT * FROM supplier_supply_verification WHERE ref_type='invoice' AND ref_id=?", (inv_id,)
+    ).fetchone()
+    return render_template(
+        "supplier/invoice_form.html",
+        s=s,
+        inv=inv,
+        lpos=lpos,
+        categories=SUPPLIER_CATEGORIES,
+        chk=chk_row,
+        comp_state=_compliance_state(db, sup_id),
+    )
 
 
 @supplier_bp.route("/invoices/<int:inv_id>/attachment")
@@ -3245,8 +3738,14 @@ def supplier_doc_list(sup_id):
 
 
 DOC_TYPES = [
-    "Trade License", "VAT Certificate", "ICV Certificate",
-    "Chamber of Commerce", "Insurance", "LPO Document", "Other",
+    # Section D — enclosures of the Supplier Information Form
+    "Supplier Information Form", "Trade License", "VAT Certificate",
+    "Emirates ID / Passport", "Power of Attorney",
+    "Bank Confirmation Letter", "Audited Financials",
+    "Etihad Credit Bureau Report", "Premises Photo (within 3 months)",
+    "Incorporation Verification (Official Database)", "Media / Reputation Evidence",
+    "Verification Checklist & Policy Acknowledgement",
+    "ICV Certificate", "Chamber of Commerce", "Insurance", "LPO Document", "Other",
 ]
 
 @supplier_bp.route("/<int:sup_id>/documents/add", methods=["GET", "POST"])
