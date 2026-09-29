@@ -2093,7 +2093,7 @@ def employee_list_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle", "Status", "Termination Date"]
+    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle Number", "Status", "Termination Date"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
@@ -2119,8 +2119,15 @@ def employee_list_excel():
     ws.column_dimensions["G"].width = 16
     ws.column_dimensions["H"].width = 14
     ws.column_dimensions["I"].width = 16
-    ws.column_dimensions["J"].width = 14
+    ws.column_dimensions["J"].width = 16
     ws.column_dimensions["K"].width = 12
+    ws.column_dimensions["L"].width = 18
+
+    # Vehicle Number only applies to drivers / operators — centre it for readability
+    vnum_align = Alignment(horizontal="center", vertical="center")
+    for ri in range(2, len(employees) + 2):
+        ws.cell(row=ri, column=10).alignment = vnum_align
+    ws.cell(row=1, column=10).alignment = center
 
     buf = BytesIO()
     wb.save(buf)
@@ -2145,7 +2152,14 @@ def employee_list_pdf():
     employees = db.execute(
         f"""
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
-               e.department, e.designation, e.join_date, e.basic_salary, e.status, e.termination_date
+               e.department, e.designation, e.join_date, e.basic_salary, e.status, e.termination_date,
+               COALESCE(
+                   (SELECT v.plate_no FROM vehicle_assignments va
+                    JOIN vehicles v ON v.plate_no = va.vehicle_id
+                    WHERE va.driver_id = e.employee_id
+                    ORDER BY va.id DESC LIMIT 1),
+                   (SELECT d.vehicle_no FROM drivers d WHERE d.driver_id = e.employee_id LIMIT 1)
+               ) AS plate_no
         FROM employees e
         {where_sql}
         ORDER BY e.full_name ASC
