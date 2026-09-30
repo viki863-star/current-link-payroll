@@ -47,6 +47,33 @@ def _schema_db():
     return DatabaseAdapter(conn, backend)
 
 
+# ── Emirates ID (supplier) ────────────────────────────────
+# Stored base64 on the suppliers row and rendered inline on the payment voucher.
+EID_IMAGE_MIMES = ("image/jpeg", "image/jpg", "image/png", "image/webp")
+EID_MAX_BYTES = 5 * 1024 * 1024  # 5 MB per side
+
+
+def _read_eid_upload(field: str):
+    """Read one Emirates ID side from the form.
+
+    Returns ``(base64_data, mime_type)`` — both ``None`` when no new file was
+    chosen. Raises ``ValueError`` for a wrong type or an oversized file so the
+    caller can flash it back instead of storing junk.
+    """
+    upload = request.files.get(field)
+    if upload is None or not upload.filename:
+        return None, None
+    mime = (upload.mimetype or "").lower()
+    if mime not in EID_IMAGE_MIMES:
+        raise ValueError("Emirates ID must be uploaded as a JPG, PNG or WEBP image.")
+    raw = upload.read()
+    if not raw:
+        return None, None
+    if len(raw) > EID_MAX_BYTES:
+        raise ValueError("Emirates ID image must be 5 MB or smaller.")
+    return base64.b64encode(raw).decode("ascii"), mime
+
+
 def _ensure_tables():
     db = _schema_db()
     backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
@@ -508,7 +535,15 @@ def _ensure_tables():
             except Exception:
                 pass
 
-    for col, dtype in [("is_deleted", "INTEGER DEFAULT 0")]:
+    for col, dtype in [
+        ("is_deleted", "INTEGER DEFAULT 0"),
+        # Emirates ID of the supplier — number + both sides, printed on payment vouchers
+        ("emirates_id_no", "TEXT"),
+        ("emirates_id_front", "TEXT"),
+        ("emirates_id_front_type", "TEXT"),
+        ("emirates_id_back", "TEXT"),
+        ("emirates_id_back_type", "TEXT"),
+    ]:
         try:
             db.execute(f"ALTER TABLE suppliers ADD COLUMN {col} {dtype}")
             db.commit()
@@ -936,20 +971,29 @@ def supplier_add():
         data = {k: request.form.get(k, "").strip() for k in (
             "supplier_name", "supplier_type", "contact_person", "phone", "email",
             "address", "trn", "payment_terms", "category", "bank_name",
-            "bank_account", "iban", "notes",
+            "bank_account", "iban", "notes", "emirates_id_no",
         )}
         if not data["supplier_name"]:
             flash("Supplier name is required.", "error")
             return render_template("supplier/form.html", s=data, code=code, is_edit=False)
 
+        try:
+            eid_front, eid_front_type = _read_eid_upload("emirates_id_front")
+            eid_back, eid_back_type = _read_eid_upload("emirates_id_back")
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return render_template("supplier/form.html", s=data, code=code, is_edit=False)
+
         db.execute(
             """INSERT INTO suppliers (supplier_code, supplier_name, supplier_type, contact_person,
-               phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, notes)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, notes,
+               emirates_id_no, emirates_id_front, emirates_id_front_type, emirates_id_back, emirates_id_back_type)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (code, data["supplier_name"], data["supplier_type"], data["contact_person"],
              data["phone"], data["email"], data["address"], data["trn"],
              data["payment_terms"], data["category"], data["bank_name"],
-             data["bank_account"], data["iban"], data["notes"]),
+             data["bank_account"], data["iban"], data["notes"],
+             data["emirates_id_no"] or None, eid_front, eid_front_type, eid_back, eid_back_type),
         )
         db.commit()
 
@@ -964,7 +1008,7 @@ def supplier_add():
 def supplier_edit(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted, emirates_id_no, emirates_id_front, emirates_id_front_type, emirates_id_back, emirates_id_back_type FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -973,20 +1017,35 @@ def supplier_edit(sup_id):
         data = {k: request.form.get(k, "").strip() for k in (
             "supplier_name", "supplier_type", "contact_person", "phone", "email",
             "address", "trn", "payment_terms", "category", "bank_name",
-            "bank_account", "iban", "notes", "status",
+            "bank_account", "iban", "notes", "status", "emirates_id_no",
         )}
         if not data["supplier_name"]:
             flash("Supplier name is required.", "error")
             return render_template("supplier/form.html", s=s, code=s["supplier_code"], is_edit=True)
 
+        try:
+            new_front, new_front_type = _read_eid_upload("emirates_id_front")
+            new_back, new_back_type = _read_eid_upload("emirates_id_back")
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return render_template("supplier/form.html", s=s, code=s["supplier_code"], is_edit=True)
+
+        # Keep the stored images unless a replacement file was actually chosen
+        eid_front = new_front if new_front is not None else s.get("emirates_id_front")
+        eid_front_type = new_front_type if new_front_type is not None else s.get("emirates_id_front_type")
+        eid_back = new_back if new_back is not None else s.get("emirates_id_back")
+        eid_back_type = new_back_type if new_back_type is not None else s.get("emirates_id_back_type")
+
         db.execute(
             """UPDATE suppliers SET supplier_name=?, supplier_type=?, contact_person=?, phone=?, email=?,
-               address=?, trn=?, payment_terms=?, category=?, bank_name=?, bank_account=?, iban=?, notes=?, status=?
+               address=?, trn=?, payment_terms=?, category=?, bank_name=?, bank_account=?, iban=?, notes=?, status=?,
+               emirates_id_no=?, emirates_id_front=?, emirates_id_front_type=?, emirates_id_back=?, emirates_id_back_type=?
                WHERE id=?""",
             (data["supplier_name"], data["supplier_type"], data["contact_person"],
              data["phone"], data["email"], data["address"], data["trn"],
              data["payment_terms"], data["category"], data["bank_name"],
-             data["bank_account"], data["iban"], data["notes"], data["status"], sup_id),
+             data["bank_account"], data["iban"], data["notes"], data["status"],
+             data["emirates_id_no"] or None, eid_front, eid_front_type, eid_back, eid_back_type, sup_id),
         )
         db.commit()
 
@@ -1005,7 +1064,7 @@ def supplier_edit(sup_id):
 def supplier_profile(sup_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted, emirates_id_no, emirates_id_front, emirates_id_front_type, emirates_id_back, emirates_id_back_type FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     if not s:
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -2956,7 +3015,7 @@ def supplier_payment_add(sup_id):
 def supplier_payment_voucher(sup_id, pay_id):
     _ensure_tables()
     db = _get_db()
-    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
+    s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted, emirates_id_no, emirates_id_front, emirates_id_front_type, emirates_id_back, emirates_id_back_type FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
     pay = db.execute("SELECT id, supplier_id, invoice_id, invoice_ids, expense_ids, fund_source, payment_date, amount, payment_method, reference_no, notes, created_at, cheque_number, cheque_date, bank_name, cheque_drawer, discount FROM supplier_payment_records WHERE id = ? AND supplier_id = ?", (pay_id, sup_id)).fetchone()
     if not s or not pay:
         flash("Payment not found.", "error")

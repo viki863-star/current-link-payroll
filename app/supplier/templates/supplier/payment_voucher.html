@@ -55,6 +55,15 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
 .cheque-box .g .r .l { color:#a16207; min-width:44px; font-size:0.65rem; }
 .cheque-box .g .r .v { color:#713f12; font-weight:600; }
 
+/* Emirates ID */
+.pv-eid { border:1px solid var(--line); padding:10px 14px; margin-bottom:12px; background:#f8fafc; }
+.pv-eid h4 { font-size:0.5rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); margin-bottom:6px; }
+.pv-eid .eid-no { font-size:0.75rem; font-weight:700; color:#0f172a; font-family:monospace; margin-bottom:8px; }
+.pv-eid .g { display:flex; gap:12px; flex-wrap:wrap; }
+.pv-eid figure { margin:0; text-align:center; }
+.pv-eid img { width:230px; max-width:44%; border:1px solid var(--line); border-radius:6px; display:block; background:#fff; }
+.pv-eid figcaption { font-size:0.58rem; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:0.5px; }
+
 /* Table */
 .pv-tbl { width:100%; border-collapse:collapse; margin-bottom:12px; border:1px solid var(--line); }
 .pv-tbl thead th { background:var(--primary); color:#fff; padding:8px 12px; font-size:0.55rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; text-align:left; }
@@ -83,6 +92,8 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
   .pv-tbl thead th{background:var(--primary)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .pv-words{background:#f8fafc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .cheque-box{background:#fffbeb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pv-eid{background:#f8fafc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pv-eid img{print-color-adjust:exact;-webkit-print-color-adjust:exact}
 }
 </style>
 </head>
@@ -126,7 +137,8 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
         <div class="r"><span class="l">Name</span><span class="v">{{ s.supplier_name }}</span></div>
         <div class="r"><span class="l">Code</span><span class="v" style="font-family:monospace">{{ s.supplier_code }}</span></div>
         {% if s.trn %}<div class="r"><span class="l">VAT</span><span class="v">{{ s.trn }}</span></div>{% endif %}
-        {% if s.phone_number %}<div class="r"><span class="l">Phone</span><span class="v">{{ s.phone_number }}</span></div>{% endif %}
+        {% if s.phone %}<div class="r"><span class="l">Phone</span><span class="v">{{ s.phone }}</span></div>{% endif %}
+        {% if s.emirates_id_no %}<div class="r"><span class="l">Emirates ID</span><span class="v" style="font-family:monospace">{{ s.emirates_id_no }}</span></div>{% endif %}
       </div>
       <div class="col">
         <h4>Payment</h4>
@@ -143,6 +155,27 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
         {% endif %}
       </div>
     </div>
+
+    {% if s.emirates_id_front or s.emirates_id_back %}
+    <div class="pv-eid">
+      <h4>Supplier Emirates ID</h4>
+      {% if s.emirates_id_no %}<div class="eid-no">ID No: {{ s.emirates_id_no }}</div>{% endif %}
+      <div class="g">
+        {% if s.emirates_id_front %}
+        <figure>
+          <img src="data:{{ s.emirates_id_front_type or 'image/jpeg' }};base64,{{ s.emirates_id_front }}" alt="Emirates ID front">
+          <figcaption>Front side</figcaption>
+        </figure>
+        {% endif %}
+        {% if s.emirates_id_back %}
+        <figure>
+          <img src="data:{{ s.emirates_id_back_type or 'image/jpeg' }};base64,{{ s.emirates_id_back }}" alt="Emirates ID back">
+          <figcaption>Back side</figcaption>
+        </figure>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     {% if pay.payment_method == 'Cheque' %}
     <div class="cheque-box show">

@@ -169,6 +169,26 @@ VAT is deducted (UAE VAT Law Art. 54(bis)). Effective 1 October 2026.
 
 Tests: `tests/test_supplier_compliance.py` (13 tests).
 
+## Supplier Emirates ID (printed on payment vouchers)
+
+Each supplier can carry an Emirates ID that is printed on every payment receipt —
+the voucher page that carries the **PAID** stamp.
+
+- **Where to add it** — *Supplier → Edit* → **Emirates ID** block: the ID number
+  plus **Front side** and **Back side** images (JPG / PNG / WEBP, max 5 MB each).
+  Uploading a new file replaces only that side; leaving the file input empty keeps
+  what is already stored.
+- **Where it appears** — supplier profile *Overview* card (number + both sides),
+  and the payment voucher at `/supplier/<id>/payments/<pay_id>/voucher`: the Payee
+  block shows the ID number and both images are embedded underneath.
+- **Data safety** — additive only: five `TEXT` columns on `suppliers`
+  (`emirates_id_no`, `emirates_id_front`, `emirates_id_front_type`,
+  `emirates_id_back`, `emirates_id_back_type`), added by the guarded
+  `ALTER TABLE` loop in `_ensure_tables()`. Existing rows are untouched and a
+  supplier with no Emirates ID renders the voucher exactly as before.
+
+Tests: `tests/test_supplier_emirates_id.py` (7 tests).
+
 ## Driver Folders
 
 Generated assets are stored inside:

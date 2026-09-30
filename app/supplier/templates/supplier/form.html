@@ -25,7 +25,7 @@
   <div class="sf-body">
     {% if is_edit %}<p style="font-size:0.85rem;color:var(--muted);margin:0 0 14px">Code: <strong style="color:#0f172a">{{ code }}</strong></p>{% endif %}
 
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="sf-row">
@@ -127,6 +127,36 @@
       <div class="sf-row">
         <label>Notes</label>
         <textarea name="notes" class="form-control" rows="2">{{ s.notes or '' }}</textarea>
+      </div>
+
+      {# ── Emirates ID — printed on every payment voucher for this supplier ── #}
+      <div style="border:1px dashed var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px;background:#fafbfc">
+        <label style="display:block;font-size:0.7rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">🇦🇪 Emirates ID <span style="font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0">(shown on payment vouchers)</span></label>
+
+        <div class="sf-row">
+          <label>Emirates ID Number</label>
+          <input type="text" name="emirates_id_no" value="{{ s.emirates_id_no or '' }}" class="form-control" placeholder="e.g. 784-1990-1234567-1" maxlength="40">
+        </div>
+
+        <div class="sf-grid-2">
+          <div class="sf-row">
+            <label>Front Side</label>
+            {% if s.emirates_id_front %}
+            <img src="data:{{ s.emirates_id_front_type or 'image/jpeg' }};base64,{{ s.emirates_id_front }}" alt="Emirates ID front" style="display:block;width:100%;max-width:230px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px">
+            {% endif %}
+            <input type="file" name="emirates_id_front" accept="image/jpeg,image/png,image/webp" class="form-control" style="font-size:0.78rem">
+            {% if s.emirates_id_front %}<small style="display:block;margin-top:3px;font-size:0.65rem;color:var(--muted)">Uploaded — choose a file only to replace it.</small>{% endif %}
+          </div>
+          <div class="sf-row">
+            <label>Back Side</label>
+            {% if s.emirates_id_back %}
+            <img src="data:{{ s.emirates_id_back_type or 'image/jpeg' }};base64,{{ s.emirates_id_back }}" alt="Emirates ID back" style="display:block;width:100%;max-width:230px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px">
+            {% endif %}
+            <input type="file" name="emirates_id_back" accept="image/jpeg,image/png,image/webp" class="form-control" style="font-size:0.78rem">
+            {% if s.emirates_id_back %}<small style="display:block;margin-top:3px;font-size:0.65rem;color:var(--muted)">Uploaded — choose a file only to replace it.</small>{% endif %}
+          </div>
+        </div>
+        <p style="margin:0;font-size:0.66rem;color:var(--muted)">JPG / PNG / WEBP, max 5 MB each. Front and back both appear on the PAID payment voucher.</p>
       </div>
 
       <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;padding:10px">{{ 'Update' if is_edit else 'Add' }} Supplier</button>
