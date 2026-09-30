@@ -62,6 +62,8 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
 .pv-eid .g { display:flex; gap:12px; flex-wrap:wrap; }
 .pv-eid figure { margin:0; text-align:center; }
 .pv-eid img { width:230px; max-width:44%; border:1px solid var(--line); border-radius:6px; display:block; background:#fff; }
+.pv-eid .eid-blank { width:230px; max-width:44%; height:150px; border:1.5px dashed #cbd5e1; border-radius:6px; background:#fff; }
+.pv-eid .eid-blank-line { display:inline-block; width:190px; border-bottom:1px dotted #94a3b8; }
 .pv-eid figcaption { font-size:0.58rem; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:0.5px; }
 
 /* Table */
@@ -138,7 +140,7 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
         <div class="r"><span class="l">Code</span><span class="v" style="font-family:monospace">{{ s.supplier_code }}</span></div>
         {% if s.trn %}<div class="r"><span class="l">VAT</span><span class="v">{{ s.trn }}</span></div>{% endif %}
         {% if s.phone %}<div class="r"><span class="l">Phone</span><span class="v">{{ s.phone }}</span></div>{% endif %}
-        {% if s.emirates_id_no %}<div class="r"><span class="l">Emirates ID</span><span class="v" style="font-family:monospace">{{ s.emirates_id_no }}</span></div>{% endif %}
+        <div class="r"><span class="l">Emirates ID</span><span class="v" style="font-family:monospace">{{ s.emirates_id_no or '' }}</span></div>
       </div>
       <div class="col">
         <h4>Payment</h4>
@@ -156,26 +158,29 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
       </div>
     </div>
 
-    {% if s.emirates_id_front or s.emirates_id_back %}
+    {# Always shown — blank boxes when the supplier has not uploaded the ID yet #}
     <div class="pv-eid">
       <h4>Supplier Emirates ID</h4>
-      {% if s.emirates_id_no %}<div class="eid-no">ID No: {{ s.emirates_id_no }}</div>{% endif %}
+      <div class="eid-no">ID No: {% if s.emirates_id_no %}{{ s.emirates_id_no }}{% else %}<span class="eid-blank-line"></span>{% endif %}</div>
       <div class="g">
-        {% if s.emirates_id_front %}
         <figure>
+          {% if s.emirates_id_front %}
           <img src="data:{{ s.emirates_id_front_type or 'image/jpeg' }};base64,{{ s.emirates_id_front }}" alt="Emirates ID front">
+          {% else %}
+          <div class="eid-blank"></div>
+          {% endif %}
           <figcaption>Front side</figcaption>
         </figure>
-        {% endif %}
-        {% if s.emirates_id_back %}
         <figure>
+          {% if s.emirates_id_back %}
           <img src="data:{{ s.emirates_id_back_type or 'image/jpeg' }};base64,{{ s.emirates_id_back }}" alt="Emirates ID back">
+          {% else %}
+          <div class="eid-blank"></div>
+          {% endif %}
           <figcaption>Back side</figcaption>
         </figure>
-        {% endif %}
       </div>
     </div>
-    {% endif %}
 
     {% if pay.payment_method == 'Cheque' %}
     <div class="cheque-box show">

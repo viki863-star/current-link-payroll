@@ -138,35 +138,37 @@
 {% endif %}
 
 {# ── Emirates ID — number + both sides, printed on the payment voucher ── #}
-{% if s.emirates_id_no or s.emirates_id_front or s.emirates_id_back %}
+{# Always shown: blank boxes + upload button when nothing is stored yet.      #}
 <div class="profile-card" style="margin:0 0 14px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
     <h3 style="margin:0;font-size:0.95rem">🇦🇪 Emirates ID</h3>
     <div style="display:flex;gap:10px;align-items:center">
       <span class="mono" style="font-weight:700;color:var(--primary);font-size:0.85rem">{{ s.emirates_id_no or 'Number not added' }}</span>
-      <a href="{{ url_for('supplier.supplier_edit', sup_id=s.id) }}" class="btn btn-outline" style="font-size:0.7rem;padding:5px 10px">Edit / Upload</a>
+      <a href="{{ url_for('supplier.supplier_edit', sup_id=s.id) }}" class="btn btn-outline" style="font-size:0.7rem;padding:5px 10px">{{ 'Edit / Upload' if (s.emirates_id_front or s.emirates_id_back) else 'Add Emirates ID' }}</a>
     </div>
   </div>
-  {% if s.emirates_id_front or s.emirates_id_back %}
   <div style="display:flex;gap:14px;flex-wrap:wrap">
-    {% if s.emirates_id_front %}
     <figure style="margin:0">
+      {% if s.emirates_id_front %}
       <img src="data:{{ s.emirates_id_front_type or 'image/jpeg' }};base64,{{ s.emirates_id_front }}" alt="Emirates ID front" style="width:240px;max-width:100%;border:1px solid var(--line);border-radius:8px;display:block">
+      {% else %}
+      <div style="width:240px;height:150px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.7rem">No image yet</div>
+      {% endif %}
       <figcaption style="font-size:0.65rem;color:var(--muted);margin-top:4px;text-align:center">Front side</figcaption>
     </figure>
-    {% endif %}
-    {% if s.emirates_id_back %}
     <figure style="margin:0">
+      {% if s.emirates_id_back %}
       <img src="data:{{ s.emirates_id_back_type or 'image/jpeg' }};base64,{{ s.emirates_id_back }}" alt="Emirates ID back" style="width:240px;max-width:100%;border:1px solid var(--line);border-radius:8px;display:block">
+      {% else %}
+      <div style="width:240px;height:150px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.7rem">No image yet</div>
+      {% endif %}
       <figcaption style="font-size:0.65rem;color:var(--muted);margin-top:4px;text-align:center">Back side</figcaption>
     </figure>
-    {% endif %}
   </div>
-  {% else %}
-  <p style="margin:0;font-size:0.78rem;color:var(--muted)">Number saved — upload the front and back images from <a href="{{ url_for('supplier.supplier_edit', sup_id=s.id) }}" style="color:var(--primary);font-weight:600">Edit Supplier</a>.</p>
+  {% if not (s.emirates_id_front or s.emirates_id_back) %}
+  <p style="margin:10px 0 0;font-size:0.75rem;color:var(--muted)">Not uploaded yet — open <b>Edit / Upload</b>, enter the Emirates ID number and attach the front &amp; back images. Both will then print on every payment voucher.</p>
   {% endif %}
 </div>
-{% endif %}
 
 <div class="sp-grid-2">
   <div class="profile-card" style="margin:0">
