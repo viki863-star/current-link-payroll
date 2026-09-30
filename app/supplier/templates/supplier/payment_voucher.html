@@ -95,8 +95,13 @@ body { font-family:'Inter','Segoe UI',Arial,sans-serif; font-size:11px; color:#1
   .pv-tbl thead th{background:var(--primary)!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .pv-words{background:#f8fafc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .cheque-box{background:#fffbeb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .pv-eid{background:#f8fafc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pv-eid{background:#f8fafc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:6px 10px;margin-bottom:8px}
   .pv-eid img{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  /* One page: front + back sit side by side at card size instead of stacked full width */
+  .pv-eid .g{flex-direction:row;gap:6mm}
+  .pv-eid figure{flex:1 1 0;min-width:0}
+  .pv-eid img,.pv-eid .eid-blank{width:100%;height:52mm;object-fit:contain;background:#fff}
+  .pv-sign{margin-top:10px;padding-top:8px}
 }
 </style>
 </head>
