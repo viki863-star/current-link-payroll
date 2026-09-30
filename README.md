@@ -181,6 +181,10 @@ the voucher page that carries the **PAID** stamp.
 - **Where it appears** — supplier profile *Overview* card (number + both sides),
   and the payment voucher at `/supplier/<id>/payments/<pay_id>/voucher`: the Payee
   block shows the ID number and both images are embedded underneath.
+  The section is **always reserved** — a blank `ID No` line plus empty front/back
+  boxes — so the space is visible even before anything is uploaded.
+- **Size** — both sides render full width, stacked (≈2× the first version) so the
+  text printed on the card stays readable; click an image to open it full size.
 - **Data safety** — additive only: five `TEXT` columns on `suppliers`
   (`emirates_id_no`, `emirates_id_front`, `emirates_id_front_type`,
   `emirates_id_back`, `emirates_id_back_type`), added by the guarded

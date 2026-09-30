@@ -150,19 +150,23 @@
   <div style="display:flex;gap:14px;flex-wrap:wrap">
     <figure style="margin:0">
       {% if s.emirates_id_front %}
-      <img src="data:{{ s.emirates_id_front_type or 'image/jpeg' }};base64,{{ s.emirates_id_front }}" alt="Emirates ID front" style="width:240px;max-width:100%;border:1px solid var(--line);border-radius:8px;display:block">
+      <a href="data:{{ s.emirates_id_front_type or 'image/jpeg' }};base64,{{ s.emirates_id_front }}" target="_blank" title="Open full size">
+        <img src="data:{{ s.emirates_id_front_type or 'image/jpeg' }};base64,{{ s.emirates_id_front }}" alt="Emirates ID front" style="width:460px;max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;display:block">
+      </a>
       {% else %}
-      <div style="width:240px;height:150px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.7rem">No image yet</div>
+      <div style="width:460px;height:280px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.75rem">No image yet</div>
       {% endif %}
-      <figcaption style="font-size:0.65rem;color:var(--muted);margin-top:4px;text-align:center">Front side</figcaption>
+      <figcaption style="font-size:0.7rem;color:var(--muted);margin-top:4px;text-align:center">Front side</figcaption>
     </figure>
     <figure style="margin:0">
       {% if s.emirates_id_back %}
-      <img src="data:{{ s.emirates_id_back_type or 'image/jpeg' }};base64,{{ s.emirates_id_back }}" alt="Emirates ID back" style="width:240px;max-width:100%;border:1px solid var(--line);border-radius:8px;display:block">
+      <a href="data:{{ s.emirates_id_back_type or 'image/jpeg' }};base64,{{ s.emirates_id_back }}" target="_blank" title="Open full size">
+        <img src="data:{{ s.emirates_id_back_type or 'image/jpeg' }};base64,{{ s.emirates_id_back }}" alt="Emirates ID back" style="width:460px;max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;display:block">
+      </a>
       {% else %}
-      <div style="width:240px;height:150px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.7rem">No image yet</div>
+      <div style="width:460px;height:280px;border:1.5px dashed #cbd5e1;border-radius:8px;background:#fff;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.75rem">No image yet</div>
       {% endif %}
-      <figcaption style="font-size:0.65rem;color:var(--muted);margin-top:4px;text-align:center">Back side</figcaption>
+      <figcaption style="font-size:0.7rem;color:var(--muted);margin-top:4px;text-align:center">Back side</figcaption>
     </figure>
   </div>
   {% if not (s.emirates_id_front or s.emirates_id_back) %}
