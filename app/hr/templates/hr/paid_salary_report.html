@@ -95,6 +95,7 @@
           <th style="text-align:right">Advance</th>
           <th style="text-align:right">Deductions</th>
           <th style="text-align:right">Actual Paid</th>
+          <th>Paid On</th>
           <th style="text-align:right">Balance Due</th>
           <th>Status</th>
         </tr>
@@ -113,6 +114,7 @@
           <td class="pr-num">{{ '{:,.2f}'.format(r.advance) }}</td>
           <td class="pr-num">{{ '{:,.2f}'.format(r.deductions) }}</td>
           <td class="pr-num" style="color:#059669;font-weight:700">{{ '{:,.2f}'.format(r.paid) }}</td>
+          <td style="font-size:.78rem;color:#5a6b7d" title="{{ r.payment_source }}">{{ r.paid_on or '—' }}</td>
           <td class="pr-num" style="color:#dc2626;font-weight:700">{{ '{:,.2f}'.format(r.balance) }}</td>
           <td>
             {% set cls = 'pr-paid' if r.status == 'Paid' else ('pr-partial' if r.status == 'Partial' else ('pr-unpaid' if r.status == 'Unpaid' else 'pr-nil')) %}
@@ -131,6 +133,7 @@
           <td class="pr-num">{{ '{:,.2f}'.format(totals.advance) }}</td>
           <td class="pr-num">{{ '{:,.2f}'.format(totals.deductions) }}</td>
           <td class="pr-num" style="color:#059669">{{ '{:,.2f}'.format(totals.paid) }}</td>
+          <td></td>
           <td class="pr-num" style="color:#dc2626">{{ '{:,.2f}'.format(totals.balance) }}</td>
           <td></td>
         </tr>

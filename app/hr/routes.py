@@ -234,6 +234,15 @@ def hr_dashboard():
         ).fetchone()
         salary_paid_count = paid_slips["c"] if paid_slips else 0
         salary_paid_amount = float(paid_slips["total"] if paid_slips else 0)
+        # salaries handed over via owner fund are booked as "Salary Slip <month> — ..."
+        try:
+            fund_row = db.execute(
+                "SELECT COALESCE(SUM(amount), 0) AS total FROM owner_fund_entries WHERE details LIKE ? AND amount > 0",
+                (f"Salary Slip {cm}%",),
+            ).fetchone()
+            salary_paid_amount += float(fund_row["total"] if fund_row else 0)
+        except Exception:
+            pass
 
         stored_total = db.execute(
             "SELECT COUNT(DISTINCT driver_id) AS c FROM salary_store WHERE salary_month = ?",
@@ -2770,7 +2779,7 @@ def _paid_salary_report_rows(db, month):
         (month,),
     ).fetchall()
     slip_rows = db.execute(
-        "SELECT driver_id, total_deductions, available_advance, remaining_advance, "
+        "SELECT id, driver_id, total_deductions, available_advance, remaining_advance, "
         "salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, "
         "paid_by, net_payable FROM salary_slips WHERE salary_month = ?",
         (month,),
@@ -2778,8 +2787,13 @@ def _paid_salary_report_rows(db, month):
 
     store_by = {r["driver_id"]: r for r in store_rows}
     slip_by = {}
+    slip_ids = {}
     for r in slip_rows:  # keep the newest slip when a month was regenerated
         slip_by[r["driver_id"]] = r
+        try:
+            slip_ids[int(r["id"])] = r["driver_id"]
+        except (TypeError, ValueError):
+            pass
 
     emps = {
         r["employee_id"]: r
@@ -2787,6 +2801,51 @@ def _paid_salary_report_rows(db, month):
             "SELECT employee_id, full_name, employee_type, department, status FROM employees"
         ).fetchall()
     }
+
+    # Salaries handed over are booked in owner_fund_entries
+    # ("Salary Slip <month> - <name>", source_table = 'salary_slips'), while
+    # salary_slips.actual_paid_amount only holds slips paid through the run flow.
+    # Both sources are summed (verified: never both for the same slip).
+    fund_by_driver = {}
+    if slip_by:
+        by_name = {}
+        for emp_row in emps.values():
+            key = (emp_row["full_name"] or "").strip().lower()
+            if key:
+                by_name.setdefault(key, emp_row["employee_id"])
+        try:
+            fund_rows = db.execute(
+                "SELECT source_id, owner_name, details, entry_date, amount, payment_method "
+                "FROM owner_fund_entries WHERE details LIKE ?",
+                (f"Salary Slip {month}%",),
+            ).fetchall()
+        except Exception:
+            fund_rows = []
+        for fr in fund_rows:
+            amount = float(fr["amount"] or 0)
+            if amount <= 0:
+                continue
+            fund_driver = None
+            try:
+                if fr["source_id"] not in (None, ""):
+                    fund_driver = slip_ids.get(int(fr["source_id"]))
+            except (TypeError, ValueError):
+                fund_driver = None
+            if not fund_driver:
+                name = (fr["owner_name"] or "").strip().lower()
+                if not name and fr["details"] and "—" in fr["details"]:
+                    name = fr["details"].split("—", 1)[1].strip().lower()
+                fund_driver = by_name.get(name)
+            if not fund_driver:
+                continue
+            entry = fund_by_driver.setdefault(
+                fund_driver, {"amount": 0.0, "paid_on": "", "method": ""}
+            )
+            entry["amount"] += amount
+            if (fr["entry_date"] or "") > entry["paid_on"]:
+                entry["paid_on"] = fr["entry_date"] or ""
+            if not entry["method"]:
+                entry["method"] = fr["payment_method"] or ""
 
     vehicles = {}
     for r in db.execute(
@@ -2819,13 +2878,16 @@ def _paid_salary_report_rows(db, month):
         deductions = float(slip["total_deductions"] if slip else 0) or 0
         paid = float(slip["actual_paid_amount"] if slip else 0) or 0
         payable = float(slip["salary_after_deduction"] if slip else net_salary) or 0
-        balance = float(slip["company_balance_due"] if slip else net_salary) or 0
+        fund = fund_by_driver.get(driver_id)
+        if fund:
+            paid += fund["amount"]
+        balance = max(payable - paid, 0.0)
         try:
             advance = float(_advance_summary(db, driver_id)["remaining_advance"])
         except Exception:
             advance = 0.0
 
-        if not slip:
+        if not slip and paid <= 0:
             status = "Not Run"
         elif paid <= 0 and payable <= 0:
             status = "Nil"
@@ -2835,6 +2897,15 @@ def _paid_salary_report_rows(db, month):
             status = "Partial"
         else:
             status = "Paid"
+
+        source = (slip["payment_source"] if slip else "") or ""
+        paid_on = ""
+        if fund:
+            paid_on = fund["paid_on"]
+            if not source and fund["amount"] > 0:
+                source = (
+                    f"Owner Fund ({fund['method']})" if fund["method"] else "Owner Fund"
+                )
 
         rows.append(
             {
@@ -2852,7 +2923,8 @@ def _paid_salary_report_rows(db, month):
                 "paid": paid,
                 "balance": balance,
                 "status": status,
-                "payment_source": (slip["payment_source"] if slip else "") or "",
+                "payment_source": source,
+                "paid_on": paid_on,
                 "paid_by": (slip["paid_by"] if slip else "") or "",
             }
         )
@@ -2924,7 +2996,7 @@ def paid_salary_report_excel():
     heads = [
         "#", "Employee ID", "Name", "Department", "Vehicle", "Status",
         "Basic Salary", "Net Salary", "OT Amount", "Advance (Due)",
-        "Deductions", "Actual Paid", "Balance Due", "Payment Status",
+        "Deductions", "Actual Paid", "Paid On", "Balance Due", "Payment Status",
     ]
     for ci, head in enumerate(heads, 1):
         cell = ws.cell(row=1, column=ci, value=head)
@@ -2945,25 +3017,26 @@ def paid_salary_report_excel():
         values = [
             idx, row["employee_id"], row["name"], row["department"], row["vehicle"],
             row["emp_status"], row["basic"], row["net_salary"], row["ot_amount"],
-            row["advance"], row["deductions"], row["paid"], row["balance"], row["status"],
+            row["advance"], row["deductions"], row["paid"], row["paid_on"],
+            row["balance"], row["status"],
         ]
         excel_row = idx + 1
         for ci, value in enumerate(values, 1):
             cell = ws.cell(row=excel_row, column=ci, value=value)
             cell.border = border
-            if 7 <= ci <= 13:
+            if ci in (7, 8, 9, 10, 11, 12, 14):
                 cell.number_format = "#,##0.00"
                 cell.alignment = right
-            elif ci in (1, 6, 14):
+            elif ci in (1, 6, 13, 15):
                 cell.alignment = center
         fill = status_fill.get(row["status"])
         if fill:
-            ws.cell(row=excel_row, column=14).fill = fill
+            ws.cell(row=excel_row, column=15).fill = fill
 
     total_row = len(rows) + 2
     ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
     for ci, key in ((7, "basic"), (8, "net_salary"), (9, "ot_amount"), (10, "advance"),
-                    (11, "deductions"), (12, "paid"), (13, "balance")):
+                    (11, "deductions"), (12, "paid"), (14, "balance")):
         cell = ws.cell(row=total_row, column=ci, value=totals[key])
         cell.font = Font(bold=True)
         cell.number_format = "#,##0.00"
@@ -2973,7 +3046,7 @@ def paid_salary_report_excel():
         cell.fill = total_fill
         cell.border = border
 
-    widths = [5, 14, 30, 16, 12, 12, 14, 14, 12, 15, 13, 14, 14, 15]
+    widths = [5, 14, 30, 16, 12, 12, 14, 14, 12, 15, 13, 14, 13, 14, 15]
     for ci, width in enumerate(widths, 1):
         ws.column_dimensions[ws.cell(row=1, column=ci).column_letter].width = width
     ws.freeze_panes = "A2"
