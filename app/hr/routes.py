@@ -2557,9 +2557,9 @@ _DRIVER_IDS_SQL = _ID_STATUS_COLUMNS + """WHERE (LOWER(employee_type) LIKE ?
 """
 _DRIVER_IDS_PARAMS = ("%driver%", "%operator%")
 
-# every employee — those with nothing uploaded come first
-_ALL_IDS_SQL = _ID_STATUS_COLUMNS + """ORDER BY has_license, has_eid,
-         CASE WHEN LOWER(status) = 'active' THEN 0 ELSE 1 END, full_name
+# active employees only — those with nothing uploaded come first
+_ALL_IDS_SQL = _ID_STATUS_COLUMNS + """WHERE LOWER(status) = 'active'
+    ORDER BY has_license, has_eid, full_name
 """
 
 
@@ -2752,16 +2752,16 @@ def id_status():
         with_eid=sum(1 for p in people if p["has_eid"]),
         ready=ready,
         with_any=sum(1 for p in people if p["has_any"]),
-        heading="Document upload status — all employees",
+        heading="Document upload status — active employees",
         subtitle=(
-            "Who has uploaded their Driving Licence and Emirates ID, and who has not. "
-            "Click a row to open that employee's License & ID tab. "
+            "Every active employee — who has uploaded their Driving Licence and Emirates ID, "
+            "and who has not. Click a row to open that employee's License & ID tab. "
             "The ZIP download covers active drivers and operators only."
         ),
-        total_label="All employees",
+        total_label="Active employees",
         back_url=url_for("hr.hr_dashboard"),
         back_label="HR Dashboard",
-        empty_msg="No employees found.",
+        empty_msg="No active employees found.",
     )
 
 
