@@ -6,7 +6,7 @@
 {% block content %}
 {# shared with /hr/id-status — the driver page uses these defaults #}
 {% set heading = heading|default("Driving License & Emirates ID status") %}
-{% set subtitle = subtitle|default("Every driver and operator — uploaded documents and a single ZIP download (one merged PDF per person).") %}
+{% set subtitle = subtitle|default("Every active driver and operator — uploaded documents and a single ZIP download (one merged PDF per person).") %}
 {% set total_label = total_label|default("Drivers & Operators") %}
 {% set back_url = back_url|default(url_for('hr.employee_list')) %}
 {% set back_label = back_label|default("Employees") %}

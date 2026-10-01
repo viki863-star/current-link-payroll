@@ -2549,10 +2549,11 @@ _ID_STATUS_COLUMNS = """
     FROM employees
 """
 
-# drivers & operators only (also feeds the bulk ZIP download)
-_DRIVER_IDS_SQL = _ID_STATUS_COLUMNS + """WHERE LOWER(employee_type) LIKE ?
-       OR LOWER(employee_type) LIKE ?
-    ORDER BY CASE WHEN LOWER(status) = 'active' THEN 0 ELSE 1 END, full_name
+# active drivers & operators only (also feeds the bulk ZIP download)
+_DRIVER_IDS_SQL = _ID_STATUS_COLUMNS + """WHERE (LOWER(employee_type) LIKE ?
+       OR LOWER(employee_type) LIKE ?)
+     AND LOWER(status) = 'active'
+    ORDER BY full_name
 """
 _DRIVER_IDS_PARAMS = ("%driver%", "%operator%")
 
@@ -2755,7 +2756,7 @@ def id_status():
         subtitle=(
             "Who has uploaded their Driving Licence and Emirates ID, and who has not. "
             "Click a row to open that employee's License & ID tab. "
-            "The ZIP download covers drivers and operators only."
+            "The ZIP download covers active drivers and operators only."
         ),
         total_label="All employees",
         back_url=url_for("hr.hr_dashboard"),
