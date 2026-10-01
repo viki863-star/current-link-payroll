@@ -2517,8 +2517,9 @@ _ID_SQL_COLUMNS = (
     "emirates_id_no, emirates_id_front, emirates_id_back"
 )
 
-# has_license / has_eid are 1/0 flags so the listing never loads image blobs
-_DRIVER_IDS_SQL = f"""
+# has_license / has_eid are 1/0 flags so the listing never loads image blobs.
+# NOTE: bound params for the LIKE patterns — psycopg3 rejects a literal '%' in SQL.
+_DRIVER_IDS_SQL = """
     SELECT employee_id, full_name, employee_type, department, status,
            driving_license_no, emirates_id_no,
            CASE WHEN length(COALESCE(driving_license_front, '')) > 0
@@ -2528,10 +2529,11 @@ _DRIVER_IDS_SQL = f"""
                    OR length(COALESCE(emirates_id_back, '')) > 0
                 THEN 1 ELSE 0 END AS has_eid
     FROM employees
-    WHERE LOWER(employee_type) LIKE '%driver%'
-       OR LOWER(employee_type) LIKE '%operator%'
+    WHERE LOWER(employee_type) LIKE ?
+       OR LOWER(employee_type) LIKE ?
     ORDER BY CASE WHEN LOWER(status) = 'active' THEN 0 ELSE 1 END, full_name
 """
+_DRIVER_IDS_PARAMS = ("%driver%", "%operator%")
 
 
 def _read_id_upload(file_storage):
@@ -2676,7 +2678,7 @@ def driver_ids():
     _touch_admin_workspace("hr")
     ensure_employees_table()
     db = open_db()
-    people = [dict(r) for r in db.execute(_DRIVER_IDS_SQL).fetchall()]
+    people = [dict(r) for r in db.execute(_DRIVER_IDS_SQL, _DRIVER_IDS_PARAMS).fetchall()]
     for person in people:
         person["has_license"] = bool(person["has_license"])
         person["has_eid"] = bool(person["has_eid"])
@@ -2699,7 +2701,7 @@ def driver_ids_download():
     _touch_admin_workspace("hr")
     ensure_employees_table()
     db = open_db()
-    rows = db.execute(_DRIVER_IDS_SQL).fetchall()
+    rows = db.execute(_DRIVER_IDS_SQL, _DRIVER_IDS_PARAMS).fetchall()
     ids = [r["employee_id"] for r in rows if r["has_license"] or r["has_eid"]]
     if not ids:
         flash("No Driving License or Emirates ID uploaded yet — nothing to download.", "error")
