@@ -13,6 +13,7 @@ import io
 import re
 import zipfile
 from datetime import date
+from pathlib import Path
 
 from reportlab.lib.colors import HexColor, black, white
 from reportlab.lib.pagesizes import A4
@@ -94,13 +95,75 @@ def _image_reader(b64data):
         return None
 
 
-def _draw_fit_string(pdf, text, x, y, max_width, max_size=12.0, min_size=7.0, font="Helvetica-Bold"):
-    text = str(text or "")
-    size = max_size
+def _logo_reader():
+    """Company logo (app/static/logo.png), flattened onto white and cached."""
+    global _LOGO_CACHE, _LOGO_BUFFER
+    if _LOGO_TRIED[0]:
+        return _LOGO_CACHE
+    _LOGO_TRIED[0] = True
+    try:
+        path = Path(__file__).resolve().parents[1] / "static" / "logo.png"
+        if not path.exists():
+            return None
+        from PIL import Image
+
+        img = Image.open(path)
+        if img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGBA")
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[-1])
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+        _LOGO_BUFFER = buffer          # keep the source alive for lazy reads
+        _LOGO_CACHE = ImageReader(buffer)
+    except Exception:
+        _LOGO_CACHE = None
+    return _LOGO_CACHE
+
+
+_LOGO_TRIED = [False]
+_LOGO_CACHE = None
+_LOGO_BUFFER = None
+
+
+def _fit_size(pdf, text, font, size, max_width, min_size):
     while size > min_size and pdf.stringWidth(text, font, size) > max_width:
         size -= 0.5
+    return size
+
+
+def _ellipsize(pdf, text, font, size, max_width):
+    """Trim ``text`` so it fits ``max_width`` at ``size``, ending in '...'."""
+    if pdf.stringWidth(text, font, size) <= max_width:
+        return text
+    while text and pdf.stringWidth(text + "...", font, size) > max_width:
+        text = text[:-1]
+    text = text.rstrip()
+    return text + "..." if text else ""
+
+
+def _draw_fit_string(pdf, text, x, y, max_width, max_size=12.0, min_size=7.0, font="Helvetica-Bold"):
+    """Left-aligned text that shrinks (then ellipsizes) instead of overlapping."""
+    text = str(text or "")
+    if not text:
+        return
+    size = _fit_size(pdf, text, font, max_size, max_width, min_size)
     pdf.setFont(font, size)
-    pdf.drawString(x, y, text)
+    pdf.drawString(x, y, _ellipsize(pdf, text, font, size, max_width))
+
+
+def _draw_fit_right(pdf, text, x, y, max_width, max_size=8.5, min_size=7.0, font="Helvetica"):
+    """Right-aligned counterpart of :func:`_draw_fit_string`."""
+    text = str(text or "")
+    if not text:
+        return
+    size = _fit_size(pdf, text, font, max_size, max_width, min_size)
+    pdf.setFont(font, size)
+    pdf.drawRightString(x, y, _ellipsize(pdf, text, font, size, max_width))
 
 
 class _IdsPdf:
@@ -121,20 +184,57 @@ class _IdsPdf:
             self.pdf.showPage()
         self.pages += 1
         pdf = self.pdf
-        y = TOP
 
-        pdf.setFillColor(ACCENT)
-        pdf.setFont("Helvetica-Bold", 15)
-        pdf.drawString(MARGIN, y - 14, self.company_name.strip()[:70])
-        pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 8.5)
+        # ── brand row: logo + company (left) | document title (right) ──
+        logo_w = 0.0
+        reader = _logo_reader()
+        if reader is not None:
+            try:
+                iw, ih = reader.getSize()
+            except Exception:
+                iw = ih = 0
+            if iw and ih:
+                logo_h = 30.0
+                logo_w = round(logo_h * iw / ih, 2)
+                pdf.drawImage(
+                    reader,
+                    MARGIN,
+                    TOP - 3 - logo_h,
+                    width=logo_w,
+                    height=logo_h,
+                    mask="auto",
+                )
+        name_x = MARGIN + (logo_w + 10 if logo_w else 0)
+
         title = "Driving License & Emirates ID"
         if continued:
             title += " (continued)"
-        pdf.drawRightString(PAGE_W - MARGIN, y - 14, title)
-        pdf.drawString(MARGIN, y - 27, f"Generated on {date.today().isoformat()}")
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 8.5)
+        title_w = pdf.stringWidth(title, "Helvetica", 8.5)
+        pdf.drawRightString(PAGE_W - MARGIN, TOP - 15, title)
 
-        y -= 44
+        # company name is squeezed into whatever the logo + title leave open
+        pdf.setFillColor(ACCENT)
+        _draw_fit_string(
+            pdf,
+            self.company_name.strip()[:80],
+            name_x,
+            TOP - 15,
+            max_width=(PAGE_W - MARGIN - title_w - 16) - name_x,
+            max_size=13.5,
+            min_size=7.5,
+            font="Helvetica-Bold",
+        )
+
+        # ── info row: generated date (left) | page number (right) ──
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(name_x, TOP - 29, f"Generated on {date.today().isoformat()}")
+        pdf.drawRightString(PAGE_W - MARGIN, TOP - 29, f"Page {self.pages}")
+
+        # ── employee row ──
+        y = TOP - 52
         pdf.setFillColor(black)
         _draw_fit_string(
             pdf,
@@ -142,23 +242,28 @@ class _IdsPdf:
             MARGIN,
             y,
             CONTENT_W,
+            max_size=13,
+            min_size=8,
         )
         pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 9)
-        meta = "  ·  ".join(
-            [f"Vehicle: {self.emp.get('vehicle')}"] if self.emp.get("vehicle") else []
-            + [
-                str(self.emp.get(k) or "")
-                for k in ("employee_type", "department", "status")
-                if self.emp.get(k)
-            ]
+        parts = []
+        if self.emp.get("vehicle"):
+            parts.append(f"Vehicle: {self.emp.get('vehicle')}")
+        parts += [
+            str(self.emp.get(k) or "")
+            for k in ("employee_type", "department", "status")
+            if self.emp.get(k)
+        ]
+        meta = "  ·  ".join(p for p in parts if p)
+        _draw_fit_string(
+            pdf, meta, MARGIN, y - 15, CONTENT_W,
+            max_size=8.5, min_size=7.5, font="Helvetica",
         )
-        pdf.drawString(MARGIN, y - 14, meta[:110])
 
         pdf.setStrokeColor(LINE)
         pdf.setLineWidth(1)
-        pdf.line(MARGIN, y - 24, PAGE_W - MARGIN, y - 24)
-        self.y = y - 24 - 16
+        pdf.line(MARGIN, y - 25, PAGE_W - MARGIN, y - 25)
+        self.y = y - 25 - 16
 
     def _ensure(self, height):
         if self.y - height < BOTTOM:
@@ -172,14 +277,21 @@ class _IdsPdf:
 
         pdf.setFillColor(SOFT)
         pdf.roundRect(MARGIN, y - 17, CONTENT_W, 17, 3, stroke=0, fill=1)
+        title_text = title.upper()
         pdf.setFillColor(ACCENT)
         pdf.setFont("Helvetica-Bold", 10)
-        pdf.drawString(MARGIN + 8, y - 12.5, title.upper())
-        pdf.setFillColor(MUTED)
-        pdf.setFont("Helvetica", 8.5)
+        title_w = pdf.stringWidth(title_text, "Helvetica-Bold", 10)
+        pdf.drawString(MARGIN + 8, y - 12.5, title_text)
         meta_text = "     ".join(f"{label}: {value}" for label, value in meta_pairs if value)
         if meta_text:
-            pdf.drawRightString(PAGE_W - MARGIN - 8, y - 12.5, meta_text[:90])
+            pdf.setFillColor(MUTED)
+            _draw_fit_right(
+                pdf,
+                meta_text,
+                PAGE_W - MARGIN - 8,
+                y - 12.5,
+                max_width=CONTENT_W - 16 - title_w - 14,
+            )
         y -= 17 + 12
 
         box_w = (CONTENT_W - BOX_GAP) / 2
