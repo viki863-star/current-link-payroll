@@ -2528,7 +2528,7 @@ _ID_SQL_COLUMNS = (
 
 # has_license / has_eid are 1/0 flags so the listing never loads image blobs.
 # NOTE: bound params for the LIKE patterns — psycopg3 rejects a literal '%' in SQL.
-_DRIVER_IDS_SQL = """
+_ID_STATUS_COLUMNS = """
     SELECT employee_id, full_name, employee_type, department, status,
            driving_license_no, emirates_id_no,
            CASE WHEN length(COALESCE(driving_license_front, '')) > 0
@@ -2547,11 +2547,19 @@ _DRIVER_IDS_SQL = """
                ''
            ) AS vehicle
     FROM employees
-    WHERE LOWER(employee_type) LIKE ?
+"""
+
+# drivers & operators only (also feeds the bulk ZIP download)
+_DRIVER_IDS_SQL = _ID_STATUS_COLUMNS + """WHERE LOWER(employee_type) LIKE ?
        OR LOWER(employee_type) LIKE ?
     ORDER BY CASE WHEN LOWER(status) = 'active' THEN 0 ELSE 1 END, full_name
 """
 _DRIVER_IDS_PARAMS = ("%driver%", "%operator%")
+
+# every employee — those with nothing uploaded come first
+_ALL_IDS_SQL = _ID_STATUS_COLUMNS + """ORDER BY has_license, has_eid,
+         CASE WHEN LOWER(status) = 'active' THEN 0 ELSE 1 END, full_name
+"""
 
 
 def _read_id_upload(file_storage):
@@ -2712,6 +2720,47 @@ def driver_ids():
         with_license=sum(1 for p in people if p["has_license"]),
         with_eid=sum(1 for p in people if p["has_eid"]),
         ready=sum(1 for p in people if p["has_any"]),
+    )
+
+
+@hr_bp.route("/hr/id-status")
+@_login_required("admin")
+def id_status():
+    """Upload status of Driving Licence / Emirates ID for every employee."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    people = [dict(r) for r in db.execute(_ALL_IDS_SQL).fetchall()]
+    for person in people:
+        person["has_license"] = bool(person["has_license"])
+        person["has_eid"] = bool(person["has_eid"])
+        person["has_any"] = person["has_license"] or person["has_eid"]
+
+    # the bulk ZIP stays limited to drivers and operators
+    ready = sum(
+        1
+        for r in db.execute(_DRIVER_IDS_SQL, _DRIVER_IDS_PARAMS).fetchall()
+        if r["has_license"] or r["has_eid"]
+    )
+
+    return render_template(
+        "hr/driver_ids.html",
+        people=people,
+        total=len(people),
+        with_license=sum(1 for p in people if p["has_license"]),
+        with_eid=sum(1 for p in people if p["has_eid"]),
+        ready=ready,
+        with_any=sum(1 for p in people if p["has_any"]),
+        heading="Document upload status — all employees",
+        subtitle=(
+            "Who has uploaded their Driving Licence and Emirates ID, and who has not. "
+            "Click a row to open that employee's License & ID tab. "
+            "The ZIP download covers drivers and operators only."
+        ),
+        total_label="All employees",
+        back_url=url_for("hr.hr_dashboard"),
+        back_label="HR Dashboard",
+        empty_msg="No employees found.",
     )
 
 

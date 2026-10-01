@@ -4,6 +4,14 @@
 {% block page_title %}Driving License &amp; Emirates IDs{% endblock %}
 
 {% block content %}
+{# shared with /hr/id-status — the driver page uses these defaults #}
+{% set heading = heading|default("Driving License & Emirates ID status") %}
+{% set subtitle = subtitle|default("Every driver and operator — uploaded documents and a single ZIP download (one merged PDF per person).") %}
+{% set total_label = total_label|default("Drivers & Operators") %}
+{% set back_url = back_url|default(url_for('hr.employee_list')) %}
+{% set back_label = back_label|default("Employees") %}
+{% set empty_msg = empty_msg|default("No drivers or operators found.") %}
+{% set with_any = with_any|default(ready) %}
 <style>
 .di-root { font-family: system-ui, -apple-system, sans-serif; }
 .di-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
@@ -34,16 +42,21 @@
 .di-badge-other { background:#f1f5f9; color:#64748b; }
 .di-progress { height:8px; background:#e2e8f0; border-radius:6px; overflow:hidden; margin-top:10px; }
 .di-progress > span { display:block; height:100%; background:#059669; border-radius:6px; }
+.di-filter { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:0 0 12px; }
+.di-filter input[type="search"] { flex:1; min-width:220px; max-width:420px; padding:9px 14px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:.8rem; }
+.di-filter input[type="search"]:focus { outline:none; border-color:#1a3a5c; }
+.di-filter-check { display:inline-flex; align-items:center; gap:6px; font-size:.78rem; font-weight:600; color:#334155; cursor:pointer; }
+.di-filter-count { font-size:.74rem; color:#94a3b8; }
 </style>
 
 <div class="di-root">
   <div class="di-top">
     <div>
-      <h2>Driving License &amp; Emirates ID status</h2>
-      <p>Every driver and operator — uploaded documents and a single ZIP download (one merged PDF per person).</p>
+      <h2>{{ heading }}</h2>
+      <p>{{ subtitle }}</p>
     </div>
     <div class="di-actions">
-      <a class="di-btn" href="{{ url_for('hr.employee_list') }}">&#8592; Employees</a>
+      <a class="di-btn" href="{{ back_url }}">&#8592; {{ back_label }}</a>
       {% if ready %}
       <a class="di-btn di-btn-primary" href="{{ url_for('hr.driver_ids_download') }}">&#11015; Download all (ZIP &middot; {{ ready }} PDF{{ 's' if ready != 1 }})</a>
       {% endif %}
@@ -53,8 +66,8 @@
   <div class="di-summary">
     <div class="di-card">
       <div class="num">{{ total }}</div>
-      <div class="lbl">Drivers &amp; Operators</div>
-      <div class="di-progress"><span style="width:{{ (ready * 100 / total) if total else 0 }}%"></span></div>
+      <div class="lbl">{{ total_label }}</div>
+      <div class="di-progress"><span style="width:{{ (with_any * 100 / total) if total else 0 }}%"></span></div>
     </div>
     <div class="di-card">
       <div class="num" style="color:{{ '#059669' if with_license == total else '#d97706' }}">{{ with_license }}</div>
@@ -67,9 +80,15 @@
       <div class="di-progress"><span style="width:{{ (with_eid * 100 / total) if total else 0 }}%"></span></div>
     </div>
     <div class="di-card">
-      <div class="num" style="color:{{ '#dc2626' if total - ready > 0 else '#059669' }}">{{ total - ready }}</div>
+      <div class="num" style="color:{{ '#dc2626' if total - with_any > 0 else '#059669' }}">{{ total - with_any }}</div>
       <div class="lbl">Nothing uploaded yet</div>
     </div>
+  </div>
+
+  <div class="di-filter">
+    <input id="diSearch" type="search" placeholder="Search name, employee ID or vehicle…" oninput="diFilter()">
+    <label class="di-filter-check"><input type="checkbox" id="diMissing" onchange="diFilter()"> Missing only</label>
+    <span id="diCount" class="di-filter-count"></span>
   </div>
 
   <div class="di-table-wrap">
@@ -88,7 +107,7 @@
       </thead>
       <tbody>
         {% for p in people %}
-        <tr onclick="window.location='{{ url_for('hr.employee_ids', employee_id=p.employee_id) }}'">
+        <tr data-missing="{{ 0 if p.has_any else 1 }}" onclick="window.location='{{ url_for('hr.employee_ids', employee_id=p.employee_id) }}'">
           <td>{{ loop.index }}</td>
           <td>
             <strong>{{ p.full_name }}</strong>
@@ -121,8 +140,24 @@
       </tbody>
     </table>
     {% if not people %}
-    <div class="di-empty">No drivers or operators found.</div>
+    <div class="di-empty">{{ empty_msg }}</div>
     {% endif %}
   </div>
+
+  <script>
+  function diFilter() {
+    var q = (document.getElementById('diSearch').value || '').toLowerCase().trim();
+    var onlyMissing = document.getElementById('diMissing').checked;
+    var shown = 0;
+    document.querySelectorAll('.di-table tbody tr').forEach(function (tr) {
+      var hit = (!q || tr.innerText.toLowerCase().indexOf(q) > -1) &&
+                (!onlyMissing || tr.getAttribute('data-missing') === '1');
+      tr.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    });
+    document.getElementById('diCount').textContent = shown + ' shown';
+  }
+  document.addEventListener('DOMContentLoaded', diFilter);
+  </script>
 </div>
 {% endblock %}
