@@ -146,11 +146,14 @@ class _IdsPdf:
         pdf.setFillColor(MUTED)
         pdf.setFont("Helvetica", 9)
         meta = "  ·  ".join(
-            str(self.emp.get(k) or "")
-            for k in ("employee_type", "department", "status")
-            if self.emp.get(k)
+            [f"Vehicle: {self.emp.get('vehicle')}"] if self.emp.get("vehicle") else []
+            + [
+                str(self.emp.get(k) or "")
+                for k in ("employee_type", "department", "status")
+                if self.emp.get(k)
+            ]
         )
-        pdf.drawString(MARGIN, y - 14, meta)
+        pdf.drawString(MARGIN, y - 14, meta[:110])
 
         pdf.setStrokeColor(LINE)
         pdf.setLineWidth(1)

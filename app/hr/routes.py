@@ -2527,7 +2527,16 @@ _DRIVER_IDS_SQL = """
                 THEN 1 ELSE 0 END AS has_license,
            CASE WHEN length(COALESCE(emirates_id_front, '')) > 0
                    OR length(COALESCE(emirates_id_back, '')) > 0
-                THEN 1 ELSE 0 END AS has_eid
+                THEN 1 ELSE 0 END AS has_eid,
+           COALESCE(
+               (SELECT va.vehicle_id FROM vehicle_assignments va
+                 WHERE va.driver_id = employees.employee_id AND va.is_current = 1 LIMIT 1),
+               (SELECT d.vehicle_no FROM drivers d
+                 WHERE d.driver_id = employees.employee_id
+                   AND COALESCE(d.vehicle_no, '') <> ''
+                   AND COALESCE(d.vehicle_no, '') <> '0' LIMIT 1),
+               ''
+           ) AS vehicle
     FROM employees
     WHERE LOWER(employee_type) LIKE ?
        OR LOWER(employee_type) LIKE ?
@@ -2661,7 +2670,10 @@ def employee_ids_pdf(employee_id):
 
     from .license_pdf import build_employee_ids_pdf
 
-    pdf_bytes = build_employee_ids_pdf(_company_name(db), dict(employee))
+    payload = dict(employee)
+    assigned = _current_vehicle(db, employee["employee_id"])
+    payload["vehicle"] = (assigned or {}).get("vehicle_id", "") or ""
+    pdf_bytes = build_employee_ids_pdf(_company_name(db), payload)
     safe_id = "".join(c if c.isalnum() or c in "-_" else "_" for c in employee_id) or "employee"
     return send_file(
         BytesIO(pdf_bytes),
@@ -2702,6 +2714,7 @@ def driver_ids_download():
     ensure_employees_table()
     db = open_db()
     rows = db.execute(_DRIVER_IDS_SQL, _DRIVER_IDS_PARAMS).fetchall()
+    vehicle_by_id = {r["employee_id"]: (r["vehicle"] or "") for r in rows}
     ids = [r["employee_id"] for r in rows if r["has_license"] or r["has_eid"]]
     if not ids:
         flash("No Driving License or Emirates ID uploaded yet — nothing to download.", "error")
@@ -2715,7 +2728,9 @@ def driver_ids_download():
         for emp_id in ids:
             row = db.execute(f"SELECT {_ID_SQL_COLUMNS} FROM employees WHERE employee_id = ?", (emp_id,)).fetchone()
             if row:
-                yield dict(row)
+                payload = dict(row)
+                payload["vehicle"] = vehicle_by_id.get(emp_id, "")
+                yield payload
 
     tmp = tempfile.SpooledTemporaryFile(max_size=16 * 1024 * 1024)
     write_ids_zip(company, _one_at_a_time(), tmp)

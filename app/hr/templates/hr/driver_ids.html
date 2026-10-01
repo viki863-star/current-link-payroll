@@ -79,6 +79,7 @@
           <th>#</th>
           <th>Employee</th>
           <th>Type</th>
+          <th>Vehicle</th>
           <th>Status</th>
           <th>Driving License</th>
           <th>Emirates ID</th>
@@ -94,6 +95,7 @@
             <div class="di-mono" style="color:#94a3b8">{{ p.employee_id }}</div>
           </td>
           <td>{{ p.employee_type }}</td>
+          <td class="di-mono" style="font-weight:700;color:#1a3a5c">{{ p.vehicle or '—' }}</td>
           <td>
             <span class="di-badge {{ 'di-badge-active' if p.status|lower == 'active' else 'di-badge-other' }}">{{ p.status }}</span>
           </td>
