@@ -2861,6 +2861,8 @@ def _paid_salary_report_rows(db, month):
 
     ordered_ids = list(store_by)
     ordered_ids += [d for d in slip_by if d not in store_by]
+    # every employee must show up, even when the month's salary was never run
+    ordered_ids += [d for d in emps if d not in store_by and d not in slip_by]
 
     rows = []
     for driver_id in ordered_ids:
@@ -2928,6 +2930,7 @@ def _paid_salary_report_rows(db, month):
                 "paid_by": (slip["paid_by"] if slip else "") or "",
             }
         )
+    rows.sort(key=lambda r: r["employee_id"])
     return rows
 
 
