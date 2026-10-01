@@ -34,6 +34,17 @@ EMPLOYEE_COLUMNS = """
     status TEXT NOT NULL DEFAULT 'Active',
     termination_date TEXT,
     remarks TEXT,
+    driving_license_no TEXT,
+    driving_license_expiry TEXT,
+    driving_license_front TEXT,
+    driving_license_front_type TEXT,
+    driving_license_back TEXT,
+    driving_license_back_type TEXT,
+    emirates_id_no TEXT,
+    emirates_id_front TEXT,
+    emirates_id_front_type TEXT,
+    emirates_id_back TEXT,
+    emirates_id_back_type TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 """

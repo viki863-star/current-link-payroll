@@ -19,6 +19,7 @@
         <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
             <a href="{{ url_for('hr.employee_list_excel', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128194; Excel</a>
             <a href="{{ url_for('hr.employee_list_pdf', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128196; PDF</a>
+            <a href="{{ url_for('hr.driver_ids') }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#129704; Driver IDs</a>
         </span>
     </div>
 

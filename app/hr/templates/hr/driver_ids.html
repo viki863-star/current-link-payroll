@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Driver &amp; Operator IDs — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+{% block page_title %}Driving License &amp; Emirates IDs{% endblock %}
+
+{% block content %}
+<style>
+.di-root { font-family: system-ui, -apple-system, sans-serif; }
+.di-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+.di-top h2 { margin:0; font-size:1.05rem; font-weight:700; color:#0f172a; }
+.di-top p { margin:2px 0 0; font-size:.78rem; color:#64748b; }
+.di-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.di-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border:1.5px solid #cbd5e1; border-radius:8px; background:#fff; font-size:.78rem; font-weight:600; color:#334155; text-decoration:none; transition:all .12s; }
+.di-btn:hover { background:#f1f5f9; border-color:#94a3b8; }
+.di-btn-primary { background:#1a3a5c; border-color:#1a3a5c; color:#fff; }
+.di-btn-primary:hover { background:#12293f; border-color:#12293f; }
+.di-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+.di-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:16px 18px; }
+.di-card .num { font-size:1.6rem; font-weight:800; color:#0f172a; line-height:1.2; }
+.di-card .lbl { font-size:.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.4px; margin-top:3px; }
+.di-table-wrap { overflow-x:auto; background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; }
+.di-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.di-table th { background:#f8fafc; padding:11px 14px; font-size:.7rem; font-weight:700; text-transform:uppercase; color:#64748b; letter-spacing:.4px; border-bottom:1.5px solid #e2e8f0; white-space:nowrap; text-align:left; }
+.di-table td { padding:10px 14px; border-bottom:1px solid #f1f5f9; }
+.di-table tr:last-child td { border-bottom:none; }
+.di-table tbody tr { cursor:pointer; }
+.di-table tbody tr:hover td { background:#f8fafc; }
+.di-yes { color:#059669; font-weight:700; }
+.di-no { color:#dc2626; font-weight:700; }
+.di-empty { text-align:center; padding:40px 20px; color:#94a3b8; font-size:.85rem; }
+.di-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.76rem; }
+.di-badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.7rem; font-weight:700; }
+.di-badge-active { background:#ecfdf5; color:#059669; }
+.di-badge-other { background:#f1f5f9; color:#64748b; }
+.di-progress { height:8px; background:#e2e8f0; border-radius:6px; overflow:hidden; margin-top:10px; }
+.di-progress > span { display:block; height:100%; background:#059669; border-radius:6px; }
+</style>
+
+<div class="di-root">
+  <div class="di-top">
+    <div>
+      <h2>Driving License &amp; Emirates ID status</h2>
+      <p>Every driver and operator — uploaded documents and a single ZIP download (one merged PDF per person).</p>
+    </div>
+    <div class="di-actions">
+      <a class="di-btn" href="{{ url_for('hr.employee_list') }}">&#8592; Employees</a>
+      {% if ready %}
+      <a class="di-btn di-btn-primary" href="{{ url_for('hr.driver_ids_download') }}">&#11015; Download all (ZIP &middot; {{ ready }} PDF{{ 's' if ready != 1 }})</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="di-summary">
+    <div class="di-card">
+      <div class="num">{{ total }}</div>
+      <div class="lbl">Drivers &amp; Operators</div>
+      <div class="di-progress"><span style="width:{{ (ready * 100 / total) if total else 0 }}%"></span></div>
+    </div>
+    <div class="di-card">
+      <div class="num" style="color:{{ '#059669' if with_license == total else '#d97706' }}">{{ with_license }}</div>
+      <div class="lbl">Driving License uploaded</div>
+      <div class="di-progress"><span style="width:{{ (with_license * 100 / total) if total else 0 }}%"></span></div>
+    </div>
+    <div class="di-card">
+      <div class="num" style="color:{{ '#059669' if with_eid == total else '#d97706' }}">{{ with_eid }}</div>
+      <div class="lbl">Emirates ID uploaded</div>
+      <div class="di-progress"><span style="width:{{ (with_eid * 100 / total) if total else 0 }}%"></span></div>
+    </div>
+    <div class="di-card">
+      <div class="num" style="color:{{ '#dc2626' if total - ready > 0 else '#059669' }}">{{ total - ready }}</div>
+      <div class="lbl">Nothing uploaded yet</div>
+    </div>
+  </div>
+
+  <div class="di-table-wrap">
+    <table class="di-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Employee</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Driving License</th>
+          <th>Emirates ID</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in people %}
+        <tr onclick="window.location='{{ url_for('hr.employee_ids', employee_id=p.employee_id) }}'">
+          <td>{{ loop.index }}</td>
+          <td>
+            <strong>{{ p.full_name }}</strong>
+            <div class="di-mono" style="color:#94a3b8">{{ p.employee_id }}</div>
+          </td>
+          <td>{{ p.employee_type }}</td>
+          <td>
+            <span class="di-badge {{ 'di-badge-active' if p.status|lower == 'active' else 'di-badge-other' }}">{{ p.status }}</span>
+          </td>
+          <td>
+            {% if p.has_license %}
+              <span class="di-yes">&#10003; Uploaded</span>
+              {% if p.driving_license_no %}<div class="di-mono" style="color:#94a3b8">{{ p.driving_license_no }}</div>{% endif %}
+            {% else %}
+              <span class="di-no">&#10007; Missing</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.has_eid %}
+              <span class="di-yes">&#10003; Uploaded</span>
+              {% if p.emirates_id_no %}<div class="di-mono" style="color:#94a3b8">{{ p.emirates_id_no }}</div>{% endif %}
+            {% else %}
+              <span class="di-no">&#10007; Missing</span>
+            {% endif %}
+          </td>
+          <td><a class="di-btn" style="padding:5px 12px;font-size:.72rem" onclick="event.stopPropagation()" href="{{ url_for('hr.employee_ids', employee_id=p.employee_id) }}">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not people %}
+    <div class="di-empty">No drivers or operators found.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -193,6 +193,47 @@ the voucher page that carries the **PAID** stamp.
 
 Tests: `tests/test_supplier_emirates_id.py` (7 tests).
 
+## Driver / Operator documents (Driving License + Emirates ID)
+
+Every driver and crane operator can carry their **Driving License** and
+**Emirates ID**, each with a front and a back side, and download them as PDF.
+
+- **Where to add it** — *Employee Profile → License & ID* tab: license number and
+  expiry, EID number, plus four file inputs (DL front/back, EID front/back,
+  JPG / PNG / WEBP, max 5 MB). Leaving an input empty keeps the image already
+  stored. Click a stored image to open it full size.
+- **Download one** — *Download PDF (both sides merged)* builds a single A4 PDF for
+  that employee: header, both documents, front and back side by side
+  (`/hr/employees/<id>/ids/pdf`).
+- **Download all** — *Employees → Driver IDs* (`/hr/driver-ids`) lists every
+  driver/operator with an uploaded / missing flag and a running count, and the
+  **Download all (ZIP)** button (`/hr/driver-ids/download`) returns one merged
+  PDF per person — only people who actually uploaded something are included.
+- **PDF module** — `app/hr/license_pdf.py`; images are EXIF-corrected, downscaled
+  to 1600 px and re-encoded as JPEG so the PDF (and the ZIP) stay small. Missing
+  sides render as a dashed *Not uploaded* box.
+- **Data safety** — additive only: eleven `TEXT` columns on `employees`
+  (`driving_license_no`, `driving_license_expiry`, `driving_license_front[_type]`,
+  `driving_license_back[_type]`, `emirates_id_no`, `emirates_id_front[_type]`,
+  `emirates_id_back[_type]`), created by `REQUIRED_COLUMNS` at startup and by the
+  guarded `ALTER TABLE` loop in `ensure_employees_table()`. Existing rows and
+  other employees are never touched.
+
+## Paid salary report (paid / balance / overtime / advance)
+
+`/hr/paid-salary-report` — one route showing the selected month (defaults to the
+**previous calendar month**) with, per employee: basic, net salary, overtime,
+outstanding advance on the driver, deductions, **actual paid**, **balance still
+due** and a Paid / Partial / Unpaid / Not Run status, plus a totals row and
+summary cards. `/hr/paid-salary-report/excel` exports the same table to Excel.
+Linked from the **Employee Salary Dashboard**; rows open the employee profile.
+
+Data is read-only: `salary_store` (salary + OT), the latest `salary_slips` row
+per employee (paid, balance, deductions), `_advance_summary()` for the advance
+still on the driver, and current vehicle assignment for the Vehicle column.
+
+Tests: `tests/test_driver_ids_and_salary_report.py` (9 tests).
+
 ## Driver Folders
 
 Generated assets are stored inside:

@@ -1,7 +1,8 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from io import BytesIO
 import base64
+import tempfile
 
 from flask import (
     current_app, flash, redirect, render_template, request,
@@ -74,6 +75,18 @@ def ensure_employees_table():
         ("termination_date", "TEXT"),
         ("remarks", "TEXT"),
         ("updated_at", "TEXT DEFAULT CURRENT_TIMESTAMP"),
+        # Driver / operator documents (additive — never touches existing rows)
+        ("driving_license_no", "TEXT"),
+        ("driving_license_expiry", "TEXT"),
+        ("driving_license_front", "TEXT"),
+        ("driving_license_front_type", "TEXT"),
+        ("driving_license_back", "TEXT"),
+        ("driving_license_back_type", "TEXT"),
+        ("emirates_id_no", "TEXT"),
+        ("emirates_id_front", "TEXT"),
+        ("emirates_id_front_type", "TEXT"),
+        ("emirates_id_back", "TEXT"),
+        ("emirates_id_back_type", "TEXT"),
     ]
     for col_name, col_type in employee_cols:
         try:
@@ -98,7 +111,7 @@ def ensure_employees_table():
 
 def _fetch_employee(db, employee_id):
     return db.execute(
-        "SELECT id, employee_id, full_name, phone_number, email, employee_type, department, designation, gender, shift, contract_type, join_date, basic_salary, ot_rate, nationality, iqama_no, passport_no, bank_name, bank_account, iban, emergency_contact, emergency_name, address, photo_name, photo_data, photo_content_type, status, termination_date, remarks, updated_at FROM employees WHERE UPPER(employee_id) = ?",
+        "SELECT id, employee_id, full_name, phone_number, email, employee_type, department, designation, gender, shift, contract_type, join_date, basic_salary, ot_rate, nationality, iqama_no, passport_no, bank_name, bank_account, iban, emergency_contact, emergency_name, address, photo_name, photo_data, photo_content_type, status, termination_date, remarks, driving_license_no, driving_license_expiry, driving_license_front, driving_license_front_type, driving_license_back, driving_license_back_type, emirates_id_no, emirates_id_front, emirates_id_front_type, emirates_id_back, emirates_id_back_type, updated_at FROM employees WHERE UPPER(employee_id) = ?",
         (employee_id.strip().upper(),),
     ).fetchone()
 
@@ -2479,6 +2492,484 @@ def salary_dashboard_excel():
     buf.seek(0)
     fname = f"salary_status_{selected_month}.xlsx" if selected_month else "salary_status.xlsx"
     return send_file(buf, as_attachment=True, download_name=fname, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ── Driver / Operator documents: Driving License + Emirates ID ─────
+
+_ID_MAX_BYTES = 5 * 1024 * 1024
+_ID_TYPE_BY_EXT = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
+_ID_ALLOWED_TYPES = set(_ID_TYPE_BY_EXT.values())
+# uploaded side field -> column that stores its content type
+_ID_FIELD_COLUMNS = {
+    "driving_license_front": "driving_license_front_type",
+    "driving_license_back": "driving_license_back_type",
+    "emirates_id_front": "emirates_id_front_type",
+    "emirates_id_back": "emirates_id_back_type",
+}
+_ID_SQL_COLUMNS = (
+    "employee_id, full_name, employee_type, department, status, "
+    "driving_license_no, driving_license_expiry, driving_license_front, driving_license_back, "
+    "emirates_id_no, emirates_id_front, emirates_id_back"
+)
+
+# has_license / has_eid are 1/0 flags so the listing never loads image blobs
+_DRIVER_IDS_SQL = f"""
+    SELECT employee_id, full_name, employee_type, department, status,
+           driving_license_no, emirates_id_no,
+           CASE WHEN length(COALESCE(driving_license_front, '')) > 0
+                   OR length(COALESCE(driving_license_back, '')) > 0
+                THEN 1 ELSE 0 END AS has_license,
+           CASE WHEN length(COALESCE(emirates_id_front, '')) > 0
+                   OR length(COALESCE(emirates_id_back, '')) > 0
+                THEN 1 ELSE 0 END AS has_eid
+    FROM employees
+    WHERE LOWER(employee_type) LIKE '%driver%'
+       OR LOWER(employee_type) LIKE '%operator%'
+    ORDER BY CASE WHEN LOWER(status) = 'active' THEN 0 ELSE 1 END, full_name
+"""
+
+
+def _read_id_upload(file_storage):
+    """Validate one uploaded side image -> (base64, content_type, error)."""
+    if file_storage is None or not getattr(file_storage, "filename", ""):
+        return None, None, None
+    ext = Path(file_storage.filename).suffix.lower()
+    ctype = (file_storage.content_type or "").lower()
+    if ctype not in _ID_ALLOWED_TYPES:
+        ctype = _ID_TYPE_BY_EXT.get(ext, "")
+    if ctype not in _ID_ALLOWED_TYPES:
+        return None, None, f"{file_storage.filename}: only JPG, PNG or WEBP images are allowed."
+    raw = file_storage.read()
+    if not raw:
+        return None, None, f"{file_storage.filename}: file is empty."
+    if len(raw) > _ID_MAX_BYTES:
+        return None, None, f"{file_storage.filename}: bigger than 5 MB."
+    return base64.b64encode(raw).decode("ascii"), ctype, None
+
+
+def _company_name(db):
+    try:
+        row = db.execute("SELECT company_name FROM company_profile LIMIT 1").fetchone()
+        return (row["company_name"] if row else "") or ""
+    except Exception:
+        return ""
+
+
+def _current_vehicle(db, employee_id):
+    row = db.execute(
+        "SELECT vehicle_id FROM vehicle_assignments WHERE is_current = 1 AND driver_id = ?",
+        (employee_id,),
+    ).fetchone()
+    if row and row["vehicle_id"]:
+        return {"vehicle_id": row["vehicle_id"]}
+    legacy = db.execute(
+        "SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (employee_id,)
+    ).fetchone()
+    if legacy and legacy["vehicle_no"]:
+        return {"vehicle_id": legacy["vehicle_no"]}
+    return None
+
+
+@hr_bp.route("/hr/employees/<employee_id>/ids", methods=["GET", "POST"])
+@_login_required("admin")
+def employee_ids(employee_id):
+    """Profile tab: view / upload Driving License (front+back) and Emirates ID."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+
+    employee = _fetch_employee(db, employee_id)
+    if employee is None:
+        flash("Employee not found.", "error")
+        return redirect(url_for("hr.employee_list"))
+
+    if request.method == "POST":
+        updates = {
+            "driving_license_no": request.form.get("driving_license_no", "").strip() or None,
+            "driving_license_expiry": request.form.get("driving_license_expiry", "").strip() or None,
+            "emirates_id_no": request.form.get("emirates_id_no", "").strip() or None,
+        }
+        errors = []
+        saved = 0
+        for field, type_column in _ID_FIELD_COLUMNS.items():
+            b64, ctype, error = _read_id_upload(request.files.get(field))
+            if error:
+                errors.append(error)
+            elif b64:
+                updates[field] = b64
+                updates[type_column] = ctype
+                saved += 1
+
+        if updates:
+            assignments = ", ".join(f"{column} = ?" for column in updates)
+            db.execute(
+                f"UPDATE employees SET {assignments} WHERE UPPER(employee_id) = ?",
+                (*updates.values(), employee_id.strip().upper()),
+            )
+            db.commit()
+            try:
+                _audit_log(
+                    db,
+                    "employee_documents_updated",
+                    entity_type="employee",
+                    entity_id=employee_id.strip().upper(),
+                    details=f"{saved} image(s) uploaded",
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+
+        if errors:
+            flash(" ".join(errors), "error")
+            if saved:
+                flash(f"{saved} image(s) uploaded — fix the files listed above and save again.", "success")
+        elif saved:
+            flash(f"{saved} image(s) saved.", "success")
+        else:
+            flash("Document details saved.", "success")
+
+        return redirect(url_for("hr.employee_ids", employee_id=employee_id))
+
+    photo_url = _employee_photo_url(current_app._get_current_object(), employee)
+    return render_template(
+        "hr/employee_detail.html",
+        employee=employee,
+        photo_url=photo_url,
+        active_tab="ids",
+        current_vehicle=_current_vehicle(db, employee["employee_id"]),
+    )
+
+
+@hr_bp.route("/hr/employees/<employee_id>/ids/pdf")
+@_login_required("admin")
+def employee_ids_pdf(employee_id):
+    """One merged PDF: driving license front/back + Emirates ID front/back."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    employee = _fetch_employee(db, employee_id)
+    if employee is None:
+        flash("Employee not found.", "error")
+        return redirect(url_for("hr.employee_list"))
+
+    from .license_pdf import build_employee_ids_pdf
+
+    pdf_bytes = build_employee_ids_pdf(_company_name(db), dict(employee))
+    safe_id = "".join(c if c.isalnum() or c in "-_" else "_" for c in employee_id) or "employee"
+    return send_file(
+        BytesIO(pdf_bytes),
+        as_attachment=True,
+        download_name=f"{safe_id}_License_EID.pdf",
+        mimetype="application/pdf",
+    )
+
+
+@hr_bp.route("/hr/driver-ids")
+@_login_required("admin")
+def driver_ids():
+    """Who among drivers/operators has uploaded a licence / Emirates ID."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    people = [dict(r) for r in db.execute(_DRIVER_IDS_SQL).fetchall()]
+    for person in people:
+        person["has_license"] = bool(person["has_license"])
+        person["has_eid"] = bool(person["has_eid"])
+        person["has_any"] = person["has_license"] or person["has_eid"]
+
+    return render_template(
+        "hr/driver_ids.html",
+        people=people,
+        total=len(people),
+        with_license=sum(1 for p in people if p["has_license"]),
+        with_eid=sum(1 for p in people if p["has_eid"]),
+        ready=sum(1 for p in people if p["has_any"]),
+    )
+
+
+@hr_bp.route("/hr/driver-ids/download")
+@_login_required("admin")
+def driver_ids_download():
+    """ZIP with one merged PDF (licence + EID, both sides) per driver/operator."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    rows = db.execute(_DRIVER_IDS_SQL).fetchall()
+    ids = [r["employee_id"] for r in rows if r["has_license"] or r["has_eid"]]
+    if not ids:
+        flash("No Driving License or Emirates ID uploaded yet — nothing to download.", "error")
+        return redirect(url_for("hr.driver_ids"))
+
+    from .license_pdf import write_ids_zip
+
+    company = _company_name(db)
+
+    def _one_at_a_time():
+        for emp_id in ids:
+            row = db.execute(f"SELECT {_ID_SQL_COLUMNS} FROM employees WHERE employee_id = ?", (emp_id,)).fetchone()
+            if row:
+                yield dict(row)
+
+    tmp = tempfile.SpooledTemporaryFile(max_size=16 * 1024 * 1024)
+    write_ids_zip(company, _one_at_a_time(), tmp)
+    tmp.seek(0)
+    response = send_file(
+        tmp,
+        as_attachment=True,
+        download_name=f"driver_ids_{date.today().isoformat()}.zip",
+        mimetype="application/zip",
+    )
+    response.call_on_close(tmp.close)
+    return response
+
+
+# ── Paid salary report (paid / balance / OT / advance) ────────────
+
+def _report_months(db):
+    rows = db.execute(
+        "SELECT DISTINCT salary_month FROM salary_store UNION "
+        "SELECT DISTINCT salary_month FROM salary_slips UNION "
+        "SELECT DISTINCT salary_month FROM salary_payments "
+        "ORDER BY salary_month DESC"
+    ).fetchall()
+    return [r["salary_month"] for r in rows]
+
+
+def _last_closed_month():
+    """Previous calendar month, e.g. '2026-09' during October 2026."""
+    first_of_month = date.today().replace(day=1)
+    return (first_of_month - timedelta(days=1)).strftime("%Y-%m")
+
+
+def _paid_salary_report_rows(db, month):
+    store_rows = db.execute(
+        "SELECT driver_id, net_salary, ot_amount, monthly_basic_salary, basic_salary "
+        "FROM salary_store WHERE salary_month = ?",
+        (month,),
+    ).fetchall()
+    slip_rows = db.execute(
+        "SELECT driver_id, total_deductions, available_advance, remaining_advance, "
+        "salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, "
+        "paid_by, net_payable FROM salary_slips WHERE salary_month = ?",
+        (month,),
+    ).fetchall()
+
+    store_by = {r["driver_id"]: r for r in store_rows}
+    slip_by = {}
+    for r in slip_rows:  # keep the newest slip when a month was regenerated
+        slip_by[r["driver_id"]] = r
+
+    emps = {
+        r["employee_id"]: r
+        for r in db.execute(
+            "SELECT employee_id, full_name, employee_type, department, status FROM employees"
+        ).fetchall()
+    }
+
+    vehicles = {}
+    for r in db.execute(
+        "SELECT driver_id, vehicle_id FROM vehicle_assignments WHERE is_current = 1"
+    ).fetchall():
+        if r["vehicle_id"]:
+            vehicles[r["driver_id"]] = r["vehicle_id"]
+    for r in db.execute(
+        "SELECT driver_id, vehicle_no FROM drivers "
+        "WHERE vehicle_no IS NOT NULL AND vehicle_no != '' AND vehicle_no != '0'"
+    ).fetchall():
+        vehicles.setdefault(r["driver_id"], r["vehicle_no"])
+
+    ordered_ids = list(store_by)
+    ordered_ids += [d for d in slip_by if d not in store_by]
+
+    rows = []
+    for driver_id in ordered_ids:
+        store = store_by.get(driver_id)
+        slip = slip_by.get(driver_id)
+        emp = emps.get(driver_id)
+
+        net_salary = float((store["net_salary"] if store else 0) or 0)
+        if not net_salary and slip:
+            net_salary = float(slip["net_payable"] or 0)
+        basic = 0.0
+        if store:
+            basic = float(store["monthly_basic_salary"] or store["basic_salary"] or 0)
+        ot_amount = float((store["ot_amount"] if store else 0) or 0)
+        deductions = float(slip["total_deductions"] if slip else 0) or 0
+        paid = float(slip["actual_paid_amount"] if slip else 0) or 0
+        payable = float(slip["salary_after_deduction"] if slip else net_salary) or 0
+        balance = float(slip["company_balance_due"] if slip else net_salary) or 0
+        try:
+            advance = float(_advance_summary(db, driver_id)["remaining_advance"])
+        except Exception:
+            advance = 0.0
+
+        if not slip:
+            status = "Not Run"
+        elif paid <= 0 and payable <= 0:
+            status = "Nil"
+        elif paid <= 0:
+            status = "Unpaid"
+        elif paid + 0.01 < payable:
+            status = "Partial"
+        else:
+            status = "Paid"
+
+        rows.append(
+            {
+                "employee_id": driver_id,
+                "name": emp["full_name"] if emp else driver_id,
+                "department": (emp["department"] if emp else "") or "",
+                "employee_type": (emp["employee_type"] if emp else "") or "",
+                "emp_status": (emp["status"] if emp else "") or "",
+                "vehicle": vehicles.get(driver_id, ""),
+                "basic": basic,
+                "net_salary": net_salary,
+                "ot_amount": ot_amount,
+                "advance": advance,
+                "deductions": deductions,
+                "paid": paid,
+                "balance": balance,
+                "status": status,
+                "payment_source": (slip["payment_source"] if slip else "") or "",
+                "paid_by": (slip["paid_by"] if slip else "") or "",
+            }
+        )
+    return rows
+
+
+def _report_totals(rows):
+    keys = ("basic", "net_salary", "ot_amount", "advance", "deductions", "paid", "balance")
+    return {key: sum(float(r[key]) for r in rows) for key in keys}
+
+
+def _report_context(db):
+    months = _report_months(db)
+    default_month = _last_closed_month()
+    month = request.args.get("month", "").strip()
+    if not month or month not in months:
+        month = default_month if default_month in months else (months[0] if months else default_month)
+    return month, months
+
+
+@hr_bp.route("/hr/paid-salary-report")
+@_login_required("admin")
+def paid_salary_report():
+    """Last month's paid salaries with balance, OT and outstanding advance."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+
+    month, months = _report_context(db)
+    rows = _paid_salary_report_rows(db, month)
+
+    return render_template(
+        "hr/paid_salary_report.html",
+        rows=rows,
+        totals=_report_totals(rows),
+        month=month,
+        month_label=format_month_label(month),
+        month_options=_format_month_options(months),
+        paid_count=sum(1 for r in rows if r["status"] in ("Paid", "Partial")),
+    )
+
+
+@hr_bp.route("/hr/paid-salary-report/excel")
+@_login_required("admin")
+def paid_salary_report_excel():
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+
+    month, months = _report_context(db)
+    rows = _paid_salary_report_rows(db, month)
+    totals = _report_totals(rows)
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Paid Salary"
+
+    head_font = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+    head_fill = PatternFill("solid", fgColor="1a3a5c")
+    total_fill = PatternFill("solid", fgColor="e8eef7")
+    center = Alignment(horizontal="center", vertical="center")
+    right = Alignment(horizontal="right", vertical="center")
+    thin = Side(style="thin", color="d8e4f5")
+    border = Border(top=thin, left=thin, right=thin, bottom=thin)
+
+    heads = [
+        "#", "Employee ID", "Name", "Department", "Vehicle", "Status",
+        "Basic Salary", "Net Salary", "OT Amount", "Advance (Due)",
+        "Deductions", "Actual Paid", "Balance Due", "Payment Status",
+    ]
+    for ci, head in enumerate(heads, 1):
+        cell = ws.cell(row=1, column=ci, value=head)
+        cell.font = head_font
+        cell.fill = head_fill
+        cell.alignment = center
+        cell.border = border
+
+    status_fill = {
+        "Paid": PatternFill("solid", fgColor="D5F5E3"),
+        "Partial": PatternFill("solid", fgColor="FDEBD0"),
+        "Unpaid": PatternFill("solid", fgColor="FADBD8"),
+        "Nil": PatternFill("solid", fgColor="F2F3F4"),
+        "Not Run": PatternFill("solid", fgColor="F2F3F4"),
+    }
+
+    for idx, row in enumerate(rows, 1):
+        values = [
+            idx, row["employee_id"], row["name"], row["department"], row["vehicle"],
+            row["emp_status"], row["basic"], row["net_salary"], row["ot_amount"],
+            row["advance"], row["deductions"], row["paid"], row["balance"], row["status"],
+        ]
+        excel_row = idx + 1
+        for ci, value in enumerate(values, 1):
+            cell = ws.cell(row=excel_row, column=ci, value=value)
+            cell.border = border
+            if 7 <= ci <= 13:
+                cell.number_format = "#,##0.00"
+                cell.alignment = right
+            elif ci in (1, 6, 14):
+                cell.alignment = center
+        fill = status_fill.get(row["status"])
+        if fill:
+            ws.cell(row=excel_row, column=14).fill = fill
+
+    total_row = len(rows) + 2
+    ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
+    for ci, key in ((7, "basic"), (8, "net_salary"), (9, "ot_amount"), (10, "advance"),
+                    (11, "deductions"), (12, "paid"), (13, "balance")):
+        cell = ws.cell(row=total_row, column=ci, value=totals[key])
+        cell.font = Font(bold=True)
+        cell.number_format = "#,##0.00"
+        cell.alignment = right
+    for ci in range(1, len(heads) + 1):
+        cell = ws.cell(row=total_row, column=ci)
+        cell.fill = total_fill
+        cell.border = border
+
+    widths = [5, 14, 30, 16, 12, 12, 14, 14, 12, 15, 13, 14, 14, 15]
+    for ci, width in enumerate(widths, 1):
+        ws.column_dimensions[ws.cell(row=1, column=ci).column_letter].width = width
+    ws.freeze_panes = "A2"
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=f"paid_salary_report_{month}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @hr_bp.app_template_global()

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Paid Salary Report — Current Link ERP{% endblock %}
+{% block body_class %}dashboard-body{% endblock %}
+{% block page_title %}Paid Salary Report{% endblock %}
+
+{% block content %}
+<style>
+.pr-root { font-family: system-ui, -apple-system, sans-serif; }
+.pr-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+.pr-top h2 { margin:0; font-size:1.05rem; font-weight:700; color:#0f172a; }
+.pr-top p { margin:2px 0 0; font-size:.78rem; color:#64748b; }
+.pr-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pr-controls label { font-size:.78rem; font-weight:600; color:#475569; }
+.pr-controls select { padding:7px 12px; border:1.5px solid #cbd5e1; border-radius:8px; font-size:.82rem; font-weight:500; background:#fff; cursor:pointer; min-width:150px; }
+.pr-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border:1.5px solid #cbd5e1; border-radius:8px; background:#fff; font-size:.78rem; font-weight:600; color:#334155; text-decoration:none; transition:all .12s; }
+.pr-btn:hover { background:#f1f5f9; border-color:#94a3b8; }
+.pr-btn-primary { background:#1a3a5c; border-color:#1a3a5c; color:#fff; }
+.pr-btn-primary:hover { background:#12293f; }
+.pr-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:12px; margin-bottom:20px; }
+.pr-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:16px 18px; }
+.pr-card .num { font-size:1.45rem; font-weight:800; line-height:1.2; letter-spacing:-.4px; }
+.pr-card .lbl { font-size:.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.4px; margin-top:3px; }
+.pr-table-wrap { overflow-x:auto; background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; }
+.pr-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+.pr-table th { background:#f8fafc; padding:11px 12px; font-size:.68rem; font-weight:700; text-transform:uppercase; color:#64748b; letter-spacing:.4px; border-bottom:1.5px solid #e2e8f0; white-space:nowrap; text-align:left; }
+.pr-table td { padding:9px 12px; border-bottom:1px solid #f1f5f9; white-space:nowrap; }
+.pr-table tr:last-child td { border-bottom:none; }
+.pr-table tbody tr { cursor:pointer; }
+.pr-table tbody tr:hover td { background:#f8fafc; }
+.pr-num { text-align:right; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.76rem; }
+.pr-tfoot td { background:#e8eef7; font-weight:800; border-top:2px solid #cbd5e1; }
+.pr-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 11px; border-radius:20px; font-size:.72rem; font-weight:700; }
+.pr-paid { background:#ecfdf5; color:#059669; }
+.pr-partial { background:#fffbeb; color:#d97706; }
+.pr-unpaid { background:#fef2f2; color:#dc2626; }
+.pr-nil { background:#f1f5f9; color:#64748b; }
+.pr-empty { text-align:center; padding:44px 20px; color:#94a3b8; font-size:.85rem; }
+</style>
+
+<div class="pr-root">
+  <div class="pr-top">
+    <div>
+      <h2>Paid salary &mdash; {{ month_label }}</h2>
+      <p>Actual paid amount, balance still due, overtime and the advance that stays on each driver.</p>
+    </div>
+    <div class="pr-controls">
+      <form method="get" style="display:flex;align-items:center;gap:8px">
+        <label for="prMonth">Month:</label>
+        <select id="prMonth" name="month" onchange="this.form.submit()">
+          {% for value, label in month_options %}
+          <option value="{{ value }}" {% if value == month %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      <a class="pr-btn" href="{{ url_for('hr.salary_dashboard') }}">&#8592; Salary Dashboard</a>
+      <a class="pr-btn pr-btn-primary" href="{{ url_for('hr.paid_salary_report_excel', month=month) }}">&#128202; Excel</a>
+    </div>
+  </div>
+
+  <div class="pr-summary">
+    <div class="pr-card">
+      <div class="num" style="color:#059669">AED {{ '{:,.2f}'.format(totals.paid) }}</div>
+      <div class="lbl">Actual Paid</div>
+    </div>
+    <div class="pr-card">
+      <div class="num" style="color:#dc2626">AED {{ '{:,.2f}'.format(totals.balance) }}</div>
+      <div class="lbl">Balance Due</div>
+    </div>
+    <div class="pr-card">
+      <div class="num" style="color:#8b5cf6">AED {{ '{:,.2f}'.format(totals.ot_amount) }}</div>
+      <div class="lbl">Overtime Total</div>
+    </div>
+    <div class="pr-card">
+      <div class="num" style="color:#d97706">AED {{ '{:,.2f}'.format(totals.advance) }}</div>
+      <div class="lbl">Advance on Drivers</div>
+    </div>
+    <div class="pr-card">
+      <div class="num" style="color:#1a3a5c">{{ paid_count }}/{{ rows|length }}</div>
+      <div class="lbl">Paid / Total rows</div>
+    </div>
+  </div>
+
+  <div class="pr-table-wrap">
+    <table class="pr-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Employee</th>
+          <th>Name</th>
+          <th>Department</th>
+          <th>Vehicle</th>
+          <th style="text-align:right">Basic</th>
+          <th style="text-align:right">Net Salary</th>
+          <th style="text-align:right">OT Amount</th>
+          <th style="text-align:right">Advance</th>
+          <th style="text-align:right">Deductions</th>
+          <th style="text-align:right">Actual Paid</th>
+          <th style="text-align:right">Balance Due</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr onclick="window.location='{{ url_for('hr.employee_detail', employee_id=r.employee_id) }}'">
+          <td>{{ loop.index }}</td>
+          <td class="pr-num" style="text-align:left">{{ r.employee_id }}</td>
+          <td><strong>{{ r.name }}</strong></td>
+          <td>{{ r.department }}</td>
+          <td>{{ r.vehicle or '—' }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(r.basic) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(r.net_salary) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(r.ot_amount) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(r.advance) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(r.deductions) }}</td>
+          <td class="pr-num" style="color:#059669;font-weight:700">{{ '{:,.2f}'.format(r.paid) }}</td>
+          <td class="pr-num" style="color:#dc2626;font-weight:700">{{ '{:,.2f}'.format(r.balance) }}</td>
+          <td>
+            {% set cls = 'pr-paid' if r.status == 'Paid' else ('pr-partial' if r.status == 'Partial' else ('pr-unpaid' if r.status == 'Unpaid' else 'pr-nil')) %}
+            <span class="pr-badge {{ cls }}">{{ r.status }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot class="pr-tfoot">
+        <tr>
+          <td colspan="5">TOTAL &mdash; {{ rows|length }} employee{{ 's' if rows|length != 1 }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(totals.basic) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(totals.net_salary) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(totals.ot_amount) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(totals.advance) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(totals.deductions) }}</td>
+          <td class="pr-num" style="color:#059669">{{ '{:,.2f}'.format(totals.paid) }}</td>
+          <td class="pr-num" style="color:#dc2626">{{ '{:,.2f}'.format(totals.balance) }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+    {% if not rows %}
+    <div class="pr-empty">No salary records for {{ month_label }}.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

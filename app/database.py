@@ -1998,6 +1998,18 @@ REQUIRED_COLUMNS = {
     "employees": {
         "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
         "termination_date": "TEXT",
+        # Driver / operator documents (additive — existing rows untouched)
+        "driving_license_no": "TEXT",
+        "driving_license_expiry": "TEXT",
+        "driving_license_front": "TEXT",
+        "driving_license_front_type": "TEXT",
+        "driving_license_back": "TEXT",
+        "driving_license_back_type": "TEXT",
+        "emirates_id_no": "TEXT",
+        "emirates_id_front": "TEXT",
+        "emirates_id_front_type": "TEXT",
+        "emirates_id_back": "TEXT",
+        "emirates_id_back_type": "TEXT",
     },
     "supplier_vouchers": {
         "source_type": "TEXT NOT NULL DEFAULT 'Timesheet'",
