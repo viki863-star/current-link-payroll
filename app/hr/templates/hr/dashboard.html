@@ -9,400 +9,797 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='hr-2027.js', v='20260818') }}"></script>
+
+{# ═══════════════ HR Command Center — design system (scoped to .hrx) ═══════════════ #}
 <style>
-@keyframes pulse-dot {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: .5; transform: scale(1.3); }
+.hrx{
+  --n900:#071a33; --n800:#0b2545; --n700:#0f2a54;
+  --b600:#1c568b; --b500:#246ba8; --b400:#2a7fbf; --b300:#57a4d8;
+  --ink:#101c2e; --slate:#46566d; --mute:#7e8da3; --line:#e6ecf5;
+  --green:#16a34a; --amber:#f59e0b; --red:#ef4444; --violet:#8b5cf6; --orange:#f97316; --cyan:#0ea5e9;
+  --r-lg:22px; --r-md:16px; --r-sm:12px;
+  --sh-1:0 1px 2px rgba(11,37,69,.05), 0 10px 26px -18px rgba(11,37,69,.35);
+  --sh-2:0 2px 4px rgba(11,37,69,.06), 0 20px 46px -20px rgba(11,37,69,.45);
+  display:flex; flex-direction:column; gap:16px;
+  font-family:Inter,'Segoe UI',system-ui,sans-serif;
 }
-.counter-num { animation: countFadeIn .8s ease-out; }
-@keyframes countFadeIn {
-    0% { opacity: 0; transform: translateY(8px); }
-    100% { opacity: 1; transform: translateY(0); }
+@keyframes hrxRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes hrxPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(1.35)}}
+
+/* ─────────────── Hero ─────────────── */
+.hrx-hero{
+  position:relative; overflow:hidden; display:flex; align-items:flex-end; justify-content:space-between;
+  gap:26px; flex-wrap:wrap; padding:30px 34px 28px; border-radius:var(--r-lg); color:#fff;
+  background:linear-gradient(115deg,#071a33 0%,#0f2a54 44%,#1c568b 80%,#2a7fbf 100%);
+  box-shadow:0 26px 60px -30px rgba(9,29,58,.85);
+  animation:hrxRise .5s cubic-bezier(.2,.7,.3,1) backwards;
+}
+.hrx-hero::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size:46px 46px;
+  -webkit-mask-image:radial-gradient(ellipse 70% 90% at 85% 0%, #000 0%, transparent 72%);
+          mask-image:radial-gradient(ellipse 70% 90% at 85% 0%, #000 0%, transparent 72%);
+}
+.hrx-hero::after{
+  content:""; position:absolute; left:-90px; bottom:-150px; width:340px; height:340px; border-radius:50%;
+  background:radial-gradient(circle, rgba(249,115,22,.30), transparent 62%); pointer-events:none;
+}
+.hrx-hero-l, .hrx-hero-r{position:relative; z-index:1;}
+.hrx-hero-l{min-width:0; max-width:640px;}
+.hrx-eyebrow{
+  display:inline-flex; align-items:center; gap:8px; margin-bottom:12px;
+  font-size:.64rem; font-weight:800; letter-spacing:1.4px; text-transform:uppercase;
+  color:rgba(255,255,255,.82); background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.20); padding:6px 14px; border-radius:999px;
+}
+.hrx-eyebrow .hrx-dot{width:7px; height:7px; border-radius:50%; background:#4ade80; box-shadow:0 0 0 4px rgba(74,222,128,.18); animation:hrxPulse 2s infinite;}
+.hrx-hero h1{margin:0; font-size:2rem; font-weight:900; letter-spacing:-.045em; line-height:1.05;}
+.hrx-hero-l > p{margin:8px 0 0; font-size:.86rem; color:rgba(255,255,255,.72); max-width:520px;}
+.hrx-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:16px;}
+.hrx-chip{
+  display:inline-flex; align-items:center; gap:6px; padding:7px 13px; border-radius:999px;
+  font-size:.72rem; font-weight:600; color:rgba(255,255,255,.80);
+  background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.16);
+}
+.hrx-chip b{font-weight:900; color:#fff; font-variant-numeric:tabular-nums;}
+.hrx-chip.is-ok{background:rgba(34,197,94,.13); border-color:rgba(74,222,128,.32);}
+.hrx-chip.is-ok b{color:#4ade80;}
+.hrx-chip.is-warn{background:rgba(249,115,22,.14); border-color:rgba(251,146,60,.34);}
+.hrx-chip.is-warn b{color:#fdba74;}
+.hrx-hero-r{display:flex; flex-direction:column; align-items:flex-end; gap:11px;}
+.hrx-btn-white{
+  display:inline-flex; align-items:center; gap:9px; padding:13px 24px; border-radius:14px;
+  font-size:.84rem; font-weight:800; text-decoration:none; color:var(--n700); background:#fff;
+  box-shadow:0 14px 30px -14px rgba(0,0,0,.55); transition:transform .16s ease, box-shadow .16s ease;
+}
+.hrx-btn-white:hover{transform:translateY(-2px); box-shadow:0 18px 36px -14px rgba(0,0,0,.6); color:var(--n700); text-decoration:none;}
+.hrx-hero-links{display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px;}
+.hrx-hero-links a{
+  display:inline-flex; align-items:center; gap:7px; padding:9px 15px; border-radius:11px;
+  font-size:.75rem; font-weight:700; text-decoration:none; color:rgba(255,255,255,.92);
+  background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.20);
+  transition:background .15s ease, transform .15s ease;
+}
+.hrx-hero-links a:hover{background:rgba(255,255,255,.20); transform:translateY(-2px); color:#fff; text-decoration:none;}
+@media(max-width:980px){
+  .hrx-hero-r{align-items:flex-start;} .hrx-hero-links{justify-content:flex-start;}
+}
+
+/* ─────────────── KPI cards ─────────────── */
+.hrx-kpis{display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:14px;}
+@media(max-width:1320px){.hrx-kpis{grid-template-columns:repeat(3, minmax(0,1fr));}}
+@media(max-width:760px){.hrx-kpis{grid-template-columns:repeat(2, minmax(0,1fr));}}
+.hrx-kpi{
+  position:relative; overflow:hidden; background:#fff; border:1px solid var(--line);
+  border-radius:var(--r-md); padding:15px 15px 13px; box-shadow:var(--sh-1);
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  animation:hrxRise .5s cubic-bezier(.2,.7,.3,1) backwards;
+}
+.hrx-kpi:nth-child(1){animation-delay:.05s} .hrx-kpi:nth-child(2){animation-delay:.10s}
+.hrx-kpi:nth-child(3){animation-delay:.15s} .hrx-kpi:nth-child(4){animation-delay:.20s}
+.hrx-kpi:nth-child(5){animation-delay:.25s} .hrx-kpi:nth-child(6){animation-delay:.30s}
+.hrx-kpi:hover{transform:translateY(-4px); box-shadow:var(--sh-2); border-color:#d7e4f4;}
+.hrx-kpi::before{
+  content:""; position:absolute; left:0; right:0; top:0; height:3px;
+  background:linear-gradient(90deg, var(--k, #1c568b), transparent 72%); opacity:.85;
+}
+.hrx-kpi-head{display:flex; align-items:center; justify-content:space-between;}
+.hrx-kpi-ic{
+  width:38px; height:38px; border-radius:12px; display:grid; place-items:center; color:#fff;
+  background:linear-gradient(135deg, var(--k, #1c568b), color-mix(in srgb, var(--k, #1c568b) 55%, #06121f));
+  box-shadow:0 8px 18px -8px color-mix(in srgb, var(--k, #1c568b) 75%, transparent);
+}
+.hrx-kpi-tag{font-size:.58rem; font-weight:900; letter-spacing:.9px; text-transform:uppercase; color:var(--mute);}
+.hrx-kpi-label{font-size:.72rem; font-weight:800; color:var(--slate); margin-top:13px;}
+.hrx-kpi-num{
+  font-size:1.72rem; font-weight:900; letter-spacing:-.04em; line-height:1.1; margin-top:2px;
+  color:var(--ink); font-variant-numeric:tabular-nums;
+}
+.hrx-kpi-num.is-sm{font-size:1.02rem; color:var(--k, var(--b600)); letter-spacing:-.02em; padding-top:5px;}
+.hrx-kpi-foot{font-size:.65rem; font-weight:700; color:var(--mute); margin-top:7px;}
+
+/* ─────────────── Split: salary + side ─────────────── */
+.hrx-split{display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); gap:16px; align-items:stretch;}
+@media(max-width:1140px){.hrx-split{grid-template-columns:1fr;}}
+
+.hrx-salary{
+  position:relative; overflow:hidden; border-radius:var(--r-lg); padding:24px 26px 24px; color:#fff;
+  background:linear-gradient(135deg,#08192f 0%,#102f5e 52%,#1a4d86 100%);
+  box-shadow:0 28px 60px -32px rgba(8,25,47,.95);
+  display:flex; flex-direction:column; gap:18px;
+}
+.hrx-salary::before{
+  content:""; position:absolute; right:-70px; top:-90px; width:280px; height:280px; border-radius:50%;
+  background:radial-gradient(circle, rgba(56,189,248,.22), transparent 65%); pointer-events:none;
+}
+.hrx-salary::after{
+  content:""; position:absolute; left:35%; bottom:-120px; width:260px; height:260px; border-radius:50%;
+  background:radial-gradient(circle, rgba(34,197,94,.14), transparent 65%); pointer-events:none;
+}
+.hrx-sal-head, .hrx-sal-body{position:relative; z-index:1;}
+.hrx-sal-head{display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+.hrx-sal-eyebrow{
+  display:inline-flex; align-items:center; gap:7px; font-size:.6rem; font-weight:900;
+  letter-spacing:1.2px; text-transform:uppercase; color:#7dd3fc;
+}
+.hrx-sal-eyebrow .hrx-dot{width:7px; height:7px; border-radius:50%; background:#4ade80; animation:hrxPulse 2s infinite;}
+.hrx-sal-title{font-size:1.3rem; font-weight:900; letter-spacing:-.03em; margin-top:6px;}
+.hrx-sal-total{text-align:right;}
+.hrx-sal-total span{display:block; font-size:.58rem; font-weight:900; letter-spacing:1px; text-transform:uppercase; color:rgba(255,255,255,.45);}
+.hrx-sal-total b{display:block; font-size:2.6rem; font-weight:900; line-height:1; letter-spacing:-.05em; font-variant-numeric:tabular-nums;}
+.hrx-sal-body{display:flex; flex-direction:column; gap:14px;}
+.hrx-sal-metrics{display:grid; grid-template-columns:236px minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:stretch;}
+@media(max-width:1040px){.hrx-sal-metrics{grid-template-columns:1fr 1fr;} .hrx-sal-gaugewrap{grid-column:1 / -1;}}
+@media(max-width:620px){.hrx-sal-metrics{grid-template-columns:1fr;} .hrx-sal-gaugewrap{grid-column:auto;}}
+.hrx-sal-gaugewrap{
+  display:flex; flex-direction:column; justify-content:center;
+  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.10);
+  border-radius:15px; padding:14px 16px 15px;
+}
+.hrx-gauge{position:relative; width:100%; max-width:250px; height:140px; margin:0 auto;}
+.hrx-gauge canvas{width:100% !important; height:100% !important;}
+.hrx-gauge-mid{position:absolute; left:0; right:0; bottom:6px; text-align:center; pointer-events:none;}
+.hrx-gauge-mid b{display:block; font-size:1.9rem; font-weight:900; letter-spacing:-.04em; line-height:1;}
+.hrx-gauge-mid span{display:block; font-size:.56rem; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:rgba(255,255,255,.5); margin-top:4px;}
+.hrx-sal-pills{display:flex; gap:9px; margin-top:14px;}
+.hrx-pill{
+  flex:1; display:flex; align-items:center; justify-content:center; gap:7px; padding:9px 10px;
+  border-radius:11px; font-size:.7rem; font-weight:800; letter-spacing:.3px;
+  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:rgba(255,255,255,.7);
+}
+.hrx-pill i{width:8px; height:8px; border-radius:50%; background:#4ade80;}
+.hrx-pill b{font-size:.95rem; font-weight:900; color:#fff; font-variant-numeric:tabular-nums;}
+.hrx-pill.is-bad i{background:#f87171;}
+.hrx-sal-card{
+  position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:center;
+  border-radius:15px; padding:15px 17px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.13);
+}
+.hrx-sal-card::after{
+  content:""; position:absolute; right:-34px; top:-34px; width:110px; height:110px; border-radius:50%;
+  background:radial-gradient(circle, rgba(34,197,94,.20), transparent 70%);
+}
+.hrx-sal-card.is-bad::after{background:radial-gradient(circle, rgba(239,68,68,.20), transparent 70%);}
+.hrx-sal-card-top{position:relative; display:flex; align-items:center; gap:9px;}
+.hrx-sal-ic{
+  width:27px; height:27px; border-radius:9px; display:grid; place-items:center;
+  background:rgba(34,197,94,.18); color:#4ade80;
+}
+.hrx-sal-card.is-bad .hrx-sal-ic{background:rgba(239,68,68,.18); color:#f87171;}
+.hrx-sal-card-top span{font-size:.6rem; font-weight:900; letter-spacing:.9px; text-transform:uppercase; color:rgba(255,255,255,.55);}
+.hrx-sal-amt{position:relative; font-size:1.5rem; font-weight:900; letter-spacing:-.035em; margin-top:11px; color:#4ade80; font-variant-numeric:tabular-nums;}
+.hrx-sal-card.is-bad .hrx-sal-amt{color:#f87171;}
+.hrx-sal-sub{position:relative; font-size:.65rem; font-weight:700; color:rgba(255,255,255,.5); margin-top:3px;}
+.hrx-bar{height:5px; border-radius:99px; background:rgba(255,255,255,.13); margin-top:12px; overflow:hidden;}
+.hrx-bar span{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#22c55e,#4ade80); transition:width .9s cubic-bezier(.2,.7,.3,1);}
+.hrx-bar.is-bad span{background:linear-gradient(90deg,#dc2626,#f87171);}
+.hrx-sal-trend{
+  position:relative; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.10);
+  border-radius:15px; padding:13px 15px 8px;
+}
+.hrx-sal-trend-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:2px;}
+.hrx-sal-trend-head span{font-size:.6rem; font-weight:900; letter-spacing:.9px; text-transform:uppercase; color:rgba(255,255,255,.55);}
+.hrx-sal-trend-legend{display:flex; gap:12px;}
+.hrx-sal-trend-legend i{display:inline-flex; align-items:center; gap:5px; font-style:normal; font-size:.6rem; font-weight:700; color:rgba(255,255,255,.5);}
+.hrx-sal-trend-legend i::before{content:""; width:8px; height:8px; border-radius:3px; background:#4ade80;}
+.hrx-sal-trend-legend i.is-bad::before{background:rgba(248,113,113,.75);}
+.hrx-sal-trend-canvas{position:relative; height:170px;}
+
+/* ─────────────── Side cards ─────────────── */
+.hrx-side{display:flex; flex-direction:column; gap:16px;}
+.hrx-card{
+  background:#fff; border:1px solid var(--line); border-radius:var(--r-lg);
+  padding:17px 18px 16px; box-shadow:var(--sh-1); transition:box-shadow .18s ease, transform .18s ease;
+}
+.hrx-card:hover{box-shadow:var(--sh-2);}
+.hrx-card-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;}
+.hrx-card-title{
+  display:flex; align-items:center; gap:9px;
+  font-size:.7rem; font-weight:900; letter-spacing:.7px; text-transform:uppercase; color:var(--slate);
+}
+.hrx-card-title .ic{
+  width:27px; height:27px; border-radius:9px; display:grid; place-items:center;
+  color:#fff; background:linear-gradient(135deg, var(--t, #1c568b), #2a7fbf);
+}
+.hrx-more{font-size:.7rem; font-weight:800; color:var(--b600); text-decoration:none; white-space:nowrap;}
+.hrx-more:hover{text-decoration:underline;}
+
+.hrx-cov-top{display:flex; align-items:flex-end; justify-content:space-between; gap:10px;}
+.hrx-cov-num b{font-size:1.9rem; font-weight:900; letter-spacing:-.04em; color:var(--ink); font-variant-numeric:tabular-nums;}
+.hrx-cov-num span{font-size:.7rem; font-weight:700; color:var(--mute); margin-left:5px;}
+.hrx-cov-pct{font-size:.95rem; font-weight:900; color:var(--b600); font-variant-numeric:tabular-nums;}
+.hrx-bar.lt{background:#e9eff9; height:7px; margin-top:9px;}
+.hrx-bar.lt span{background:linear-gradient(90deg,#1c568b,#38bdf8);}
+.hrx-cov-rows{margin-top:13px; display:flex; flex-direction:column; gap:9px;}
+.hrx-cov-row{display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center;}
+.hrx-cov-row em{font-style:normal; font-size:.64rem; font-weight:900; letter-spacing:.5px; text-transform:uppercase; color:var(--slate);}
+.hrx-cov-row b{font-size:.72rem; font-weight:900; color:var(--ink); font-variant-numeric:tabular-nums;}
+.hrx-cov-row .hrx-bar{grid-column:1 / -1; margin-top:1px; height:5px;}
+.hrx-cta{
+  display:flex; align-items:center; justify-content:center; gap:7px; margin-top:14px;
+  padding:11px 14px; border-radius:12px; text-decoration:none;
+  font-size:.76rem; font-weight:900; color:#fff; background:linear-gradient(120deg,#0f2a54,#1c568b 65%,#2a7fbf);
+  box-shadow:0 10px 22px -12px rgba(28,86,139,.8); transition:transform .15s ease, filter .15s ease;
+}
+.hrx-cta:hover{transform:translateY(-2px); filter:brightness(1.07); color:#fff; text-decoration:none;}
+
+.hrx-links{display:flex; flex-direction:column; gap:8px;}
+.hrx-links a{
+  display:flex; align-items:center; gap:11px; padding:10px 12px;
+  border:1.5px solid var(--line); border-radius:13px; text-decoration:none;
+  font-size:.78rem; font-weight:800; color:var(--slate);
+  transition:border-color .15s ease, background .15s ease, transform .15s ease;
+}
+.hrx-links a:hover{border-color:#b9d3f0; background:#f6faff; transform:translateX(3px); color:var(--b600); text-decoration:none;}
+.hrx-links .ic{
+  width:30px; height:30px; border-radius:10px; flex-shrink:0; display:grid; place-items:center;
+  color:#fff; background:linear-gradient(135deg, var(--i, #1c568b), #2a7fbf);
+}
+.hrx-links a em{margin-left:auto; font-style:normal; font-size:.85rem; color:#a9bcd6; transition:transform .15s ease, color .15s ease;}
+.hrx-links a:hover em{transform:translateX(3px); color:var(--b600);}
+
+/* ─────────────── Quick transaction ─────────────── */
+.hrx-qtx{overflow:hidden; border-radius:var(--r-lg); box-shadow:var(--sh-1);}
+.hrx-qtx .qtx-head{padding:15px 22px; background:linear-gradient(115deg,#0b2545 0%,#1c568b 72%,#2a7fbf 100%);}
+.hrx-qtx .qtx-form{padding:17px 22px 19px; gap:13px 15px;}
+.hrx-qtx .qtx-actions{
+  flex-direction:row; align-items:center; justify-content:space-between; gap:12px;
+}
+.hrx-qtx-hint{font-size:.68rem; font-weight:700; color:var(--mute);}
+.hrx-qtx .qtx-btn{height:42px; padding:0 26px; border-radius:12px; font-size:.82rem;}
+@media(max-width:700px){.hrx-qtx .qtx-actions{flex-direction:column; align-items:stretch;} .hrx-qtx-hint{display:none;}}
+
+/* ─────────────── Charts ─────────────── */
+.hrx-charts{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px;}
+@media(max-width:1320px){.hrx-charts{grid-template-columns:repeat(2, minmax(0,1fr));}}
+@media(max-width:680px){.hrx-charts{grid-template-columns:1fr;}}
+.hrx-chart{
+  background:#fff; border:1px solid var(--line); border-radius:var(--r-md); padding:15px 15px 12px;
+  box-shadow:var(--sh-1); transition:transform .18s ease, box-shadow .18s ease;
+}
+.hrx-chart:hover{transform:translateY(-3px); box-shadow:var(--sh-2);}
+.hrx-chart-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;}
+.hrx-chart-title{
+  display:flex; align-items:center; gap:8px; min-width:0;
+  font-size:.7rem; font-weight:900; letter-spacing:.55px; text-transform:uppercase; color:var(--slate);
+}
+.hrx-tdot{
+  width:9px; height:9px; border-radius:50%; background:var(--d, #1c568b); flex-shrink:0;
+  box-shadow:0 0 0 3.5px color-mix(in srgb, var(--d, #1c568b) 16%, transparent);
+}
+.hrx-chart-tag{font-size:.6rem; font-weight:900; color:var(--mute); background:#f1f5fb; padding:3px 9px; border-radius:99px; white-space:nowrap;}
+.hrx-chart-body{position:relative; height:212px; margin-top:8px;}
+
+/* ─────────────── Bottom ─────────────── */
+.hrx-bottom{display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); gap:16px; align-items:start;}
+@media(max-width:1020px){.hrx-bottom{grid-template-columns:1fr;}}
+.hrx-emp{
+  display:flex; align-items:center; gap:12px; padding:9px 8px; border-radius:14px;
+  text-decoration:none; transition:background .15s ease, transform .15s ease;
+}
+.hrx-emp:hover{background:#f3f8ff; text-decoration:none; transform:translateX(2px);}
+.hrx-emp-av{
+  width:41px; height:41px; border-radius:14px; flex-shrink:0; overflow:hidden;
+  display:grid; place-items:center; font-size:.88rem; font-weight:900; color:#fff;
+  background:linear-gradient(135deg,#1c568b,#38a0d8);
+  box-shadow:0 8px 16px -9px rgba(28,86,139,.85);
+}
+.hrx-emp-av img{width:100%; height:100%; object-fit:cover;}
+.hrx-emp-meta{flex:1; min-width:0;}
+.hrx-emp-name{display:block; font-size:.84rem; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.hrx-emp-sub{display:block; font-size:.69rem; font-weight:600; color:var(--mute); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.hrx-emp .status-badge{margin-left:auto; flex-shrink:0;}
+.hrx-qacc{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.hrx-qacc a{
+  display:flex; align-items:center; gap:10px; padding:12px 13px;
+  border:1.5px solid var(--line); border-radius:14px; text-decoration:none;
+  font-size:.78rem; font-weight:800; color:var(--slate);
+  transition:border-color .15s ease, background .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.hrx-qacc a:hover{
+  border-color:#b9d3f0; background:#f6faff; color:var(--b600); transform:translateY(-2px);
+  box-shadow:0 10px 22px -14px rgba(28,86,139,.55); text-decoration:none;
+}
+.hrx-qacc .ic{
+  width:31px; height:31px; border-radius:10px; flex-shrink:0; display:grid; place-items:center;
+  color:#fff; background:linear-gradient(135deg, var(--i, #1c568b), #2a7fbf);
 }
 </style>
 
 <div class="db-shell">
-    <div class="hr-wrap">
+<div class="hrx">
 
-        {# ─── Hero Header ─── #}
-        <div class="hr-hero">
-            <div class="hr-hero-inner">
-                <div>
-                    <div class="hr-hero-badge">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-                        HR Workspace
-                    </div>
-                    <h1>Human Resources</h1>
-                    <p>Manage employees, payroll, advances &amp; monthly statements — all in one place.</p>
-                </div>
-                <div class="hr-hero-right">
-                    <a class="hr-hero-btn" href="{{ url_for('hr.employee_new') }}">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-                        Add Employee
-                    </a>
-                    <a class="hr-hero-btn is-ghost" href="{{ url_for('hr.employee_list') }}">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
-                        Employee Directory
-                    </a>
-                    <a class="hr-hero-btn is-ghost" href="{{ url_for('hr.salary_dashboard') }}">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg>
-                        Salary Dashboard
-                    </a>
-                    <a class="hr-hero-btn is-ghost" href="{{ url_for('hr.id_status') }}">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="1" y="3.5" width="18" height="13" rx="2"/><circle cx="6.5" cy="9" r="2"/><path d="M11.5 8h5M11.5 11.5h5M3.5 14.5h13"/></svg>
-                        License &amp; EID Status
-                    </a>
-                </div>
+    {# ─────────── Hero ─────────── #}
+    <div class="hrx-hero">
+        <div class="hrx-hero-l">
+            <div class="hrx-eyebrow"><span class="hrx-dot"></span> HR Workspace &middot; {{ today[8:10]|int }} {{ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][today[5:7]|int - 1] }} {{ today[0:4] }}</div>
+            <h1>Human Resources</h1>
+            <p>Employees, payroll, advances and compliance documents — every HR number in one command center.</p>
+            <div class="hrx-chips">
+                <span class="hrx-chip"><b>{{ active_count }}</b>&nbsp;active staff</span>
+                <span class="hrx-chip">Payroll&nbsp;<b>AED&nbsp;{{ "{:,.0f}".format(payroll_amount) }}</b></span>
+                {% if docs_active %}
+                <span class="hrx-chip is-ok"><b>{{ docs_uploaded }}</b>/{{ docs_active }}&nbsp;IDs uploaded</span>
+                {% endif %}
+                {% if advances_pending %}
+                <span class="hrx-chip is-warn"><b>{{ advances_pending }}</b>&nbsp;advances open</span>
+                {% endif %}
             </div>
         </div>
-
-        {# ─── KPI Cards ─── #}
-        <div class="hr-kpi-grid">
-            <div class="hr-kpi" style="--k-c:var(--hr-blue)">
-                <div class="hr-kpi-top">
-                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg></div>
-                    <span class="hr-kpi-sub">Total</span>
-                </div>
-                <div class="hr-kpi-title">Total Employees</div>
-                <div class="hr-kpi-num">{{ total }}</div>
-            </div>
-            <div class="hr-kpi" style="--k-c:var(--hr-green)">
-                <div class="hr-kpi-top">
-                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                    <span class="hr-kpi-sub">Working</span>
-                </div>
-                <div class="hr-kpi-title">Active</div>
-                <div class="hr-kpi-num">{{ active_count }}</div>
-            </div>
-            <div class="hr-kpi" style="--k-c:var(--hr-orange)">
-                <div class="hr-kpi-top">
-                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M8 17v-4"/><path d="M12 17v-6"/><path d="M16 17V9"/><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M2 12h20"/></svg></div>
-                    <span class="hr-kpi-sub">Leave</span>
-                </div>
-                <div class="hr-kpi-title">On Leave</div>
-                <div class="hr-kpi-num">{{ on_leave }}</div>
-            </div>
-            <div class="hr-kpi" style="--k-c:var(--hr-red)">
-                <div class="hr-kpi-top">
-                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="1" y1="1" x2="19" y2="19"/></svg></div>
-                    <span class="hr-kpi-sub">Left</span>
-                </div>
-                <div class="hr-kpi-title">Inactive</div>
-                <div class="hr-kpi-num">{{ inactive_count }}</div>
-            </div>
-            <div class="hr-kpi" style="--k-c:var(--hr-blue2)">
-                <div class="hr-kpi-top">
-                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-                    <span class="hr-kpi-sub">Payroll</span>
-                </div>
-                <div class="hr-kpi-title">Payroll (Active)</div>
-                <div class="hr-kpi-num is-sm">AED {{ "{:,.0f}".format(payroll_amount) }}</div>
-                <div class="hr-kpi-foot">{{ stored_this_month }} entries this month</div>
-            </div>
-            <div class="hr-kpi" style="--k-c:var(--hr-red)">
-                <div class="hr-kpi-top">
-                    <div class="hr-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
-                    <span class="hr-kpi-sub">Unsettled</span>
-                </div>
-                <div class="hr-kpi-title">Advances Pending</div>
-                <div class="hr-kpi-num">{{ advances_pending }}</div>
-            </div>
-        </div>
-
-        {# ─── Quick Transaction ─── #}
-        <div class="qtx-panel">
-            <div class="qtx-head">
-                <div class="qtx-head-title">
-                    <div class="qtx-head-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
-                    </div>
-                    <div>
-                        <div class="qtx-head-name">Quick Transaction</div>
-                        <div class="qtx-head-sub">Record advance / loan / payment for any employee — no profile visit needed</div>
-                    </div>
-                </div>
-                <a href="{{ url_for('hr.quick_transaction') }}" class="qtx-full">Open full form <span>&rarr;</span></a>
-            </div>
-            <form method="POST" action="{{ url_for('hr.quick_transaction') }}" class="qtx-form" id="qtxForm">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="qtx-field qtx-field-employee">
-                    <label class="qtx-label">Employee <i>*</i></label>
-                    {{ employee_picker(employees) }}
-                </div>
-
-                <div class="qtx-field">
-                    <label class="qtx-label">Amount (AED) <i>*</i></label>
-                    <div class="qtx-input-wrap">
-                        <span class="qtx-input-icon qtx-currency">AED</span>
-                        <input type="number" name="amount" class="qtx-input qtx-amount" required step="0.01" min="0.01" placeholder="0.00" inputmode="decimal">
-                    </div>
-                </div>
-
-                <div class="qtx-field">
-                    <label class="qtx-label">Date</label>
-                    <div class="qtx-input-wrap">
-                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-                        <input type="date" name="entry_date" value="{{ today }}" class="qtx-input">
-                    </div>
-                </div>
-
-                <div class="qtx-field">
-                    <label class="qtx-label">Source</label>
-                    <div class="qtx-input-wrap">
-                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg></span>
-                        <select name="source" class="qtx-select">
-                            <option value="Cash">Cash</option>
-                            <option value="Bank">Bank</option>
-                            <option value="Owner Fund">Owner Fund</option>
-                            <option value="Current Link">Current Link</option>
-                            <option value="Office">Office</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="qtx-field">
-                    <label class="qtx-label">Given By <i>*</i></label>
-                    <div class="qtx-input-wrap">
-                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
-                        <input type="text" name="given_by" class="qtx-input" required placeholder="Person who issued">
-                    </div>
-                </div>
-
-                <div class="qtx-field" style="grid-column:span 2">
-                    <label class="qtx-label">Details / Reason <i>*</i></label>
-                    <div class="qtx-input-wrap">
-                        <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-                        <input type="text" name="details" class="qtx-input" required placeholder="Why this amount was given">
-                    </div>
-                </div>
-
-                <div class="qtx-field" style="grid-column:span 2">
-                    <label class="qtx-label">Transaction Type</label>
-                    <div class="qtx-type-grid" id="qtxTypeGrid">
-                        <label class="qtx-type-opt is-active" data-t="Advance">
-                            <input type="radio" name="txn_type" value="Advance" checked>
-                            <span class="qtx-type-dot" style="--t-c:#f97316"></span>
-                            <span class="qtx-type-txt">Advance</span>
-                        </label>
-                        <label class="qtx-type-opt" data-t="Loan">
-                            <input type="radio" name="txn_type" value="Loan">
-                            <span class="qtx-type-dot" style="--t-c:#8b5cf6"></span>
-                            <span class="qtx-type-txt">Loan</span>
-                        </label>
-                        <label class="qtx-type-opt" data-t="Payment">
-                            <input type="radio" name="txn_type" value="Payment">
-                            <span class="qtx-type-dot" style="--t-c:#22c55e"></span>
-                            <span class="qtx-type-txt">Payment</span>
-                        </label>
-                        <label class="qtx-type-opt" data-t="Other">
-                            <input type="radio" name="txn_type" value="Other">
-                            <span class="qtx-type-dot" style="--t-c:#64748b"></span>
-                            <span class="qtx-type-txt">Other</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="qtx-actions">
-                    <input type="hidden" name="salary_month" value="{{ today[:7] }}">
-                    <button type="submit" class="qtx-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
-                        Record
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        {# ─── Salary Overview (Ultra Premium) ─── #}
-        <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 40%,#1c568b 100%);border-radius:20px;padding:28px 32px;margin-bottom:0;position:relative;overflow:hidden;box-shadow:0 20px 60px rgba(28,86,139,.35)">
-            {# ── Decorative bg elements ── #}
-            <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.03)"></div>
-            <div style="position:absolute;bottom:-60px;left:-30px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.02)"></div>
-            <div style="position:absolute;top:50%;right:15%;width:80px;height:80px;border-radius:50%;background:rgba(34,197,94,.08);filter:blur(30px)"></div>
-
-            {# ── Header ── #}
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;position:relative;z-index:1">
-                <div>
-                    <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.25);border-radius:20px;padding:4px 12px;margin-bottom:10px">
-                        <div style="width:6px;height:6px;border-radius:50%;background:#22c55e;animation:pulse-dot 2s infinite"></div>
-                        <span style="font-size:.65rem;font-weight:600;color:#4ade80;letter-spacing:.5px;text-transform:uppercase">Live Dashboard</span>
-                    </div>
-                    <h2 style="margin:0;font-size:1.3rem;font-weight:800;color:#fff;letter-spacing:-.3px">Salary Overview</h2>
-                    <p style="margin:4px 0 0;font-size:.78rem;color:rgba(255,255,255,.5)">Last completed month &middot; {{ "%04d-%02d"|format(_prev_year, _prev_month) }}</p>
-                </div>
-                <div style="text-align:right">
-                    <div style="font-size:.65rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Total Workforce</div>
-                    <div style="font-size:2.8rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-1px" class="counter-num">{{ salary_paid_count + salary_unpaid_count }}</div>
-                </div>
-            </div>
-
-            {# ── Main Content Grid ── #}
-            <div style="display:grid;grid-template-columns:260px 1fr;gap:28px;align-items:start;position:relative;z-index:1">
-
-                {# ── Left: Radial Progress + Stats ── #}
-                <div>
-                    {# Radial gauge #}
-                    <div style="position:relative;width:220px;height:130px;margin:0 auto 16px">
-                        <canvas id="salaryGauge" style="width:220px!important;height:130px!important"></canvas>
-                        <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);text-align:center">
-                            <div style="font-size:1.8rem;font-weight:900;color:#fff;line-height:1" id="paidPercent">
-                                {% if salary_paid_count + salary_unpaid_count > 0 %}{{ ((salary_paid_count / (salary_paid_count + salary_unpaid_count)) * 100)|int }}{% else %}0{% endif %}%
-                            </div>
-                            <div style="font-size:.6rem;color:rgba(255,255,255,.5);margin-top:2px;text-transform:uppercase;letter-spacing:.5px">Completion Rate</div>
-                        </div>
-                    </div>
-
-                    {# Mini stat pills #}
-                    <div style="display:flex;gap:8px;justify-content:center">
-                        <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:8px 14px;text-align:center;flex:1">
-                            <div style="font-size:.55rem;color:#4ade80;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Paid</div>
-                            <div style="font-size:1.1rem;font-weight:800;color:#22c55e;line-height:1.3">{{ salary_paid_count }}</div>
-                        </div>
-                        <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:8px 14px;text-align:center;flex:1">
-                            <div style="font-size:.55rem;color:#f87171;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Unpaid</div>
-                            <div style="font-size:1.1rem;font-weight:800;color:#ef4444;line-height:1.3">{{ salary_unpaid_count }}</div>
-                        </div>
-                    </div>
-                </div>
-
-                {# ── Right: Detail Cards + Trend ── #}
-                <div>
-                    {# Top: Amount cards #}
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
-                        {# Paid card #}
-                        <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.15);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;backdrop-filter:blur(10px);transition:all .3s ease" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(34,197,94,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-                            <div style="position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle,rgba(34,197,94,.12) 0%,transparent 70%);border-radius:0 14px 0 50%"></div>
-                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-                                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#22c55e,#16a34a);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(34,197,94,.3)">
-                                    <svg viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2.2" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>
-                                </div>
-                                <div>
-                                    <div style="font-size:.6rem;color:#4ade80;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Total Paid</div>
-                                    <div style="font-size:.7rem;color:rgba(255,255,255,.4)">{{ salary_paid_count }} employees</div>
-                                </div>
-                            </div>
-                            <div style="font-size:1.5rem;font-weight:900;color:#4ade80;letter-spacing:-.5px">AED {{ "{:,.0f}".format(salary_paid_amount) }}</div>
-                            <div style="height:4px;background:rgba(34,197,94,.15);border-radius:2px;margin-top:12px;overflow:hidden">
-                                <div style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_paid_count / (salary_paid_count + salary_unpaid_count) * 100)|int }}{% else %}0{% endif %}%;height:100%;background:linear-gradient(90deg,#22c55e,#4ade80);border-radius:2px;transition:width 1.2s cubic-bezier(.4,0,.2,1)"></div>
-                            </div>
-                        </div>
-
-                        {# Unpaid card #}
-                        <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.15);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;backdrop-filter:blur(10px);transition:all .3s ease" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 30px rgba(239,68,68,.15)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-                            <div style="position:absolute;top:0;right:0;width:80px;height:80px;background:radial-gradient(circle,rgba(239,68,68,.12) 0%,transparent 70%);border-radius:0 14px 0 50%"></div>
-                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-                                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#ef4444,#dc2626);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(239,68,68,.3)">
-                                    <svg viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2.2" width="20" height="20"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2 2"/></svg>
-                                </div>
-                                <div>
-                                    <div style="font-size:.6rem;color:#f87171;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Total Unpaid</div>
-                                    <div style="font-size:.7rem;color:rgba(255,255,255,.4)">{{ salary_unpaid_count }} employees</div>
-                                </div>
-                            </div>
-                            <div style="font-size:1.5rem;font-weight:900;color:#f87171;letter-spacing:-.5px">AED {{ "{:,.0f}".format(salary_unpaid_amount) }}</div>
-                            <div style="height:4px;background:rgba(239,68,68,.15);border-radius:2px;margin-top:12px;overflow:hidden">
-                                <div style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_unpaid_count / (salary_paid_count + salary_unpaid_count) * 100)|int }}{% else %}0{% endif %}%;height:100%;background:linear-gradient(90deg,#ef4444,#f87171);border-radius:2px;transition:width 1.2s cubic-bezier(.4,0,.2,1)"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {# Bottom: 6-Month Trend #}
-                    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px;backdrop-filter:blur(10px)">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-                            <div style="font-size:.68rem;font-weight:600;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.5px">6-Month Trend</div>
-                            <div style="display:flex;gap:12px">
-                                <span style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:rgba(255,255,255,.4)"><span style="width:8px;height:8px;border-radius:2px;background:#4ade80;display:inline-block"></span>Paid</span>
-                                <span style="display:flex;align-items:center;gap:4px;font-size:.6rem;color:rgba(255,255,255,.4)"><span style="width:8px;height:8px;border-radius:2px;background:rgba(248,113,113,.6);display:inline-block"></span>Unpaid</span>
-                            </div>
-                        </div>
-                        <div style="height:100px"><canvas id="paidUnpaidTrend"></canvas></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {# ─── Charts ─── #}
-        <div class="hr-chart-grid">
-            <div class="hr-card">
-                <div class="hr-card-title"><span class="hr-tdot"></span> Employees by Department</div>
-                <div class="hr-chart-wrap"><canvas id="deptChart"></canvas></div>
-            </div>
-            <div class="hr-card">
-                <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-green)"></span> Employees by Type</div>
-                <div class="hr-chart-wrap"><canvas id="typeChart"></canvas></div>
-            </div>
-            <div class="hr-card">
-                <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-orange)"></span> Salary Store Trend (6 months)</div>
-                <div class="hr-chart-wrap"><canvas id="trendChart"></canvas></div>
-            </div>
-            <div class="hr-card">
-                <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-violet)"></span> Status Overview</div>
-                <div class="hr-chart-wrap"><canvas id="statusChart"></canvas></div>
-            </div>
-        </div>
-
-        {# ─── Recent Employees & Quick Access ─── #}
-        <div class="hr-bottom">
-            <div class="hr-card">
-                <div class="hr-card-title"><span class="hr-tdot"></span> Recent Employees</div>
-                {% for e in recent_employees %}
-                <a href="{{ url_for('hr.employee_detail', employee_id=e.employee_id) }}" class="hr-recent-item" style="text-decoration:none">
-                    <span class="hr-recent-av">
-                        {% set p_url = employee_photo_url(e) %}
-                        {% if p_url %}<img src="{{ p_url }}" alt="">{% else %}{{ e.full_name[:1]|upper }}{% endif %}
-                    </span>
-                    <span class="hr-recent-meta">
-                        <span class="hr-recent-name">{{ e.full_name }}</span>
-                        <span class="hr-recent-sub">{{ e.employee_id }} &middot; {{ e.department }} &middot; {{ e.employee_type }}</span>
-                    </span>
-                    <span class="status-badge {% if e.status|lower == 'active' %}active{% elif e.status|lower == 'on leave' %}warning{% elif e.status|lower == 'terminated' %}danger{% else %}inactive{% endif %}" style="font-size:0.62rem">{{ e.status }}</span>
+        <div class="hrx-hero-r">
+            <a class="hrx-btn-white" href="{{ url_for('hr.employee_new') }}">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+                Add Employee
+            </a>
+            <div class="hrx-hero-links">
+                <a href="{{ url_for('hr.employee_list') }}">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
+                    Directory
                 </a>
-                {% endfor %}
+                <a href="{{ url_for('hr.salary_dashboard') }}">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg>
+                    Salary Dashboard
+                </a>
+                <a href="{{ url_for('hr.id_status') }}">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13"><rect x="1" y="3.5" width="18" height="13" rx="2"/><circle cx="6.5" cy="9" r="2"/><path d="M11.5 8h5M11.5 11.5h5M3.5 14.5h13"/></svg>
+                    License &amp; EID Status
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {# ─────────── KPI strip ─────────── #}
+    <div class="hrx-kpis">
+        <div class="hrx-kpi" style="--k:var(--b600)">
+            <div class="hrx-kpi-head">
+                <div class="hrx-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg></div>
+                <span class="hrx-kpi-tag">Total</span>
+            </div>
+            <div class="hrx-kpi-label">Total Employees</div>
+            <div class="hrx-kpi-num" data-count="{{ total }}">{{ total }}</div>
+            <div class="hrx-kpi-foot">{{ departments|length }} departments &middot; {{ employee_types|length }} roles</div>
+        </div>
+
+        <div class="hrx-kpi" style="--k:var(--green)">
+            <div class="hrx-kpi-head">
+                <div class="hrx-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                <span class="hrx-kpi-tag">Working</span>
+            </div>
+            <div class="hrx-kpi-label">Active Now</div>
+            <div class="hrx-kpi-num" data-count="{{ active_count }}">{{ active_count }}</div>
+            <div class="hrx-kpi-foot">{% if total %}{{ ((active_count / total) * 100)|round|int }}{% else %}0{% endif %}% of workforce</div>
+        </div>
+
+        <div class="hrx-kpi" style="--k:var(--amber)">
+            <div class="hrx-kpi-head">
+                <div class="hrx-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+                <span class="hrx-kpi-tag">Leave</span>
+            </div>
+            <div class="hrx-kpi-label">On Leave</div>
+            <div class="hrx-kpi-num" data-count="{{ on_leave }}">{{ on_leave }}</div>
+            <div class="hrx-kpi-foot">temporarily away</div>
+        </div>
+
+        <div class="hrx-kpi" style="--k:var(--red)">
+            <div class="hrx-kpi-head">
+                <div class="hrx-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="1" y1="1" x2="19" y2="19"/></svg></div>
+                <span class="hrx-kpi-tag">Exited</span>
+            </div>
+            <div class="hrx-kpi-label">Inactive</div>
+            <div class="hrx-kpi-num" data-count="{{ inactive_count }}">{{ inactive_count }}</div>
+            <div class="hrx-kpi-foot">terminated / left</div>
+        </div>
+
+        <div class="hrx-kpi" style="--k:var(--b400)">
+            <div class="hrx-kpi-head">
+                <div class="hrx-kpi-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                <span class="hrx-kpi-tag">Payroll</span>
+            </div>
+            <div class="hrx-kpi-label">Payroll (Active)</div>
+            <div class="hrx-kpi-num is-sm" data-count="{{ payroll_amount|round|int }}" data-prefix="AED ">AED {{ "{:,.0f}".format(payroll_amount) }}</div>
+            <div class="hrx-kpi-foot">{{ stored_this_month }} entries this month</div>
+        </div>
+
+        <div class="hrx-kpi" style="--k:var(--orange)">
+            <div class="hrx-kpi-head">
+                <div class="hrx-kpi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg></div>
+                <span class="hrx-kpi-tag">Open</span>
+            </div>
+            <div class="hrx-kpi-label">Advances Pending</div>
+            <div class="hrx-kpi-num" data-count="{{ advances_pending }}">{{ advances_pending }}</div>
+            <div class="hrx-kpi-foot">advance &amp; loan records</div>
+        </div>
+    </div>
+
+    {# ─────────── Salary pulse + side column ─────────── #}
+    <div class="hrx-split">
+        <div class="hrx-salary">
+            <div class="hrx-sal-head">
+                <div>
+                    <div class="hrx-sal-eyebrow"><span class="hrx-dot"></span> Live &middot; last completed month {{ "%04d-%02d"|format(_prev_year, _prev_month) }}</div>
+                    <div class="hrx-sal-title">Salary Overview</div>
+                </div>
+                <div class="hrx-sal-total">
+                    <span>Total workforce</span>
+                    <b data-count="{{ salary_paid_count + salary_unpaid_count }}">{{ salary_paid_count + salary_unpaid_count }}</b>
+                </div>
             </div>
 
-            <div class="hr-card">
-                <div class="hr-card-title"><span class="hr-tdot" style="background:var(--hr-orange)"></span> Quick Access</div>
-                <div class="hr-qacc">
-                    <a href="{{ url_for('hr.quick_transaction') }}">
-                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></span>
-                        Quick Transaction
-                    </a>
-                    <a href="{{ url_for('hr.employee_list') }}">
-                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg></span>
-                        Employee List
-                    </a>
-                    <a href="{{ url_for('hr.employee_new') }}">
-                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg></span>
-                        Add Employee
-                    </a>
+            <div class="hrx-sal-body">
+                <div class="hrx-sal-metrics">
+                    <div class="hrx-sal-gaugewrap">
+                        <div class="hrx-gauge">
+                            <canvas id="salaryGauge"></canvas>
+                            <div class="hrx-gauge-mid">
+                                <b>{% if salary_paid_count + salary_unpaid_count > 0 %}{{ ((salary_paid_count / (salary_paid_count + salary_unpaid_count)) * 100)|round|int }}{% else %}0{% endif %}%</b>
+                                <span>Salaries released</span>
+                            </div>
+                        </div>
+                        <div class="hrx-sal-pills">
+                            <div class="hrx-pill"><i></i>Paid <b>{{ salary_paid_count }}</b></div>
+                            <div class="hrx-pill is-bad"><i></i>Unpaid <b>{{ salary_unpaid_count }}</b></div>
+                        </div>
+                    </div>
+
+                    <div class="hrx-sal-card">
+                        <div class="hrx-sal-card-top">
+                            <span class="hrx-sal-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg></span>
+                            <span>Total Paid</span>
+                        </div>
+                        <div class="hrx-sal-amt" data-count="{{ salary_paid_amount|round|int }}" data-prefix="AED ">AED {{ "{:,.0f}".format(salary_paid_amount) }}</div>
+                        <div class="hrx-sal-sub">{{ salary_paid_count }} employees &middot; slips + owner fund</div>
+                        <div class="hrx-bar"><span style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_paid_count / (salary_paid_count + salary_unpaid_count) * 100)|round|int }}{% else %}0{% endif %}%"></span></div>
+                    </div>
+
+                    <div class="hrx-sal-card is-bad">
+                        <div class="hrx-sal-card-top">
+                            <span class="hrx-sal-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" width="13" height="13"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l2 2"/></svg></span>
+                            <span>Total Unpaid</span>
+                        </div>
+                        <div class="hrx-sal-amt" data-count="{{ salary_unpaid_amount|round|int }}" data-prefix="AED ">AED {{ "{:,.0f}".format(salary_unpaid_amount) }}</div>
+                        <div class="hrx-sal-sub">{{ salary_unpaid_count }} employees still pending</div>
+                        <div class="hrx-bar is-bad"><span style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_unpaid_count / (salary_paid_count + salary_unpaid_count) * 100)|round|int }}{% else %}0{% endif %}%"></span></div>
+                    </div>
+                </div>
+
+                <div class="hrx-sal-trend">
+                    <div class="hrx-sal-trend-head">
+                        <span>6-month paid / unpaid trend</span>
+                        <div class="hrx-sal-trend-legend">
+                            <i>Paid</i>
+                            <i class="is-bad">Unpaid</i>
+                        </div>
+                    </div>
+                    <div class="hrx-sal-trend-canvas"><canvas id="paidUnpaidTrend"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hrx-side">
+            {# ── Document coverage ── #}
+            <div class="hrx-card">
+                <div class="hrx-card-head">
+                    <div class="hrx-card-title">
+                        <span class="ic" style="--t:#0ea5e9"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="1" y="3.5" width="18" height="13" rx="2"/><circle cx="6.5" cy="9" r="2"/><path d="M11.5 8h5M11.5 11.5h5M3.5 14.5h13"/></svg></span>
+                        License &amp; EID Status
+                    </div>
+                    <a class="hrx-more" href="{{ url_for('hr.id_status') }}">Open &rarr;</a>
+                </div>
+                {% if docs_active %}
+                <div class="hrx-cov-top">
+                    <div class="hrx-cov-num"><b data-count="{{ docs_uploaded }}">{{ docs_uploaded }}</b><span>/ {{ docs_active }} active staff</span></div>
+                    <div class="hrx-cov-pct">{% if docs_active %}{{ (docs_uploaded / docs_active * 100)|round|int }}{% else %}0{% endif %}%</div>
+                </div>
+                <div class="hrx-bar lt"><span style="width:{% if docs_active %}{{ (docs_uploaded / docs_active * 100)|round|int }}{% else %}0{% endif %}%"></span></div>
+                <div class="hrx-cov-rows">
+                    <div class="hrx-cov-row">
+                        <em>Driving License</em><b>{{ docs_dl }} / {{ docs_active }}</b>
+                        <div class="hrx-bar lt"><span style="width:{% if docs_active %}{{ (docs_dl / docs_active * 100)|round|int }}{% else %}0{% endif %}%"></span></div>
+                    </div>
+                    <div class="hrx-cov-row">
+                        <em>Emirates ID</em><b>{{ docs_eid }} / {{ docs_active }}</b>
+                        <div class="hrx-bar lt"><span style="width:{% if docs_active %}{{ (docs_eid / docs_active * 100)|round|int }}{% else %}0{% endif %}%"></span></div>
+                    </div>
+                </div>
+                {% else %}
+                <p style="margin:0; font-size:.76rem; color:var(--mute); font-weight:600;">No active employees yet.</p>
+                {% endif %}
+                <a class="hrx-cta" href="{{ url_for('hr.id_status') }}">
+                    Upload / review documents
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" width="13" height="13"><line x1="3" y1="10" x2="16" y2="10"/><polyline points="11 5 16 10 11 15"/></svg>
+                </a>
+            </div>
+
+            {# ── Payroll & reports shortcuts ── #}
+            <div class="hrx-card">
+                <div class="hrx-card-head">
+                    <div class="hrx-card-title">
+                        <span class="ic" style="--t:#16a34a"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg></span>
+                        Payroll &amp; Reports
+                    </div>
+                </div>
+                <div class="hrx-links">
                     <a href="{{ url_for('hr.salary_dashboard') }}">
-                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg></span>
-                        Salary Dashboard
+                        <span class="ic" style="--i:#1c568b"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg></span>
+                        Salary Dashboard <em>&rarr;</em>
                     </a>
-                    <a href="{{ url_for('reports_center') }}">
-                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg></span>
-                        HR Reports
+                    <a href="{{ url_for('hr.paid_salary_report') }}">
+                        <span class="ic" style="--i:#16a34a"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></span>
+                        Paid Salary Report <em>&rarr;</em>
                     </a>
-                    <a href="{{ url_for('hr.employee_list') }}">
-                        <span class="hr-qacc-ic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
-                        Monthly Statement
+                    <a href="{{ url_for('hr.quick_transaction') }}">
+                        <span class="ic" style="--i:#f97316"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></span>
+                        Quick Transaction <em>&rarr;</em>
+                    </a>
+                    <a href="{{ url_for('hr.driver_ids') }}">
+                        <span class="ic" style="--i:#8b5cf6"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="5" width="16" height="14" rx="2"/><path d="M8 5V3a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="2" y1="11" x2="18" y2="11"/></svg></span>
+                        Driver IDs &amp; ZIP <em>&rarr;</em>
                     </a>
                 </div>
             </div>
         </div>
     </div>
+
+    {# ─────────── Quick Transaction ─────────── #}
+    <div class="qtx-panel hrx-qtx">
+        <div class="qtx-head">
+            <div class="qtx-head-title">
+                <div class="qtx-head-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+                </div>
+                <div>
+                    <div class="qtx-head-name">Quick Transaction</div>
+                    <div class="qtx-head-sub">Record advance / loan / payment for any employee — no profile visit needed</div>
+                </div>
+            </div>
+            <a href="{{ url_for('hr.quick_transaction') }}" class="qtx-full">Open full form <span>&rarr;</span></a>
+        </div>
+        <form method="POST" action="{{ url_for('hr.quick_transaction') }}" class="qtx-form" id="qtxForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="qtx-field qtx-field-employee">
+                <label class="qtx-label">Employee <i>*</i></label>
+                {{ employee_picker(employees) }}
+            </div>
+
+            <div class="qtx-field">
+                <label class="qtx-label">Amount (AED) <i>*</i></label>
+                <div class="qtx-input-wrap">
+                    <span class="qtx-input-icon qtx-currency">AED</span>
+                    <input type="number" name="amount" class="qtx-input qtx-amount" required step="0.01" min="0.01" placeholder="0.00" inputmode="decimal">
+                </div>
+            </div>
+
+            <div class="qtx-field">
+                <label class="qtx-label">Date</label>
+                <div class="qtx-input-wrap">
+                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+                    <input type="date" name="entry_date" value="{{ today }}" class="qtx-input">
+                </div>
+            </div>
+
+            <div class="qtx-field">
+                <label class="qtx-label">Source</label>
+                <div class="qtx-input-wrap">
+                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg></span>
+                    <select name="source" class="qtx-select">
+                        <option value="Cash">Cash</option>
+                        <option value="Bank">Bank</option>
+                        <option value="Owner Fund">Owner Fund</option>
+                        <option value="Current Link">Current Link</option>
+                        <option value="Office">Office</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="qtx-field">
+                <label class="qtx-label">Given By <i>*</i></label>
+                <div class="qtx-input-wrap">
+                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+                    <input type="text" name="given_by" class="qtx-input" required placeholder="Person who issued">
+                </div>
+            </div>
+
+            <div class="qtx-field" style="grid-column:span 2">
+                <label class="qtx-label">Details / Reason <i>*</i></label>
+                <div class="qtx-input-wrap">
+                    <span class="qtx-input-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                    <input type="text" name="details" class="qtx-input" required placeholder="Why this amount was given">
+                </div>
+            </div>
+
+            <div class="qtx-field" style="grid-column:span 2">
+                <label class="qtx-label">Transaction Type</label>
+                <div class="qtx-type-grid" id="qtxTypeGrid">
+                    <label class="qtx-type-opt is-active" data-t="Advance">
+                        <input type="radio" name="txn_type" value="Advance" checked>
+                        <span class="qtx-type-dot" style="--t-c:#f97316"></span>
+                        <span class="qtx-type-txt">Advance</span>
+                    </label>
+                    <label class="qtx-type-opt" data-t="Loan">
+                        <input type="radio" name="txn_type" value="Loan">
+                        <span class="qtx-type-dot" style="--t-c:#8b5cf6"></span>
+                        <span class="qtx-type-txt">Loan</span>
+                    </label>
+                    <label class="qtx-type-opt" data-t="Payment">
+                        <input type="radio" name="txn_type" value="Payment">
+                        <span class="qtx-type-dot" style="--t-c:#22c55e"></span>
+                        <span class="qtx-type-txt">Payment</span>
+                    </label>
+                    <label class="qtx-type-opt" data-t="Other">
+                        <input type="radio" name="txn_type" value="Other">
+                        <span class="qtx-type-dot" style="--t-c:#64748b"></span>
+                        <span class="qtx-type-txt">Other</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="qtx-actions">
+                <input type="hidden" name="salary_month" value="{{ today[:7] }}">
+                <span class="hrx-qtx-hint">Saved instantly to the employee's advance ledger &middot; deducted on the next salary run.</span>
+                <button type="submit" class="qtx-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                    Record
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {# ─────────── Insights ─────────── #}
+    <div class="hrx-charts">
+        <div class="hrx-chart">
+            <div class="hrx-chart-head">
+                <div class="hrx-chart-title"><span class="hrx-tdot" style="--d:#1c568b"></span> By Department</div>
+                <span class="hrx-chart-tag">{{ departments|length }}</span>
+            </div>
+            <div class="hrx-chart-body"><canvas id="deptChart"></canvas></div>
+        </div>
+        <div class="hrx-chart">
+            <div class="hrx-chart-head">
+                <div class="hrx-chart-title"><span class="hrx-tdot" style="--d:#16a34a"></span> By Job Type</div>
+                <span class="hrx-chart-tag">{{ employee_types|length }}</span>
+            </div>
+            <div class="hrx-chart-body"><canvas id="typeChart"></canvas></div>
+        </div>
+        <div class="hrx-chart">
+            <div class="hrx-chart-head">
+                <div class="hrx-chart-title"><span class="hrx-tdot" style="--d:#f97316"></span> Salary Store Trend</div>
+                <span class="hrx-chart-tag">6 months</span>
+            </div>
+            <div class="hrx-chart-body"><canvas id="trendChart"></canvas></div>
+        </div>
+        <div class="hrx-chart">
+            <div class="hrx-chart-head">
+                <div class="hrx-chart-title"><span class="hrx-tdot" style="--d:#8b5cf6"></span> Status Overview</div>
+                <span class="hrx-chart-tag">{{ total }} staff</span>
+            </div>
+            <div class="hrx-chart-body"><canvas id="statusChart"></canvas></div>
+        </div>
+    </div>
+
+    {# ─────────── Recent + Quick access ─────────── #}
+    <div class="hrx-bottom">
+        <div class="hrx-card">
+            <div class="hrx-card-head">
+                <div class="hrx-card-title">
+                    <span class="ic" style="--t:#1c568b"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg></span>
+                    Recent Joiners
+                </div>
+                <a class="hrx-more" href="{{ url_for('hr.employee_list') }}">View all &rarr;</a>
+            </div>
+            {% for e in recent_employees %}
+            <a href="{{ url_for('hr.employee_detail', employee_id=e.employee_id) }}" class="hrx-emp">
+                {% set p_url = employee_photo_url(e) %}
+                <span class="hrx-emp-av">{% if p_url %}<img src="{{ p_url }}" alt="">{% else %}{{ e.full_name[:1]|upper }}{% endif %}</span>
+                <span class="hrx-emp-meta">
+                    <span class="hrx-emp-name">{{ e.full_name }}</span>
+                    <span class="hrx-emp-sub">{{ e.employee_id }} &middot; {{ e.department }} &middot; {{ e.employee_type }} &middot; joined {{ e.join_date }}</span>
+                </span>
+                <span class="status-badge {% if e.status|lower == 'active' %}active{% elif e.status|lower == 'on leave' %}warning{% elif e.status|lower == 'terminated' %}danger{% else %}inactive{% endif %}" style="font-size:.62rem">{{ e.status }}</span>
+            </a>
+            {% endfor %}
+        </div>
+
+        <div class="hrx-card">
+            <div class="hrx-card-head">
+                <div class="hrx-card-title">
+                    <span class="ic" style="--t:#f97316"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg></span>
+                    Quick Access
+                </div>
+            </div>
+            <div class="hrx-qacc">
+                <a href="{{ url_for('hr.quick_transaction') }}">
+                    <span class="ic" style="--i:#f97316"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></span>
+                    Quick Transaction
+                </a>
+                <a href="{{ url_for('hr.employee_list') }}">
+                    <span class="ic" style="--i:#1c568b"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg></span>
+                    Employee List
+                </a>
+                <a href="{{ url_for('hr.employee_new') }}">
+                    <span class="ic" style="--i:#16a34a"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg></span>
+                    Add Employee
+                </a>
+                <a href="{{ url_for('hr.salary_dashboard') }}">
+                    <span class="ic" style="--i:#2a7fbf"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M6 1v3"/><path d="M14 1v3"/><path d="M2 9h16"/></svg></span>
+                    Salary Dashboard
+                </a>
+                <a href="{{ url_for('hr.paid_salary_report') }}">
+                    <span class="ic" style="--i:#16a34a"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></span>
+                    Paid Salary Report
+                </a>
+                <a href="{{ url_for('reports_center') }}">
+                    <span class="ic" style="--i:#8b5cf6"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg></span>
+                    HR Reports
+                </a>
+            </div>
+        </div>
+    </div>
+
+</div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var colors = ['#1c568b','#2d6da8','#4a90d9','#7bb3e8','#a8ccee','#d4e4f5'];
-    var colorGreen = '#22c55e';
-    var colorOrange = '#f97316';
-    var colorRed = '#ef4444';
-    var colorViolet = '#8b5cf6';
+    var palette   = ['#1c568b','#2a7fbf','#57a4d8','#93c5ef','#0f2a54','#7c8fa6','#38bdf8','#0ea5e9','#64748b','#94a3b8'];
+    var typePal   = ['#16a34a','#f97316','#8b5cf6','#0ea5e9','#e11d48','#64748b','#14b8a6','#a855f7'];
+    var totalEmp  = {{ total }};
+    var actEmp    = {{ active_count }};
+    var lvEmp     = {{ on_leave }};
+    var inactEmp  = Math.max({{ inactive_count }} - {{ on_leave }}, 0);
 
-    // ── Salary Gauge (Semi-Doughnut) ──
+    if (window.Chart) { Chart.defaults.font.family = "Inter, 'Segoe UI', sans-serif"; Chart.defaults.font.weight = '600'; }
+
+    /* doughnut center label */
+    var centerText = {
+        id: 'centerText',
+        afterDraw: function(chart, args, opts) {
+            if (!opts || !opts.text) return;
+            var meta = chart.getDatasetMeta(0);
+            if (!meta || !meta.data || !meta.data.length) return;
+            var x = meta.data[0].x, y = meta.data[0].y, ctx = chart.ctx;
+            ctx.save();
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = opts.color || '#101c2e';
+            ctx.font = '900 17px Inter, sans-serif';
+            ctx.fillText(opts.text, x, y - 5);
+            ctx.fillStyle = opts.subColor || '#7e8da3';
+            ctx.font = '800 8.5px Inter, sans-serif';
+            ctx.fillText(opts.sub || '', x, y + 11);
+            ctx.restore();
+        }
+    };
+
+    var legendBox = {
+        position: 'bottom',
+        labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, padding: 9, font: { size: 10, weight: '700' }, color: '#46566d' }
+    };
+
+    /* ── Salary gauge (semi doughnut) ── */
     var gaugeCtx = document.getElementById('salaryGauge');
     if (gaugeCtx) {
         new Chart(gaugeCtx, {
@@ -411,44 +808,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 labels: ['Paid', 'Unpaid'],
                 datasets: [{
                     data: [{{ salary_paid_count }}, {{ salary_unpaid_count }}],
-                    backgroundColor: [
-                        'rgba(34,197,94,0.9)',
-                        'rgba(239,68,68,0.4)'
-                    ],
-                    borderWidth: 0,
-                    hoverOffset: 6,
-                    borderRadius: 8,
-                    spacing: 4
+                    backgroundColor: ['rgba(74,222,128,0.95)', 'rgba(248,113,113,0.45)'],
+                    borderWidth: 0, hoverOffset: 6, borderRadius: 8, spacing: 4
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '75%',
-                rotation: -90,
-                circumference: 180,
+                responsive: true, maintainAspectRatio: false,
+                cutout: '74%', rotation: -90, circumference: 180,
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(15,23,42,0.95)',
-                        titleFont: { size: 12, weight: '600' },
-                        bodyFont: { size: 11 },
-                        padding: 12,
-                        cornerRadius: 10,
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        borderWidth: 1,
-                        callbacks: {
-                            label: function(ctx) {
-                                return ' ' + ctx.label + ': ' + ctx.raw + ' employees';
-                            }
-                        }
+                        backgroundColor: 'rgba(8,25,47,0.96)', padding: 11, cornerRadius: 9,
+                        borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1,
+                        callbacks: { label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.raw + ' employees'; } }
                     }
                 }
             }
         });
     }
 
-    // ── Paid/Unpaid Trend (Stacked Bar) ──
+    /* ── Paid / unpaid trend (stacked, dark card) ── */
     var trendPU = document.getElementById('paidUnpaidTrend');
     if (trendPU) {
         new Chart(trendPU, {
@@ -456,109 +835,144 @@ document.addEventListener('DOMContentLoaded', function() {
             data: {
                 labels: [{% for m in paid_trend_months %}'{{ m[5:] }}',{% endfor %}],
                 datasets: [
-                    {
-                        label: 'Paid',
-                        data: [{% for v in paid_trend_paid %}{{ v }},{% endfor %}],
-                        backgroundColor: 'rgba(74,222,128,0.8)',
-                        borderRadius: { topLeft: 4, topRight: 4 },
-                        maxBarThickness: 20
-                    },
-                    {
-                        label: 'Unpaid',
-                        data: [{% for v in paid_trend_unpaid %}{{ v }},{% endfor %}],
-                        backgroundColor: 'rgba(248,113,113,0.5)',
-                        borderRadius: { topLeft: 4, topRight: 4 },
-                        maxBarThickness: 20
-                    }
+                    { label: 'Paid', data: [{% for v in paid_trend_paid %}{{ v }},{% endfor %}],
+                      backgroundColor: 'rgba(74,222,128,0.85)', borderRadius: { topLeft: 4, topRight: 4 }, maxBarThickness: 18 },
+                    { label: 'Unpaid', data: [{% for v in paid_trend_unpaid %}{{ v }},{% endfor %}],
+                      backgroundColor: 'rgba(248,113,113,0.55)', borderRadius: { topLeft: 4, topRight: 4 }, maxBarThickness: 18 }
                 ]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: {
-                        stacked: true,
-                        grid: { display: false },
-                        ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 9 } },
-                        border: { display: false }
-                    },
-                    y: {
-                        stacked: true,
-                        beginAtZero: true,
-                        ticks: { stepSize: 1, color: 'rgba(255,255,255,0.3)', font: { size: 9 } },
-                        grid: { color: 'rgba(255,255,255,0.05)' },
-                        border: { display: false }
-                    }
+                    x: { stacked: true, grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 9, weight: '700' } }, border: { display: false } },
+                    y: { stacked: true, beginAtZero: true, ticks: { stepSize: 10, color: 'rgba(255,255,255,0.35)', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.06)' }, border: { display: false } }
                 },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(15,23,42,0.95)',
-                        titleFont: { size: 11 },
-                        bodyFont: { size: 10 },
-                        padding: 10,
-                        cornerRadius: 8,
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        borderWidth: 1
+                        backgroundColor: 'rgba(8,25,47,0.96)', padding: 10, cornerRadius: 8,
+                        borderColor: 'rgba(255,255,255,0.12)', borderWidth: 1
                     }
                 }
             }
         });
     }
 
+    /* ── By department ── */
     var deptCtx = document.getElementById('deptChart');
     if (deptCtx) {
         new Chart(deptCtx, {
             type: 'doughnut',
             data: {
-                labels: [{% for d in departments %}'{{ d|e }}',{% endfor %}],
-                datasets: [{ data: [{% for d in departments %}{{ departments[d] }},{% endfor %}], backgroundColor: colors.slice(0, {{ departments|length }}), borderWidth: 0, hoverOffset: 6 }]
+                labels: [{% for d in departments %}{{ d|tojson }},{% endfor %}],
+                datasets: [{ data: [{% for d in departments %}{{ departments[d] }},{% endfor %}],
+                             backgroundColor: palette.slice(0, {{ departments|length }}), borderWidth: 0, hoverOffset: 7 }]
             },
-            options: { responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '66%',
+                plugins: {
+                    legend: legendBox,
+                    centerText: { text: '{{ total }}', sub: 'STAFF' },
+                    tooltip: { backgroundColor: '#101c2e', padding: 10, cornerRadius: 8 }
+                }
+            },
+            plugins: [centerText]
         });
     }
 
+    /* ── By job type ── */
     var typeCtx = document.getElementById('typeChart');
     if (typeCtx) {
         new Chart(typeCtx, {
             type: 'doughnut',
             data: {
-                labels: [{% for t in employee_types %}'{{ t|e }}',{% endfor %}],
-                datasets: [{ data: [{% for t in employee_types %}{{ employee_types[t] }},{% endfor %}], backgroundColor: [colorGreen, colorOrange, colorViolet, '#0ea5e9'], borderWidth: 0, hoverOffset: 6 }]
+                labels: [{% for t in employee_types %}{{ t|tojson }},{% endfor %}],
+                datasets: [{ data: [{% for t in employee_types %}{{ employee_types[t] }},{% endfor %}],
+                             backgroundColor: typePal.slice(0, {{ employee_types|length }}), borderWidth: 0, hoverOffset: 7 }]
             },
-            options: { responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '66%',
+                plugins: {
+                    legend: legendBox,
+                    centerText: { text: '{{ active_count }}', sub: 'ACTIVE' },
+                    tooltip: { backgroundColor: '#101c2e', padding: 10, cornerRadius: 8 }
+                }
+            },
+            plugins: [centerText]
         });
     }
 
+    /* ── Salary store trend ── */
     var trendCtx = document.getElementById('trendChart');
     if (trendCtx) {
         new Chart(trendCtx, {
             type: 'bar',
             data: {
-                labels: [{% for m in trend_months %}'{{ m }}',{% endfor %}],
-                datasets: [{ label: 'Entries', data: [{% for c in trend_counts %}{{ c }},{% endfor %}], backgroundColor: '#1c568b', borderRadius: 6, maxBarThickness: 28 }]
+                labels: [{% for m in trend_months %}'{{ m[5:] }}',{% endfor %}],
+                datasets: [{ label: 'Entries', data: [{% for c in trend_counts %}{{ c }},{% endfor %}],
+                             backgroundColor: '#1c568b', hoverBackgroundColor: '#2a7fbf', borderRadius: 7, maxBarThickness: 26 }]
             },
-            options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } }, plugins:{ legend:{ display:false } } }
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#7e8da3', font: { size: 9, weight: '700' } }, border: { display: false } },
+                    y: { beginAtZero: true, ticks: { stepSize: 5, color: '#7e8da3', font: { size: 9 } }, grid: { color: '#eef2f8' }, border: { display: false } }
+                },
+                plugins: { legend: { display: false }, tooltip: { backgroundColor: '#101c2e', padding: 10, cornerRadius: 8 } }
+            }
         });
     }
 
+    /* ── Status overview ── */
     var statusCtx = document.getElementById('statusChart');
     if (statusCtx) {
         new Chart(statusCtx, {
-            type: 'pie',
+            type: 'doughnut',
             data: {
                 labels: ['Active', 'On Leave', 'Inactive'],
-                datasets: [{ data: [{{ active_count }}, {{ on_leave }}, {{ inactive_count }}], backgroundColor: [colorGreen, colorOrange, colorRed], borderWidth: 0, hoverOffset: 6 }]
+                datasets: [{ data: [actEmp, lvEmp, inactEmp],
+                             backgroundColor: ['#16a34a', '#f59e0b', '#ef4444'], borderWidth: 0, hoverOffset: 7 }]
             },
-            options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } } }
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '66%',
+                plugins: {
+                    legend: legendBox,
+                    centerText: { text: (totalEmp ? Math.round(actEmp / totalEmp * 100) : 0) + '%', sub: 'ACTIVE' },
+                    tooltip: { backgroundColor: '#101c2e', padding: 10, cornerRadius: 8 }
+                }
+            },
+            plugins: [centerText]
         });
     }
 
+    /* ── Count-up numbers ── */
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.querySelectorAll('[data-count]').forEach(function(el) {
+        var target = parseFloat(el.getAttribute('data-count'));
+        if (isNaN(target)) return;
+        var pre = el.getAttribute('data-prefix') || '';
+        var dec = target % 1 !== 0 ? 1 : 0;
+        function fmt(v) {
+            return pre + v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+        }
+        if (reduce) { el.textContent = fmt(target); return; }
+        var dur = 850, t0 = null;
+        function step(ts) {
+            if (t0 === null) t0 = ts;
+            var p = Math.min((ts - t0) / dur, 1);
+            var e = 1 - Math.pow(1 - p, 3);
+            el.textContent = fmt(target * e);
+            if (p < 1) requestAnimationFrame(step);
+            else el.textContent = fmt(target);
+        }
+        requestAnimationFrame(step);
+    });
+
+    /* ── Quick transaction type chips ── */
     var typeGrid = document.getElementById('qtxTypeGrid');
     if (typeGrid) {
         typeGrid.addEventListener('change', function(e) {
-            var opts = typeGrid.querySelectorAll('.qtx-type-opt');
-            opts.forEach(function(o) { o.classList.remove('is-active'); });
+            typeGrid.querySelectorAll('.qtx-type-opt').forEach(function(o) { o.classList.remove('is-active'); });
             var tgt = e.target.closest('.qtx-type-opt');
             if (tgt) tgt.classList.add('is-active');
         });

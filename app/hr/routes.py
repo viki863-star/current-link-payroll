@@ -283,6 +283,34 @@ def hr_dashboard():
         on_leave = sum(1 for e in employees if (e["status"] or "").lower() == "on leave")
         terminated = sum(1 for e in employees if (e["status"] or "").lower() == "terminated")
 
+        # ── Document (DL / Emirates ID) coverage across active staff ──
+        # Additive: the columns come from ensure_employees_table() above; if any
+        # is missing the block renders as zeros and the card hides itself.
+        docs_active = docs_uploaded = docs_dl = docs_eid = 0
+        try:
+            row = db.execute(
+                """SELECT COUNT(*) AS c,
+                          COALESCE(SUM(CASE WHEN COALESCE(driving_license_front,'') <> ''
+                                              OR COALESCE(driving_license_back,'') <> ''
+                                         THEN 1 ELSE 0 END), 0) AS dl,
+                          COALESCE(SUM(CASE WHEN COALESCE(emirates_id_front,'') <> ''
+                                              OR COALESCE(emirates_id_back,'') <> ''
+                                         THEN 1 ELSE 0 END), 0) AS eid,
+                          COALESCE(SUM(CASE WHEN COALESCE(driving_license_front,'') <> ''
+                                              OR COALESCE(driving_license_back,'') <> ''
+                                              OR COALESCE(emirates_id_front,'') <> ''
+                                              OR COALESCE(emirates_id_back,'') <> ''
+                                         THEN 1 ELSE 0 END), 0) AS done
+                   FROM employees WHERE LOWER(status) = 'active'"""
+            ).fetchone()
+            if row:
+                docs_active = row["c"] or 0
+                docs_dl = row["dl"] or 0
+                docs_eid = row["eid"] or 0
+                docs_uploaded = row["done"] or 0
+        except Exception:
+            docs_active = docs_uploaded = docs_dl = docs_eid = 0
+
         return render_template(
             "hr/dashboard.html",
             total=total,
@@ -309,6 +337,10 @@ def hr_dashboard():
             recent_employees=recent,
             employees=employees,
             today=date.today().isoformat(),
+            docs_active=docs_active,
+            docs_uploaded=docs_uploaded,
+            docs_dl=docs_dl,
+            docs_eid=docs_eid,
         )
     except Exception as e:
         import traceback
