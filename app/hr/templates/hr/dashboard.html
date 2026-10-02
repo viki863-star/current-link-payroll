@@ -444,7 +444,7 @@
                 </div>
                 <div class="hrx-sal-total">
                     <span>Salaries run</span>
-                    <b data-count="{{ salary_paid_count + salary_unpaid_count }}">{{ salary_paid_count + salary_unpaid_count }}</b>
+                    <b data-count="{{ salary_run_count }}">{{ salary_run_count }}</b>
                 </div>
             </div>
 
@@ -480,7 +480,7 @@
                             <span>Total Unpaid</span>
                         </div>
                         <div class="hrx-sal-amt" data-count="{{ salary_unpaid_amount|round|int }}" data-prefix="AED ">AED {{ "{:,.0f}".format(salary_unpaid_amount) }}</div>
-                        <div class="hrx-sal-sub">{{ salary_unpaid_count }} employees still pending</div>
+                        <div class="hrx-sal-sub">{{ salary_unpaid_count }} employees not released</div>
                         <div class="hrx-bar is-bad"><span style="width:{% if salary_paid_count + salary_unpaid_count > 0 %}{{ (salary_unpaid_count / (salary_paid_count + salary_unpaid_count) * 100)|round|int }}{% else %}0{% endif %}%"></span></div>
                     </div>
                 </div>

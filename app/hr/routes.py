@@ -234,8 +234,12 @@ def hr_dashboard():
         cm = f"{_prev_year:04d}-{_prev_month:02d}"
         cm_rows = _paid_salary_report_rows(db, cm)
         cm_run = [r for r in cm_rows if r["status"] != "Not Run"]
+        salary_run_count = len(cm_run)
         salary_paid_count = sum(1 for r in cm_run if r["paid"] > 0)
-        salary_unpaid_count = len(cm_run) - salary_paid_count
+        # Released % is measured against the WHOLE active staff: anyone whose
+        # salary has not gone out (run-but-unpaid OR not run yet) counts as
+        # unpaid, so the gauge reads "how much of my staff got paid".
+        salary_unpaid_count = max(active - salary_paid_count, 0)
         salary_paid_amount = sum(r["paid"] for r in cm_rows)
         salary_unpaid_amount = sum(r["balance"] for r in cm_rows)
 
@@ -308,6 +312,7 @@ def hr_dashboard():
             employee_types=employee_types_dict,
             trend_months=trend_months,
             trend_counts=trend_counts,
+            salary_run_count=salary_run_count,
             salary_paid_count=salary_paid_count,
             salary_paid_amount=salary_paid_amount,
             salary_unpaid_count=salary_unpaid_count,
