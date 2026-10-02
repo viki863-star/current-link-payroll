@@ -223,33 +223,21 @@ def hr_dashboard():
         payroll_amount = payroll_row["total"] if payroll_row else 0
 
         # ── Salary Paid vs Unpaid (last completed month) ──
+        # Same source as /hr/paid-salary-report: a salary counts as PAID only
+        # when money actually moved (salary_slips.actual_paid_amount or an
+        # owner-fund entry "Salary Slip <month> — <name>") — never merely
+        # because a slip exists. Keeps dashboard and report in agreement.
         from datetime import date as _date
         _today = _date.today()
         _prev_month = _today.month - 1 if _today.month > 1 else 12
         _prev_year = _today.year if _today.month > 1 else _today.year - 1
         cm = f"{_prev_year:04d}-{_prev_month:02d}"
-        paid_slips = db.execute(
-            "SELECT COUNT(DISTINCT driver_id) AS c, COALESCE(SUM(actual_paid_amount), 0) AS total FROM salary_slips WHERE salary_month = ?",
-            (cm,),
-        ).fetchone()
-        salary_paid_count = paid_slips["c"] if paid_slips else 0
-        salary_paid_amount = float(paid_slips["total"] if paid_slips else 0)
-        # salaries handed over via owner fund are booked as "Salary Slip <month> — ..."
-        try:
-            fund_row = db.execute(
-                "SELECT COALESCE(SUM(amount), 0) AS total FROM owner_fund_entries WHERE details LIKE ? AND amount > 0",
-                (f"Salary Slip {cm}%",),
-            ).fetchone()
-            salary_paid_amount += float(fund_row["total"] if fund_row else 0)
-        except Exception:
-            pass
-
-        stored_total = db.execute(
-            "SELECT COUNT(DISTINCT driver_id) AS c FROM salary_store WHERE salary_month = ?",
-            (cm,),
-        ).fetchone()["c"] or 0
-        salary_unpaid_count = max(stored_total - salary_paid_count, 0)
-        salary_unpaid_amount = max(payroll_amount - salary_paid_amount, 0)
+        cm_rows = _paid_salary_report_rows(db, cm)
+        cm_run = [r for r in cm_rows if r["status"] != "Not Run"]
+        salary_paid_count = sum(1 for r in cm_run if r["paid"] > 0)
+        salary_unpaid_count = len(cm_run) - salary_paid_count
+        salary_paid_amount = sum(r["paid"] for r in cm_rows)
+        salary_unpaid_amount = sum(r["balance"] for r in cm_rows)
 
         # ── Monthly paid/unpaid trend (last 6 months) ──
         paid_trend_months = []
@@ -262,17 +250,12 @@ def hr_dashboard():
                 m += 12
                 y -= 1
             ym = f"{y:04d}-{m:02d}"
-            p_row = db.execute(
-                "SELECT COUNT(DISTINCT driver_id) AS c FROM salary_slips WHERE salary_month = ?", (ym,)
-            ).fetchone()
-            s_row = db.execute(
-                "SELECT COUNT(DISTINCT driver_id) AS c FROM salary_store WHERE salary_month = ?", (ym,)
-            ).fetchone()
-            p_cnt = p_row["c"] if p_row else 0
-            s_cnt = s_row["c"] if s_row else 0
+            m_rows = _paid_salary_report_rows(db, ym, with_advance=False)
+            m_run = [r for r in m_rows if r["status"] != "Not Run"]
+            p_cnt = sum(1 for r in m_run if r["paid"] > 0)
             paid_trend_months.append(ym)
             paid_trend_paid.append(p_cnt)
-            paid_trend_unpaid.append(max(s_cnt - p_cnt, 0))
+            paid_trend_unpaid.append(len(m_run) - p_cnt)
 
         # ── Recent employees ──
         recent = db.execute(
@@ -2854,7 +2837,7 @@ def _last_closed_month():
     return (first_of_month - timedelta(days=1)).strftime("%Y-%m")
 
 
-def _paid_salary_report_rows(db, month):
+def _paid_salary_report_rows(db, month, with_advance=True):
     store_rows = db.execute(
         "SELECT driver_id, net_salary, ot_amount, monthly_basic_salary, basic_salary "
         "FROM salary_store WHERE salary_month = ?",
@@ -2966,10 +2949,12 @@ def _paid_salary_report_rows(db, month):
         if fund:
             paid += fund["amount"]
         balance = max(payable - paid, 0.0)
-        try:
-            advance = float(_advance_summary(db, driver_id)["remaining_advance"])
-        except Exception:
-            advance = 0.0
+        advance = 0.0
+        if with_advance:
+            try:
+                advance = float(_advance_summary(db, driver_id)["remaining_advance"])
+            except Exception:
+                advance = 0.0
 
         if not slip and paid <= 0:
             status = "Not Run"
