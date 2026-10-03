@@ -312,13 +312,16 @@
                         {% if j.admin_notes %}<div style="grid-column:1/-1"><strong>Notes:</strong> {{ j.admin_notes }}</div>{% endif %}
                         <div><strong>Status:</strong> <span class="status-badge {{ j.status|lower }}">{{ j.status }}</span></div>
                         {% if j.edit_vehicle_id %}
-                        {% if j.attachment_name %}<div style="grid-column:1/-1"><a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">View Attachment</a></div>{% endif %}
+                        {% if j.attachment_name %}<div style="grid-column:1/-1"><a href="{{ url_for('generated_file', filename=j.attachment_name) }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline">See Paper</a></div>{% endif %}
                         <div style="grid-column:1/-1;margin-top:4px;display:flex;gap:8px">
                             <a href="/fleet-maintenance?edit_paper={{ j.id }}" class="btn btn-xs btn-outline">Edit</a>
                             <form method="post" action="/fleet-maintenance/{{ j.id }}/delete" onsubmit="return confirm('Delete paper {{ j.id }}?');" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-xs btn-outline" style="color:#dc3545;border-color:#dc3545">Delete</button></form>
                         </div>
                         {% else %}
-                        <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline" style="grid-column:1/-1;margin-top:4px">Edit Job</a>
+                        <div style="grid-column:1/-1;margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
+                            {% if j.has_attachment %}<a href="/fleet/attachment/{{ j.id }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline">See Paper</a>{% endif %}
+                            <a href="{{ url_for('fleet.fleet_job_edit', job_id=j.id) }}" class="btn btn-xs btn-outline">Edit Job</a>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
