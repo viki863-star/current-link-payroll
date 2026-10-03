@@ -2703,15 +2703,22 @@ def fleet_attachment_thumb(job_id):
     data = base64.b64decode(job["attachment_data"])
     mime = job["attachment_type"] or "application/octet-stream"
     try:
+        from PIL import Image, ImageOps
+        img = None
         if mime.startswith("image"):
-            from PIL import Image, ImageOps
             img = Image.open(BytesIO(data))
+        elif mime == "application/pdf" or (job["attachment_name"] or "").lower().endswith(".pdf"):
+            # PDF: render first page so it can show as an inline preview too
+            from pdf2image import convert_from_bytes
+            pages = convert_from_bytes(data, first_page=1, last_page=1, dpi=60)
+            img = pages[0] if pages else None
+        if img is not None:
             img = ImageOps.exif_transpose(img)
-            img.thumbnail((256, 256))
+            img.thumbnail((480, 480))
             if img.mode not in ("RGB", "L"):
                 img = img.convert("RGB")
             out = BytesIO()
-            img.save(out, format="JPEG", quality=70)
+            img.save(out, format="JPEG", quality=72)
             data = out.getvalue()
             mime = "image/jpeg"
     except Exception:

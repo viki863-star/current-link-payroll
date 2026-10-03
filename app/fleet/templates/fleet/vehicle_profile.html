@@ -284,9 +284,17 @@
             {% set hl = highlight|string %}
             {% for j in all_entries|sort(attribute='created_at', reverse=True) %}
             {% set is_hl = (j.id|string == hl) %}
+            {% if j.edit_vehicle_id %}
+            {% set paper_full = url_for('generated_file', filename=j.attachment_name) if j.attachment_name else '' %}
+            {% set paper_thumb = paper_full if (paper_full and j.attachment_name.lower().endswith(('.jpg','.jpeg','.png','.webp','.gif'))) else '' %}
+            {% else %}
+            {% set paper_full = '/fleet/attachment/' ~ j.id if j.has_attachment else '' %}
+            {% set paper_thumb = paper_full ~ '/thumb' if paper_full else '' %}
+            {% endif %}
             <div class="vp-job-item{% if is_hl %} highlight-row{% endif %}" id="entry-row-{{ loop.index }}" onclick="togglePaper('paper-detail-{{ loop.index }}')">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
                     <div style="display:flex;align-items:center;gap:10px">
+                        {% if paper_thumb %}<a href="{{ paper_full }}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open submitted paper" style="flex:none;line-height:0"><img src="{{ paper_thumb }}" alt="Paper" loading="lazy" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid #dee2e6;background:#fff"></a>{% endif %}
                         <span class="mono" style="font-size:0.82rem;font-weight:600;color:#495057">{{ (j.created_at or '')|string|truncate(10, True, '') }}</span>
                         <span style="color:#dee2e6">|</span>
                         <span style="font-weight:600;color:#212529">{{ j.staff_name or '-' }}</span>
@@ -305,6 +313,7 @@
             </div>
             <div id="paper-detail-{{ loop.index }}" style="{% if is_hl %}display:block{% else %}display:none{% endif %}">
                 <div style="margin:-2px 0 12px 12px;padding:16px 18px;background:#f8f9fb;border:1px solid #e9ecef;border-radius:10px">
+                    {% if paper_thumb %}<div style="margin-bottom:12px;text-align:center"><a href="{{ paper_full }}" target="_blank" rel="noopener" title="Open full paper"><img src="{{ paper_thumb }}" alt="Submitted paper" loading="lazy" style="max-width:100%;max-height:400px;border-radius:10px;border:1px solid #dee2e6;background:#fff"></a></div>{% endif %}
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:0.82rem">
                         <div><strong>Date:</strong> {{ (j.created_at or '')|string|truncate(10, True, '') }}</div>
                         <div><strong>Staff:</strong> {{ j.staff_name or '-' }}</div>
