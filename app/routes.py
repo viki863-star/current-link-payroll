@@ -9720,11 +9720,13 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for(_role_home_endpoint()))
         target = Path(app.config["GENERATED_DIR"]) / filename
         if target.exists():
-            return send_file(target, as_attachment=False)
+            # conditional=True → ETag/If-None-Match (304 instead of re-sending
+            # the whole PDF) + Range support so viewers can fetch in chunks.
+            return send_file(target, as_attachment=False, conditional=True)
 
         restored = _restore_generated_file(app, open_db(), filename)
         if restored and Path(restored).exists():
-            return send_file(restored, as_attachment=False)
+            return send_file(restored, as_attachment=False, conditional=True)
 
         flash("Requested file is no longer available.", "error")
         return redirect(url_for(_role_home_endpoint()))

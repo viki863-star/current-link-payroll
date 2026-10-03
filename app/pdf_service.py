@@ -2292,6 +2292,36 @@ def _draw_invoice_header(pdf, company_profile, title_text='', logo_size=14*mm):
     pdf.rect(16 * mm, hr_y, PAGE_WIDTH - 32 * mm, 1.5 * mm, fill=1, stroke=0)
 
 
+def _fit_image_reader(data: bytes, max_px: int = 640) -> ImageReader:
+    """Decode + downscale an image before embedding it in a PDF.
+
+    reportlab embeds the ORIGINAL bytes and only scales at draw time, so a
+    full-resolution company logo (599KB) and driver photo (252KB) made every
+    generated PDF 800KB-1.5MB — slow to open/download. At the actual print
+    sizes used here (logo 34mm, photo 39mm) a few hundred pixels is already
+    300+ DPI, so downscaling keeps the exact same look at ~5x smaller files.
+    """
+    try:
+        from PIL import Image
+        img = Image.open(BytesIO(data))
+        if max(img.size) > max_px:
+            img.thumbnail((max_px, max_px), Image.LANCZOS)
+        buf = BytesIO()
+        fmt = (img.format or "").upper()
+        if fmt == "JPEG":
+            if img.mode not in ("L", "RGB"):
+                img = img.convert("RGB")
+            img.save(buf, "JPEG", quality=85, optimize=True)
+        else:
+            if img.mode not in ("P", "L", "RGB", "RGBA"):
+                img = img.convert("RGBA")
+            img.save(buf, "PNG", optimize=True)
+        buf.seek(0)
+        return ImageReader(buf)
+    except Exception:
+        return ImageReader(BytesIO(data))
+
+
 def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict | None = None) -> None:
     company = company_profile or {}
 
@@ -2313,7 +2343,7 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
     if logo_data and logo_type:
         try:
             logo_binary = base64.b64decode(logo_data)
-            logo_img = ImageReader(BytesIO(logo_binary))
+            logo_img = _fit_image_reader(logo_binary, 512)
             target = 34 * mm
             pdf.drawImage(
                 logo_img,
@@ -2689,7 +2719,7 @@ def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float,
     raw = driver.get("photo_data") or _dl.get("photo_data") or ""
     if raw:
         try:
-            image = ImageReader(BytesIO(base64.b64decode(raw)))
+            image = _fit_image_reader(base64.b64decode(raw), 640)
             pdf.drawImage(image, x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
             return True
         except Exception:
@@ -2700,7 +2730,7 @@ def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float,
         photo_path = Path(generated_dir) / raw
         if photo_path.exists():
             try:
-                pdf.drawImage(str(photo_path), x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
+                pdf.drawImage(_fit_image_reader(photo_path.read_bytes(), 640), x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
                 return True
             except Exception:
                 pass

@@ -137,6 +137,33 @@ def _wrap_text_lines(pdf: canvas.Canvas, text: str, font_name: str, font_size: f
 
 # ── Drawing Helpers ────────────────────────────────────────────────────────────
 
+def _fit_image_reader(data: bytes, max_px: int = 640) -> ImageReader:
+    """Decode + downscale before embedding (see app.pdf_service for why).
+
+    reportlab embeds the original bytes — a full-res logo made every PDF
+    several hundred KB heavier for no visual gain at these print sizes.
+    """
+    try:
+        from PIL import Image
+        img = Image.open(BytesIO(data))
+        if max(img.size) > max_px:
+            img.thumbnail((max_px, max_px), Image.LANCZOS)
+        buf = BytesIO()
+        fmt = (img.format or "").upper()
+        if fmt == "JPEG":
+            if img.mode not in ("L", "RGB"):
+                img = img.convert("RGB")
+            img.save(buf, "JPEG", quality=85, optimize=True)
+        else:
+            if img.mode not in ("P", "L", "RGB", "RGBA"):
+                img = img.convert("RGBA")
+            img.save(buf, "PNG", optimize=True)
+        buf.seek(0)
+        return ImageReader(buf)
+    except Exception:
+        return ImageReader(BytesIO(data))
+
+
 def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict | None = None) -> None:
     """Draw standard company header card with logo, name, address, TRN."""
     company = company_profile or {}
@@ -158,7 +185,7 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
     if logo_data and logo_type:
         try:
             logo_binary = base64.b64decode(logo_data)
-            logo_img = ImageReader(BytesIO(logo_binary))
+            logo_img = _fit_image_reader(logo_binary, 512)
             target = 34 * mm
             pdf.drawImage(logo_img, header_x + 3 * mm, header_y + (header_h - target) / 2,
                           width=target, height=target, preserveAspectRatio=True, mask="auto")
@@ -277,7 +304,7 @@ def _draw_invoice_header(pdf, company_profile, title_text='', logo_size=14*mm):
     if logo_data:
         try:
             lb = base64.b64decode(logo_data)
-            logo_img = ImageReader(BytesIO(lb))
+            logo_img = _fit_image_reader(lb, 512)
             pdf.drawImage(logo_img, left_x, top_y - logo_size, width=logo_size, height=logo_size,
                           preserveAspectRatio=True, mask='auto')
             logo_x = left_x + logo_size + 4 * mm
