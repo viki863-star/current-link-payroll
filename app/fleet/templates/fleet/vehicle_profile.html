@@ -291,8 +291,13 @@
                         <span style="color:#dee2e6">|</span>
                         <span style="font-weight:600;color:#212529">{{ j.staff_name or '-' }}</span>
                     </div>
-                    <div style="display:flex;align-items:center;gap:10px">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                         <span class="badge badge-type">{{ j.category }}</span>
+                        {% if j.edit_vehicle_id %}
+                        {% if j.attachment_name %}<a href="{{ url_for('generated_file', filename=j.attachment_name) }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline" onclick="event.stopPropagation()" style="font-weight:700;color:#1971c2;border-color:#1971c2">See Paper</a>{% endif %}
+                        {% elif j.has_attachment %}
+                        <a href="/fleet/attachment/{{ j.id }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline" onclick="event.stopPropagation()" style="font-weight:700;color:#1971c2;border-color:#1971c2">See Paper</a>
+                        {% endif %}
                         <span class="mono" style="font-weight:700;color:#e65100;font-size:0.95rem">AED {{ "%.0f"|format(j.amount|float) }}</span>
                     </div>
                 </div>
