@@ -121,8 +121,11 @@ def download_db_backup():
                 db_url = current_app.config.get("DATABASE_URL", "")
                 if not db_url:
                     raise RuntimeError("No DATABASE_URL configured")
-                backup_path = backup_dir / f"db_backup_{ts}.sql"
-                subprocess.run([pg_path, db_url, "-f", str(backup_path)], check=True)
+                # gzip + niced dump: the raw export was ~4 GB and froze the
+                # whole app for minutes while it ran.
+                from app.backup_service import _dump_pg_to_gz
+                backup_path = backup_dir / f"db_backup_{ts}.sql.gz"
+                _dump_pg_to_gz(pg_path, db_url, backup_path)
             else:
                 raise RuntimeError("pg_dump not found on this server")
         else:

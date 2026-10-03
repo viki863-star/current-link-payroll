@@ -1,7 +1,7 @@
 import os, base64, logging, zipfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from flask import render_template, request, redirect, url_for, flash, current_app, send_file, jsonify
+from flask import render_template, request, redirect, url_for, flash, current_app, send_file, jsonify, abort, make_response
 from io import BytesIO
 from . import documents_bp
 from ..database import open_db
@@ -128,7 +128,9 @@ def document_hub():
     sort = request.args.get("sort", "uploaded_at")
     order = request.args.get("order", "desc")
 
-    sql = "SELECT id, entity_type, entity_id, doc_name, doc_category, doc_ref_no, issue_date, expiry_date, file_type, file_size, thumbnail_data, pdf_preview_data, notes, uploaded_at FROM documents"
+    # Booleans instead of the blobs: the hub page must stay light. Images are
+    # served one-by-one by /documents/<id>/preview when a card is flipped open.
+    sql = "SELECT id, entity_type, entity_id, doc_name, doc_category, doc_ref_no, issue_date, expiry_date, file_type, file_size, (thumbnail_data IS NOT NULL) AS thumbnail_data, (pdf_preview_data IS NOT NULL) AS pdf_preview_data, notes, uploaded_at FROM documents"
     where = []
     params = []
     if q:
@@ -181,6 +183,40 @@ def document_hub():
 
     return render_template("documents/hub.html", docs=docs, ENTITY_LABELS=ENTITY_LABELS,
         q=q, entity_type=entity_type, expiry=expiry, cat=cat, sort=sort, order=order, today=date.today())
+
+
+@documents_bp.route("/documents/<int:doc_id>/preview")
+def document_preview(doc_id):
+    """Lightweight image preview for Mulkiya flip cards.
+
+    The hub page deliberately no longer embeds base64 previews (that used to
+    make /documents a ~7 MB HTML page); flip cards fetch this endpoint on
+    first click instead.
+    """
+    db = open_db()
+    row = db.execute(
+        "SELECT pdf_preview_data, thumbnail_data FROM documents WHERE id = ?",
+        (doc_id,),
+    ).fetchone()
+    db.close()
+    if not row:
+        abort(404)
+    raw = row["pdf_preview_data"] or row["thumbnail_data"]
+    if not raw:
+        abort(404)
+    try:
+        if "," in raw[:64]:
+            raw = raw.split(",", 1)[1]
+        img = base64.b64decode(raw)
+    except Exception:
+        abort(404)
+    if not img:
+        abort(404)
+    mime = "image/png" if img.startswith(b"\x89PNG") else "image/jpeg"
+    resp = make_response(img)
+    resp.headers["Content-Type"] = mime
+    resp.headers["Cache-Control"] = "private, max-age=86400"
+    return resp
 
 
 @documents_bp.route("/documents/upload", methods=["GET", "POST"])

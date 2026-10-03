@@ -354,11 +354,11 @@ function filterByCat(cat) {
         </div>
         {% if d.pdf_preview_data %}
         <div class="mk-flip-back">
-          <img src="data:image/jpeg;base64,{{ d.pdf_preview_data }}" alt="Mulkiya {{ d.entity_id }}" loading="lazy">
+          <img data-src="{{ url_for('documents.document_preview', doc_id=d.id) }}" alt="Mulkiya {{ d.entity_id }}" loading="lazy">
         </div>
         {% elif d.thumbnail_data %}
         <div class="mk-flip-back">
-          <img class="contain" src="data:image/jpeg;base64,{{ d.thumbnail_data }}" alt="Mulkiya {{ d.entity_id }}" loading="lazy">
+          <img class="contain" data-src="{{ url_for('documents.document_preview', doc_id=d.id) }}" alt="Mulkiya {{ d.entity_id }}" loading="lazy">
         </div>
         {% else %}
         <div class="mk-flip-back mk-flip-back-empty">
@@ -442,5 +442,17 @@ function applyFilters() {
   window.location.search = p.toString();
 }
 document.getElementById('sq').addEventListener('keydown', function(e){ if(e.key==='Enter') applyFilters(); });
+
+// Flip cards fetch their preview on the first click only — the hub itself
+// no longer inlines base64 images (that made /documents a ~7 MB page).
+document.addEventListener('click', function (e) {
+  var card = e.target && e.target.closest && e.target.closest('.mk-flip-container');
+  if (!card) return;
+  var img = card.querySelector('img[data-src]');
+  if (img) {
+    img.src = img.getAttribute('data-src');
+    img.removeAttribute('data-src');
+  }
+});
 </script>
 {% endblock %}

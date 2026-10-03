@@ -14,18 +14,49 @@ BACKUP_LIMITS = {
 }
 
 
+def _dump_pg_to_gz(pg_dump, db_url, dump_path):
+    """Run pg_dump and stream it through gzip, niced + ioniced.
+
+    Keeps the live app responsive while the backup runs (idle-class I/O) and
+    shrinks the daily write from ~4 GB to a few hundred MB — the old
+    uncompressed dump+copy pair was hammering the disk for minutes and making
+    the whole site crawl right after every restart.
+    """
+    import gzip
+
+    cmd = [pg_dump, db_url]
+    if shutil.which("nice"):
+        cmd = ["nice", "-n", "19"] + cmd
+    if shutil.which("ionice"):
+        cmd = ["ionice", "-c", "2", "-n", "7"] + cmd
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        with open(dump_path, "wb") as raw:
+            with gzip.GzipFile(fileobj=raw, mode="wb", compresslevel=1) as gz:
+                shutil.copyfileobj(proc.stdout, gz, 1024 * 1024)
+        stderr = proc.stderr.read().decode("utf-8", "replace")
+        if proc.wait() != 0:
+            raise RuntimeError(f"pg_dump failed: {stderr.strip()[:400]}")
+    finally:
+        for s in (proc.stdout, proc.stderr):
+            try:
+                s.close()
+            except OSError:
+                pass
+
+
 def _database_source(app):
     backend = app.config.get("DATABASE_BACKEND", "sqlite")
     if backend == "postgres":
         dump_dir = _backup_dir(app, "daily")
-        dump_path = dump_dir / f"pg_dump_{_timestamp()}.sql"
+        dump_path = dump_dir / f"pg_dump_{_timestamp()}.sql.gz"
         pg_dump = shutil.which(os.environ.get("PG_DUMP_PATH", "pg_dump"))
         if not pg_dump:
             return _error_result("pg_dump not found for PostgreSQL backup")
         db_url = app.config.get("DATABASE_URL", "")
         if not db_url:
             return _error_result("No DATABASE_URL configured")
-        subprocess.run([pg_dump, db_url, "-f", str(dump_path)], check=True)
+        _dump_pg_to_gz(pg_dump, db_url, dump_path)
         return {"ok": True, "path": dump_path, "type": "sql"}
     db_path = _database_path(app)
     if not db_path.exists():
@@ -46,6 +77,8 @@ def create_daily_backup(app=None):
     else:
         filename = f"current_link_daily_db_{ts}.db"
     target = backup_dir / filename
+    if db_source["type"] == "sql" and str(db_source["path"]).endswith(".sql.gz"):
+        target = backup_dir / f"{filename}.gz"
     shutil.copy2(db_source["path"], target)
     if db_source["type"] == "sql":
         try:
@@ -110,7 +143,7 @@ def cleanup_old_backups(app=None):
     for kind, keep_count in BACKUP_LIMITS.items():
         backup_dir = _backup_dir(app, kind)
         patterns = {
-            "daily": ["current_link_daily_db_*.db", "current_link_daily_db_*.sql", "pg_dump_*.sql"],
+            "daily": ["current_link_daily_db_*.db", "current_link_daily_db_*.sql", "current_link_daily_db_*.sql.gz", "pg_dump_*.sql", "pg_dump_*.sql.gz"],
             "weekly": ["current_link_weekly_full_*.zip"],
             "monthly": ["current_link_monthly_full_*.zip"],
         }[kind]
@@ -134,7 +167,7 @@ def ensure_daily_backup_for_today(app=None):
     app = _resolve_app(app)
     backup_dir = _backup_dir(app, "daily")
     today_prefix = f"current_link_daily_db_{datetime.now().strftime('%Y-%m-%d')}_"
-    if any(backup_dir.glob(f"{today_prefix}*.sql")) or any(backup_dir.glob(f"{today_prefix}*.db")):
+    if any(backup_dir.glob(f"{today_prefix}*.sql")) or any(backup_dir.glob(f"{today_prefix}*.sql.gz")) or any(backup_dir.glob(f"{today_prefix}*.db")):
         latest = latest_backup_file("daily", app)
         return _success_result(latest, "Today's daily backup already exists.")
     if (app.config.get("DATABASE_BACKEND") or "sqlite") != "sqlite":
@@ -153,7 +186,7 @@ def latest_backup_file(kind: str, app=None) -> Path | None:
         return None
     backup_dir = _backup_dir(app, normalized)
     patterns = {
-        "daily": ["current_link_daily_db_*.db", "current_link_daily_db_*.sql"],
+        "daily": ["current_link_daily_db_*.db", "current_link_daily_db_*.sql", "current_link_daily_db_*.sql.gz"],
         "weekly": ["current_link_weekly_full_*.zip"],
         "monthly": ["current_link_monthly_full_*.zip"],
     }[normalized]

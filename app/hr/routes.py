@@ -232,7 +232,10 @@ def hr_dashboard():
         _prev_month = _today.month - 1 if _today.month > 1 else 12
         _prev_year = _today.year if _today.month > 1 else _today.year - 1
         cm = f"{_prev_year:04d}-{_prev_month:02d}"
-        cm_rows = _paid_salary_report_rows(db, cm)
+        # with_advance=False: the dashboard never shows the advance column and
+        # balance/paid/status don't depend on it — skips ~100 per-employee
+        # advance queries and cuts /hr render time roughly in half.
+        cm_rows = _paid_salary_report_rows(db, cm, with_advance=False)
         cm_run = [r for r in cm_rows if r["status"] != "Not Run"]
         salary_run_count = len(cm_run)
         salary_paid_count = sum(1 for r in cm_run if r["paid"] > 0)
