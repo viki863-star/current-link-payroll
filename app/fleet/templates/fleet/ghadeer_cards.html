@@ -69,7 +69,7 @@
                 {% for c in cards %}
                 {% set bal = c.balance|float %}
                 <tr class="emp-row" onclick="window.location='{{ url_for('fleet.ghadeer_card_detail', card_id=c.id) }}'">
-                    <td class="mono" style="font-weight:700;font-size:0.92rem">{{ c.card_no }}</td>
+                    <td class="mono" style="font-weight:700;font-size:0.92rem">{{ c.card_no }}{% if c.has_front or c.has_back %} <span title="Card photos uploaded" style="font-size:.8rem">📷</span>{% endif %}</td>
                     <td>
                         {% if c.vehicle_plate %}
                         <a class="mono" style="color:#1971c2;font-weight:600" href="{{ url_for('fleet.vehicle_profile', plate_no=c.vehicle_plate) }}" onclick="event.stopPropagation()">{{ c.vehicle_plate }}</a>

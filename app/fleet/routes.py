@@ -1,6 +1,8 @@
 import sqlite3
 import json
+import base64
 from datetime import date, datetime
+from io import BytesIO
 from pathlib import Path
 
 from flask import (
@@ -20,7 +22,12 @@ from ..routes import (
     _touch_admin_workspace,
     _upsert_maintenance_supplier,
 )
-from ..pdf_service import generate_fuel_report_pdf
+from ..pdf_service import (
+    BLUE, BLUE_DARK, BLUE_SOFT, LINE, MUTED, SOFT, TEXT,
+    _draw_header, _draw_title, _fit_image_reader, _fit_text,
+    format_currency, format_date_label,
+    generate_fuel_report_pdf,
+)
 from . import fleet_bp
 
 
@@ -228,6 +235,17 @@ def ensure_fleet_tables():
     """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_gc_tx_card ON ghadeer_transactions (card_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_gc_tx_date ON ghadeer_transactions (tx_date)")
+    # Ghadeer card photos: front/back scans stored base64 (same as documents.file_data)
+    for _img_col in (
+        "ALTER TABLE ghadeer_cards ADD COLUMN front_image TEXT",
+        "ALTER TABLE ghadeer_cards ADD COLUMN front_image_type TEXT",
+        "ALTER TABLE ghadeer_cards ADD COLUMN back_image TEXT",
+        "ALTER TABLE ghadeer_cards ADD COLUMN back_image_type TEXT",
+    ):
+        try:
+            db.execute(_img_col)
+        except Exception:
+            pass  # column already exists
     db.commit()
     # Fix existing fuel expenses — change earning_type from 'trip' to 'Fuel'
     try:
@@ -613,7 +631,9 @@ def ghadeer_cards():
         db = open_db()
 
         cards = db.execute(
-            """SELECT c.*,
+            """SELECT c.id, c.card_no, c.vehicle_plate, c.cardholder, c.status, c.notes, c.created_at,
+                      CASE WHEN c.front_image IS NOT NULL AND c.front_image != '' THEN 1 ELSE 0 END AS has_front,
+                      CASE WHEN c.back_image IS NOT NULL AND c.back_image != '' THEN 1 ELSE 0 END AS has_back,
                       COALESCE(t.balance, 0) AS balance,
                       COALESCE(t.tx_count, 0) AS tx_count,
                       t.last_tx_date
@@ -707,6 +727,11 @@ def ghadeer_card_detail(card_id):
         if not card:
             flash("Ghadeer card not found.", "error")
             return redirect(url_for("fleet.ghadeer_cards"))
+        card = dict(card)
+        has_front = bool(card.get("front_image"))
+        has_back = bool(card.get("back_image"))
+        for _k in ("front_image", "front_image_type", "back_image", "back_image_type"):
+            card.pop(_k, None)
         rows = db.execute(
             "SELECT * FROM ghadeer_transactions WHERE card_id = ? ORDER BY tx_date DESC, id DESC",
             (card_id,),
@@ -729,6 +754,8 @@ def ghadeer_card_detail(card_id):
         return render_template(
             "fleet/ghadeer_card_detail.html",
             card=card,
+            has_front=has_front,
+            has_back=has_back,
             ledger=ledger,
             balance=running,
             total_recharged=total_recharged,
@@ -859,6 +886,390 @@ def ghadeer_card_delete(card_id):
     db.commit()
     flash(f"Ghadeer card {card['card_no']} deleted.", "success")
     return redirect(url_for("fleet.ghadeer_cards"))
+
+
+# ── Ghadeer card photos (front/back) + PDF ─────────────────────────────────
+
+_GHADEER_IMAGE_TYPES = {
+    "image/jpeg": b"\xff\xd8\xff",
+    "image/png": b"\x89PNG",
+    "image/gif": b"GIF8",
+    "image/webp": b"RIFF",
+}
+_GHADEER_IMAGE_MAX = 8 * 1024 * 1024  # 8 MB per photo
+
+
+def _ghadeer_validate_image(data: bytes, mimetype: str) -> str:
+    """Return the normalized mimetype or raise ValueError with a user message."""
+    mt = (mimetype or "").lower()
+    if mt not in _GHADEER_IMAGE_TYPES:
+        raise ValueError("Only JPG, PNG, WEBP or GIF images are allowed.")
+    if not data or len(data) > _GHADEER_IMAGE_MAX:
+        raise ValueError("Image is empty or too large (max 8 MB).")
+    if not data.startswith(_GHADEER_IMAGE_TYPES[mt]):
+        raise ValueError("File does not look like a valid image.")
+    if mt == "image/webp" and data[8:12] != b"WEBP":
+        raise ValueError("File does not look like a valid image.")
+    return mt
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/<int:card_id>/image/<side>", methods=["POST"])
+@_login_required("admin")
+def ghadeer_card_image(card_id, side):
+    ensure_fleet_tables()
+    db = open_db()
+    card = _ghadeer_card_or_none(db, card_id)
+    if not card:
+        flash("Ghadeer card not found.", "error")
+        return redirect(url_for("fleet.ghadeer_cards"))
+    if side not in ("front", "back"):
+        flash("Invalid photo side.", "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+
+    if (request.form.get("action") or "") == "delete":
+        db.execute(
+            f"UPDATE ghadeer_cards SET {side}_image = NULL, {side}_image_type = NULL WHERE id = ?",
+            (card_id,),
+        )
+        db.commit()
+        flash(f"{side.title()} side photo removed.", "success")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+
+    f = request.files.get("image")
+    if not f or not f.filename:
+        flash("Choose an image file first.", "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+    try:
+        data = f.read()
+        mt = _ghadeer_validate_image(data, f.mimetype)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+    db.execute(
+        f"UPDATE ghadeer_cards SET {side}_image = ?, {side}_image_type = ? WHERE id = ?",
+        (base64.b64encode(data).decode("ascii"), mt, card_id),
+    )
+    db.commit()
+    flash(f"{side.title()} side photo saved.", "success")
+    return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/<int:card_id>/image/<side>")
+@_login_required("admin")
+def ghadeer_card_image_view(card_id, side):
+    if side not in ("front", "back"):
+        return Response(status=404)
+    ensure_fleet_tables()
+    db = open_db()
+    row = db.execute(
+        f"SELECT {side}_image AS img, {side}_image_type AS mt FROM ghadeer_cards WHERE id = ?",
+        (card_id,),
+    ).fetchone()
+    if not row or not row["img"]:
+        return Response(status=404)
+    try:
+        data = base64.b64decode(row["img"])
+    except Exception:
+        return Response(status=404)
+    return send_file(
+        BytesIO(data),
+        mimetype=row["mt"] or "image/jpeg",
+        conditional=True,
+        max_age=3600,
+    )
+
+
+def _ghadeer_pdf_bytes(card, ledger, balance, total_recharged, total_consumed, company_profile) -> bytes:
+    """One-page-style Ghadeer card statement (multi-page when the ledger is long)."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas as rl_canvas
+
+    page_w, page_h = A4
+    buf = BytesIO()
+    pdf = rl_canvas.Canvas(buf, pagesize=A4)
+
+    _draw_header(pdf, "", company_profile)
+    subtitle = " · ".join(
+        x for x in [
+            str(card.get("card_no") or ""),
+            card.get("vehicle_plate") or "No vehicle",
+            card.get("cardholder") or "",
+            date.today().isoformat(),
+        ] if x
+    )
+    _draw_title(pdf, "Ghadeer Card Statement", subtitle)
+
+    left = 16 * mm
+    width = 178 * mm
+
+    # ── summary strip ──
+    y = page_h - 76 * mm
+    summary_h = 26 * mm
+    pdf.setFillColor(colors.white)
+    pdf.setStrokeColor(LINE)
+    pdf.roundRect(left, y - summary_h, width, summary_h, 3 * mm, fill=1, stroke=1)
+    cells = [
+        ("CURRENT BALANCE", "%.2f" % balance, True),
+        ("RECHARGED", "+ %.2f" % total_recharged, False),
+        ("FILLED", "- %.2f" % total_consumed, False),
+        ("ENTRIES", str(len(ledger)), False),
+    ]
+    cw = width / 4
+    for i, (lbl, val, is_balance) in enumerate(cells):
+        cx = left + i * cw
+        if i:
+            pdf.setStrokeColor(LINE)
+            pdf.line(cx, y - summary_h + 3 * mm, cx, y - 3 * mm)
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica-Bold", 7)
+        pdf.drawCentredString(cx + cw / 2, y - 8 * mm, lbl)
+        if is_balance and balance < 0:
+            pdf.setFillColor(colors.HexColor("#C92A2A"))
+        elif is_balance:
+            pdf.setFillColor(colors.HexColor("#2B8A3E"))
+        else:
+            pdf.setFillColor(BLUE_DARK)
+        vtxt, vsize = _fit_text(pdf, val, "Helvetica-Bold", 14, cw - 6 * mm, min_size=8)
+        pdf.setFont("Helvetica-Bold", vsize)
+        pdf.drawCentredString(cx + cw / 2, y - 18 * mm, vtxt)
+    y -= summary_h + 6 * mm
+
+    # ── card photos ──
+    photo_h = 52 * mm
+    gap = 6 * mm
+    box_w = (width - gap) / 2
+    for i, (side, label) in enumerate((("front", "FRONT SIDE"), ("back", "BACK SIDE"))):
+        bx = left + i * (box_w + gap)
+        pdf.setFillColor(SOFT)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(bx, y - photo_h, box_w, photo_h, 2.5 * mm, fill=1, stroke=1)
+        pdf.setFillColor(BLUE_SOFT)
+        pdf.roundRect(bx + 1.5 * mm, y - 7.5 * mm, box_w - 3 * mm, 6 * mm, 1.5 * mm, fill=1, stroke=0)
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 7.5)
+        pdf.drawCentredString(bx + box_w / 2, y - 5.8 * mm, label)
+        drew = False
+        img_b64 = card.get(side + "_image")
+        if img_b64:
+            try:
+                raw = base64.b64decode(img_b64)
+                reader = _fit_image_reader(raw, 1000)
+                iw, ih = reader.getSize()
+                avail_w = box_w - 6 * mm
+                avail_h = photo_h - 14 * mm
+                scale = min(avail_w / iw, avail_h / ih)
+                dw, dh = iw * scale, ih * scale
+                pdf.drawImage(
+                    reader,
+                    bx + (box_w - dw) / 2,
+                    y - photo_h + 3 * mm + (avail_h - dh) / 2,
+                    width=dw, height=dh,
+                    preserveAspectRatio=True, mask="auto",
+                )
+                drew = True
+            except Exception:
+                drew = False
+        if not drew:
+            pdf.setFillColor(MUTED)
+            pdf.setFont("Helvetica", 8)
+            pdf.drawCentredString(bx + box_w / 2, y - photo_h / 2 - 2 * mm, "No photo uploaded")
+    y -= photo_h + 8 * mm
+
+    # ── transactions ──
+    cols = [
+        ("Date", 16, 21, "l"),
+        ("Type", 37, 24, "l"),
+        ("Description", 61, 63, "l"),
+        ("Credit", 124, 23, "r"),
+        ("Debit", 147, 21, "r"),
+        ("Balance", 168, 26, "r"),
+    ]
+    row_h = 6.2 * mm
+    hdr_h = 6.5 * mm
+    page_no = 1
+    C_GREEN = colors.HexColor("#2B8A3E")
+    C_ORANGE = colors.HexColor("#E67700")
+    C_RED = colors.HexColor("#C92A2A")
+    type_colors = {
+        "Recharge": C_GREEN,
+        "Fill": colors.HexColor("#1971C2"),
+        "Adjustment": C_ORANGE,
+    }
+
+    def footer():
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 6.5)
+        pdf.drawCentredString(
+            page_w / 2, 8 * mm,
+            "Generated %s · Current Link ERP · Page %d" % (date.today().isoformat(), page_no),
+        )
+
+    def table_header(yy):
+        pdf.setFillColor(BLUE)
+        pdf.roundRect(left, yy - hdr_h, width, hdr_h, 1.5 * mm, fill=1, stroke=0)
+        pdf.setFillColor(colors.white)
+        pdf.setFont("Helvetica-Bold", 7.4)
+        for lbl, x_mm, wd, al in cols:
+            if al == "r":
+                pdf.drawRightString((x_mm + wd) * mm - 2.2 * mm, yy - 4.6 * mm, lbl)
+            else:
+                pdf.drawString(x_mm * mm + 2.2 * mm, yy - 4.6 * mm, lbl)
+        return yy - hdr_h
+
+    def new_page():
+        nonlocal page_no, y
+        footer()
+        pdf.showPage()
+        page_no += 1
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 9.5)
+        pdf.drawString(left, page_h - 20 * mm, "Ghadeer Card %s — transactions (continued)" % card.get("card_no", ""))
+        y = table_header(page_h - 26 * mm)
+
+    pdf.setFillColor(BLUE_DARK)
+    pdf.setFont("Helvetica-Bold", 9.5)
+    pdf.drawString(left, y - 1 * mm, "TRANSACTIONS")
+    y -= 6 * mm
+    y = table_header(y)
+
+    def num(v):
+        try:
+            return "%g" % float(v)
+        except (TypeError, ValueError):
+            return ""
+
+    if not ledger:
+        pdf.setFillColor(MUTED)
+        pdf.setFont("Helvetica", 8.5)
+        pdf.drawCentredString(page_w / 2, y - 10 * mm, "No transactions yet.")
+        y -= 16 * mm
+    for idx, item in enumerate(ledger):
+        if y - row_h < 16 * mm:
+            new_page()
+        if idx % 2 == 1:
+            pdf.setFillColor(SOFT)
+            pdf.roundRect(left, y - row_h, width, row_h, 1.2 * mm, fill=1, stroke=0)
+        amt = float(item.get("amount") or 0)
+        desc_bits = []
+        if item.get("volume_m3"):
+            desc_bits.append("%s m³" % num(item.get("volume_m3")))
+        if item.get("station"):
+            desc_bits.append(str(item["station"]))
+        if item.get("ref_no"):
+            desc_bits.append("#%s" % item["ref_no"])
+        if item.get("notes"):
+            desc_bits.append(str(item["notes"]))
+        values = [
+            str(item.get("tx_date") or ""),
+            str(item.get("tx_type") or ""),
+            " · ".join(desc_bits) or "-",
+            ("%.2f" % amt) if amt > 0 else "",
+            ("%.2f" % -amt) if amt < 0 else "",
+            "%.2f" % float(item.get("balance") or 0),
+        ]
+        baseline = y - 4.3 * mm
+        bal = float(item.get("balance") or 0)
+        # single pass with an explicit colour per cell (no leftover fill state)
+        styles = [
+            ("Helvetica", 7.0, TEXT),
+            ("Helvetica-Bold", 7.0, type_colors.get(item.get("tx_type"), TEXT)),
+            ("Helvetica", 6.8, TEXT),
+            ("Helvetica-Bold", 7.0, C_GREEN if amt > 0 else TEXT),
+            ("Helvetica-Bold", 7.0, C_ORANGE if amt < 0 else TEXT),
+            ("Helvetica-Bold", 7.0, C_RED if bal < 0 else BLUE_DARK),
+        ]
+        for (val, (_, x_mm, wd, al), (fname, fsize, col)) in zip(values, cols, styles):
+            cell_x = x_mm * mm
+            cell_w = wd * mm
+            txt, sz = _fit_text(pdf, str(val), fname, fsize, cell_w - 4 * mm, min_size=5.4)
+            pdf.setFont(fname, sz)
+            pdf.setFillColor(col)
+            if al == "r":
+                pdf.drawRightString(cell_x + cell_w - 2 * mm, baseline, txt)
+            else:
+                pdf.drawString(cell_x + 2 * mm, baseline, txt)
+        y -= row_h
+
+    # ── totals ──
+    if ledger:
+        if y - 9 * mm < 16 * mm:
+            new_page()
+        y -= 2 * mm
+        pdf.setFillColor(BLUE_SOFT)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(left, y - 8 * mm, width, 8.5 * mm, 1.5 * mm, fill=1, stroke=1)
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawString(left + 3 * mm, y - 5.6 * mm, "TOTALS")
+        pdf.setFillColor(colors.HexColor("#2B8A3E"))
+        pdf.drawString(126 * mm, y - 5.6 * mm, "+ %.2f" % total_recharged)
+        pdf.setFillColor(colors.HexColor("#E67700"))
+        pdf.drawString(150 * mm, y - 5.6 * mm, "- %.2f" % total_consumed)
+        pdf.setFillColor(BLUE_DARK)
+        pdf.setFont("Helvetica-Bold", 8.5)
+        pdf.drawRightString(190 * mm, y - 5.6 * mm, "Balance: %.2f" % balance)
+        y -= 12 * mm
+
+    pdf.setFillColor(MUTED)
+    pdf.setFont("Helvetica", 6.8)
+    pdf.drawString(left, y - 2 * mm, "Card: %s" % card.get("card_no", ""))
+    if card.get("notes"):
+        pdf.drawString(left + 55 * mm, y - 2 * mm, "Notes: %s" % str(card["notes"])[:90])
+    footer()
+    pdf.save()
+    return buf.getvalue()
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/<int:card_id>/pdf")
+@_login_required("admin")
+def ghadeer_card_pdf(card_id):
+    try:
+        ensure_fleet_tables()
+        db = open_db()
+        card = _ghadeer_card_or_none(db, card_id)
+        if not card:
+            flash("Ghadeer card not found.", "error")
+            return redirect(url_for("fleet.ghadeer_cards"))
+        card = dict(card)
+        rows = db.execute(
+            "SELECT * FROM ghadeer_transactions WHERE card_id = ? ORDER BY tx_date, id",
+            (card_id,),
+        ).fetchall()
+        running = 0.0
+        ledger = []
+        for t in rows:
+            running += float(t["amount"] or 0)
+            item = dict(t)
+            item["balance"] = running
+            ledger.append(item)
+        total_recharged = sum(float(t["amount"] or 0) for t in rows if float(t["amount"] or 0) > 0)
+        total_consumed = -sum(float(t["amount"] or 0) for t in rows if float(t["amount"] or 0) < 0)
+
+        try:
+            cp = db.execute(
+                "SELECT company_name, address, phone_number, email, trn_no, logo_data, logo_type "
+                "FROM company_profile LIMIT 1"
+            ).fetchone()
+            cp = dict(cp) if cp else None
+        except Exception:
+            cp = None
+
+        pdf_bytes = _ghadeer_pdf_bytes(
+            card, ledger, running, total_recharged, total_consumed, cp
+        )
+        fname = "Ghadeer_Card_%s.pdf" % str(card.get("card_no") or card_id).replace(" ", "_").replace("/", "-")
+        return send_file(
+            BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=fname,
+        )
+    except Exception as e:
+        current_app.logger.error("Ghadeer PDF error: %s", e, exc_info=True)
+        flash("Could not generate the PDF.", "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
 
 
 @fleet_bp.route("/fleet/vehicles/download/excel")
