@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Ghadeer Cards — Current Link ERP{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Ghadeer Cards{% endblock %}
+
+{% block content %}
+<style>
+    .gc-sub { font-size:.72rem; font-weight:600; color:#868e96; letter-spacing:.04em; text-transform:uppercase; margin-left:8px }
+    .gc-balance { font-weight:800; font-size:.95rem; color:#2b8a3e }
+    .gc-balance.low { color:#e67700 }
+    .gc-balance.neg { color:#c92a2a }
+    .gc-low-tag { display:inline-block; margin-left:6px; background:#fff3bf; color:#e67700; border:1px solid #ffd43b; border-radius:6px; font-size:.62rem; font-weight:800; padding:1px 5px; letter-spacing:.05em; vertical-align:1px }
+    .gc-backdrop { display:none; position:fixed; inset:0; background:rgba(12,35,64,.55); backdrop-filter:blur(3px); z-index:200; align-items:center; justify-content:center; padding:20px }
+    .gc-modal { display:none; background:#fff; border-radius:16px; width:100%; max-width:520px; max-height:90vh; overflow:auto; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+    .gc-modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid #e9ecef; position:sticky; top:0; background:#fff; border-radius:16px 16px 0 0 }
+    .gc-modal-head h3 { margin:0; font-size:1rem; color:#0c2340 }
+    .gc-modal-x { border:0; background:#f1f3f5; border-radius:8px; width:30px; height:30px; font-size:1rem; cursor:pointer; color:#495057 }
+    .gc-modal-x:hover { background:#e9ecef }
+    .gc-modal-body { padding:18px 20px 20px }
+    .gc-f { display:flex; flex-direction:column; gap:4px; margin-bottom:12px }
+    .gc-f label { font-size:.74rem; font-weight:700; color:#495057; text-transform:uppercase; letter-spacing:.05em }
+    .gc-f input, .gc-f select, .gc-f textarea { padding:9px 11px; border:1px solid #dee2e6; border-radius:9px; font-size:.9rem; font-family:inherit; background:#fdfefe }
+    .gc-f input:focus, .gc-f select:focus, .gc-f textarea:focus { outline:2px solid rgba(15,65,120,.25); border-color:#0F4178 }
+    .gc-f-row { display:grid; grid-template-columns:1fr 1fr; gap:12px }
+    .gc-hint { font-size:.74rem; color:#868e96; margin:-6px 0 12px }
+    .gc-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:6px }
+    .gc-lead { font-weight:800; color:#0c2340 }
+</style>
+
+<div class="list-shell">
+    <div class="filter-bar">
+        <div class="filter-bar-top">
+            <div class="filter-bar-title">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M12 2.7s5.5 6.1 5.5 10.3a5.5 5.5 0 0 1-11 0C6.5 8.8 12 2.7 12 2.7z"/></svg>
+                Ghadeer Cards <span class="gc-sub">TAQA prepaid water filling</span>
+            </div>
+            <div style="display:flex;gap:8px">
+                <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline btn-sm">Vehicles</a>
+                <button type="button" class="btn btn-primary" onclick="gcOpenModal('modal-add-card')">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+                    Add Card
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-mini-row">
+        <span class="kpi-mini">Total Balance: <strong style="color:#2b8a3e">AED {{ "%.2f"|format(total_balance|float) }}</strong></span>
+        <span class="kpi-mini">Cards: <strong>{{ cards|length }}</strong> ({{ active_count }} active)</span>
+        <span class="kpi-mini">Recharged ({{ today[:7] }}): <strong style="color:#2b8a3e">AED {{ "%.2f"|format(month_in|float) }}</strong></span>
+        <span class="kpi-mini">Filled ({{ today[:7] }}): <strong style="color:#e65100">AED {{ "%.2f"|format(month_out|float) }}</strong></span>
+    </div>
+
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead>
+                <tr>
+                    <th>Card No</th>
+                    <th>Vehicle</th>
+                    <th>Cardholder</th>
+                    <th>Balance</th>
+                    <th>Last Activity</th>
+                    <th>Entries</th>
+                    <th>Status</th>
+                    <th class="th-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cards %}
+                {% set bal = c.balance|float %}
+                <tr class="emp-row" onclick="window.location='{{ url_for('fleet.ghadeer_card_detail', card_id=c.id) }}'">
+                    <td class="mono" style="font-weight:700;font-size:0.92rem">{{ c.card_no }}</td>
+                    <td>
+                        {% if c.vehicle_plate %}
+                        <a class="mono" style="color:#1971c2;font-weight:600" href="{{ url_for('fleet.vehicle_profile', plate_no=c.vehicle_plate) }}" onclick="event.stopPropagation()">{{ c.vehicle_plate }}</a>
+                        {% else %}<span style="color:#adb5bd">—</span>{% endif %}
+                    </td>
+                    <td>{{ c.cardholder or '—' }}</td>
+                    <td>
+                        <span class="gc-balance {% if bal < 0 %}neg{% elif bal < low_balance|float %}low{% endif %}">AED {{ "%.2f"|format(bal) }}</span>
+                        {% if bal < low_balance|float %}<span class="gc-low-tag">LOW</span>{% endif %}
+                    </td>
+                    <td class="mono" style="font-size:0.82rem">{{ c.last_tx_date or '—' }}</td>
+                    <td>{{ c.tx_count|int }}</td>
+                    <td><span class="status-badge {{ c.status|lower }}">{{ c.status }}</span></td>
+                    <td class="action-cell">
+                        <a class="btn btn-sm btn-primary" href="{{ url_for('fleet.ghadeer_card_detail', card_id=c.id) }}">Ledger</a>
+                        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();gcTx('Recharge',{{ c.id }},'{{ c.card_no }}')">+ Recharge</button>
+                        <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();gcTx('Fill',{{ c.id }},'{{ c.card_no }}')">Fill</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="empty-state">No Ghadeer cards yet — add a card to start tracking advance balances. <button type="button" class="btn btn-sm btn-primary" style="margin-left:8px" onclick="gcOpenModal('modal-add-card')">Add Card</button></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══════ Modals ═══════ -->
+<div class="gc-backdrop" id="gc-backdrop">
+    <!-- Add card -->
+    <div class="gc-modal" id="modal-add-card" onclick="event.stopPropagation()">
+        <div class="gc-modal-head"><h3>💧 Add Ghadeer Card</h3><button type="button" class="gc-modal-x" onclick="gcCloseModals()">✕</button></div>
+        <div class="gc-modal-body">
+            <form method="POST" action="{{ url_for('fleet.ghadeer_card_add') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="gc-f"><label>Card Number *</label><input type="text" name="card_no" required placeholder="e.g. GH-2026-001" autocomplete="off"></div>
+                <div class="gc-f"><label>Linked Tanker / Vehicle</label>
+                    <select name="vehicle_plate">
+                        <option value="">— Not linked —</option>
+                        {% if tanker_vehicles %}
+                        <optgroup label="Water Tankers">
+                            {% for tv in tanker_vehicles %}<option value="{{ tv.plate_no }}">{{ tv.plate_no }} — {{ tv.vehicle_type }}</option>{% endfor %}
+                        </optgroup>
+                        {% endif %}
+                        {% if other_vehicles %}
+                        <optgroup label="Other Vehicles">
+                            {% for ov in other_vehicles %}<option value="{{ ov.plate_no }}">{{ ov.plate_no }} — {{ ov.vehicle_type }}</option>{% endfor %}
+                        </optgroup>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="gc-f"><label>Cardholder / Driver</label><input type="text" name="cardholder" placeholder="Name (optional)"></div>
+                <div class="gc-f-row">
+                    <div class="gc-f"><label>Opening Balance (AED)</label><input type="number" name="opening_balance" step="0.01" min="0" placeholder="0.00"></div>
+                    <div class="gc-f"><label>Date</label><input type="date" name="tx_date" value="{{ today }}"></div>
+                </div>
+                <p class="gc-hint">Opening balance is recorded as the first Recharge entry (leave 0 if none yet).</p>
+                <div class="gc-f"><label>Notes</label><textarea name="notes" rows="2" placeholder="Optional notes"></textarea></div>
+                <div class="gc-actions">
+                    <button type="button" class="btn btn-outline" onclick="gcCloseModals()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Card</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Recharge / Fill / Adjustment -->
+    <div class="gc-modal" id="modal-tx" onclick="event.stopPropagation()">
+        <div class="gc-modal-head"><h3 id="tx-title">Add Transaction</h3><button type="button" class="gc-modal-x" onclick="gcCloseModals()">✕</button></div>
+        <div class="gc-modal-body">
+            <p class="gc-lead" id="tx-card-label">Card</p>
+            <form method="POST" id="form-tx" action="{{ url_for('fleet.ghadeer_card_tx', card_id=1) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="gc-f-row">
+                    <div class="gc-f"><label>Type *</label>
+                        <select name="tx_type" id="tx-type" onchange="gcTxType()">
+                            <option value="Recharge">Recharge (+ credit)</option>
+                            <option value="Fill">Fill (− debit)</option>
+                            <option value="Adjustment">Adjustment</option>
+                        </select>
+                    </div>
+                    <div class="gc-f"><label>Amount (AED) *</label><input type="number" name="amount" step="0.01" min="0.01" required placeholder="0.00"></div>
+                </div>
+                <div class="gc-f-row">
+                    <div class="gc-f"><label>Date</label><input type="date" name="tx_date" value="{{ today }}"></div>
+                    <div class="gc-f" id="row-direction" style="display:none"><label>Direction</label>
+                        <select name="direction">
+                            <option value="credit">Credit (+)</option>
+                            <option value="debit">Debit (−)</option>
+                        </select>
+                    </div>
+                    <div class="gc-f" id="row-volume" style="display:none"><label>Volume (m³)</label><input type="number" name="volume_m3" step="0.01" min="0" placeholder="e.g. 10"></div>
+                </div>
+                <div class="gc-f-row">
+                    <div class="gc-f"><label>Filling Station / Location</label><input type="text" name="station" placeholder="TAQA station (optional)"></div>
+                    <div class="gc-f"><label>Receipt / Ref No</label><input type="text" name="ref_no" placeholder="Reference (optional)"></div>
+                </div>
+                <div class="gc-f"><label>Notes</label><textarea name="notes" rows="2" placeholder="Optional notes"></textarea></div>
+                <div class="gc-actions">
+                    <button type="button" class="btn btn-outline" onclick="gcCloseModals()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="tx-submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function gcOpenModal(id){
+    var bd=document.getElementById('gc-backdrop');
+    bd.style.display='flex';
+    document.querySelectorAll('.gc-modal').forEach(function(m){m.style.display='none'});
+    document.getElementById(id).style.display='block';
+}
+function gcCloseModals(){ document.getElementById('gc-backdrop').style.display='none'; }
+function gcTxType(){
+    var t=document.getElementById('tx-type').value;
+    document.getElementById('row-volume').style.display=(t==='Fill')?'flex':'none';
+    document.getElementById('row-direction').style.display=(t==='Adjustment')?'flex':'none';
+    document.getElementById('tx-title').textContent=(t==='Recharge')?'Add Recharge (advance payment)':(t==='Fill')?'Record Water Fill':'Record Adjustment';
+    document.getElementById('tx-submit').textContent=(t==='Fill')?'Save Fill':'Save';
+}
+function gcTx(type, cardId, cardNo){
+    var f=document.getElementById('form-tx');
+    f.action='/fleet/ghadeer-cards/'+cardId+'/tx';
+    document.getElementById('tx-card-label').textContent='Card: '+cardNo;
+    document.getElementById('tx-type').value=type;
+    f.amount.value='';
+    gcTxType();
+    gcOpenModal('modal-tx');
+}
+document.getElementById('gc-backdrop').addEventListener('click', gcCloseModals);
+</script>
+{% endblock %}

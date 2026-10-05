@@ -112,6 +112,13 @@
         <div class="vp-kpi"><div class="vp-kpi-icon">💰</div><div class="vp-kpi-label">Total Cost</div><div class="vp-kpi-value" style="color:#e65100">AED {{ "%.0f"|format(v.total_cost) }}</div></div>
         <div class="vp-kpi"><div class="vp-kpi-icon">⛽</div><div class="vp-kpi-label">Fuel</div><div class="vp-kpi-value" style="color:#e65100">AED {{ "%.0f"|format(fuel_total_amount) }}</div></div>
         <div class="vp-kpi"><div class="vp-kpi-icon">📦</div><div class="vp-kpi-label">Parts</div><div class="vp-kpi-value" style="color:#1565C0">AED {{ "%.0f"|format(parts_total_net) }}</div></div>
+        {% if ghadeer_card %}
+        <a class="vp-kpi" href="{{ url_for('fleet.ghadeer_card_detail', card_id=ghadeer_card.id) }}" style="text-decoration:none;cursor:pointer">
+            <div class="vp-kpi-icon">💧</div>
+            <div class="vp-kpi-label">Ghadeer {{ ghadeer_card.card_no }}</div>
+            <div class="vp-kpi-value" style="color:{{ '#2b8a3e' if ghadeer_card.balance|float >= 1000 else '#c92a2a' }}">AED {{ "%.0f"|format(ghadeer_card.balance|float) }}</div>
+        </a>
+        {% endif %}
     </div>
 
     <div class="vp-info-grid">

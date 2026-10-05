@@ -4,6 +4,13 @@
 {% block page_title %}Vehicle Registry{% endblock %}
 
 {% block content %}
+<style>
+    .vl-group-head { display:flex; align-items:center; gap:10px; margin:20px 0 8px; padding:9px 14px; background:linear-gradient(135deg,#0c2340,#123a63); color:#fff; border-radius:10px; box-shadow:0 4px 14px rgba(12,35,64,.18); }
+    .vl-group-icon { font-size:1.05rem; line-height:1 }
+    .vl-group-title { font-weight:800; font-size:.8rem; letter-spacing:.08em; text-transform:uppercase }
+    .vl-group-count { margin-left:auto; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.35); border-radius:999px; padding:2px 10px; font-size:.74rem; font-weight:700 }
+    .vl-group-head .vl-group-empty { font-size:.74rem; color:rgba(255,255,255,.65); font-weight:500 }
+</style>
 <div class="list-shell">
     <div class="filter-bar">
         <div class="filter-bar-top">
@@ -12,6 +19,7 @@
                 Vehicles
             </div>
             <div style="display:flex;gap:8px">
+                <a href="{{ url_for('fleet.ghadeer_cards') }}" class="btn btn-outline btn-sm">💧 Ghadeer Cards</a>
                 <a href="{{ url_for('fleet.vehicle_list_excel') }}?q={{ q }}&type={{ type_filter }}&ownership={{ ownership_filter }}&status={{ status_filter }}" class="btn btn-outline btn-sm">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/></svg>
                     Download Excel
@@ -46,46 +54,64 @@
         <a href="{{ url_for('fleet.vehicle_list') }}" class="kpi-mini {% if not status_filter or status_filter == 'Active' %}active{% endif %}">Active: <strong>{{ stats.active }}</strong></a>
         <a href="{{ url_for('fleet.vehicle_list', status='Inactive', q=q, type=type_filter, ownership=ownership_filter) }}" class="kpi-mini {% if status_filter == 'Inactive' %}active{% endif %}">Inactive: <strong>{{ stats.inactive }}</strong></a>
         <span class="kpi-mini">Total: <strong>{{ stats.total }}</strong></span>
+        {% for gkey, gtitle, gicon, gcount in group_counts %}
+        <a href="#grp-{{ gkey }}" class="kpi-mini">{{ gicon }} {{ gtitle }}: <strong>{{ gcount }}</strong></a>
+        {% endfor %}
     </div>
 
+    {% for gkey, gtitle, gicon, gvins in groups %}
+    <div class="vl-group" id="grp-{{ gkey }}">
+        <div class="vl-group-head">
+            <span class="vl-group-icon">{{ gicon }}</span>
+            <span class="vl-group-title">{{ gtitle }}</span>
+            <span class="vl-group-count">{{ gvins|length }} vehicle{{ 's' if gvins|length != 1 else '' }}</span>
+        </div>
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead>
+                    <tr>
+                        <th>Plate</th>
+                        <th>Category</th>
+                        <th>Type</th>
+                        <th>Sub Type</th>
+                        <th>Length/Cap</th>
+                        <th>Linked To</th>
+                        <th>Status</th>
+                        <th class="th-actions"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in gvins %}
+                    <tr class="emp-row" onclick="window.location='{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}'">
+                        <td class="mono" style="font-weight:600;font-size:0.9rem">{{ v.plate_no }}</td>
+                        <td><span class="badge badge-dept">{{ v.vehicle_category or 'Solo' }}</span></td>
+                        <td><span class="badge badge-type">{{ v.vehicle_type }}</span></td>
+                        <td>{{ v.vehicle_sub_type or '-' }}</td>
+                        <td>
+                            {% if v.vehicle_length %}{{ v.vehicle_length }}{% endif %}
+                            {% if v.tank_capacity_gal and v.tank_capacity_gal > 0 %}{{ v.tank_capacity_gal }} gal{% endif %}
+                            {% if not v.vehicle_length and (not v.tank_capacity_gal or v.tank_capacity_gal == 0) %}-{% endif %}
+                        </td>
+                        <td>{% if v.linked_plate_no %}<span class="badge badge-link">{{ v.linked_plate_no }}</span>{% else %}-{% endif %}</td>
+                        <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
+                        <td class="action-cell">
+                            <a href="{{ vehicle_url(v.plate_no) }}" class="btn btn-sm btn-primary">Profile</a>
+                            <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}" class="btn btn-sm btn-outline" onclick="event.stopPropagation()">Edit</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
     <div class="table-wrap">
         <table class="smart-table">
-            <thead>
-                <tr>
-                    <th>Plate</th>
-                    <th>Category</th>
-                    <th>Type</th>
-                    <th>Sub Type</th>
-                    <th>Length/Cap</th>
-                    <th>Linked To</th>
-                    <th>Status</th>
-                    <th class="th-actions"></th>
-                </tr>
-            </thead>
             <tbody>
-                {% for v in vehicles %}
-                <tr class="emp-row" onclick="window.location='{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}'">
-                    <td class="mono" style="font-weight:600;font-size:0.9rem">{{ v.plate_no }}</td>
-                    <td><span class="badge badge-dept">{{ v.vehicle_category or 'Solo' }}</span></td>
-                    <td><span class="badge badge-type">{{ v.vehicle_type }}</span></td>
-                    <td>{{ v.vehicle_sub_type or '-' }}</td>
-                    <td>
-                        {% if v.vehicle_length %}{{ v.vehicle_length }}{% endif %}
-                        {% if v.tank_capacity_gal and v.tank_capacity_gal > 0 %}{{ v.tank_capacity_gal }} gal{% endif %}
-                        {% if not v.vehicle_length and (not v.tank_capacity_gal or v.tank_capacity_gal == 0) %}-{% endif %}
-                    </td>
-                    <td>{% if v.linked_plate_no %}<span class="badge badge-link">{{ v.linked_plate_no }}</span>{% else %}-{% endif %}</td>
-                    <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
-                    <td class="action-cell">
-                        <a href="{{ vehicle_url(v.plate_no) }}" class="btn btn-sm btn-primary">Profile</a>
-                        <a href="{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}" class="btn btn-sm btn-outline" onclick="event.stopPropagation()">Edit</a>
-                    </td>
-                </tr>
-                {% else %}
                 <tr><td colspan="8" class="empty-state">No vehicles found. <a href="{{ url_for('fleet.vehicle_add') }}">Add your first vehicle</a>.</td></tr>
-                {% endfor %}
             </tbody>
         </table>
     </div>
+    {% endfor %}
 </div>
 {% endblock %}

@@ -60,6 +60,42 @@ VEHICLE_TYPES = [
 ]
 VEHICLE_CATEGORIES = ["Solo", "Head", "Trailer"]
 VEHICLE_SUB_TYPES = ["Tractor", "Flat Bed 12M", "Flat Bed 24M", "Tanker Drinking", "Tanker Non-Drinking", "Tanker Drainage", "Box Truck", "Crane", "Forklift", "Other"]
+
+# Divided registry sections — order matters (display order on /fleet/vehicles)
+VEHICLE_GROUPS = [
+    ("trailers", "Trailers", "🚜"),
+    ("drinking", "Drinking Water Tankers", "💧"),
+    ("non_drinking", "Non-Drinking Water Tankers", "🚰"),
+    ("drainage", "Drainage Tankers", "🛢️"),
+    ("cranes", "Cranes", "🏗️"),
+    ("forklifts", "Forklifts", "🏗"),
+    ("others", "Other Vehicles", "🚚"),
+]
+
+
+def _vehicle_group_key(v) -> str:
+    """Which registry section a vehicle belongs to.
+
+    Driven by vehicle_type / vehicle_sub_type / vehicle_category, so editing a
+    vehicle's category/type moves it into the matching section automatically.
+    Order matters: "non-drinking" contains the substring "drinking".
+    """
+    vt = (v.get("vehicle_type") or "").lower()
+    st = (v.get("vehicle_sub_type") or "").lower()
+    cat = (v.get("vehicle_category") or "").lower()
+    if "non-drinking" in vt or "non drinking" in vt or "non-drinking" in st or "non drinking" in st:
+        return "non_drinking"
+    if "drainage" in vt or "drainage" in st:
+        return "drainage"
+    if "drinking" in vt or "drinking" in st:
+        return "drinking"
+    if "forklift" in vt or "forklift" in st:
+        return "forklifts"
+    if "crane" in vt or "crane" in st:
+        return "cranes"
+    if "trailer" in vt or cat == "trailer" or st in ("flat bed 12m", "flat bed 24m") or vt == "tractor unit" or st == "tractor":
+        return "trailers"
+    return "others"
 LINK_TYPES = ["", "Flat Link", "Tanker Link"]
 TANK_CAPACITIES = [0, 3000, 5000, 10000]
 OWNERSHIP_TYPES = ["Standard", "Partnership"]
@@ -164,6 +200,34 @@ def ensure_fleet_tables():
             created_at TEXT DEFAULT {default_ts}
         )
     """)
+    # Ghadeer cards (TAQA prepaid water-filling cards) + their ledger
+    db.execute(f"""
+        CREATE TABLE IF NOT EXISTS ghadeer_cards (
+            {id_col},
+            card_no TEXT NOT NULL UNIQUE,
+            vehicle_plate TEXT,
+            cardholder TEXT,
+            status TEXT NOT NULL DEFAULT 'Active',
+            notes TEXT,
+            created_at TEXT DEFAULT {default_ts}
+        )
+    """)
+    db.execute(f"""
+        CREATE TABLE IF NOT EXISTS ghadeer_transactions (
+            {id_col},
+            card_id INTEGER NOT NULL,
+            tx_type TEXT NOT NULL,
+            amount {real_type} NOT NULL,
+            volume_m3 {real_type},
+            station TEXT,
+            ref_no TEXT,
+            tx_date TEXT NOT NULL,
+            notes TEXT,
+            created_at TEXT DEFAULT {default_ts}
+        )
+    """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_gc_tx_card ON ghadeer_transactions (card_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_gc_tx_date ON ghadeer_transactions (tx_date)")
     db.commit()
     # Fix existing fuel expenses — change earning_type from 'trip' to 'Fuel'
     try:
@@ -470,6 +534,17 @@ def vehicle_list():
 
         ).fetchall()
 
+        # Divided registry sections (Trailers / Drinking / Non-Drinking / Drainage / Crane / Forklift / Others)
+        grouped = {key: [] for key, _, _ in VEHICLE_GROUPS}
+        for v in vehicles:
+            grouped[_vehicle_group_key(v)].append(v)
+        groups = []
+        group_counts = []
+        for key, title, icon in VEHICLE_GROUPS:
+            group_counts.append((key, title, icon, len(grouped[key])))
+            if grouped[key]:
+                groups.append((key, title, icon, grouped[key]))
+
         vehicle_types = [r[0] for r in db.execute("SELECT DISTINCT vehicle_type FROM vehicles ORDER BY vehicle_type").fetchall()]
         ownership_types = [r[0] for r in db.execute("SELECT DISTINCT ownership_type FROM vehicles ORDER BY ownership_type").fetchall()]
         active_count = db.execute("SELECT COUNT(*) FROM vehicles WHERE status = 'Active'").fetchone()[0]
@@ -485,6 +560,8 @@ def vehicle_list():
         return render_template(
             "fleet/vehicle_list.html",
             vehicles=vehicles,
+            groups=groups,
+            group_counts=group_counts,
             stats=stats,
             q=q,
             type_filter=type_filter,
@@ -499,6 +576,289 @@ def vehicle_list():
         current_app.logger.error("Fleet error: %s", e, exc_info=True)
         flash("An error occurred loading the fleet dashboard.", "error")
         return redirect(url_for("dashboard"))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# GHADEER CARDS — TAQA Distribution prepaid water-filling cards
+# Recharge = advance payment (credits balance), Fill = water drawn (debits).
+# ═══════════════════════════════════════════════════════════════════
+
+GHADEER_LOW_BALANCE = 1000.0
+
+
+def _ghadeer_vehicle_options(db):
+    """Active vehicles for the card-link dropdown: water tankers first."""
+    t1, t2, t3 = "%tanker%", "%water bowser%", "%tanker%"
+    tankers = db.execute(
+        "SELECT plate_no, vehicle_type FROM vehicles WHERE status = 'Active' AND (lower(vehicle_type) LIKE ? OR lower(vehicle_type) LIKE ? OR lower(vehicle_sub_type) LIKE ?) ORDER BY plate_no",
+        (t1, t2, t3),
+    ).fetchall()
+    others = db.execute(
+        "SELECT plate_no, vehicle_type FROM vehicles WHERE status = 'Active' AND NOT (lower(vehicle_type) LIKE ? OR lower(vehicle_type) LIKE ? OR lower(vehicle_sub_type) LIKE ?) ORDER BY plate_no",
+        (t1, t2, t3),
+    ).fetchall()
+    return tankers, others
+
+
+def _ghadeer_card_or_none(db, card_id):
+    return db.execute("SELECT * FROM ghadeer_cards WHERE id = ?", (card_id,)).fetchone()
+
+
+@fleet_bp.route("/fleet/ghadeer-cards")
+@_login_required("admin")
+def ghadeer_cards():
+    try:
+        _touch_admin_workspace("fleet")
+        ensure_fleet_tables()
+        db = open_db()
+
+        cards = db.execute(
+            """SELECT c.*,
+                      COALESCE(t.balance, 0) AS balance,
+                      COALESCE(t.tx_count, 0) AS tx_count,
+                      t.last_tx_date
+               FROM ghadeer_cards c
+               LEFT JOIN (
+                   SELECT card_id, SUM(amount) AS balance, COUNT(*) AS tx_count, MAX(tx_date) AS last_tx_date
+                   FROM ghadeer_transactions GROUP BY card_id
+               ) t ON t.card_id = c.id
+               ORDER BY CASE WHEN c.status = 'Active' THEN 0 ELSE 1 END, c.card_no"""
+        ).fetchall()
+
+        month_start = date.today().replace(day=1).isoformat()
+        month_row = db.execute(
+            """SELECT COALESCE(SUM(CASE WHEN amount > 0 THEN amount END), 0) AS in_amt,
+                      COALESCE(SUM(CASE WHEN amount < 0 THEN -amount END), 0) AS out_amt
+               FROM ghadeer_transactions WHERE tx_date >= ?""",
+            (month_start,),
+        ).fetchone()
+
+        tanker_vehicles, other_vehicles = _ghadeer_vehicle_options(db)
+
+        return render_template(
+            "fleet/ghadeer_cards.html",
+            cards=cards,
+            month_in=float(month_row["in_amt"] or 0),
+            month_out=float(month_row["out_amt"] or 0),
+            total_balance=sum(float(c["balance"] or 0) for c in cards),
+            active_count=sum(1 for c in cards if c["status"] == "Active"),
+            low_balance=GHADEER_LOW_BALANCE,
+            tanker_vehicles=tanker_vehicles,
+            other_vehicles=other_vehicles,
+            today=date.today().isoformat(),
+        )
+    except Exception as e:
+        current_app.logger.error("Ghadeer cards error: %s", e, exc_info=True)
+        flash("An error occurred loading Ghadeer cards.", "error")
+        return redirect(url_for("fleet.fleet_dashboard"))
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/add", methods=["POST"])
+@_login_required("admin")
+def ghadeer_card_add():
+    ensure_fleet_tables()
+    db = open_db()
+    card_no = (request.form.get("card_no") or "").strip()
+    if not card_no:
+        flash("Ghadeer card number is required.", "error")
+        return redirect(url_for("fleet.ghadeer_cards"))
+    if db.execute("SELECT id FROM ghadeer_cards WHERE lower(card_no) = lower(?)", (card_no,)).fetchone():
+        flash(f"Ghadeer card '{card_no}' already exists.", "error")
+        return redirect(url_for("fleet.ghadeer_cards"))
+    try:
+        opening = abs(float(request.form.get("opening_balance") or 0))
+    except (TypeError, ValueError):
+        opening = 0.0
+    params = (
+        card_no,
+        (request.form.get("vehicle_plate") or "").strip() or None,
+        (request.form.get("cardholder") or "").strip() or None,
+        (request.form.get("notes") or "").strip() or None,
+    )
+    if db.backend == "postgres":
+        card_id = db.execute(
+            "INSERT INTO ghadeer_cards (card_no, vehicle_plate, cardholder, status, notes) VALUES (?, ?, ?, 'Active', ?) RETURNING id",
+            params,
+        ).fetchone()[0]
+    else:
+        db.execute(
+            "INSERT INTO ghadeer_cards (card_no, vehicle_plate, cardholder, status, notes) VALUES (?, ?, ?, 'Active', ?)",
+            params,
+        )
+        card_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    if opening > 0:
+        db.execute(
+            "INSERT INTO ghadeer_transactions (card_id, tx_type, amount, tx_date, notes) VALUES (?, 'Recharge', ?, ?, 'Opening balance')",
+            (card_id, opening, (request.form.get("tx_date") or "").strip() or date.today().isoformat()),
+        )
+    db.commit()
+    flash(f"Ghadeer card {card_no} added.", "success")
+    return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/<int:card_id>")
+@_login_required("admin")
+def ghadeer_card_detail(card_id):
+    try:
+        _touch_admin_workspace("fleet")
+        ensure_fleet_tables()
+        db = open_db()
+        card = _ghadeer_card_or_none(db, card_id)
+        if not card:
+            flash("Ghadeer card not found.", "error")
+            return redirect(url_for("fleet.ghadeer_cards"))
+        rows = db.execute(
+            "SELECT * FROM ghadeer_transactions WHERE card_id = ? ORDER BY tx_date DESC, id DESC",
+            (card_id,),
+        ).fetchall()
+        # running balance: walk ascending, display newest first
+        running = 0.0
+        ledger = []
+        for t in reversed(rows):
+            running += float(t["amount"] or 0)
+            item = dict(t)
+            item["balance"] = running
+            ledger.append(item)
+        ledger.reverse()
+        total_recharged = sum(float(t["amount"] or 0) for t in rows if float(t["amount"] or 0) > 0)
+        total_consumed = -sum(float(t["amount"] or 0) for t in rows if float(t["amount"] or 0) < 0)
+        linked_vehicle = None
+        if card["vehicle_plate"]:
+            linked_vehicle = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (card["vehicle_plate"],)).fetchone()
+        tanker_vehicles, other_vehicles = _ghadeer_vehicle_options(db)
+        return render_template(
+            "fleet/ghadeer_card_detail.html",
+            card=card,
+            ledger=ledger,
+            balance=running,
+            total_recharged=total_recharged,
+            total_consumed=total_consumed,
+            low_balance=GHADEER_LOW_BALANCE,
+            linked_vehicle=linked_vehicle,
+            tanker_vehicles=tanker_vehicles,
+            other_vehicles=other_vehicles,
+            today=date.today().isoformat(),
+        )
+    except Exception as e:
+        current_app.logger.error("Ghadeer card detail error: %s", e, exc_info=True)
+        flash("An error occurred loading the Ghadeer card.", "error")
+        return redirect(url_for("fleet.ghadeer_cards"))
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/<int:card_id>/tx", methods=["POST"])
+@_login_required("admin")
+def ghadeer_card_tx(card_id):
+    ensure_fleet_tables()
+    db = open_db()
+    card = _ghadeer_card_or_none(db, card_id)
+    if not card:
+        flash("Ghadeer card not found.", "error")
+        return redirect(url_for("fleet.ghadeer_cards"))
+    tx_type = (request.form.get("tx_type") or "").strip()
+    if tx_type not in ("Recharge", "Fill", "Adjustment"):
+        flash("Invalid transaction type.", "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+    try:
+        amount = abs(float(request.form.get("amount") or 0))
+    except (TypeError, ValueError):
+        amount = 0.0
+    if amount <= 0:
+        flash("Amount must be greater than zero.", "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+    is_debit = tx_type == "Fill" or (tx_type == "Adjustment" and request.form.get("direction") == "debit")
+    try:
+        volume = float(request.form.get("volume_m3") or 0) or None
+    except (TypeError, ValueError):
+        volume = None
+    db.execute(
+        """INSERT INTO ghadeer_transactions (card_id, tx_type, amount, volume_m3, station, ref_no, tx_date, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            card_id,
+            tx_type,
+            -amount if is_debit else amount,
+            volume,
+            (request.form.get("station") or "").strip() or None,
+            (request.form.get("ref_no") or "").strip() or None,
+            (request.form.get("tx_date") or "").strip() or date.today().isoformat(),
+            (request.form.get("notes") or "").strip() or None,
+        ),
+    )
+    db.commit()
+    flash(f"{tx_type} of AED {amount:,.2f} recorded on card {card['card_no']}.", "success")
+    return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/<int:card_id>/tx/<int:tx_id>/delete", methods=["POST"])
+@_login_required("admin")
+def ghadeer_card_tx_delete(card_id, tx_id):
+    ensure_fleet_tables()
+    db = open_db()
+    tx = db.execute(
+        "SELECT id, tx_type, amount FROM ghadeer_transactions WHERE id = ? AND card_id = ?",
+        (tx_id, card_id),
+    ).fetchone()
+    if not tx:
+        flash("Transaction not found.", "error")
+    else:
+        db.execute("DELETE FROM ghadeer_transactions WHERE id = ?", (tx_id,))
+        db.commit()
+        flash(f"{tx['tx_type']} entry deleted.", "success")
+    return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/<int:card_id>/edit", methods=["POST"])
+@_login_required("admin")
+def ghadeer_card_edit(card_id):
+    ensure_fleet_tables()
+    db = open_db()
+    card = _ghadeer_card_or_none(db, card_id)
+    if not card:
+        flash("Ghadeer card not found.", "error")
+        return redirect(url_for("fleet.ghadeer_cards"))
+    card_no = (request.form.get("card_no") or "").strip()
+    if not card_no:
+        flash("Card number is required.", "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+    if db.execute("SELECT id FROM ghadeer_cards WHERE lower(card_no) = lower(?) AND id != ?", (card_no, card_id)).fetchone():
+        flash(f"Card number '{card_no}' is already used by another card.", "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+    status = (request.form.get("status") or "Active").strip()
+    if status not in ("Active", "Inactive", "Lost"):
+        status = "Active"
+    db.execute(
+        "UPDATE ghadeer_cards SET card_no = ?, vehicle_plate = ?, cardholder = ?, status = ?, notes = ? WHERE id = ?",
+        (
+            card_no,
+            (request.form.get("vehicle_plate") or "").strip() or None,
+            (request.form.get("cardholder") or "").strip() or None,
+            status,
+            (request.form.get("notes") or "").strip() or None,
+            card_id,
+        ),
+    )
+    db.commit()
+    flash("Ghadeer card updated.", "success")
+    return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+
+
+@fleet_bp.route("/fleet/ghadeer-cards/<int:card_id>/delete", methods=["POST"])
+@_login_required("admin")
+def ghadeer_card_delete(card_id):
+    ensure_fleet_tables()
+    db = open_db()
+    card = _ghadeer_card_or_none(db, card_id)
+    if not card:
+        flash("Ghadeer card not found.", "error")
+        return redirect(url_for("fleet.ghadeer_cards"))
+    tx_count = db.execute("SELECT COUNT(*) FROM ghadeer_transactions WHERE card_id = ?", (card_id,)).fetchone()[0]
+    if tx_count:
+        flash("This card has transactions — set its status to Inactive instead of deleting.", "error")
+        return redirect(url_for("fleet.ghadeer_card_detail", card_id=card_id))
+    db.execute("DELETE FROM ghadeer_cards WHERE id = ?", (card_id,))
+    db.commit()
+    flash(f"Ghadeer card {card['card_no']} deleted.", "success")
+    return redirect(url_for("fleet.ghadeer_cards"))
 
 
 @fleet_bp.route("/fleet/vehicles/download/excel")
@@ -1091,6 +1451,19 @@ def vehicle_profile(plate_no):
     ).fetchall()
     already_linked = [r["plate_no"] for r in db.execute("SELECT linked_plate_no AS plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != ''").fetchall()]
 
+    # Ghadeer card (TAQA prepaid water-filling card) linked to this vehicle
+    try:
+        ghadeer_card = db.execute(
+            """SELECT c.id, c.card_no, c.cardholder, c.status,
+                      COALESCE((SELECT SUM(amount) FROM ghadeer_transactions WHERE card_id = c.id), 0) AS balance
+               FROM ghadeer_cards c
+               WHERE c.vehicle_plate = ? AND c.status = 'Active'
+               ORDER BY c.id LIMIT 1""",
+            (plate_no,),
+        ).fetchone()
+    except Exception:
+        ghadeer_card = None
+
     return render_template(
         "fleet/vehicle_profile.html",
         v=v,
@@ -1119,6 +1492,7 @@ def vehicle_profile(plate_no):
         fines_total=fines_total,
         fines_paid=fines_paid,
         fines_pending=fines_pending,
+        ghadeer_card=ghadeer_card,
         date=date,
     )
 
