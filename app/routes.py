@@ -196,7 +196,9 @@ class ValidationError(ValueError):
 def register_routes(app: Flask) -> None:
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
-        if session.get("role") == "technician" or session.get("technician_code"):
+        # Never dump a field-staff login attempt on the admin login page;
+        # send failed technician POSTs straight back to their own form.
+        if request.endpoint == "technician_login" or session.get("role") == "technician" or session.get("technician_code"):
             flash("Your session has expired. Please log in again.", "error")
             return redirect(url_for("technician_login"))
         flash("Your session has expired. Please log in again.", "error")
@@ -204,7 +206,7 @@ def register_routes(app: Flask) -> None:
 
     @app.after_request
     def set_security_headers(response):
-        if request.endpoint == "login":
+        if request.endpoint in ("login", "technician_login"):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
@@ -13442,7 +13444,7 @@ def _technician_login_target(db, user_id: str):
             technician_code, party_code, user_id, password_hash,
             phone_number, specialization, status, created_at
         FROM technicians
-        WHERE technician_code = ? OR user_id = ?
+        WHERE UPPER(technician_code) = UPPER(?) OR UPPER(user_id) = UPPER(?)
         """,
         (normalized_user_id, normalized_user_id),
     ).fetchone()
