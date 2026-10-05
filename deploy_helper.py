@@ -30,7 +30,7 @@ run('cd /opt/current-link/app && git fetch origin main && git reset --hard origi
 run('cd /opt/current-link/app && .venv/bin/pip install -r requirements.txt --quiet && echo "Dependencies up to date"', timeout=180)
 run('systemctl restart current-link')
 time.sleep(3)
-run('systemctl status current-link --no-pager -l 2>&1 | tail -20')
+run('systemctl status current-link --no-pager 2>&1 | tail -20')
 code = run('curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:7860/login')
 print(f"\nHTTP Status: {code}")
 
