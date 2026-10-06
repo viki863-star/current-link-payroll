@@ -2428,6 +2428,18 @@ def salary_dashboard_excel():
     if not selected_month and available_months:
         selected_month = available_months[0]
 
+    # Real payment truth for the selected month — same source as the paid
+    # salary report (salary_slips.actual_paid_amount + owner fund entries).
+    paid_truth = {}
+    if selected_month:
+        try:
+            _tdb = open_db()
+            for _r in _paid_salary_report_rows(_tdb, selected_month, with_advance=False):
+                paid_truth[_r["employee_id"]] = _r
+            _tdb.close()
+        except Exception:
+            paid_truth = {}
+
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from io import BytesIO
@@ -2446,7 +2458,7 @@ def salary_dashboard_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["#", "Employee Name", "Department", "Vehicle", "Shift", "Status", "Basic Salary", "Est. OT (AI)", "Total (Basic+OT)", "Salary Status"]
+    heads = ["#", "Employee Name", "Department", "Vehicle", "Shift", "Status", "Basic Salary", "Est. OT (AI)", "Total (Basic+OT)", "Stored Salary", "Actually Paid", "Balance Due", "Salary Status"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
@@ -2480,6 +2492,7 @@ def salary_dashboard_excel():
 
     err_fill = PatternFill("solid", fgColor="FDEDEC")
     err_font = Font(name="Calibri", bold=True, color="DC2626", size=11)
+    totals = {"basic": 0.0, "est": 0.0, "total": 0.0, "stored": 0.0, "paid": 0.0, "balance": 0.0}
 
     for emp in emp_list:
         st = emp["statuses"].get(selected_month, "No Record")
@@ -2489,13 +2502,26 @@ def salary_dashboard_excel():
         est = emp.get("estimated", 0)
         basic = emp.get("basic_salary", 0)
         total = basic + est
-        vals = [row_idx - 1, emp["name"], emp["department"], emp.get("vehicle", ""), emp.get("shift", ""), emp["emp_status"], basic, est, total if total > 0 else "", st]
+        truth = paid_truth.get(emp["id"]) or {}
+        stored = float(amt or 0) or float(truth.get("net_salary") or 0)
+        paid = float(truth.get("paid") or 0)
+        if truth:
+            balance = float(truth.get("balance") or 0)
+        else:
+            balance = max(stored - paid, 0.0)
+        vals = [row_idx - 1, emp["name"], emp["department"], emp.get("vehicle", ""), emp.get("shift", ""), emp["emp_status"], basic, est, total if total > 0 else "", stored, paid, balance, st]
+        totals["basic"] += float(basic or 0)
+        totals["est"] += float(est or 0)
+        totals["total"] += float(total or 0)
+        totals["stored"] += stored
+        totals["paid"] += paid
+        totals["balance"] += balance
         veh = emp.get("vehicle", "")
         is_overloaded = veh and veh not in ("0", "0000") and vehicle_driver_count.get(veh, 0) > 2
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=row_idx, column=ci, value=v)
             c.border = border
-            if ci in (7, 8, 9):
+            if ci in (7, 8, 9, 10, 11, 12):
                 c.number_format = '#,##0.00'
                 c.alignment = right
             if is_overloaded:
@@ -2508,6 +2534,23 @@ def salary_dashboard_excel():
                     c.fill = sf
         row_idx += 1
 
+    # TOTAL row — sums of every amount column
+    if row_idx > 2:
+        tfont = Font(name="Calibri", bold=True, color="1a3a5c", size=11)
+        tfill = PatternFill("solid", fgColor="D5E8F5")
+        for ci in range(1, len(heads) + 1):
+            c = ws.cell(row=row_idx, column=ci)
+            c.border = border
+            c.font = tfont
+            c.fill = tfill
+        ws.cell(row=row_idx, column=1, value="TOTAL")
+        ws.cell(row=row_idx, column=1).alignment = center
+        for ci, key in ((7, "basic"), (8, "est"), (9, "total"), (10, "stored"), (11, "paid"), (12, "balance")):
+            c = ws.cell(row=row_idx, column=ci, value=round(totals[key], 2))
+            c.number_format = '#,##0.00'
+            c.alignment = right
+        row_idx += 1
+
     ws.column_dimensions["A"].width = 6
     ws.column_dimensions["B"].width = 32
     ws.column_dimensions["C"].width = 18
@@ -2517,7 +2560,11 @@ def salary_dashboard_excel():
     ws.column_dimensions["G"].width = 16
     ws.column_dimensions["H"].width = 16
     ws.column_dimensions["I"].width = 18
-    ws.column_dimensions["J"].width = 18
+    ws.column_dimensions["J"].width = 16
+    ws.column_dimensions["K"].width = 16
+    ws.column_dimensions["L"].width = 16
+    ws.column_dimensions["M"].width = 18
+    ws.freeze_panes = "A2"
 
     buf = BytesIO()
     wb.save(buf)
