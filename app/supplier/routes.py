@@ -1523,6 +1523,9 @@ def supplier_invoice_add(sup_id):
         amount = request.form.get("amount", "").strip()
         vat_pct = request.form.get("vat_percentage", "5").strip()
         lpo_id = request.form.get("lpo_id", "").strip()
+        if not lpo_id and preselected_lpo:
+            # Linked-LPO select was removed from the form — honour ?lpo_id= deep links.
+            lpo_id = preselected_lpo
         description = request.form.get("description", "").strip()
         notes = request.form.get("notes", "").strip()
 
@@ -1544,8 +1547,14 @@ def supplier_invoice_add(sup_id):
         total = round(amount_f + vat_amt, 2)
 
         # ── FTA Decision No. 13 of 2026, Art. 4 + Art. 6 ──────────────────
-        # Verify each taxable supply BEFORE the input tax on it is deducted.
-        chk, chk_err = _validate_supply_check(request.form, amount_f, _spend_last_12m(db, sup_id))
+        # The per-invoice checklist was removed from this form — only run the
+        # verification (and only retain a record) when the checks were posted.
+        checklist_present = "chk_general" in request.form
+        chk, chk_err = (
+            _validate_supply_check(request.form, amount_f, _spend_last_12m(db, sup_id))
+            if checklist_present
+            else ({}, None)
+        )
         if vat_amt > 0 and chk_err:
             flash(chk_err, "error")
             lpos = db.execute(
@@ -1591,7 +1600,7 @@ def supplier_invoice_add(sup_id):
             "SELECT id FROM supplier_invoices WHERE supplier_id=? AND invoice_no=? ORDER BY id DESC",
             (sup_id, invoice_no),
         ).fetchone()
-        if inv_row and (vat_amt > 0 or chk.get("exception_applied") == "Yes"):
+        if inv_row and checklist_present and (vat_amt > 0 or chk.get("exception_applied") == "Yes"):
             _save_supply_verification(db, sup_id, "invoice", inv_row["id"], invoice_no, invoice_date, amount_f, vat_amt, chk)
 
         flash("Invoice added.", "success")
@@ -1629,6 +1638,9 @@ def supplier_invoice_edit(sup_id, inv_id):
         amount = request.form.get("amount", "").strip()
         vat_pct = request.form.get("vat_percentage", "5").strip()
         lpo_id = request.form.get("lpo_id", "").strip()
+        if "lpo_id" not in request.form:
+            # Linked-LPO field removed from the form — keep the existing link.
+            lpo_id = str(inv["lpo_id"]) if inv["lpo_id"] is not None else "none"
         description = request.form.get("description", "").strip()
         status = request.form.get("status", "pending").strip()
         payment_date = request.form.get("payment_date", "").strip()
@@ -1642,7 +1654,14 @@ def supplier_invoice_edit(sup_id, inv_id):
         total = round(amount_f + vat_amt, 2)
 
         # ── FTA Decision No. 13 of 2026, Art. 4 + Art. 6 ──────────────────
-        chk, chk_err = _validate_supply_check(request.form, amount_f, _spend_last_12m(db, sup_id))
+        # Checklist removed from the form — never re-validate or overwrite an
+        # existing verification record unless the checks were actually posted.
+        checklist_present = "chk_general" in request.form
+        chk, chk_err = (
+            _validate_supply_check(request.form, amount_f, _spend_last_12m(db, sup_id))
+            if checklist_present
+            else ({}, None)
+        )
         if vat_amt > 0 and chk_err:
             flash(chk_err, "error")
             lpos = db.execute(
@@ -1684,7 +1703,7 @@ def supplier_invoice_edit(sup_id, inv_id):
         )
         db.commit()
 
-        if vat_amt > 0 or chk.get("exception_applied") == "Yes":
+        if checklist_present and (vat_amt > 0 or chk.get("exception_applied") == "Yes"):
             _save_supply_verification(db, sup_id, "invoice", inv_id, invoice_no, invoice_date, amount_f, vat_amt, chk)
 
         flash("Invoice updated.", "success")
