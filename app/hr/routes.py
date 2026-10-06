@@ -1256,6 +1256,15 @@ def employee_salary_slip(employee_id):
                                  salary_after_deduction, ""),
                             )
                             slip_id = result.lastrowid
+                            if not slip_id:
+                                # sqlite adapter exposes no lastrowid — re-select
+                                # the slip we just created (same store + driver).
+                                _slip_ref = db.execute(
+                                    "SELECT id FROM salary_slips WHERE salary_store_id = ? "
+                                    "AND driver_id = ? ORDER BY id DESC LIMIT 1",
+                                    (selected_salary["id"], eid),
+                                ).fetchone()
+                                slip_id = _slip_ref["id"] if _slip_ref else None
 
                         # Save linked transactions to salary_slip_deductions
                         db.execute("DELETE FROM salary_slip_deductions WHERE salary_slip_id = ?", (slip_id,))
@@ -1277,18 +1286,35 @@ def employee_salary_slip(employee_id):
                         # Auto-create owner_fund_entry when payment source is Owner Fund
                         if values["payment_source"] == "Owner Fund":
                             slip_row_check = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
+                            fund_details = (
+                                f"Salary Slip {selected_salary['salary_month']} — "
+                                f"{employee['full_name']}"
+                            )
+                            of_amount = float(salary_after_deduction)
+                            # Reuse this month's payment instead of duplicating it:
+                            # either the entry already linked to this slip, or an
+                            # orphan left behind when an older slip was deleted
+                            # (same payee + same month + same amount) — re-point it.
                             existing_of = db.execute(
-                                "SELECT id FROM owner_fund_entries WHERE source_table='salary_slips' AND source_id=?",
-                                (slip_id,),
+                                "SELECT id, source_id FROM owner_fund_entries "
+                                "WHERE source_table='salary_slips' "
+                                "AND (source_id = ? OR (details = ? AND ABS(amount - ?) < 0.01)) "
+                                "ORDER BY id LIMIT 1",
+                                (slip_id, fund_details, of_amount),
                             ).fetchone()
-                            if not existing_of:
-                                of_amount = float(salary_after_deduction)
+                            if existing_of:
+                                if existing_of["source_id"] != slip_id:
+                                    db.execute(
+                                        "UPDATE owner_fund_entries SET source_id=? WHERE id=?",
+                                        (slip_id, existing_of["id"]),
+                                    )
+                            else:
                                 of_paid_by = values["paid_by"] or employee["full_name"]
                                 db.execute(
                                     """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                                     (of_paid_by, values["payment_date"], of_amount,
                                      of_paid_by, "Cash", "OUT",
-                                     f"Salary Slip {selected_salary['salary_month']} — {employee['full_name']}",
+                                     fund_details,
                                      "salary_slips", slip_id),
                                 )
 
