@@ -16,6 +16,7 @@
 .pr-btn:hover { background:#f1f5f9; border-color:#94a3b8; }
 .pr-btn-primary { background:#1a3a5c; border-color:#1a3a5c; color:#fff; }
 .pr-btn-primary:hover { background:#12293f; }
+.pr-sec { font-size:.95rem; font-weight:800; color:#1a3a5c; margin:6px 0 12px; }
 .pr-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:12px; margin-bottom:20px; }
 .pr-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:16px 18px; }
 .pr-card .num { font-size:1.45rem; font-weight:800; line-height:1.2; letter-spacing:-.4px; }
@@ -40,7 +41,7 @@
 <div class="pr-root">
   <div class="pr-top">
     <div>
-      <h2>Paid salary &mdash; {{ month_label }}</h2>
+      <h2>Paid salary &mdash; {{ report_title }}</h2>
       <p>Actual paid amount, balance still due, overtime and the advance that stays on each driver.</p>
     </div>
     <div class="pr-controls">
@@ -51,31 +52,42 @@
           <option value="{{ value }}" {% if value == month %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
+        <label for="prMonth2" style="margin-left:4px">+ 2nd month:</label>
+        <select id="prMonth2" name="month2" onchange="this.form.submit()">
+          <option value="">None</option>
+          {% for value, label in month_options %}
+          <option value="{{ value }}" {% if value == month2 %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
       </form>
       <a class="pr-btn" href="{{ url_for('hr.salary_dashboard') }}">&#8592; Salary Dashboard</a>
-      <a class="pr-btn pr-btn-primary" href="{{ url_for('hr.paid_salary_report_excel', month=month) }}">&#128202; Excel</a>
+      <a class="pr-btn pr-btn-primary" href="{{ url_for('hr.paid_salary_report_excel', month=month, month2=month2 or None) }}">&#128202; Excel</a>
     </div>
   </div>
 
+  {% for s in sections %}
+  {% if sections|length > 1 %}
+  <div class="pr-sec">{{ s.label }}</div>
+  {% endif %}
   <div class="pr-summary">
     <div class="pr-card">
-      <div class="num" style="color:#059669">AED {{ '{:,.2f}'.format(totals.paid) }}</div>
+      <div class="num" style="color:#059669">AED {{ '{:,.2f}'.format(s.totals.paid) }}</div>
       <div class="lbl">Actual Paid</div>
     </div>
     <div class="pr-card">
-      <div class="num" style="color:#dc2626">AED {{ '{:,.2f}'.format(totals.balance) }}</div>
+      <div class="num" style="color:#dc2626">AED {{ '{:,.2f}'.format(s.totals.balance) }}</div>
       <div class="lbl">Balance Due</div>
     </div>
     <div class="pr-card">
-      <div class="num" style="color:#8b5cf6">AED {{ '{:,.2f}'.format(totals.ot_amount) }}</div>
+      <div class="num" style="color:#8b5cf6">AED {{ '{:,.2f}'.format(s.totals.ot_amount) }}</div>
       <div class="lbl">Overtime Total</div>
     </div>
     <div class="pr-card">
-      <div class="num" style="color:#d97706">AED {{ '{:,.2f}'.format(totals.advance) }}</div>
+      <div class="num" style="color:#d97706">AED {{ '{:,.2f}'.format(s.totals.advance) }}</div>
       <div class="lbl">Advance on Drivers</div>
     </div>
     <div class="pr-card">
-      <div class="num" style="color:#1a3a5c">{{ paid_count }}/{{ rows|length }}</div>
+      <div class="num" style="color:#1a3a5c">{{ s.paid_count }}/{{ s.rows|length }}</div>
       <div class="lbl">Paid / Total rows</div>
     </div>
   </div>
@@ -101,7 +113,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for r in rows %}
+        {% for r in s.rows %}
         <tr onclick="window.location='{{ url_for('hr.employee_detail', employee_id=r.employee_id) }}'">
           <td>{{ loop.index }}</td>
           <td class="pr-num" style="text-align:left">{{ r.employee_id }}</td>
@@ -123,26 +135,27 @@
         </tr>
         {% endfor %}
       </tbody>
-      {% if rows %}
+      {% if s.rows %}
       <tfoot class="pr-tfoot">
         <tr>
-          <td colspan="5">TOTAL &mdash; {{ rows|length }} employee{{ 's' if rows|length != 1 }}</td>
-          <td class="pr-num">{{ '{:,.2f}'.format(totals.basic) }}</td>
-          <td class="pr-num">{{ '{:,.2f}'.format(totals.net_salary) }}</td>
-          <td class="pr-num">{{ '{:,.2f}'.format(totals.ot_amount) }}</td>
-          <td class="pr-num">{{ '{:,.2f}'.format(totals.advance) }}</td>
-          <td class="pr-num">{{ '{:,.2f}'.format(totals.deductions) }}</td>
-          <td class="pr-num" style="color:#059669">{{ '{:,.2f}'.format(totals.paid) }}</td>
+          <td colspan="5">TOTAL &mdash; {{ s.rows|length }} employee{{ 's' if s.rows|length != 1 }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(s.totals.basic) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(s.totals.net_salary) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(s.totals.ot_amount) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(s.totals.advance) }}</td>
+          <td class="pr-num">{{ '{:,.2f}'.format(s.totals.deductions) }}</td>
+          <td class="pr-num" style="color:#059669">{{ '{:,.2f}'.format(s.totals.paid) }}</td>
           <td></td>
-          <td class="pr-num" style="color:#dc2626">{{ '{:,.2f}'.format(totals.balance) }}</td>
+          <td class="pr-num" style="color:#dc2626">{{ '{:,.2f}'.format(s.totals.balance) }}</td>
           <td></td>
         </tr>
       </tfoot>
       {% endif %}
     </table>
-    {% if not rows %}
-    <div class="pr-empty">No salary records for {{ month_label }}.</div>
+    {% if not s.rows %}
+    <div class="pr-empty">No salary records for {{ s.label }}.</div>
     {% endif %}
   </div>
+  {% endfor %}
 </div>
 {% endblock %}

@@ -3079,16 +3079,32 @@ def paid_salary_report():
     db = open_db()
 
     month, months = _report_context(db)
-    rows = _paid_salary_report_rows(db, month)
+    month2 = request.args.get("month2", "").strip()
+    if month2 not in months or month2 == month:
+        month2 = ""
+
+    sections = []
+    for m in [month] + ([month2] if month2 else []):
+        section_rows = _paid_salary_report_rows(db, m)
+        sections.append(
+            {
+                "month": m,
+                "label": format_month_label(m),
+                "rows": section_rows,
+                "totals": _report_totals(section_rows),
+                "paid_count": sum(
+                    1 for r in section_rows if r["status"] in ("Paid", "Partial")
+                ),
+            }
+        )
 
     return render_template(
         "hr/paid_salary_report.html",
-        rows=rows,
-        totals=_report_totals(rows),
+        sections=sections,
+        report_title=" + ".join(s["label"] for s in sections),
         month=month,
-        month_label=format_month_label(month),
+        month2=month2,
         month_options=_format_month_options(months),
-        paid_count=sum(1 for r in rows if r["status"] in ("Paid", "Partial")),
     )
 
 
@@ -3100,8 +3116,16 @@ def paid_salary_report_excel():
     db = open_db()
 
     month, months = _report_context(db)
-    rows = _paid_salary_report_rows(db, month)
-    totals = _report_totals(rows)
+    month2 = request.args.get("month2", "").strip()
+    if month2 not in months or month2 == month:
+        month2 = ""
+    selected = [month] + ([month2] if month2 else [])
+    sections = []
+    for m in selected:
+        section_rows = _paid_salary_report_rows(db, m)
+        sections.append(
+            (format_month_label(m), section_rows, _report_totals(section_rows))
+        )
 
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -3123,12 +3147,6 @@ def paid_salary_report_excel():
         "Basic Salary", "Net Salary", "OT Amount", "Advance (Due)",
         "Deductions", "Actual Paid", "Paid On", "Balance Due", "Payment Status",
     ]
-    for ci, head in enumerate(heads, 1):
-        cell = ws.cell(row=1, column=ci, value=head)
-        cell.font = head_font
-        cell.fill = head_fill
-        cell.alignment = center
-        cell.border = border
 
     status_fill = {
         "Paid": PatternFill("solid", fgColor="D5F5E3"),
@@ -3138,51 +3156,78 @@ def paid_salary_report_excel():
         "Not Run": PatternFill("solid", fgColor="F2F3F4"),
     }
 
-    for idx, row in enumerate(rows, 1):
-        values = [
-            idx, row["employee_id"], row["name"], row["department"], row["vehicle"],
-            row["emp_status"], row["basic"], row["net_salary"], row["ot_amount"],
-            row["advance"], row["deductions"], row["paid"], row["paid_on"],
-            row["balance"], row["status"],
-        ]
-        excel_row = idx + 1
-        for ci, value in enumerate(values, 1):
-            cell = ws.cell(row=excel_row, column=ci, value=value)
-            cell.border = border
-            if ci in (7, 8, 9, 10, 11, 12, 14):
-                cell.number_format = "#,##0.00"
-                cell.alignment = right
-            elif ci in (1, 6, 13, 15):
-                cell.alignment = center
-        fill = status_fill.get(row["status"])
-        if fill:
-            ws.cell(row=excel_row, column=15).fill = fill
+    def _write_section(sheet, start, label, rows, totals, show_label):
+        r = start
+        if show_label:
+            cell = sheet.cell(row=r, column=1, value=label)
+            cell.font = Font(name="Calibri", bold=True, size=12, color="1a3a5c")
+            cell.alignment = Alignment(horizontal="left", vertical="center")
+            sheet.merge_cells(
+                start_row=r, start_column=1, end_row=r, end_column=len(heads)
+            )
+            r += 1
 
-    total_row = len(rows) + 2
-    ws.cell(row=total_row, column=1, value="TOTAL").font = Font(bold=True)
-    for ci, key in ((7, "basic"), (8, "net_salary"), (9, "ot_amount"), (10, "advance"),
-                    (11, "deductions"), (12, "paid"), (14, "balance")):
-        cell = ws.cell(row=total_row, column=ci, value=totals[key])
-        cell.font = Font(bold=True)
-        cell.number_format = "#,##0.00"
-        cell.alignment = right
-    for ci in range(1, len(heads) + 1):
-        cell = ws.cell(row=total_row, column=ci)
-        cell.fill = total_fill
-        cell.border = border
+        for ci, head in enumerate(heads, 1):
+            cell = sheet.cell(row=r, column=ci, value=head)
+            cell.font = head_font
+            cell.fill = head_fill
+            cell.alignment = center
+            cell.border = border
+        r += 1
+
+        for idx, row in enumerate(rows, 1):
+            values = [
+                idx, row["employee_id"], row["name"], row["department"], row["vehicle"],
+                row["emp_status"], row["basic"], row["net_salary"], row["ot_amount"],
+                row["advance"], row["deductions"], row["paid"], row["paid_on"],
+                row["balance"], row["status"],
+            ]
+            for ci, value in enumerate(values, 1):
+                cell = sheet.cell(row=r, column=ci, value=value)
+                cell.border = border
+                if ci in (7, 8, 9, 10, 11, 12, 14):
+                    cell.number_format = "#,##0.00"
+                    cell.alignment = right
+                elif ci in (1, 6, 13, 15):
+                    cell.alignment = center
+            fill = status_fill.get(row["status"])
+            if fill:
+                sheet.cell(row=r, column=15).fill = fill
+            r += 1
+
+        sheet.cell(row=r, column=1, value="TOTAL").font = Font(bold=True)
+        for ci, key in ((7, "basic"), (8, "net_salary"), (9, "ot_amount"), (10, "advance"),
+                        (11, "deductions"), (12, "paid"), (14, "balance")):
+            cell = sheet.cell(row=r, column=ci, value=totals[key])
+            cell.font = Font(bold=True)
+            cell.number_format = "#,##0.00"
+            cell.alignment = right
+        for ci in range(1, len(heads) + 1):
+            cell = sheet.cell(row=r, column=ci)
+            cell.fill = total_fill
+            cell.border = border
+        return r + 3  # gap before the next month's section
+
+    show_labels = len(sections) > 1
+    row_ptr = 1
+    for label, rows, totals in sections:
+        row_ptr = _write_section(ws, row_ptr, label, rows, totals, show_labels)
 
     widths = [5, 14, 30, 16, 12, 12, 14, 14, 12, 15, 13, 14, 13, 14, 15]
+    from openpyxl.utils import get_column_letter
+
     for ci, width in enumerate(widths, 1):
-        ws.column_dimensions[ws.cell(row=1, column=ci).column_letter].width = width
+        ws.column_dimensions[get_column_letter(ci)].width = width
     ws.freeze_panes = "A2"
 
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
+    fname = "paid_salary_report_" + "_".join(selected) + ".xlsx"
     return send_file(
         buf,
         as_attachment=True,
-        download_name=f"paid_salary_report_{month}.xlsx",
+        download_name=fname,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
