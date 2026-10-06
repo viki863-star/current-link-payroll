@@ -540,10 +540,7 @@
                             <div class="dv2-slip-actions">
                                 <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="dv2-btn dv2-btn-primary">&#128196; View / Print Salary Slip</a>
                                 <a href="{{ url_for('hr.employee_deduction_statement', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="dv2-btn dv2-btn-outline">Download Deduction Statement</a>
-                                <form method="POST" action="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" style="display:inline">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="dv2-btn dv2-btn-danger" onclick="return confirm('Delete this salary slip?')">&#128465; Delete</button>
-                                </form>
+                                <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="dv2-btn dv2-btn-danger">&#128465; Delete</a>
                             </div>
                             {% endif %}
 
