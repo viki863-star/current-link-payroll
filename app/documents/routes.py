@@ -9,19 +9,41 @@ from app import csrf
 
 logger = logging.getLogger(__name__)
 
+try:  # optional: lets PIL open iPhone HEIC photos when pillow-heif is installed
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except Exception:
+    pass
+
 
 def _generate_thumbnail(file_data_b64, file_type):
     """Generate thumbnail + pdf_preview for Mulkiya documents.
-    Returns (thumb_b64, preview_b64) tuple or (None, None)."""
+    Returns (thumb_b64, preview_b64) tuple or (None, None).
+
+    The real type is sniffed from magic bytes as well: mobile browsers can
+    send odd content-types, and a declared type alone used to make generation
+    silently fail (which then left the flip card with "Preview not available").
+    """
     try:
         raw = base64.b64decode(file_data_b64)
         thumb_bytes = None
         preview_bytes = None
 
-        if file_type == "application/pdf":
+        declared = (file_type or "").lower()
+        is_pdf = raw[:4] == b"%PDF" or declared == "application/pdf"
+        is_image = not is_pdf and (
+            declared.startswith("image/")
+            or raw[:3] == b"\xff\xd8\xff"                                # JPEG
+            or raw[:8] == b"\x89PNG\r\n\x1a\n"                           # PNG
+            or raw[:6] in (b"GIF87a", b"GIF89a")                         # GIF
+            or (len(raw) > 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WEBP")  # WEBP
+            or (len(raw) > 12 and raw[4:8] == b"ftyp")                   # HEIC/HEIF/AVIF
+        )
+
+        if is_pdf:
             try:
                 from pdf2image import convert_from_bytes
-                images = convert_from_bytes(raw, first_page=1, last_page=1, dpi=150)
+                images = convert_from_bytes(raw, first_page=1, last_page=1, dpi=150, timeout=30)
                 if images:
                     img = images[0]
                     w, h = img.size
@@ -62,7 +84,7 @@ def _generate_thumbnail(file_data_b64, file_type):
                 except Exception:
                     pass
 
-        elif file_type in ("image/jpeg", "image/png", "image/webp"):
+        elif is_image:
             try:
                 from PIL import Image
                 img = Image.open(BytesIO(raw))
@@ -244,7 +266,7 @@ def document_upload():
             entity_id = "unlinked"
 
         existing = db.execute(
-            "SELECT id, expiry_date FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
+            "SELECT id, expiry_date, thumbnail_data, pdf_preview_data FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
             (entity_type, entity_id, doc_category)
         ).fetchone()
 
@@ -257,10 +279,18 @@ def document_upload():
         file_type = file.content_type or "application/octet-stream"
         file_size = len(file_data)
 
-        thumbnail_data = None
-        pdf_preview_data = None
+        # Renewal of an expired doc: keep its old preview unless the new file
+        # renders successfully (never wipe a working flip-card preview).
+        thumbnail_data = existing["thumbnail_data"] if existing else None
+        pdf_preview_data = existing["pdf_preview_data"] if existing else None
         if doc_category == "Mulkiya":
-            thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, file_type)
+            try:
+                new_thumb, new_preview = _generate_thumbnail(file_data, file_type)
+            except Exception:
+                new_thumb, new_preview = None, None
+            if new_thumb:
+                thumbnail_data = new_thumb
+                pdf_preview_data = new_preview
 
         if existing:
             db.execute(
@@ -314,7 +344,7 @@ def document_bulk():
             if not doc_name:
                 doc_name = f"{doc_category} {idx+1}"
             existing = db.execute(
-                "SELECT id, expiry_date FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
+                "SELECT id, expiry_date, thumbnail_data, pdf_preview_data FROM documents WHERE entity_type=? AND entity_id=? AND doc_category=? ORDER BY uploaded_at DESC LIMIT 1",
                 (entity_type, entity_id, doc_category)
             ).fetchone()
 
@@ -327,14 +357,21 @@ def document_bulk():
             file_data = None
             file_type = None
             file_size = 0
-            thumbnail_data = None
-            pdf_preview_data = None
+            # Keep the old preview on renewal unless the new file renders.
+            thumbnail_data = existing["thumbnail_data"] if existing else None
+            pdf_preview_data = existing["pdf_preview_data"] if existing else None
             if file and file.filename:
                 file_data = base64.b64encode(file.read()).decode("utf-8")
                 file_type = file.content_type or "application/octet-stream"
                 file_size = len(file_data)
                 if doc_category == "Mulkiya":
-                    thumbnail_data, pdf_preview_data = _generate_thumbnail(file_data, file_type)
+                    try:
+                        new_thumb, new_preview = _generate_thumbnail(file_data, file_type)
+                    except Exception:
+                        new_thumb, new_preview = None, None
+                    if new_thumb:
+                        thumbnail_data = new_thumb
+                        pdf_preview_data = new_preview
 
             if existing:
                 if file_data:
@@ -434,7 +471,7 @@ def document_download_expired():
 @documents_bp.route("/documents/<int:doc_id>/edit", methods=["GET", "POST"])
 def document_edit(doc_id):
     db = open_db()
-    doc = db.execute("SELECT id, entity_type, entity_id, doc_name, doc_category, issue_date, expiry_date, file_type, uploaded_at FROM documents WHERE id=?", (doc_id,)).fetchone()
+    doc = db.execute("SELECT id, entity_type, entity_id, doc_name, doc_category, issue_date, expiry_date, file_type, thumbnail_data, pdf_preview_data, uploaded_at FROM documents WHERE id=?", (doc_id,)).fetchone()
     if not doc:
         db.close()
         flash("Document not found.", "error")
@@ -459,16 +496,18 @@ def document_edit(doc_id):
             file_data = base64.b64encode(file.read()).decode("utf-8")
             file_type = file.content_type or "application/octet-stream"
             file_size = len(file_data)
+            # Keep the current flip-card preview unless the new file renders
+            # successfully — a failed generation must never wipe the old one.
             thumbnail_data = doc.get("thumbnail_data")
             pdf_preview_data = doc.get("pdf_preview_data")
             if doc_category == "Mulkiya":
                 try:
                     new_thumb, new_preview = _generate_thumbnail(file_data, file_type)
-                    if new_thumb:
-                        thumbnail_data = new_thumb
-                        pdf_preview_data = new_preview
                 except Exception:
-                    pass
+                    new_thumb, new_preview = None, None
+                if new_thumb:
+                    thumbnail_data = new_thumb
+                    pdf_preview_data = new_preview
             db.execute(
                 """UPDATE documents SET entity_type=?, entity_id=?, doc_name=?, doc_category=?,
                    doc_ref_no=?, issue_date=?, expiry_date=?, notes=?, file_data=?, file_type=?, file_size=?,
