@@ -17791,7 +17791,12 @@ def _advance_summary(db, driver_id: str, exclude_salary_store_id: int | None = N
                 (driver_id, exclude_salary_store_id),
             ).fetchone()[0]
         )
-    remaining_advance = max(total_advance - total_deducted, 0.0)
+    # Money is 2-dp: the raw sums carry fractions (e.g. 1372.3333…), and an
+    # unrounded availability made "Fill Max" submit 8346.67 against a cap of
+    # 8346.6666… — the form then rejected its own button press.
+    total_advance = round(total_advance, 2)
+    total_deducted = round(total_deducted, 2)
+    remaining_advance = round(max(total_advance - total_deducted, 0.0), 2)
     return {
         "total_advance": total_advance,
         "total_deducted": total_deducted,
