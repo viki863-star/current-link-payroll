@@ -458,7 +458,7 @@
                         <div class="dv2-stat-card" style="border-left:4px solid #1d4ed8">
                             <span class="dv2-stat-label">Salary Not Run</span>
                             <span class="dv2-stat-value" style="color:#1d4ed8">AED {{ "%.2f"|format(pending_total) }}</span>
-                            <div style="font-size:.7rem;color:#1d4ed8;margin-top:2px">{% if pending_months %}{{ pending_months|map(attribute='month')|join(', ') }} — abhi tak issue nahi hua{% else %}Sab months issue ho chuke{% endif %}</div>
+                            <div style="font-size:.7rem;color:#1d4ed8;margin-top:2px">{% if pending_months %}{{ pending_months|map(attribute='salary_month')|join(', ') }} — abhi tak issue nahi hua{% else %}Sab months issue ho chuke{% endif %}</div>
                         </div>
                     </div>
                     <p style="margin:12px 0 0;font-size:.86rem;color:var(--muted);line-height:1.6">
