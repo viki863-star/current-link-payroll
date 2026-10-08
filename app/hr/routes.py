@@ -830,7 +830,7 @@ def _driver_hisab_ledger(db, employee_id: str, truth: dict) -> list:
         if e is None:
             e = months[m] = {
                 "salary_month": m, "salary": 0.0, "given": 0.0,
-                "deducted": 0.0, "paid": 0.0, "slip_count": 0,
+                "deducted": 0.0, "paid": 0.0, "slip_count": 0, "store_id": None,
             }
         return e
 
@@ -845,12 +845,13 @@ def _driver_hisab_ledger(db, employee_id: str, truth: dict) -> list:
             e["paid"] += s["actual_paid"]
             e["slip_count"] += 1
     for sr in db.execute(
-        "SELECT salary_month, net_salary FROM salary_store WHERE driver_id = ?",
+        "SELECT id, salary_month, net_salary FROM salary_store WHERE driver_id = ? ORDER BY id ASC",
         (employee_id,),
     ).fetchall():
         e = _slot(sr["salary_month"])
         if e:
             e["salary"] += float(sr["net_salary"] or 0)
+            e["store_id"] = sr["id"]  # highest id wins = latest stored version
 
     balance = 0.0
     out = []

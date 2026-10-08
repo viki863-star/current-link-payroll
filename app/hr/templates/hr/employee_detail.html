@@ -463,6 +463,22 @@
                 </div>
             </div>
 
+            {# ═══ HOW TO RUN — 3 STEPS ═══ #}
+            <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-bottom:1.2rem">
+                <div style="flex:1;min-width:210px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px">
+                    <div style="font-size:.7rem;font-weight:800;color:#1d4ed8">STEP 1</div>
+                    <div style="font-size:.8rem;color:#1e3a5f">Left table se <strong>month click</strong> karo (April se shuru).</div>
+                </div>
+                <div style="flex:1;min-width:210px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px">
+                    <div style="font-size:.7rem;font-weight:800;color:#15803d">STEP 2</div>
+                    <div style="font-size:.8rem;color:#14532d"><strong>Fill Max</strong> dabao — kitna advance katna hai wo khud bhar jayega.</div>
+                </div>
+                <div style="flex:1;min-width:210px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px">
+                    <div style="font-size:.7rem;font-weight:800;color:#c2410c">STEP 3</div>
+                    <div style="font-size:.8rem;color:#7c2d12"><strong>Generate</strong> dabao — neeche "Advance Baqi (After)" dekh kar confirm karo.</div>
+                </div>
+            </div>
+
             <div class="dv2-grid dv2-grid-2">
                 <div>
                     <div class="dv2-card" style="margin-top:0">
@@ -504,13 +520,28 @@
                                 <div class="dv2-form-row">
                                     <div class="dv2-form-group">
                                         <label class="dv2-form-label">Deduct Advance (AED)</label>
-                                        <input type="number" name="deduction_amount" value="{{ slip_values.deduction_amount or '0' }}" class="dv2-input" step="0.01" min="0" max="{{ slip_available_advance }}" id="deductionAmount" oninput="updatePreview()">
+                                        <div style="display:flex;gap:8px">
+                                            <input type="number" name="deduction_amount" value="{{ slip_values.deduction_amount or '0' }}" class="dv2-input" step="0.01" min="0" max="{{ slip_available_advance }}" id="deductionAmount" oninput="updatePreview()" style="flex:1;min-width:0">
+                                            <button type="button" class="dv2-btn dv2-btn-outline" onclick="fillMax()" title="Jo kam ho — salary ya advance available — wo bhar do">&#8635; Fill Max</button>
+                                        </div>
+                                        <div style="font-size:.7rem;color:var(--muted);margin-top:4px">Max is salary &amp; advance dono me se jo kam ho.</div>
                                     </div>
                                     <div class="dv2-form-group">
-                                        <label class="dv2-form-label">Max available</label>
-                                        <input type="text" class="dv2-input" value="AED {{ '%.0f'|format(slip_available_advance) }}" readonly>
+                                        <label class="dv2-form-label">Advance Available</label>
+                                        <input type="text" class="dv2-input" value="AED {{ '%.2f'|format(slip_available_advance) }}" readonly>
                                     </div>
                                 </div>
+
+                                <script>
+                                function fillMax() {
+                                    var net = parseFloat('{{ slip_selected_salary.net_salary or 0 }}') || 0;
+                                    var avail = parseFloat('{{ slip_available_advance or 0 }}') || 0;
+                                    var m = Math.min(net, avail);
+                                    if (m < 0) m = 0;
+                                    document.getElementById('deductionAmount').value = m.toFixed(2);
+                                    updatePreview();
+                                }
+                                </script>
 
                                 <script>
                                 function updatePreview() {
@@ -629,13 +660,13 @@
                         </thead>
                         <tbody>
                             {% for r in slip_ledger %}
-                            <tr {% if loop.first %}style="background:#eff6ff"{% endif %}>
+                            <tr {% if r.store_id %}onclick="window.location='{{ url_for('hr.employee_salary_slip', employee_id=employee.employee_id, salary_store_id=r.store_id) }}'" title="Click to open {{ r.salary_month }} slip"{% endif %} style="{% if r.store_id %}cursor:pointer{% endif %}{% if loop.first %};background:#eff6ff{% endif %}">
                                 <td data-label="Month" class="dv2-mono" style="font-weight:{% if loop.first %}800{% else %}500{% endif %}">{{ r.salary_month }}{% if loop.first %} &larr; latest{% endif %}</td>
                                 <td data-label="Salary" class="dv2-mono" style="text-align:right">{% if r.salary > 0 %}AED {{ "%.0f"|format(r.salary) }}{% else %}&mdash;{% endif %}</td>
                                 <td data-label="Given" class="dv2-mono" style="text-align:right;color:#2e7d32">{% if r.given > 0 %}+AED {{ "%.0f"|format(r.given) }}{% else %}&mdash;{% endif %}</td>
                                 <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#e65100">{% if r.deducted > 0 %}-AED {{ "%.0f"|format(r.deducted) }}{% else %}&mdash;{% endif %}</td>
                                 <td data-label="Paid" class="dv2-mono" style="text-align:right">{% if r.paid > 0 %}AED {{ "%.0f"|format(r.paid) }}{% else %}&mdash;{% endif %}</td>
-                                <td data-label="Slip">{% if r.slip_count > 0 %}<span style="color:var(--green);font-weight:700">&#10004;</span>{% else %}<span style="color:var(--muted);font-size:.72rem">pending</span>{% endif %}</td>
+                                <td data-label="Slip">{% if r.slip_count > 0 %}<span style="color:var(--green);font-weight:700">&#10004;</span>{% else %}<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700">RUN</span>{% endif %}</td>
                                 <td data-label="Balance After" class="dv2-mono" style="text-align:right;font-weight:800;color:{% if r.balance_after > 0 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(r.balance_after) }}</td>
                             </tr>
                             {% else %}
