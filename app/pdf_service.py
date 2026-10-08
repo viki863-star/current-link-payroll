@@ -1004,8 +1004,8 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
     """Professional driver-facing Statement of Account (live position only).
 
     `soa` comes from app.hr.routes._build_soa — it deliberately collapses old
-    history and answers: advance kitna mila / kitna wapas kat gaya / kitna baqi,
-    aur kitna salary abhi tak issue hi nahi hui.
+    history and answers: how much advance was issued, how much was recovered,
+    how much advance is still open, and how much salary has not been paid yet.
     """
     from reportlab.platypus import SimpleDocTemplate, Paragraph as PlParagraph, Spacer, Table as PlTable, TableStyle as PlTableStyle, Image as PlImage
     from reportlab.lib.styles import ParagraphStyle
@@ -1126,24 +1126,26 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
     _balance = float(soa.get("balance") or 0)
     _net = float(soa.get("net_to_driver") or 0)
     _net_label = (
-        "Poora advance cut ke baad bhi jo humein aapko dena hai"
+        "Net payable to the driver after full advance recovery"
         if _net >= 0 else
-        "Advance zyada ho gaya — aapko company ko dena hai"
+        "Net receivable from the driver after advance adjustment"
     )
 
     _sub3 = []
     if soa.get("pending_count"):
-        _sub3.append(f"{soa.get('pending_labels')} ka salary abhi nahi diya")
+        _sub3.append(f"{soa.get('pending_labels')} not yet generated")
     if soa.get("unpaid_count"):
-        _sub3.append(f"{soa.get('unpaid_labels')} ka cash abhi baaki")
-    _sub3 = "  ·  ".join(_sub3) or "Sab paisa de diya gaya."
+        _sub3.append(f"{soa.get('unpaid_labels')} issued, cash not yet handed over")
+    _sub3 = "  ·  ".join(_sub3) or "All months settled in full."
+    if not soa.get("pending_count") and not soa.get("unpaid_count"):
+        _sub3 = "All months settled in full."
 
     plain_items = [
-        ("1", "Aapko advance mila tha (transactions se)",
-         "Jab jab cash / transfer diya, sab mila ke.", money(_given), colors.HexColor("#93c5fd")),
-        ("2", "Usme se maine aapki salary se cut kiya",
-         f"Ab advance baki AED {money(_balance)}.", money(_recovered), colors.HexColor("#fca5a5")),
-        ("3", "Ab aapki salary baki hai hamare paas",
+        ("1", "Total advance issued",
+         "Cash and transfers provided to the driver to date.", money(_given), colors.HexColor("#93c5fd")),
+        ("2", "Recovered from salary",
+         f"Advance balance still open: AED {money(_balance)}.", money(_recovered), colors.HexColor("#fca5a5")),
+        ("3", "Salary outstanding (not yet paid)",
          _sub3, money(_salary_owed), colors.HexColor("#93c5fd")),
     ]
     plain_rows = []
@@ -1174,7 +1176,7 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
         ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
     ]))
     plain_wrap = PlTable(
-        [[P("SEEDHI BAAT — DRIVER KE LIYE", fontSize=7, fontName="Helvetica-Bold",
+        [[P("ACCOUNT SUMMARY", fontSize=7, fontName="Helvetica-Bold",
             textColor=colors.HexColor("#7dd3fc"), leading=10)],
          [plain_tbl], [net_tbl]],
         colWidths=[W],
@@ -1202,13 +1204,13 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
 
     owed_bits = []
     if soa.get("pending_count"):
-        owed_bits.append(f"{soa.get('pending_labels')} not run ({money(pending_total)})")
+        owed_bits.append(f"{soa.get('pending_labels')} not generated ({money(pending_total)})")
     if soa.get("unpaid_count"):
-        owed_bits.append(f"{soa.get('unpaid_labels')} cash abhi nahi diya ({money(unpaid_total)})")
-    owed_note = "  ·  ".join(owed_bits) or "Sab paisa de diya gaya"
+        owed_bits.append(f"{soa.get('unpaid_labels')} cash not yet paid ({money(unpaid_total)})")
+    owed_note = "  ·  ".join(owed_bits) or "All months settled in full"
 
     box_defs = [
-        ("SALARY BAKI (HAMARE PAAS)", money(salary_owed), BLU, owed_note),
+        ("SALARY OUTSTANDING", money(salary_owed), BLU, owed_note),
         ("ADVANCE BALANCE", money(balance), GRN if balance <= 0.01 else RED,
          f"Recovered {money(soa.get('recovered'))} of {money(soa.get('given'))}"),
         ("NET " + ("PAYABLE TO DRIVER" if company_owes else "PAYABLE BY DRIVER"), money(abs(net)),
@@ -1293,9 +1295,9 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
         issued = bool(m.get("issued"))
         m_unpaid = float(m.get("unpaid") or 0)
         if not issued:
-            status, status_color = "NOT RUN", RED
+            status, status_color = "NOT GENERATED", RED
         elif m_unpaid > 0.01:
-            status, status_color = f"ISSUED · {money(m_unpaid)} BAKI", colors.HexColor("#b45309")
+            status, status_color = f"ISSUED · {money(m_unpaid)} DUE", colors.HexColor("#b45309")
         else:
             status, status_color = "ISSUED", GRN
         srows.append([
@@ -1328,12 +1330,12 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
     ]
     if soa.get("pending_count"):
         settle_lines.append(
-            f"<b>Not run yet:</b> {soa.get('pending_labels')} — AED {money(pending_total)} salary pending."
+            f"<b>Not yet generated:</b> {soa.get('pending_labels')} — AED {money(pending_total)} salary pending."
         )
     if soa.get("unpaid_count"):
         settle_lines.append(
-            f"<b>Cash abhi nahi diya:</b> {soa.get('unpaid_labels')} — AED {money(unpaid_total)} "
-            f"ka slip ban gaya, payment abhi baaki."
+            f"<b>Cash not yet paid:</b> {soa.get('unpaid_labels')} — AED {money(unpaid_total)} "
+            f"slip issued, payment outstanding."
         )
     settle_lines.append(
         "<b>Net position:</b> " + (

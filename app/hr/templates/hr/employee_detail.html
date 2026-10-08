@@ -101,19 +101,47 @@
         {# ════════════════════════════════════════════ #}
         {% if active_tab == 'transactions' %}
         <div class="tab-pane">
-            {# ═══ LATEST BALANCE SUMMARY ═══ #}
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:1.2rem">
-                <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);border-radius:12px;padding:16px 18px;border-left:4px solid #1565c0">
-                    <div style="font-size:.72rem;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Given (Diye)</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:#0d47a1">AED {{ "%.2f"|format(total_advance or 0) }}</div>
+            <style>
+            .txn-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:#0f2740;color:#fff;border-radius:12px;padding:15px 20px;box-shadow:0 6px 16px rgba(15,39,64,.16);margin-bottom:16px}
+            .txn-head h2{margin:0;font-size:.95rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+            .txn-head p{margin:6px 0 0;font-size:.78rem;color:#c8d7e6;line-height:1.5}
+            .txn-chip{font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.45);color:#7dd3fc;padding:5px 11px;border-radius:999px;white-space:nowrap}
+            .txn-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-bottom:16px}
+            .txn-card{background:#fff;border:1px solid #e5e7eb;border-top:3px solid #0f2740;border-radius:12px;padding:15px 17px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+            .txn-card.c-green{border-top-color:#059669}
+            .txn-card.c-red{border-top-color:#dc2626}
+            .txn-card .lbl{font-size:.63rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#64748b}
+            .txn-card .val{display:block;font-size:1.62rem;font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:8px;line-height:1.1}
+            .txn-card.c-green .val{color:#047857}
+            .txn-card.c-red .val{color:#b91c1c}
+            .txn-card .sub{display:block;font-size:.7rem;color:#64748b;margin-top:7px;line-height:1.5}
+            .txn-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start}
+            </style>
+
+            <div class="txn-head">
+                <div>
+                    <h2>Advance Transactions</h2>
+                    <p>{{ employee.full_name }} &middot; {{ employee.employee_id }} &middot; cash and transfers issued, and their recovery against salary.</p>
                 </div>
-                <div style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);border-radius:12px;padding:16px 18px;border-left:4px solid #6a1b9a">
-                    <div style="font-size:.72rem;font-weight:700;color:#6a1b9a;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Deducted (Kata)</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:#4a148c">AED {{ "%.2f"|format(total_deducted or 0) }}</div>
+                <span class="txn-chip">Live balance</span>
+            </div>
+
+            {% set txn_pct = (total_deducted / total_advance * 100) if total_advance else 0 %}
+            <div class="txn-sum">
+                <div class="txn-card">
+                    <span class="lbl">Total Advance Issued</span>
+                    <span class="val">AED {{ "%.2f"|format(total_advance or 0) }}</span>
+                    <span class="sub">All cash and transfers given to date.</span>
                 </div>
-                <div style="background:linear-gradient(135deg,{% if (txn_outstanding or 0) > 0 %}#fce4ec,#f8bbd0{% else %}#e8f5e9,#c8e6c9{% endif %});border-radius:12px;padding:16px 18px;border-left:4px solid {% if (txn_outstanding or 0) > 0 %}#c62828{% else %}#2e7d32{% endif %}">
-                    <div style="font-size:.72rem;font-weight:700;color:{% if (txn_outstanding or 0) > 0 %}#c62828{% else %}#2e7d32{% endif %};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Outstanding (Baqi — Latest)</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:{% if (txn_outstanding or 0) > 0 %}#b71c1c{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(txn_outstanding or 0) }}</div>
+                <div class="txn-card c-green">
+                    <span class="lbl">Recovered From Salary</span>
+                    <span class="val">AED {{ "%.2f"|format(total_deducted or 0) }}</span>
+                    <span class="sub">{{ "%.1f"|format(txn_pct) }}% of the advance has been set off.</span>
+                </div>
+                <div class="txn-card {% if (txn_outstanding or 0) > 0.01 %}c-red{% else %}c-green{% endif %}">
+                    <span class="lbl">Outstanding Advance</span>
+                    <span class="val">AED {{ "%.2f"|format(txn_outstanding or 0) }}</span>
+                    <span class="sub">{% if (txn_outstanding or 0) > 0.01 %}Still open — recovered from future salary.{% else %}Fully recovered.{% endif %}</span>
                 </div>
             </div>
 
@@ -192,7 +220,7 @@
                         <div class="dv2-card-header">
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
                             Transaction History
-                            <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Given: AED {{ "%.0f"|format(total_advance or 0) }} · Deducted: AED {{ "%.0f"|format(total_deducted or 0) }} · Baqi: AED {{ "%.0f"|format(txn_outstanding or 0) }}</span>
+                            <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Issued AED {{ "%.2f"|format(total_advance or 0) }} &middot; Recovered AED {{ "%.2f"|format(total_deducted or 0) }} &middot; Outstanding AED {{ "%.2f"|format(txn_outstanding or 0) }}</span>
                         </div>
                         <div class="dv2-table-wrap">
                             <table class="dv2-table">
@@ -201,8 +229,8 @@
                                         <th>Date</th>
                                         <th>Type</th>
                                         <th>Amount</th>
-                                        <th style="text-align:right">Deducted</th>
-                                        <th style="text-align:right">Baqi</th>
+                                        <th style="text-align:right">Recovered</th>
+                                        <th style="text-align:right">Outstanding</th>
                                         <th>Source</th>
                                         <th>Given By</th>
                                         <th>Details</th>
@@ -216,8 +244,8 @@
                                         <td data-label="Date" class="dv2-mono">{{ txn.entry_date }}</td>
                                         <td data-label="Type"><span class="dv2-badge dv2-badge-type">{{ txn.txn_type }}</span></td>
                                         <td data-label="Amount" class="dv2-mono dv2-amount">AED {{ "%.0f"|format(txn.amount or 0) }}</td>
-                                        <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:{% if st and st.deducted > 0 %}#e65100{% else %}var(--muted){% endif %};font-weight:{% if st and st.deducted > 0 %}600{% else %}400{% endif %}">AED {{ "%.2f"|format(st.deducted if st else 0) }}</td>
-                                        <td data-label="Baqi" class="dv2-mono" style="text-align:right;font-weight:700;color:{% if st and st.remaining > 0.01 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(st.remaining if st else 0) }}</td>
+                                        <td data-label="Recovered" class="dv2-mono" style="text-align:right;color:{% if st and st.deducted > 0 %}#e65100{% else %}var(--muted){% endif %};font-weight:{% if st and st.deducted > 0 %}600{% else %}400{% endif %}">AED {{ "%.2f"|format(st.deducted if st else 0) }}</td>
+                                        <td data-label="Outstanding" class="dv2-mono" style="text-align:right;font-weight:700;color:{% if st and st.remaining > 0.01 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(st.remaining if st else 0) }}</td>
                                         <td data-label="Source">{{ txn.source }}</td>
                                         <td data-label="Given By">{{ txn.given_by or '-' }}</td>
                                         <td data-label="Details" style="max-width:180px;white-space:normal">{{ txn.details }}</td>
@@ -444,28 +472,28 @@
                             <span class="dv2-stat-value" style="color:#0d47a1">AED {{ "%.2f"|format(slip_hero_salary) }}</span>
                         </div>
                         <div class="dv2-stat-card is-total" style="border-left:4px solid #2e7d32">
-                            <span class="dv2-stat-label">Advance Given (Mila)</span>
+                            <span class="dv2-stat-label">Advance Issued</span>
                             <span class="dv2-stat-value" style="color:#1b5e20">AED {{ "%.2f"|format(slip_truth.total_given) }}</span>
                         </div>
                         <div class="dv2-stat-card is-deducted" style="border-left:4px solid #e65100">
-                            <span class="dv2-stat-label">Deducted (Kat gaya)</span>
+                            <span class="dv2-stat-label">Recovered From Salary</span>
                             <span class="dv2-stat-value" style="color:#e65100">-AED {{ "%.2f"|format(slip_truth.total_deducted) }}</span>
                         </div>
                         <div class="dv2-stat-card is-remaining" style="border-left:4px solid {% if slip_truth.outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %}">
-                            <span class="dv2-stat-label">Advance Remaining (Baqi)</span>
+                            <span class="dv2-stat-label">Advance Balance</span>
                             <span class="dv2-stat-value" style="color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#1b5e20{% endif %};font-size:1.35rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</span>
                         </div>
                         <div class="dv2-stat-card" style="border-left:4px solid #1d4ed8">
-                            <span class="dv2-stat-label">Salary Not Run</span>
+                            <span class="dv2-stat-label">Salary Not Generated</span>
                             <span class="dv2-stat-value" style="color:#1d4ed8">AED {{ "%.2f"|format(pending_total) }}</span>
-                            <div style="font-size:.7rem;color:#1d4ed8;margin-top:2px">{% if pending_months %}{{ pending_months|map(attribute='salary_month')|join(', ') }} — abhi tak issue nahi hua{% else %}Sab months issue ho chuke{% endif %}</div>
+                            <div style="font-size:.7rem;color:#1d4ed8;margin-top:2px">{% if pending_months %}{{ pending_months|map(attribute='salary_month')|join(', ') }} — not yet generated{% else %}All months generated{% endif %}</div>
                         </div>
                     </div>
                     <p style="margin:12px 0 0;font-size:.86rem;color:var(--muted);line-height:1.6">
-                        Advance <strong style="color:#1b5e20">AED {{ "%.2f"|format(slip_truth.total_given) }}</strong> mila &rarr;
-                        <strong style="color:#e65100">AED {{ "%.2f"|format(slip_truth.total_deducted) }}</strong> salary se kat chuka &rarr;
-                        <strong style="color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(slip_truth.outstanding) }}</strong> abhi baqi.
-                        {% if slip_truth.outstanding > 0 %}Har month salary se ye baqi amount apne aap kat-ta jayega.{% else %}Advance poora clear ho chuka hai.{% endif %}
+                        Advance issued <strong style="color:#1b5e20">AED {{ "%.2f"|format(slip_truth.total_given) }}</strong> &rarr;
+                        recovered <strong style="color:#e65100">AED {{ "%.2f"|format(slip_truth.total_deducted) }}</strong> from salary &rarr;
+                        <strong style="color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(slip_truth.outstanding) }}</strong> still open.
+                        {% if slip_truth.outstanding > 0 %}The open balance is recovered automatically from each month's salary.{% else %}The advance has been fully recovered.{% endif %}
                     </p>
                 </div>
             </div>
@@ -474,15 +502,15 @@
             <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-bottom:1.2rem">
                 <div style="flex:1;min-width:210px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px">
                     <div style="font-size:.7rem;font-weight:800;color:#1d4ed8">STEP 1</div>
-                    <div style="font-size:.8rem;color:#1e3a5f">Left table se <strong>month click</strong> karo (April se shuru).</div>
+                    <div style="font-size:.8rem;color:#1e3a5f">Select a <strong>month</strong> from the table on the left (start with the earliest).</div>
                 </div>
                 <div style="flex:1;min-width:210px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px">
                     <div style="font-size:.7rem;font-weight:800;color:#15803d">STEP 2</div>
-                    <div style="font-size:.8rem;color:#14532d"><strong>Fill Max</strong> dabao — kitna advance katna hai wo khud bhar jayega.</div>
+                    <div style="font-size:.8rem;color:#14532d">Press <strong>Fill Max</strong> — the recoverable advance is filled in automatically.</div>
                 </div>
                 <div style="flex:1;min-width:210px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px">
                     <div style="font-size:.7rem;font-weight:800;color:#c2410c">STEP 3</div>
-                    <div style="font-size:.8rem;color:#7c2d12"><strong>Generate</strong> dabao — neeche "Advance Baqi (After)" dekh kar confirm karo.</div>
+                    <div style="font-size:.8rem;color:#7c2d12">Press <strong>Generate</strong> — confirm the figures under "Advance Balance (After)" first.</div>
                 </div>
             </div>
 
@@ -560,10 +588,10 @@
                                     var payable = Math.max(netSalary - deduction, 0);
                                     var paid = document.getElementById('paidNow').checked;
                                     if (paid) {
-                                        el.innerHTML = 'AED ' + payable.toFixed(2) + ' aaj cash mein driver ko de diya &rarr; Owner Fund se OUT entry banegi.';
+                                        el.innerHTML = 'AED ' + payable.toFixed(2) + ' handed to the driver in cash today &rarr; an Owner Fund OUT entry will be recorded.';
                                         el.style.color = '#047857';
                                     } else {
-                                        el.innerHTML = 'Tick hatao &rarr; system paid <b>nahi</b> dikhayega. AED ' + payable.toFixed(2) + ' salary driver ke paas baki rahegi.';
+                                        el.innerHTML = 'Untick if the cash was <b>not</b> handed over &rarr; AED ' + payable.toFixed(2) + ' stays recorded as outstanding salary.';
                                         el.style.color = '#b45309';
                                     }
                                 }
@@ -598,25 +626,25 @@
                                 {% set _after = (slip_available_advance|float) - deduction %}
                                 {% set after_balance = _after if _after > 0 else 0 %}
                                 <div class="dv2-preview">
-                                    <div class="dv2-preview-title">Is Slip Ke Baad &mdash; Kya Hoga</div>
+                                    <div class="dv2-preview-title">After This Slip &mdash; What Changes</div>
                                     <div class="dv2-preview-grid">
                                         <div class="dv2-preview-item"><span class="dv2-preview-label">Net Salary</span><span class="dv2-preview-value">AED {{ "%.2f"|format(slip_selected_salary.net_salary) }}</span></div>
                                         <div class="dv2-preview-item"><span class="dv2-preview-label">Deduction</span><span class="dv2-preview-value" id="previewDeduction">-AED {{ "%.2f"|format(deduction) }}</span></div>
                                         <div class="dv2-preview-item is-highlight">
-                                            <span class="dv2-preview-label">Net Payable (Driver ko)</span>
+                                            <span class="dv2-preview-label">Net Payable to Driver</span>
                                             <span class="dv2-preview-value" id="previewPayable">AED {{ "%.2f"|format(payable) }}</span>
                                         </div>
                                         <div class="dv2-preview-item" style="background:rgba(198,40,40,.08)">
-                                            <span class="dv2-preview-label">Advance Baqi (After)</span>
+                                            <span class="dv2-preview-label">Advance Balance (After)</span>
                                             <span class="dv2-preview-value" id="previewAfter" style="color:#c62828">AED {{ "%.2f"|format(after_balance) }}</span>
                                         </div>
                                     </div>
                                     <div style="margin-top:10px;font-size:.82rem;color:var(--muted);text-align:center">
-                                        Advance baqi
+                                        Advance balance
                                         <strong id="lineBefore">AED {{ "%.2f"|format(slip_available_advance|float) }}</strong>
                                         &rarr;
                                         <strong id="lineAfter" style="color:#c62828">AED {{ "%.2f"|format(after_balance) }}</strong>
-                                        (deduction ke baad)
+                                        (after deduction)
                                     </div>
                                 </div>
                                 {% endif %}
@@ -624,7 +652,7 @@
                                 <label for="paidNow" style="display:flex;gap:9px;align-items:flex-start;padding:11px 13px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;margin:4px 0 14px;cursor:pointer">
                                     <input type="checkbox" name="paid_now" id="paidNow" {% if slip_values.paid_now %}checked{% endif %} onchange="updatePaidHint()" style="margin-top:3px;width:15px;height:15px;accent-color:#0f766e">
                                     <span style="font-size:.8rem;line-height:1.55">
-                                        <strong style="color:#0f172a">Office mein cash diya &mdash; aaj payment hui</strong><br>
+                                        <strong style="color:#0f172a">Cash handed over in the office &mdash; payment made today</strong><br>
                                         <span id="paidHintText" style="color:#64748b"></span>
                                     </span>
                                 </label>
@@ -675,8 +703,8 @@
             <div class="dv2-card" style="margin-top:1.2rem">
                 <div class="dv2-card-header">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
-                    Running Hisab &mdash; Month by Month
-                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Balance = Given &minus; Deducted</span>
+                    Running Ledger &mdash; Month by Month
+                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Balance = Issued &minus; Recovered</span>
                 </div>
                 <div class="dv2-table-wrap">
                     <table class="dv2-table">
@@ -709,7 +737,7 @@
                         {% if slip_ledger %}
                         <tfoot>
                             <tr style="background:#f8fafc">
-                                <td colspan="6" style="text-align:right;font-weight:800;border-top:2px solid var(--border)">ABHI KITNA BAQI (Balance Today)</td>
+                                <td colspan="6" style="text-align:right;font-weight:800;border-top:2px solid var(--border)">CURRENT BALANCE (AS OF TODAY)</td>
                                 <td style="text-align:right;font-weight:800;border-top:2px solid var(--border);color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:.95rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</td>
                             </tr>
                         </tfoot>
@@ -827,49 +855,49 @@
 
             {# ═══ SEEDHI BAAT — driver ko samajh aane wali 3 line ═══ #}
             <div class="soa-plain">
-                <div class="soa-plain-title">Seedhi Baat &mdash; Aapke Liye</div>
+                <div class="soa-plain-title">Account Summary</div>
                 <ol class="soa-plain-list">
                     <li>
                         <span class="n">1</span>
-                        <span class="t">Aapko advance mila tha (transactions se)<small>Jab jab cash/transfer diya, wo sab mila ke.</small></span>
+                        <span class="t">Total advance issued<small>Cash and transfers provided to the driver to date.</small></span>
                         <b class="v">AED {{ "%.2f"|format(soa.given) }}</b>
                     </li>
                     <li class="l2">
                         <span class="n">2</span>
-                        <span class="t">Usme se maine aapki salary se cut kiya<small>Ab advance baki AED {{ "%.2f"|format(soa.balance) }}.</small></span>
+                        <span class="t">Recovered from salary<small>Advance balance still open: AED {{ "%.2f"|format(soa.balance) }}.</small></span>
                         <b class="v">AED {{ "%.2f"|format(soa.recovered) }}</b>
                     </li>
                     <li class="l3">
                         <span class="n">3</span>
-                        <span class="t">Ab aapki salary baki hai hamare paas<small>{% if soa.pending_count %}{{ soa.pending_labels }} ka salary abhi nahi diya.{% endif %}{% if soa.unpaid_count %} {{ soa.unpaid_labels }} ka slip ban gaya lekin cash abhi baaki.{% endif %}</small></span>
+                        <span class="t">Salary outstanding (not yet paid)<small>{% if soa.pending_count %}{{ soa.pending_labels }} not yet generated.{% endif %}{% if soa.unpaid_count %} {{ soa.unpaid_labels }} issued, cash not yet handed over.{% endif %}</small></span>
                         <b class="v">AED {{ "%.2f"|format(soa.salary_owed) }}</b>
                     </li>
                 </ol>
                 <div class="soa-net">
-                    <span>Poora advance cut ke baad bhi<br>jo humein aapko dena hai</span>
-                    <b>AED {{ "%.2f"|format(soa.net_to_driver) }}</b>
+                    <span>{% if soa.company_owes %}Net payable to the driver after<br>full advance recovery{% else %}Net receivable from the driver after<br>advance adjustment{% endif %}</span>
+                    <b>AED {{ "%.2f"|format(soa.net_to_driver|abs) }}</b>
                 </div>
             </div>
 
             <div class="soa-grid">
                 <div class="soa-tile t-blue">
-                    <div class="soa-label">Salary Baki (Hamare Paas)</div>
+                    <div class="soa-label">Salary Outstanding</div>
                     <div class="soa-value">AED {{ "%.2f"|format(soa.salary_owed) }}</div>
                     <div class="soa-note">
-                        {% if soa.pending_count %}<strong>{{ soa.pending_labels }}</strong> run nahi hua (AED {{ "%.2f"|format(soa.pending_total) }}).{% endif %}
-                        {% if soa.unpaid_count %} <strong>{{ soa.unpaid_labels }}</strong> ka slip ban gaya lekin cash abhi nahi diya (AED {{ "%.2f"|format(soa.unpaid_total) }}).{% endif %}
-                        {% if not soa.pending_count and not soa.unpaid_count %}Sab months ka paisa de diya gaya.{% endif %}
+                        {% if soa.pending_count %}<strong>{{ soa.pending_labels }}</strong> not yet generated (AED {{ "%.2f"|format(soa.pending_total) }}).{% endif %}
+                        {% if soa.unpaid_count %} <strong>{{ soa.unpaid_labels }}</strong> issued, cash not yet handed over (AED {{ "%.2f"|format(soa.unpaid_total) }}).{% endif %}
+                        {% if not soa.pending_count and not soa.unpaid_count %}All months have been settled in full.{% endif %}
                     </div>
                 </div>
                 <div class="soa-tile t-red">
-                    <div class="soa-label">Advance Balance (Driver par baki)</div>
+                    <div class="soa-label">Advance Balance (Outstanding)</div>
                     <div class="soa-value" style="color:{% if soa.balance > 0.01 %}#b91c1c{% else %}#047857{% endif %}">AED {{ "%.2f"|format(soa.balance) }}</div>
-                    <div class="soa-note">Recovery {{ "%.1f"|format(soa.recovery_pct) }}% &middot; AED {{ "%.2f"|format(soa.recovered) }} wapas kat gaya (total {{ "%.2f"|format(soa.given) }} mila).</div>
+                    <div class="soa-note">{{ "%.1f"|format(soa.recovery_pct) }}% recovered &middot; AED {{ "%.2f"|format(soa.recovered) }} of AED {{ "%.2f"|format(soa.given) }} set off.</div>
                 </div>
                 <div class="soa-tile {% if soa.company_owes %}t-green{% else %}t-red{% endif %}">
                     <div class="soa-label">Net {% if soa.company_owes %}Payable to Driver{% else %}Payable by Driver{% endif %}</div>
                     <div class="soa-value" style="color:{% if soa.company_owes %}#047857{% else %}#b91c1c{% endif %}">AED {{ "%.2f"|format(soa.net_to_driver|abs) }}</div>
-                    <div class="soa-note">Salary baki AED {{ "%.2f"|format(soa.salary_owed) }} − advance baki AED {{ "%.2f"|format(soa.balance) }}.</div>
+                    <div class="soa-note">Salary outstanding AED {{ "%.2f"|format(soa.salary_owed) }} − advance balance AED {{ "%.2f"|format(soa.balance) }}.</div>
                 </div>
             </div>
 
@@ -891,21 +919,21 @@
                         <span class="mono">{{ m.month }}</span>
                         <span class="mono">AED {{ "%.0f"|format(m.net) }}</span>
                         {% if m.issued %}
-                            {% if m.unpaid > 0.01 %}<span class="soa-pill warn">Issued &middot; AED {{ "%.0f"|format(m.unpaid) }} baki</span>{% else %}<span class="soa-pill ok">Issued</span>{% endif %}
-                        {% else %}<span class="soa-pill no">Not Run</span>{% endif %}
+                            {% if m.unpaid > 0.01 %}<span class="soa-pill warn">Issued &middot; AED {{ "%.0f"|format(m.unpaid) }} due</span>{% else %}<span class="soa-pill ok">Issued</span>{% endif %}
+                        {% else %}<span class="soa-pill no">Not Generated</span>{% endif %}
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
             <div class="soa-settle">
-                <strong>Settled:</strong> {{ soa.settled_label }} ({{ soa.settled_count }} month) &mdash; AED {{ "%.2f"|format(soa.recovered) }} salary se recover hua.<br>
-                {% if soa.pending_count %}<strong>Not run yet:</strong> {{ soa.pending_labels }} &mdash; AED {{ "%.2f"|format(soa.pending_total) }} salary pending.{% endif %}
-                {% if soa.unpaid_count %} <strong>Cash abhi nahi diya:</strong> {{ soa.unpaid_labels }} &mdash; AED {{ "%.2f"|format(soa.unpaid_total) }} slip ban gaya lekin payment baaki.{% endif %}
-                <br><strong>Net:</strong> {% if soa.company_owes %}Company driver ko AED {{ "%.2f"|format(soa.net_to_driver) }} dega.{% else %}Driver company ko AED {{ "%.2f"|format(soa.net_to_driver|abs) }} wapas dega.{% endif %}
+                <strong>Settled:</strong> {{ soa.settled_label }} ({{ soa.settled_count }} month) &mdash; AED {{ "%.2f"|format(soa.recovered) }} recovered from salary.<br>
+                {% if soa.pending_count %}<strong>Not yet generated:</strong> {{ soa.pending_labels }} &mdash; AED {{ "%.2f"|format(soa.pending_total) }} salary pending.{% endif %}
+                {% if soa.unpaid_count %} <strong>Cash not yet paid:</strong> {{ soa.unpaid_labels }} &mdash; AED {{ "%.2f"|format(soa.unpaid_total) }} slip issued, payment outstanding.{% endif %}
+                <br><strong>Net position:</strong> {% if soa.company_owes %}The company owes the driver AED {{ "%.2f"|format(soa.net_to_driver) }}.{% else %}The driver owes the company AED {{ "%.2f"|format(soa.net_to_driver|abs) }}.{% endif %}
             </div>
 
-            <div class="soa-foot">Live statement &mdash; purane entries collapse kar diye gaye hain. Generated {{ soa.statement_date }}.</div>
+            <div class="soa-foot">Live statement &mdash; historical entries are collapsed; current balances only. Generated {{ soa.statement_date }}.</div>
 
             {# ═══ DOWNLOAD ═══ #}
             {% if kata_pdf_url %}
