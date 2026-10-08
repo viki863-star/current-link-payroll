@@ -161,10 +161,12 @@ td .mono-sm { font-size:0.75rem; }
             <tbody>
                 {% for inv in invoices %}
                 <tr>
-                    <td class="mono" style="font-weight:600">{{ inv.invoice_no }}</td>
+                    <td class="mono" style="font-weight:600">{{ inv.invoice_no }}
+                        {% if (inv.invoice_type or 'vat') == 'cash' %}<span class="badge badge-type" style="font-size:0.6rem;background:#ecfdf5;color:#0f766e;border:1px solid #0f766e;margin-left:4px">CASH</span>{% endif %}
+                    </td>
                     <td class="mono">{{ inv.invoice_date }}</td>
                     <td class="mono">{{ "%.0f"|format(inv.amount) }}</td>
-                    <td class="mono">{{ "%.0f"|format(inv.vat_amount) }}</td>
+                    <td class="mono" style="{% if (inv.invoice_type or 'vat') == 'cash' %}color:#94a3b8{% endif %}">{{ "%.0f"|format(inv.vat_amount) }}</td>
                     <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(inv.total_amount) }}</td>
                     <td>
                         <div style="display:flex;gap:4px">

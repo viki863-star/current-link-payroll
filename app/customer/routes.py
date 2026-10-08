@@ -186,6 +186,7 @@ def _ensure_tables():
         ("customer_invoices", "invoice_template", "TEXT DEFAULT 'standard'"),
         ("customer_invoices", "discount", real_type + " DEFAULT 0"),
         ("customer_invoices", "ref_no", "TEXT"),
+        ("customer_invoices", "invoice_type", "TEXT DEFAULT 'vat'"),
         ("customer_invoices", "service_order_no", "TEXT"),
         ("customer_invoices", "so_no", "TEXT"),
         ("customer_invoice_items", "vehicle_no", "TEXT"),
@@ -272,6 +273,31 @@ def _next_invoice_no(db):
     if max_num == 0:
         return "NS884"
     return f"NS{max_num + 1}"
+
+def _next_cash_invoice_no(db):
+    """Separate running series for Cash Invoices: CI-0001, CI-0002, ...
+
+    Cash invoices never carry VAT, so they are numbered apart from the VAT
+    (NS###) series to keep both audits clean.
+    """
+    rows = db.execute("SELECT invoice_no FROM customer_invoices").fetchall()
+    max_num = 0
+    for r in rows:
+        inv = r["invoice_no"]
+        if inv and inv.startswith("CI-"):
+            try:
+                num = int(inv[3:])
+                if num > max_num:
+                    max_num = num
+            except (ValueError, TypeError):
+                pass
+    return f"CI-{max_num + 1:04d}"
+
+def _is_cash_invoice(rec) -> bool:
+    try:
+        return (rec.get("invoice_type") or "vat").lower() == "cash"
+    except (AttributeError, TypeError):
+        return False
 
 def _get_customer_or_404(cid):
     db = _get_db()
@@ -384,7 +410,7 @@ def customer_profile(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     tab = request.args.get("tab", "overview")
-    invoices = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
+    invoices = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
     payments = db.execute("SELECT p.*, i.invoice_no FROM customer_payments p LEFT JOIN customer_invoices i ON p.invoice_id=i.id WHERE p.customer_id=? ORDER BY p.payment_date DESC", (cid,)).fetchall()
     contracts = db.execute("SELECT id, customer_id, contract_no, start_date, end_date, amount, status, created_at FROM customer_contracts WHERE customer_id=? ORDER BY contract_date DESC", (cid,)).fetchall()
     quotations = db.execute("""
@@ -421,22 +447,26 @@ def customer_invoice_add(cid):
     is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
     db = _get_db()
     next_no = _next_invoice_no(db)
+    next_cash_no = _next_cash_invoice_no(db)
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
+    inv_type = "vat"
     if request.method == "POST":
         try:
             _safe_rollback(db)
             print("INV_ADD form data:", dict(request.form))
             inv_date = request.form.get("invoice_date", date.today().isoformat())
-            inv_no = request.form.get("invoice_no", "").strip() or next_no
+            inv_type = "cash" if request.form.get("invoice_type", "vat").lower() == "cash" else "vat"
+            default_no = next_cash_no if inv_type == "cash" else next_no
+            inv_no = request.form.get("invoice_no", "").strip() or default_no
             existing = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=?", (inv_no,)).fetchone()
             if existing:
                 flash(f"Invoice number '{inv_no}' already exists. Use a different number.", "error")
                 db.close()
                 tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
-                return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
-            vat_pct = float(request.form.get("vat_percent", 5))
+                return render_template(tmpl, c=c, inv={"invoice_type": inv_type}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no)
+            vat_pct = 0.0 if inv_type == "cash" else float(request.form.get("vat_percent", 5))
             so_id = request.form.get("so_id", "").strip()
             so_no = None
             if so_id:
@@ -514,7 +544,7 @@ def customer_invoice_add(cid):
                 if not items:
                     flash("At least one line item is required.", "error")
                     db.close()
-                    return render_template("customer/invoice_form.html", c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+                    return render_template("customer/invoice_form.html", c=c, inv={"invoice_type": inv_type}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no)
             vat_amt = round(sub_total * vat_pct / 100, 2)
             total = round(sub_total + vat_amt, 2)
             if is_nmdc:
@@ -527,9 +557,9 @@ def customer_invoice_add(cid):
                     "eq_periods": eq_periods,
                 }
                 notes = json.dumps(nmdc_meta) if not notes else json.dumps(nmdc_meta) + "\n" + notes
-            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes))
+            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes,invoice_type)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type))
             inv_id = c_inv.lastrowid
             for idx, it in enumerate(items):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
@@ -547,10 +577,10 @@ def customer_invoice_add(cid):
             current_app.logger.error("Invoice add failed: %s\n%s", e, traceback.format_exc())
             flash(f"Error creating invoice: {e}", "error")
             tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
-            return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+            return render_template(tmpl, c=c, inv={"invoice_type": inv_type}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no)
     db.close()
     tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
-    return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no)
+    return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no)
 
 @customer_bp.route("/service-items/search")
 def service_items_search():
@@ -577,7 +607,7 @@ def customer_invoice_edit(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
@@ -600,19 +630,22 @@ def customer_invoice_edit(cid, iid):
     except (KeyError, AttributeError):
         pass
     is_nmdc_edit = "nmdc" in (c["customer_name"] or "").lower()
+    next_cash_no = _next_cash_invoice_no(db)
+    inv_type = (inv.get("invoice_type") or "vat") if inv else "vat"
     if request.method == "POST":
         try:
             _safe_rollback(db)
             print("INV_EDIT form data for iid=%s:", iid, dict(request.form))
             inv_date = request.form.get("invoice_date", date.today().isoformat())
+            inv_type = "cash" if request.form.get("invoice_type", inv_type or "vat").lower() == "cash" else "vat"
             inv_no = request.form.get("invoice_no", "").strip() or inv["invoice_no"]
             dup = db.execute("SELECT id FROM customer_invoices WHERE invoice_no=? AND id!=?", (inv_no, iid)).fetchone()
             if dup:
                 flash(f"Invoice number '{inv_no}' already in use.", "error")
                 db.close()
                 tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
-                return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
-            vat_pct = float(request.form.get("vat_percent", 5))
+                return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no)
+            vat_pct = 0.0 if inv_type == "cash" else float(request.form.get("vat_percent", 5))
             so_id = request.form.get("so_id", "").strip()
             so_no = None
             if so_id:
@@ -659,7 +692,7 @@ def customer_invoice_edit(cid, iid):
                 if not new_items:
                     flash("At least one equipment with hours is required.", "error")
                     db.close()
-                    return render_template("customer/invoice_form_nmdc.html", c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
+                    return render_template("customer/invoice_form_nmdc.html", c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no)
                 import json
                 nmdc_meta_e = {
                     "period_from": request.form.get("period_from", ""),
@@ -699,11 +732,11 @@ def customer_invoice_edit(cid, iid):
                 flash("At least one line item is required.", "error")
                 db.close()
                 tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
-                return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
+                return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no)
             vat_amt = round(sub_total * vat_pct / 100, 2)
             total = round(sub_total + vat_amt, 2)
-            db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,so_no=?,project_no=?,notes=? WHERE id=?""",
-                (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, iid))
+            db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,so_no=?,project_no=?,notes=?,invoice_type=? WHERE id=?""",
+                (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, iid))
             db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
             for idx, it in enumerate(new_items):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
@@ -721,7 +754,7 @@ def customer_invoice_edit(cid, iid):
             current_app.logger.error("Invoice edit failed: %s\n%s", e, traceback.format_exc())
             flash(f"Error updating invoice: {e}", "error")
             tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
-            return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id)
+            return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no)
     db.close()
     nmdc_meta = {}
     display_notes = inv.get("notes", "") or ""
@@ -740,7 +773,7 @@ def customer_invoice_edit(cid, iid):
                 except Exception:
                     pass
     tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
-    return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, nmdc_meta=nmdc_meta, display_notes=display_notes)
+    return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, nmdc_meta=nmdc_meta, display_notes=display_notes, next_cash_no=next_cash_no)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>")
 def customer_invoice_view(cid, iid):
@@ -748,7 +781,7 @@ def customer_invoice_view(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     if not inv:
         db.close()
         flash("Invoice not found.", "error")
@@ -766,6 +799,8 @@ def customer_invoice_view(cid, iid):
     except (IndexError, KeyError):
         tmpl_t = "standard"
     is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
+    # cash invoices always use the standard (non-NMDC) view
+    is_nmdc = is_nmdc and not _is_cash_invoice(inv)
     nmdc_meta = {}
     if is_nmdc:
         tmpl = "customer/invoice_view_nmdc.html"
@@ -808,7 +843,7 @@ def customer_invoice_pdf(cid, iid):
     _ensure_tables()
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     pdf_so_date = None
@@ -825,7 +860,10 @@ def customer_invoice_pdf(cid, iid):
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_dashboard"))
 
+    is_cash = _is_cash_invoice(inv)
     is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
+    # Cash invoices always use the standard layout (never the VAT/NMDC one)
+    is_nmdc = is_nmdc and not is_cash
 
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     #  NEW NMDC LAYOUT — Premium ERP-style, footer on every page
@@ -1267,6 +1305,10 @@ def customer_invoice_pdf(cid, iid):
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64738b"); C6 = colors.HexColor("#dc2626")
     DH = colors.HexColor("#1e293b")
+    if is_cash:
+        # Cash invoice gets its own look: teal-green accent, no red VAT figures
+        TH = colors.HexColor("#0f766e")
+        DH = colors.HexColor("#115e59")
 
     cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] or "") if company else ""
@@ -1324,7 +1366,9 @@ def customer_invoice_pdf(cid, iid):
     if c_ph: c_contact.append(f"Phone: {c_ph}")
     if c_em: c_contact.append(f"Email: {c_em}")
     if c_contact: ci_lines.append('<font size=7 color="#64748b">' + ' &middot; '.join(c_contact) + '</font>')
-    ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
+    if not is_cash:
+        # cash invoices carry no VAT / TRN reference
+        ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
     ci_html = f"<font size=14><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
     co_p = Paragraph(ci_html, S("CO", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=17))
 
@@ -1357,7 +1401,7 @@ def customer_invoice_pdf(cid, iid):
         lh = co_p
 
     rh = Paragraph(
-        f"<b>TAX INVOICE</b><br/>"
+        f"<b>{'CASH INVOICE' if is_cash else 'TAX INVOICE'}</b><br/>"
         f"<font size=8 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
         S("TI", fontSize=16, fontName="Helvetica-Bold", textColor=TH, leading=20, alignment=TA_RIGHT))
 
@@ -1393,7 +1437,10 @@ def customer_invoice_pdf(cid, iid):
         ]))
         return t
 
-    bd = [("Customer", safe(c["customer_name"])), ("TRN", safe(c["trn"]))]
+    bd = [("Customer", safe(c["customer_name"]))]
+    if not is_cash:
+        # no TRN / tax reference on a cash invoice
+        bd.append(("TRN", safe(c["trn"])))
     if c["phone"]: bd.append(("Phone", c["phone"]))
     if c["email"]: bd.append(("Email", c["email"]))
     if c["address"]:
@@ -1464,6 +1511,17 @@ def customer_invoice_pdf(cid, iid):
         Paragraph("<b>VAT Amount</b>", S("_h6", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
         Paragraph("<b>Total<br/>(incl. VAT)</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
     ]
+    if is_cash:
+        # CASH INVOICE design: no VAT columns at all — wider, cleaner table
+        cw = [9*mm, 66*mm, 20*mm, 16*mm, 28*mm, 29*mm]
+        hdr = [
+            Paragraph("<b>#</b>", S("_hc0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+            Paragraph("<b>Description</b>", S("_hc1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
+            Paragraph("<b>Qty</b>", S("_hc2", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+            Paragraph("<b>Unit</b>", S("_hcu", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
+            Paragraph("<b>Unit Price</b>", S("_hc3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+            Paragraph("<b>Amount</b>", S("_hc4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        ]
     rws = [hdr]
     if is_nmdc:
         # Row 1: Main description
@@ -1497,17 +1555,24 @@ def customer_invoice_pdf(cid, iid):
             if it.get("vehicle_no"): parts.append(f"<b>Plant No:</b> {it['vehicle_no']}")
             plant_reg = " | ".join(parts)
             desc_html = plant_reg + eq_period_text + eq_hours
-        rws.append([
+        _row = [
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
             _pc(f"{float(it.get('quantity') or 0):,.4f}", alignment=TA_CENTER),
             _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),
             _pc(f"{float(it.get('rate') or 0):,.4f}", alignment=TA_RIGHT),
             _pc(f"{amt:,.2f}", alignment=TA_RIGHT),
-            _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
-            _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
-            Paragraph(f"<b>{ti_item:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
-        ])
+        ]
+        if not is_cash:
+            _row.extend([
+                _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
+                _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
+                Paragraph(f"<b>{ti_item:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
+            ])
+        else:
+            # cash invoice: single Amount column, no VAT figures anywhere
+            _row[5] = Paragraph(f"<b>{amt:,.2f}</b>", S("_bca", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr))
+        rws.append(_row)
 
     itt = Table(rws, colWidths=cw, repeatRows=1)
     itt.setStyle(TableStyle([
@@ -1528,18 +1593,24 @@ def customer_invoice_pdf(cid, iid):
     trows = [
         [Paragraph("Sub Total", S("_st", fontSize=9, textColor=C5, leading=12)),
          Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_RIGHT))],
-        [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=9, textColor=C5, leading=12)),
-         Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=9, fontName="Helvetica-Bold", textColor=C6, leading=12, alignment=TA_RIGHT))],
-        [Paragraph("<b>Total Due</b>", S("_td", fontSize=12, fontName="Helvetica-Bold", textColor=C4, leading=15)),
-         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=16, alignment=TA_RIGHT))],
     ]
+    if not is_cash:
+        trows.append(
+            [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=9, textColor=C5, leading=12)),
+             Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=9, fontName="Helvetica-Bold", textColor=C6, leading=12, alignment=TA_RIGHT))]
+        )
+    trows.append(
+        [Paragraph("<b>Total</b>" if is_cash else "<b>Total Due</b>", S("_td", fontSize=12, fontName="Helvetica-Bold", textColor=C4, leading=15)),
+         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=16, alignment=TA_RIGHT))]
+    )
+    _tot_row = len(trows) - 1
     tt = Table(trows, colWidths=[tw*0.40, tw*0.60])
     tt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
         ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
         ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
-        ("LINEABOVE",(0,2),(-1,2),1.5,TH),
+        ("LINEABOVE",(0,_tot_row),(-1,_tot_row),1.5,TH),
     ]))
 
     ft = Table([["", tt]], colWidths=[W - tw, tw])
@@ -1657,7 +1728,7 @@ def customer_invoice_pdf(cid, iid):
     ftr_rows.append(bar)
     ftr_rows.append(Spacer(1, 2*mm))
     ftr_rows.append(Paragraph(
-        "This is a computer-generated Tax Invoice. Valid without signature.",
+        f"This is a computer-generated {'Cash Invoice' if is_cash else 'Tax Invoice'}. Valid without signature.",
         S("FN", fontSize=6.5, textColor=C5, alignment=TA_CENTER, leading=8)))
     ftr_table = Table([[r] for r in ftr_rows], colWidths=[W])
     ftr_table.setStyle(TableStyle([
@@ -1671,7 +1742,7 @@ def customer_invoice_pdf(cid, iid):
         try: os.remove(f)
         except Exception: pass
     pdf_data = buf.getvalue(); buf.close()
-    return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"Invoice_{inv_no}.pdf")
+    return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"{'CashInvoice' if is_cash else 'Invoice'}_{inv_no}.pdf")
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/delete", methods=["POST"])
 def customer_invoice_delete(cid, iid):
@@ -3071,7 +3142,7 @@ def customer_soa(cid):
     to_date = request.args.get("to", "")
     db = _get_db()
     entries = []
-    inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.total_amount as dr,
+    inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.invoice_type as invoice_type, i.total_amount as dr,
                       COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
                       + COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cr
                FROM customer_invoices i WHERE i.customer_id=?"""
@@ -3081,7 +3152,7 @@ def customer_soa(cid):
     inv_q += " ORDER BY i.invoice_date, i.id"
     for inv in db.execute(inv_q, inv_p).fetchall():
         d = dict(inv)
-        d["type"] = "Invoice"
+        d["type"] = "Cash Invoice" if (d.get("invoice_type") or "vat").lower() == "cash" else "Invoice"
         if (d.get("dr",0) or 0) > 0 and (d.get("dr",0) or 0) - (d.get("cr",0) or 0) <= 0.005:
             continue
         entries.append(d)
@@ -3119,7 +3190,7 @@ def customer_soa_pdf(cid):
     db = _get_db()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     entries = []
-    inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.total_amount as dr,
+    inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.invoice_type as invoice_type, i.total_amount as dr,
                       COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
                       + COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cr
                FROM customer_invoices i WHERE i.customer_id=?"""
@@ -3129,7 +3200,7 @@ def customer_soa_pdf(cid):
     inv_q += " ORDER BY i.invoice_date, i.id"
     for inv in db.execute(inv_q, inv_p).fetchall():
         d = dict(inv)
-        d["type"] = "Invoice"
+        d["type"] = "Cash Invoice" if (d.get("invoice_type") or "vat").lower() == "cash" else "Invoice"
         if (d.get("dr",0) or 0) > 0 and (d.get("dr",0) or 0) - (d.get("cr",0) or 0) <= 0.005:
             continue
         entries.append(d)
@@ -3299,7 +3370,7 @@ def customer_soa_pdf(cid):
             Paragraph(d, F("_d", fontSize=7, leading=10)),
             Paragraph(f"<font color='{C5}'>{month}</font>" if month else "", F("_m", fontSize=6.5, textColor=C5, leading=10)),
             Paragraph(str(e.get("ref","—")), F("_r", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=10)),
-            Paragraph(f"<font color=\"{'#1a56db' if e['type']=='Invoice' else '#e65100' if e['type']=='Credit Note' else '#c62828' if e['type']=='Unallocated Payment' else '#1a7d1a'}\">{e['type']}</font>", F("_t", fontSize=7, alignment=TA_CENTER, leading=10)),
+            Paragraph(f"<font color=\"{'#1a56db' if e['type']=='Invoice' else '#0f766e' if e['type']=='Cash Invoice' else '#e65100' if e['type']=='Credit Note' else '#c62828' if e['type']=='Unallocated Payment' else '#1a7d1a'}\">{e['type']}</font>", F("_t", fontSize=7, alignment=TA_CENTER, leading=10)),
             Paragraph(f"<b>{e.get('dr',0) or 0:,.2f}</b>" if e.get("dr") else '<font color="#cccccc">—</font>', F("_dr", fontSize=7, textColor="#c62828" if e.get("dr") else C5, alignment=TA_RIGHT, leading=10)),
             Paragraph(f"<b>{e.get('cr',0) or 0:,.2f}</b>" if e.get("cr") else '<font color="#cccccc">—</font>', F("_cr", fontSize=7, textColor="#1a7d1a" if e.get("cr") else C5, alignment=TA_RIGHT, leading=10)),
             Paragraph(f"<b>{bal_display}</b>", F("_bl", fontSize=7, fontName="Helvetica-Bold", textColor=bal_color, alignment=TA_RIGHT, leading=10)),

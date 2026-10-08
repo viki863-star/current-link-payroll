@@ -2227,6 +2227,17 @@ class DatabaseAdapter:
                 cursor.execute(sql, params or ())
         else:
             cursor.execute(sql, params or ())
+            result = QueryResult(cursor, self.backend, is_insert=is_insert and returning)
+            if is_insert and self.backend == "sqlite":
+                try:
+                    # sqlite has no RETURNING clause here; a fresh cursor only
+                    # exposes lastrowid after it inserted a row itself.
+                    cur_rowid = cursor.lastrowid
+                    if cur_rowid:
+                        result._lastrowid = cur_rowid
+                except AttributeError:
+                    pass
+            return result
         return QueryResult(cursor, self.backend, is_insert=is_insert and returning)
 
     def executemany(self, query: str, params_seq):

@@ -16,6 +16,13 @@
 .service-hint { position:absolute; background:#fff; border:1px solid #d8e4f5; border-radius:6px; max-height:200px; overflow-y:auto; display:none; z-index:100; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
 .service-hint div { padding:6px 10px; font-size:0.82rem; cursor:pointer; border-bottom:1px solid #f0f2f5; }
 .service-hint div:hover { background:#e8f0fe; }
+.inv-type-btn { display:flex; flex-direction:column; align-items:flex-start; gap:1px; padding:8px 16px; border:1.5px solid var(--line); background:#fff; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:700; color:#475569; font-family:inherit; transition:.15s; }
+.inv-type-btn span { font-size:0.62rem; font-weight:600; color:var(--muted); letter-spacing:.4px; text-transform:uppercase; }
+.inv-type-btn:hover { border-color:#94a3b8; }
+.inv-type-btn.on { border-color:var(--primary); background:#eef4ff; color:var(--primary); }
+.inv-type-btn.on span { color:var(--primary); }
+.inv-type-btn.on.cash { border-color:#0f766e; background:#ecfdf5; color:#0f766e; }
+.inv-type-btn.on.cash span { color:#0f766e; }
 </style>
 
 <div class="profile-card">
@@ -23,14 +30,25 @@
         <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='invoices') }}" class="btn btn-outline btn-sm">&larr; Back</a>
     </div>
 
-    <h3 style="margin:0 0 4px;font-size:1.1rem">{{ 'Edit' if edit else 'New' }} Tax Invoice</h3>
+    <h3 style="margin:0 0 4px;font-size:1.1rem">{{ 'Edit' if edit else 'New' }} <span id="invTypeTitle">{{ 'Cash Invoice' if (inv.invoice_type or 'vat') == 'cash' else 'Tax Invoice' }}</span></h3>
     <p style="color:var(--muted);font-size:0.82rem;margin:0 0 16px">
         Customer: <strong>{{ c.customer_name }}</strong>
-        {% if c.trn %} &middot; TRN: <span class="mono">{{ c.trn }}</span>{% endif %}
+        {% if c.trn and (inv.invoice_type or 'vat') != 'cash' %} &middot; TRN: <span class="mono">{{ c.trn }}</span>{% endif %}
     </p>
 
     <form method="POST" id="invoiceForm" autocomplete="off">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="invoice_type" id="invoiceType" value="{{ inv.invoice_type or 'vat' }}">
+
+        {# ─── Invoice Type: VAT vs Cash ─── #}
+        <div style="margin-bottom:14px;padding:12px 14px;background:#f8fafc;border:1px solid #eef2f6;border-radius:10px">
+            <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:6px">Invoice Type</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="inv-type-btn" id="btnTypeVat" onclick="setInvType('vat')">Tax Invoice <span>with VAT</span></button>
+                <button type="button" class="inv-type-btn cash" id="btnTypeCash" onclick="setInvType('cash')">Cash Invoice <span>no VAT</span></button>
+            </div>
+            <p id="invTypeHint" style="margin:8px 0 0;font-size:0.73rem;color:var(--muted);line-height:1.5"></p>
+        </div>
 
 
         {# ─── Invoice Details ─── #}
@@ -42,11 +60,18 @@
             <div>
                 <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Invoice No.</label>
                 <input type="text" name="invoice_no" value="{{ inv.invoice_no or '' }}" placeholder="{{ 'INV-01' if not edit else '' }}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
-                {% if not edit and next_no %}<span style="font-size:0.65rem;color:var(--muted)">Auto: {{ next_no }}</span>{% endif %}
+                {% if not edit %}
+                <span id="autoNoVat" style="font-size:0.65rem;color:var(--muted){{ ';display:none' if (inv.invoice_type or 'vat') == 'cash' else '' }}">Auto: {{ next_no }}</span>
+                <span id="autoNoCash" style="font-size:0.65rem;color:#0f766e;font-weight:700{{ ';display:none' if (inv.invoice_type or 'vat') != 'cash' else '' }}">Auto: {{ next_cash_no or 'CI-0001' }}</span>
+                {% endif %}
             </div>
-            <div>
+            <div id="vatPctWrap"{{ ' style="display:none"' if (inv.invoice_type or 'vat') == 'cash' else '' }}>
                 <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">VAT %</label>
                 <input type="number" name="vat_percent" value="{{ inv.vat_percent or 5 }}" step="any" min="0" id="vatPercent" oninput="calcTotals()" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem">
+            </div>
+            <div id="vatNaBox"{{ ' style="display:none"' if (inv.invoice_type or 'vat') != 'cash' else '' }}>
+                <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">VAT</label>
+                <div style="padding:7px 8px;border:1px dashed #0f766e;border-radius:6px;font-size:0.78rem;color:#0f766e;font-weight:700;text-align:center;background:#ecfdf5">NOT APPLICABLE</div>
             </div>
         </div>
 
@@ -130,7 +155,7 @@
             <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
                 <span>Sub Total</span><span class="mono" id="subTotalDisplay" style="font-weight:600">{{ "%.2f"|format(inv.amount or 0) }}</span>
             </div>
-            <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+            <div id="vatRow" style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
                 <span>VAT <span id="vatLabel">@ {{ inv.vat_percent or 5 }}%</span></span><span class="mono" id="vatDisplay" style="font-weight:600;color:#c62828">{{ "%.2f"|format(inv.vat_amount or 0) }}</span>
             </div>
             <div style="display:flex;justify-content:space-between;padding:6px 0 0;border-top:2px solid var(--primary);margin-top:4px;font-size:1.05rem">
@@ -201,13 +226,58 @@ function calcTotals() {
         const rate = parseFloat(row.querySelector('input[name*="item_rate"]').value) || 0;
         sub += qty * rate;
     });
-    const vatPct = parseFloat(document.getElementById('vatPercent').value) || 0;
+    const isCashMode = (document.getElementById('invoiceType').value === 'cash');
+    const vatPct = isCashMode ? 0 : (parseFloat(document.getElementById('vatPercent').value) || 0);
     const vat = sub * vatPct / 100;
     const total = sub + vat;
     document.getElementById('subTotalDisplay').textContent = sub.toFixed(2);
     document.getElementById('vatLabel').textContent = '@ ' + vatPct + '%';
     document.getElementById('vatDisplay').textContent = vat.toFixed(2);
     document.getElementById('totalDisplay').textContent = total.toFixed(2);
+}
+
+const VAT_AUTO_NO = {{ (next_no if next_no is defined else '')|tojson }};
+const CASH_AUTO_NO = {{ (next_cash_no if next_cash_no is defined else '')|tojson }};
+
+function setInvType(t) {
+    const isCash = (t === 'cash');
+    const hidden = document.getElementById('invoiceType');
+    const inp = document.getElementById('vatPercent');
+    if (!hidden || !inp) return;
+    hidden.value = isCash ? 'cash' : 'vat';
+    document.getElementById('btnTypeVat').classList.toggle('on', !isCash);
+    document.getElementById('btnTypeCash').classList.toggle('on', isCash);
+    document.getElementById('invTypeTitle').textContent = isCash ? 'Cash Invoice' : 'Tax Invoice';
+    document.getElementById('vatPctWrap').style.display = isCash ? 'none' : '';
+    const na = document.getElementById('vatNaBox'); if (na) na.style.display = isCash ? '' : 'none';
+    const vr = document.getElementById('vatRow'); if (vr) vr.style.display = isCash ? 'none' : 'flex';
+    if (isCash) {
+        if (!inp.disabled) inp.dataset.prev = inp.value || '5';
+        inp.value = '0';
+        inp.disabled = true;
+    } else {
+        const wasDisabled = inp.disabled;
+        inp.disabled = false;
+        if (wasDisabled) inp.value = inp.dataset.prev || '5';
+    }
+    const hint = document.getElementById('invTypeHint');
+    if (hint) {
+        hint.textContent = isCash
+            ? 'Cash invoice — VAT is not applicable. No VAT column, no VAT amount, no TRN on the document. Numbered in the CI series.'
+            : 'Tax invoice — standard VAT document with VAT columns, TRN and the NS number series.';
+    }
+    const av = document.getElementById('autoNoVat'), ac = document.getElementById('autoNoCash');
+    if (av && ac) { av.style.display = isCash ? 'none' : ''; ac.style.display = isCash ? '' : 'none'; }
+    const noEl = document.querySelector('input[name="invoice_no"]');
+    if (noEl && (VAT_AUTO_NO || CASH_AUTO_NO)) {
+        const cur = (noEl.value || '').trim();
+        if (isCash) {
+            if (!cur || cur === VAT_AUTO_NO || /^NS\d+$/.test(cur)) noEl.value = CASH_AUTO_NO || cur;
+        } else {
+            if (!cur || cur === CASH_AUTO_NO || /^CI-\d+$/.test(cur)) noEl.value = VAT_AUTO_NO || cur;
+        }
+    }
+    calcTotals();
 }
 
 function loadLpoItems() {
@@ -256,6 +326,8 @@ function loadSoItems() {
 var isEdit = {{ 'true' if edit else 'false' }};
 
 document.addEventListener('DOMContentLoaded', function() {
+    var itv = document.getElementById('invoiceType');
+    if (itv) { setInvType(itv.value === 'cash' ? 'cash' : 'vat'); }
     {% if not edit %}
     var sel = document.getElementById('lpoSelect');
     if (sel && sel.value) { loadLpoItems(); }
