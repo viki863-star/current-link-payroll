@@ -670,6 +670,81 @@ def employee_detail(employee_id):
     return redirect(url_for("hr.employee_transactions", employee_id=employee_id))
 
 
+def _build_soa(db, employee_id: str, employee, truth: dict) -> dict:
+    """Live Statement of Account — current position only (old history collapsed).
+
+    Answers the three questions a driver actually asks: kitna salary abhi baki
+    hai, advance kitna baqi hai, aur net kis taraf paisa jayega.
+    """
+    store_rows = db.execute(
+        "SELECT id, salary_month, net_salary FROM salary_store "
+        "WHERE driver_id = ? ORDER BY salary_month ASC, id ASC",
+        (employee_id,),
+    ).fetchall()
+    slipped_store_ids = set()
+    for r in db.execute(
+        "SELECT DISTINCT salary_store_id FROM salary_slips WHERE driver_id = ?",
+        (employee_id,),
+    ).fetchall():
+        if r["salary_store_id"]:
+            slipped_store_ids.add(int(r["salary_store_id"]))
+    slipped_months = {s["salary_month"] for s in truth["slips"]}
+
+    months = {}
+    for r in store_rows:
+        mid = int(r["id"])
+        months[r["salary_month"]] = {
+            "month": r["salary_month"],
+            "net": round(float(r["net_salary"] or 0), 2),
+            "issued": mid in slipped_store_ids or r["salary_month"] in slipped_months,
+        }
+    for s in truth["slips"]:
+        if s["salary_month"] not in months:
+            months[s["salary_month"]] = {
+                "month": s["salary_month"],
+                "net": s["total_deducted"],
+                "issued": True,
+            }
+
+    month_list = [months[m] for m in sorted(months)]
+    pending = [m for m in month_list if not m["issued"]]
+    settled = [m for m in month_list if m["issued"]]
+
+    pending_total = round(sum(m["net"] for m in pending), 2)
+    balance = truth["outstanding"]
+    given = truth["total_given"]
+    recovered = truth["total_deducted"]
+    net_to_driver = round(pending_total - balance, 2)
+
+    if settled:
+        first, last = settled[0]["month"], settled[-1]["month"]
+        settled_label = first if first == last else f"{first} - {last}"
+    else:
+        settled_label = "—"
+
+    pending_labels = ", ".join(m["month"] for m in pending)
+
+    return {
+        "statement_date": date.today().isoformat(),
+        "driver_name": employee.get("full_name") or employee_id,
+        "driver_id": employee_id,
+        "designation": employee.get("employee_type") or "Driver",
+        "given": given,
+        "recovered": recovered,
+        "balance": balance,
+        "recovery_pct": round(recovered / given * 100, 2) if given > 0 else 0.0,
+        "months": list(reversed(month_list)),          # latest first
+        "pending": pending,
+        "pending_labels": pending_labels,
+        "pending_total": pending_total,
+        "pending_count": len(pending),
+        "settled_count": len(settled),
+        "settled_label": settled_label,
+        "net_to_driver": net_to_driver,
+        "company_owes": net_to_driver > 0,
+    }
+
+
 # ── Transactions Tab ─────────────────────────────────────────────
 
 def _kata_truth(db, employee_id: str) -> dict:
@@ -1872,6 +1947,7 @@ def employee_kata(employee_id):
     kata_total_given = truth["total_given"]
     kata_total_deducted = truth["total_deducted"]
     kata_outstanding = truth["outstanding"]
+    soa = _build_soa(db, eid, employee, truth)
 
     available_months = db.execute(
         """
@@ -1969,34 +2045,25 @@ def employee_kata(employee_id):
         deduction_history = list(reversed(_history_asc))
 
     pdf_url = None
-    if selected_month:
-        from ..pdf_service import generate_simple_kata_pdf
+    from ..pdf_service import generate_driver_soa_pdf
 
-        driver_display = {
-            "driver_id": eid,
-            "full_name": employee["full_name"],
-            "basic_salary": employee["basic_salary"] or 0,
-        }
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
-        company_profile = dict(company) if company else None
+    driver_display = {
+        "driver_id": eid,
+        "full_name": employee["full_name"],
+        "basic_salary": employee["basic_salary"] or 0,
+        "employee_type": employee.get("employee_type") or "Driver",
+    }
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company_profile = dict(company) if company else None
 
-        # All salary store rows that don't have a generated slip yet
-        unpaid_salary_rows = db.execute(
-            "SELECT ss.* FROM salary_store ss WHERE ss.driver_id = ? AND ss.id NOT IN (SELECT DISTINCT salary_store_id FROM salary_slips WHERE driver_id = ?) ORDER BY ss.salary_month ASC",
-            (eid, eid),
-        ).fetchall()
-
-        pdf_path = generate_simple_kata_pdf(
-            driver_display, salary_row, unpaid_salary_rows, kata_advances,
-            kata_prev_remaining, kata_this_deduction, kata_remaining,
-            selected_month,
-            str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
-            current_app.config["STATIC_ASSETS_DIR"],
-            company_profile=company_profile,
-        )
-        if pdf_path:
-            rel = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
-            pdf_url = url_for("generated_file", filename=rel)
+    pdf_path = generate_driver_soa_pdf(
+        driver_display, soa, company_profile,
+        str(Path(current_app.config["GENERATED_DIR"]) / "kata_pdfs"),
+        current_app.config["STATIC_ASSETS_DIR"],
+    )
+    if pdf_path:
+        rel = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
+        pdf_url = url_for("generated_file", filename=rel)
 
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
 
@@ -2020,6 +2087,7 @@ def employee_kata(employee_id):
         kata_outstanding=kata_outstanding,
         kata_deduction_history=deduction_history,
         kata_pdf_url=pdf_url,
+        soa=soa,
     )
 
 

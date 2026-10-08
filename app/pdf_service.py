@@ -1000,6 +1000,276 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
 
 
 
+def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, output_dir: str, assets_dir: str) -> str:
+    """Professional driver-facing Statement of Account (live position only).
+
+    `soa` comes from app.hr.routes._build_soa — it deliberately collapses old
+    history and answers: advance kitna mila / kitna wapas kat gaya / kitna baqi,
+    aur kitna salary abhi tak issue hi nahi hui.
+    """
+    from reportlab.platypus import SimpleDocTemplate, Paragraph as PlParagraph, Spacer, Table as PlTable, TableStyle as PlTableStyle, Image as PlImage
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    import tempfile
+
+    def money(v):
+        try:
+            return f"{float(v or 0):,.2f}"
+        except Exception:
+            return "0.00"
+
+    output_path = Path(output_dir) / f"{driver.get('driver_id', 'driver')}_soa.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    LM, RM, TM, BM = 16 * mm, 16 * mm, 14 * mm, 14 * mm
+    doc = SimpleDocTemplate(str(output_path), pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    W = A4[0] - LM - RM
+
+    cp = dict(company_profile) if company_profile else {}
+    tc = cp.get("theme_color") or "#0f2740"
+    try:
+        TH = colors.HexColor(tc)
+    except Exception:
+        TH = colors.HexColor("#0f2740")
+    INK = colors.HexColor("#0f172a")
+    MUT = colors.HexColor("#64748b")
+    LINE = colors.HexColor("#e5e7eb")
+    BGC = colors.HexColor("#f8fafc")
+    GRN = colors.HexColor("#059669")
+    RED = colors.HexColor("#dc2626")
+    BLU = colors.HexColor("#1d4ed8")
+    WH = colors.white
+
+    def F(name, **kw):
+        kw.setdefault("fontSize", 8)
+        kw.setdefault("leading", 11)
+        return ParagraphStyle(name, **kw)
+
+    def P(text, **kw):
+        return PlParagraph(str(text), F("_p", **kw))
+
+    els = []
+
+    # ── HEADER ─────────────────────────────────────────────
+    logo = None
+    LW = 0
+    if cp.get("logo_data"):
+        try:
+            lb = base64.b64decode(cp["logo_data"])
+            f = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            f.write(lb)
+            f.close()
+            logo = PlImage(f.name, width=44, height=44)
+            LW = 44
+        except Exception:
+            pass
+
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
+    parts = [x for x in [cp.get("address"), cp.get("phone_number"), cp.get("email")] if x]
+    cl = [f"<font size=10.5><b>{cn}</b></font>"]
+    if parts:
+        cl.append(f"<font size=6.5 color='#64748b'>{' &middot; '.join(parts)}</font>")
+    co_p = PlParagraph("<br/>".join(cl), F("CO", fontSize=10.5, fontName="Helvetica-Bold", textColor=TH, leading=13))
+    if logo:
+        lh = PlTable([[logo, Spacer(1, 2 * mm), co_p]], colWidths=[LW, 3 * mm, W * 0.62 - LW - 3 * mm])
+        lh.setStyle(PlTableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+    else:
+        lh = co_p
+    rh = PlParagraph(
+        "<b>STATEMENT OF ACCOUNT</b><br/><font size=7 color='#64748b'>Live balances &middot; "
+        f"{soa.get('statement_date', '')}</font>",
+        F("TI", fontSize=13.5, fontName="Helvetica-Bold", textColor=TH, leading=17, alignment=TA_RIGHT),
+    )
+    ht = PlTable([[lh, rh]], colWidths=[W * 0.62, W * 0.38])
+    ht.setStyle(PlTableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(ht)
+    rule = PlTable([[""]], colWidths=[W], rowHeights=[2.2])
+    rule.setStyle(PlTableStyle([("BACKGROUND", (0, 0), (-1, -1), TH), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    els.append(Spacer(1, 3 * mm))
+    els.append(rule)
+    els.append(Spacer(1, 4 * mm))
+
+    # ── EMPLOYEE META ──────────────────────────────────────
+    meta_rows = [
+        [P("<b>Employee</b>", fontSize=7, textColor=MUT), P(soa.get("driver_name", "-"), fontSize=9, fontName="Helvetica-Bold", textColor=INK),
+         P("<b>Statement date</b>", fontSize=7, textColor=MUT), P(soa.get("statement_date", "-"), fontSize=9, fontName="Helvetica-Bold", textColor=INK)],
+        [P("<b>Employee ID</b>", fontSize=7, textColor=MUT), P(soa.get("driver_id", "-"), fontSize=9, fontName="Helvetica-Bold", textColor=INK),
+         P("<b>Designation</b>", fontSize=7, textColor=MUT), P(soa.get("designation", "-"), fontSize=9, fontName="Helvetica-Bold", textColor=INK)],
+    ]
+    mt = PlTable(meta_rows, colWidths=[W * 0.17, W * 0.33, W * 0.17, W * 0.33])
+    mt.setStyle(PlTableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("BACKGROUND", (0, 0), (-1, -1), BGC),
+        ("BOX", (0, 0), (-1, -1), 0.6, LINE),
+        ("INNERGRID", (0, 0), (-1, -1), 0.4, LINE),
+    ]))
+    els.append(mt)
+    els.append(Spacer(1, 5 * mm))
+
+    # ── THREE HEADLINE BOXES ───────────────────────────────
+    pending_total = float(soa.get("pending_total") or 0)
+    balance = float(soa.get("balance") or 0)
+    net = float(soa.get("net_to_driver") or 0)
+    company_owes = bool(soa.get("company_owes"))
+
+    box_defs = [
+        ("SALARY NOT YET ISSUED", money(pending_total), BLU,
+         (soa.get("pending_labels") or "All months issued") + (f" ({soa.get('pending_count')} month(s))" if soa.get("pending_count") else "")),
+        ("ADVANCE BALANCE", money(balance), GRN if balance <= 0.01 else RED,
+         f"Recovered {money(soa.get('recovered'))} of {money(soa.get('given'))}"),
+        ("NET " + ("PAYABLE TO DRIVER" if company_owes else "PAYABLE BY DRIVER"), money(abs(net)),
+         GRN if company_owes else RED,
+         "Salary pending − advance balance"),
+    ]
+
+    def box_cell(title, value, color, note):
+        return PlTable(
+            [[P(f"<b>{title}</b>", fontSize=6.6, textColor=MUT, alignment=TA_CENTER, leading=9)],
+             [P(f"<b>{value}</b>", fontSize=15, textColor=color, alignment=TA_CENTER, leading=18)],
+             [P(note, fontSize=6.4, textColor=MUT, alignment=TA_CENTER, leading=8)]],
+            colWidths=[(W - 12) / 3.0],
+        )
+
+    box_tables = []
+    for (t, v, c, n) in box_defs:
+        bt = box_cell(t, v, c, n)
+        bt.setStyle(PlTableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), WH),
+            ("BOX", (0, 0), (-1, -1), 0.7, LINE),
+            ("LINEABOVE", (0, 0), (0, 0), 2.4, c),
+            ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5), ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ]))
+        box_tables.append(bt)
+    boxes = PlTable([box_tables], colWidths=[W / 3.0] * 3)
+    boxes.setStyle(PlTableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(boxes)
+    els.append(Spacer(1, 5 * mm))
+
+    # ── ADVANCE ACCOUNT ────────────────────────────────────
+    els.append(P("<b>ADVANCE ACCOUNT</b>", fontSize=7.5, textColor=TH, leading=10))
+    els.append(Spacer(1, 1.5 * mm))
+    given = float(soa.get("given") or 0)
+    recovered = float(soa.get("recovered") or 0)
+    adv_rows = [
+        [P("Advance received (all transactions)", fontSize=8, textColor=INK), P(money(given), fontSize=9, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=INK)],
+        [P("Recovered from salary", fontSize=8, textColor=INK), P(money(recovered), fontSize=9, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=GRN)],
+        [P("<b>Balance outstanding</b>", fontSize=8.5, textColor=INK), P(f"<b>{money(balance)}</b>", fontSize=10.5, alignment=TA_RIGHT, textColor=RED if balance > 0.01 else GRN)],
+    ]
+    at = PlTable(adv_rows, colWidths=[W * 0.7, W * 0.3])
+    at.setStyle(PlTableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("BOX", (0, 0), (-1, -1), 0.6, LINE),
+        ("LINEBELOW", (0, 0), (-2, -1), 0.4, LINE),
+        ("BACKGROUND", (0, 2), (-1, 2), BGC),
+    ]))
+    els.append(at)
+    els.append(Spacer(1, 2 * mm))
+
+    pct = float(soa.get("recovery_pct") or 0)
+    frac = max(0.0, min(pct, 100.0)) / 100.0
+    bar = PlTable([["", ""]], colWidths=[W * frac, W * (1 - frac)], rowHeights=[7])
+    bar.setStyle(PlTableStyle([
+        ("BACKGROUND", (0, 0), (0, 0), GRN),
+        ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#eef2f7")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(bar)
+    els.append(P(f"<font size=6.5 color='#64748b'>{pct:.1f}% of advance recovered</font>", fontSize=6.5, leading=9))
+    els.append(Spacer(1, 5 * mm))
+
+    # ── SALARY STATUS ──────────────────────────────────────
+    els.append(P("<b>SALARY STATUS</b>", fontSize=7.5, textColor=TH, leading=10))
+    els.append(Spacer(1, 1.5 * mm))
+
+    hdr_style = F("_th", fontSize=6.6, fontName="Helvetica-Bold", textColor=WH, leading=9)
+    srows = [[
+        PlParagraph("<b>Month</b>", hdr_style),
+        PlParagraph("<b>Net Salary</b>", F("_th2", fontSize=6.6, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=9)),
+        PlParagraph("<b>Status</b>", F("_th3", fontSize=6.6, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=9)),
+    ]]
+    for m in soa.get("months", []):
+        issued = bool(m.get("issued"))
+        status = "ISSUED" if issued else "NOT RUN"
+        srows.append([
+            P(m.get("month", "-"), fontSize=8, textColor=INK),
+            P(money(m.get("net")), fontSize=8, textColor=INK, alignment=TA_RIGHT),
+            P(f"<b>{status}</b>", fontSize=7.5, textColor=GRN if issued else RED, alignment=TA_CENTER),
+        ])
+    if len(srows) == 1:
+        srows.append([P("—", fontSize=8), P("—", fontSize=8, alignment=TA_RIGHT), P("—", fontSize=8, alignment=TA_CENTER)])
+    st = PlTable(srows, colWidths=[W * 0.4, W * 0.3, W * 0.3], repeatRows=1)
+    st_style = [
+        ("BACKGROUND", (0, 0), (-1, 0), TH),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("BOX", (0, 0), (-1, -1), 0.6, LINE),
+        ("INNERGRID", (0, 0), (-1, -1), 0.4, LINE),
+    ]
+    for i in range(1, len(srows)):
+        if i % 2 == 0:
+            st_style.append(("BACKGROUND", (0, i), (-1, i), BGC))
+    st.setStyle(PlTableStyle(st_style))
+    els.append(st)
+    els.append(Spacer(1, 4 * mm))
+
+    # ── SETTLEMENT (old history collapsed) ─────────────────
+    settle_lines = [
+        f"<b>Issued / settled:</b> {soa.get('settled_label', '—')} ({soa.get('settled_count', 0)} month(s)) — "
+        f"AED {money(recovered)} recovered through salary.",
+    ]
+    if soa.get("pending_count"):
+        settle_lines.append(
+            f"<b>Not run yet:</b> {soa.get('pending_labels')} — AED {money(pending_total)} salary pending."
+        )
+    settle_lines.append(
+        "<b>Net position:</b> " + (
+            f"Company to pay driver AED {money(net)}."
+            if company_owes else
+            f"Driver to return AED {money(abs(net))}."
+        )
+    )
+    st_box = PlTable(
+        [[P("<br/>".join(settle_lines), fontSize=7.6, textColor=INK, leading=11)]],
+        colWidths=[W],
+    )
+    st_box.setStyle(PlTableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), BGC),
+        ("BOX", (0, 0), (-1, -1), 0.6, LINE),
+        ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    els.append(st_box)
+    els.append(Spacer(1, 4 * mm))
+
+    els.append(P(
+        f"<font size=6.4 color='#94a3b8'>This statement shows live balances only — old entries are collapsed. "
+        f"Generated on {soa.get('statement_date', '')} by Current Link ERP.</font>",
+        fontSize=6.4, alignment=TA_RIGHT, leading=9,
+    ))
+
+    doc.build(els)
+    return str(output_path)
+
+
 def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir: str, filters=None, company_profile: dict | None = None) -> str:
     import os, tempfile
     from reportlab.lib.pagesizes import A4

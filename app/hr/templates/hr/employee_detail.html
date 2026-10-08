@@ -84,7 +84,7 @@
         <a class="dv2-tab {{ 'is-active' if active_tab == 'kata' }}"
            href="{{ url_for('hr.employee_kata', employee_id=employee.employee_id) }}">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="16" height="14" rx="2"/><line x1="2" y1="7" x2="18" y2="7"/><line x1="7" y1="11" x2="13" y2="11"/></svg>
-            Kata
+            SOA / Statement
         </a>
         <a class="dv2-tab {{ 'is-active' if active_tab == 'ids' }}"
            href="{{ url_for('hr.employee_ids', employee_id=employee.employee_id) }}">
@@ -436,6 +436,8 @@
                     <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Live from salary slips</span>
                 </div>
                 <div class="dv2-card-body">
+                    {% set pending_months = slip_ledger|rejectattr('slip_count')|selectattr('salary','gt',0)|list %}
+                    {% set pending_total = pending_months|map(attribute='salary')|sum %}
                     <div class="dv2-stat-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px">
                         <div class="dv2-stat-card is-total" style="border-left:4px solid #1565c0">
                             <span class="dv2-stat-label">Salary / Month</span>
@@ -452,6 +454,11 @@
                         <div class="dv2-stat-card is-remaining" style="border-left:4px solid {% if slip_truth.outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %}">
                             <span class="dv2-stat-label">Advance Remaining (Baqi)</span>
                             <span class="dv2-stat-value" style="color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#1b5e20{% endif %};font-size:1.35rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</span>
+                        </div>
+                        <div class="dv2-stat-card" style="border-left:4px solid #1d4ed8">
+                            <span class="dv2-stat-label">Salary Not Run</span>
+                            <span class="dv2-stat-value" style="color:#1d4ed8">AED {{ "%.2f"|format(pending_total) }}</span>
+                            <div style="font-size:.7rem;color:#1d4ed8;margin-top:2px">{% if pending_months %}{{ pending_months|map(attribute='month')|join(', ') }} — abhi tak issue nahi hua{% else %}Sab months issue ho chuke{% endif %}</div>
                         </div>
                     </div>
                     <p style="margin:12px 0 0;font-size:.86rem;color:var(--muted);line-height:1.6">
@@ -734,178 +741,106 @@
         {# ════════════════════════════════════════════ #}
         {% elif active_tab == 'kata' %}
         <div class="tab-pane">
-            {# ═══ KATA HEADER ═══ #}
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1.2rem">
+            {# ═══ STATEMENT OF ACCOUNT — LIVE POSITION ═══ #}
+            <style>
+            .soa-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;background:#0f2740;color:#fff;border-radius:14px;padding:18px 22px;box-shadow:0 8px 20px rgba(15,39,64,.18)}
+            .soa-head h2{margin:0;font-size:1.02rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+            .soa-head .soa-sub{margin:7px 0 0;font-size:.8rem;color:#c8d7e6}
+            .soa-meta{text-align:right;font-size:.74rem;color:#c8d7e6;line-height:1.9}
+            .soa-meta a{color:#93c5fd;font-weight:700;text-decoration:none}
+            .soa-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.55);color:#86efac;font-size:.63rem;font-weight:800;letter-spacing:.1em;padding:4px 10px;border-radius:999px;text-transform:uppercase}
+            .soa-chip .dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.25)}
+            .soa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0}
+            .soa-tile{background:#fff;border:1px solid #e5e7eb;border-top:3px solid #0f2740;border-radius:12px;padding:15px 17px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+            .soa-tile.t-blue{border-top-color:#1d4ed8}.soa-tile.t-red{border-top-color:#dc2626}.soa-tile.t-green{border-top-color:#059669}
+            .soa-label{font-size:.63rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#64748b}
+            .soa-value{font-size:1.72rem;font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:7px;line-height:1.1}
+            .soa-note{font-size:.71rem;color:#64748b;margin-top:7px;line-height:1.5}
+            .soa-panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:17px 19px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+            .soa-panel h3{margin:0 0 12px;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:#0f2740;font-weight:800}
+            .soa-bar{height:10px;border-radius:999px;background:#eef2f7;overflow:hidden;border:1px solid #e5e7eb}
+            .soa-bar>span{display:block;height:100%;background:#059669;border-radius:999px}
+            .soa-legend{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:11px}
+            .soa-legend div{font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;color:#64748b;font-weight:700}
+            .soa-legend b{display:block;font-size:1.05rem;letter-spacing:normal;text-transform:none;color:#0f172a;font-variant-numeric:tabular-nums;margin-top:4px}
+            .soa-months{display:flex;flex-wrap:wrap;gap:8px}
+            .soa-m{display:flex;align-items:center;gap:9px;border:1px solid #e5e7eb;background:#f8fafc;border-radius:10px;padding:8px 12px;font-size:.77rem}
+            .soa-m .mono{font-variant-numeric:tabular-nums;font-weight:700;color:#0f172a}
+            .soa-pill{font-size:.6rem;font-weight:800;letter-spacing:.08em;padding:3px 8px;border-radius:999px;text-transform:uppercase}
+            .soa-pill.ok{background:#dcfce7;color:#166534}.soa-pill.no{background:#fee2e2;color:#991b1b}
+            .soa-settle{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:14px 16px;font-size:.8rem;color:#334155;line-height:1.75}
+            .soa-foot{font-size:.68rem;color:#94a3b8;text-align:right;margin-top:10px}
+            </style>
+
+            <div class="soa-head">
                 <div>
-                    <h2 style="font-size:1.3rem;font-weight:800;color:var(--primary);margin:0">Statement of Account</h2>
-                    <p style="font-size:.82rem;color:var(--muted);margin:2px 0 0">Latest truth — kitna diye &middot; kitna kata &middot; kitna baqi &middot; {{ employee.full_name }}</p>
+                    <h2>Statement of Account</h2>
+                    <p class="soa-sub">{{ soa.driver_name }} &middot; {{ soa.driver_id }} &middot; {{ soa.designation }} &middot; Statement date {{ soa.statement_date }}</p>
                 </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                    <select name="month" id="kataMonth" onchange="window.location='{{ url_for('hr.employee_kata', employee_id=employee.employee_id) }}?month='+this.value" class="dv2-select" style="min-width:160px">
-                        {% for m in kata_available_months %}
-                        <option value="{{ m.salary_month }}" {% if m.salary_month == kata_selected_month %}selected{% endif %}>{{ m.salary_month }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="soa-meta">
+                    <span class="soa-chip"><span class="dot"></span>Live balance</span>
                     {% if kata_pdf_url %}
-                    <a href="{{ kata_pdf_url }}" class="dv2-btn dv2-btn-primary dv2-btn-sm" download style="white-space:nowrap">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/><path d="M12 10v6"/><path d="M9 13l3 3 3-3"/></svg>
-                        Download PDF
-                    </a>
+                    <div><a href="{{ kata_pdf_url }}" download>&#8681; Download PDF</a></div>
                     {% endif %}
                 </div>
             </div>
 
-            {% set s = kata_salary_row %}
-
-            {# ═══ SUMMARY CARDS ═══ #}
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:1.2rem">
-                {% if s %}
-                <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:12px;padding:16px 18px;border-left:4px solid #2e7d32">
-                    <div style="font-size:.72rem;font-weight:700;color:#2e7d32;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Salary</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:#1b5e20">AED {{ "%.2f"|format(s.net_salary or 0) }}</div>
-                    {% if s.ot_amount and s.ot_amount|float > 0 %}
-                    <div style="font-size:.7rem;color:#388e3c;margin-top:2px">Includes OT: AED {{ "%.0f"|format(s.ot_amount) }}</div>
-                    {% endif %}
+            <div class="soa-grid">
+                <div class="soa-tile t-blue">
+                    <div class="soa-label">Salary Not Yet Issued</div>
+                    <div class="soa-value">AED {{ "%.2f"|format(soa.pending_total) }}</div>
+                    <div class="soa-note">{% if soa.pending_count %}{{ soa.pending_labels }} &middot; {{ soa.pending_count }} month(s) run nahi hua.{% else %}Sab months ka slip generate ho chuka hai.{% endif %}</div>
                 </div>
-                {% endif %}
-                <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:12px;padding:16px 18px;border-left:4px solid #e65100">
-                    <div style="font-size:.72rem;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Deducted This Month</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:#bf360c">AED {{ "%.2f"|format(kata_this_deduction) }}</div>
+                <div class="soa-tile t-red">
+                    <div class="soa-label">Advance Balance (Driver par baki)</div>
+                    <div class="soa-value" style="color:{% if soa.balance > 0.01 %}#b91c1c{% else %}#047857{% endif %}">AED {{ "%.2f"|format(soa.balance) }}</div>
+                    <div class="soa-note">Recovery {{ "%.1f"|format(soa.recovery_pct) }}% &middot; AED {{ "%.2f"|format(soa.recovered) }} wapas kat gaya (total {{ "%.2f"|format(soa.given) }} mila).</div>
                 </div>
-                <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);border-radius:12px;padding:16px 18px;border-left:4px solid #1565c0">
-                    <div style="font-size:.72rem;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Advanced (Given)</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:#0d47a1">AED {{ "%.2f"|format(kata_total_given) }}</div>
-                    <div style="font-size:.7rem;color:#1565c0;margin-top:2px">Sab kitne diye — all time</div>
-                </div>
-                <div style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);border-radius:12px;padding:16px 18px;border-left:4px solid #6a1b9a">
-                    <div style="font-size:.72rem;font-weight:700;color:#6a1b9a;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Deducted</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:#4a148c">AED {{ "%.2f"|format(kata_total_deducted) }}</div>
-                    <div style="font-size:.7rem;color:#6a1b9a;margin-top:2px">Salary se kitna kata — all time</div>
-                </div>
-                <div style="background:linear-gradient(135deg,{% if kata_outstanding > 0 %}#fce4ec,#f8bbd0{% else %}#e8f5e9,#c8e6c9{% endif %});border-radius:12px;padding:16px 18px;border-left:4px solid {% if kata_outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %}">
-                    <div style="font-size:.72rem;font-weight:700;color:{% if kata_outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Outstanding (Latest)</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:{% if kata_outstanding > 0 %}#b71c1c{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(kata_outstanding) }}</div>
-                    <div style="font-size:.7rem;color:{% if kata_outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %};margin-top:2px">Kitna abhi baqi — latest</div>
+                <div class="soa-tile {% if soa.company_owes %}t-green{% else %}t-red{% endif %}">
+                    <div class="soa-label">Net {% if soa.company_owes %}Payable to Driver{% else %}Payable by Driver{% endif %}</div>
+                    <div class="soa-value" style="color:{% if soa.company_owes %}#047857{% else %}#b91c1c{% endif %}">AED {{ "%.2f"|format(soa.net_to_driver|abs) }}</div>
+                    <div class="soa-note">Pending salary AED {{ "%.2f"|format(soa.pending_total) }} − advance baki AED {{ "%.2f"|format(soa.balance) }}.</div>
                 </div>
             </div>
 
-            {# ═══ DEDUCTION FLOW (latest truth) ═══ #}
-            <div style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:1.5rem;flex-wrap:wrap">
-                <div style="text-align:center;padding:8px 16px;background:#e3f2fd;border-radius:8px;border:1px solid #bbdefb">
-                    <div style="font-size:.65rem;color:#1565c0;font-weight:600">TOTAL GIVEN</div>
-                    <div style="font-size:1rem;font-weight:700;color:#0d47a1">AED {{ "%.0f"|format(kata_total_given) }}</div>
-                </div>
-                <div style="font-size:1.2rem;color:#94a3b8;margin:0 8px">&#8594;</div>
-                <div style="text-align:center;padding:8px 16px;background:#f3e5f5;border-radius:8px;border:1px solid #e1bee7">
-                    <div style="font-size:.65rem;color:#6a1b9a;font-weight:600">DEDUCTED</div>
-                    <div style="font-size:1rem;font-weight:700;color:#4a148c">AED {{ "%.0f"|format(kata_total_deducted) }}</div>
-                </div>
-                <div style="font-size:1.2rem;color:#94a3b8;margin:0 8px">&#8594;</div>
-                <div style="text-align:center;padding:8px 16px;background:{% if kata_outstanding > 0 %}#fef2f2{% else %}#f0fdf4{% endif %};border-radius:8px;border:1px solid {% if kata_outstanding > 0 %}#fecaca{% else %}#bbf7d0{% endif %}">
-                    <div style="font-size:.65rem;color:{% if kata_outstanding > 0 %}#dc2626{% else %}#16a34a{% endif %};font-weight:600">BAQI (REMAINING)</div>
-                    <div style="font-size:1rem;font-weight:700;color:{% if kata_outstanding > 0 %}#b91c1c{% else %}#15803d{% endif %}">AED {{ "%.0f"|format(kata_outstanding) }}</div>
+            <div class="soa-panel">
+                <h3>Advance Account</h3>
+                <div class="soa-bar"><span style="width:{{ [soa.recovery_pct, 100]|min }}%"></span></div>
+                <div class="soa-legend">
+                    <div>Advance Given<b>AED {{ "%.2f"|format(soa.given) }}</b></div>
+                    <div style="text-align:center">Recovered<b style="color:#047857">AED {{ "%.2f"|format(soa.recovered) }}</b></div>
+                    <div style="text-align:right">Balance<b style="color:{% if soa.balance > 0.01 %}#b91c1c{% else %}#047857{% endif %}">AED {{ "%.2f"|format(soa.balance) }}</b></div>
                 </div>
             </div>
 
-            {# ═══ ALL ADVANCES TABLE ═══ #}
-            {% set outstanding_advances = kata_advances|selectattr('remaining', 'gt', 0.01)|list %}
-            <div class="dv2-card" style="margin-bottom:1.2rem">
-                <div class="dv2-card-header" style="display:flex;align-items:center;justify-content:space-between">
-                    <span style="display:flex;align-items:center;gap:8px">
-                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" style="width:18px;height:18px"><rect x="3" y="3" width="14" height="14" rx="2"/><line x1="3" y1="7" x2="17" y2="7"/><line x1="7" y1="11" x2="13" y2="11"/></svg>
-                        Outstanding Advances
-                    </span>
-                    <span style="font-size:.75rem;color:var(--muted)">{{ outstanding_advances|length }} of {{ kata_advances|length }}</span>
-                </div>
-                {% if outstanding_advances %}
-                <div class="dv2-table-wrap" style="max-height:400px;overflow-y:auto">
-                    <table class="dv2-table" style="font-size:.82rem">
-                        <thead>
-                            <tr>
-                                <th style="width:90px">Date</th>
-                                <th>Source</th>
-                                <th>Details</th>
-                                <th style="text-align:right">Original</th>
-                                <th style="text-align:right">Deducted</th>
-                                <th style="text-align:right">Remaining</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for a in outstanding_advances %}
-                            <tr>
-                                <td data-label="Date" class="dv2-mono" style="font-size:.78rem">{{ a.entry_date[:10] if a.entry_date else '-' }}</td>
-                                <td data-label="Source" style="font-size:.78rem">{{ a.source or a.given_by or '-' }}</td>
-                                <td data-label="Details" style="max-width:140px;white-space:normal;font-size:.75rem;color:var(--muted)">{{ a.details or '-' }}</td>
-                                <td data-label="Original" class="dv2-mono" style="text-align:right;font-weight:600">AED {{ "%.2f"|format(a.amount) }}</td>
-                                <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:{% if a.deducted > 0 %}#e65100{% else %}var(--muted){% endif %};font-weight:{% if a.deducted > 0 %}600{% else %}400{% endif %}">AED {{ "%.2f"|format(a.deducted) }}</td>
-                                <td data-label="Remaining" class="dv2-mono" style="text-align:right;color:#c62828;font-weight:700">AED {{ "%.2f"|format(a.remaining) }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                        <tfoot>
-                            <tr style="background:var(--primary);color:#fff;font-weight:700">
-                                <td colspan="3" style="padding:8px 12px">Totals</td>
-                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(outstanding_advances|map(attribute='amount')|sum) }}</td>
-                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(outstanding_advances|map(attribute='deducted')|sum) }}</td>
-                                <td style="text-align:right;padding:8px 12px">AED {{ "%.2f"|format(outstanding_advances|map(attribute='remaining')|sum) }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-                {% else %}
-                <div class="dv2-card-body"><p class="dv2-empty">No advance transactions found.</p></div>
-                {% endif %}
-            </div>
-
-            {# ═══ DEDUCTION HISTORY ═══ #}
-            {% if kata_deduction_history %}
-            <div class="dv2-card" style="margin-bottom:1.2rem">
-                <div class="dv2-card-header" style="display:flex;align-items:center;gap:8px">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" style="width:18px;height:18px"><path d="M12 8v4l3 3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg>
-                    Deduction History (FIFO)
-                </div>
-                <div class="dv2-table-wrap" style="max-height:280px;overflow-y:auto">
-                    <table class="dv2-table" style="font-size:.82rem">
-                        <thead>
-                            <tr>
-                                <th>Slip Month</th>
-                                <th>Date</th>
-                                <th>Details</th>
-                                <th style="text-align:right">Deducted</th>
-                                <th style="text-align:right">Running Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for dh in kata_deduction_history %}
-                            <tr>
-                                <td data-label="Slip Month" class="dv2-mono" style="font-size:.78rem">{{ dh.salary_month }}</td>
-                                <td data-label="Date" class="dv2-mono" style="font-size:.78rem">{{ dh.txn_date[:10] if dh.txn_date else '-' }}</td>
-                                <td data-label="Details" style="max-width:160px;white-space:normal;font-size:.75rem;color:var(--muted)">{{ dh.txn_details or '-' }}</td>
-                                <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#c62828;font-weight:600">AED {{ "%.2f"|format(dh.amount_deducted) }}</td>
-                                <td data-label="Running Total" class="dv2-mono" style="text-align:right;font-weight:700">AED {{ "%.2f"|format(dh.running or 0) }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="soa-panel">
+                <h3>Salary Status</h3>
+                <div class="soa-months">
+                    {% for m in soa.months %}
+                    <div class="soa-m">
+                        <span class="mono">{{ m.month }}</span>
+                        <span class="mono">AED {{ "%.0f"|format(m.net) }}</span>
+                        {% if m.issued %}<span class="soa-pill ok">Issued</span>{% else %}<span class="soa-pill no">Not Run</span>{% endif %}
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
-            {% endif %}
 
-            {# ═══ DOWNLOAD BUTTONS ═══ #}
+            <div class="soa-settle">
+                <strong>Settled:</strong> {{ soa.settled_label }} ({{ soa.settled_count }} month) &mdash; AED {{ "%.2f"|format(soa.recovered) }} salary se recover hua.<br>
+                {% if soa.pending_count %}<strong>Not run yet:</strong> {{ soa.pending_labels }} &mdash; AED {{ "%.2f"|format(soa.pending_total) }} salary pending.{% endif %}
+                <br><strong>Net:</strong> {% if soa.company_owes %}Company driver ko AED {{ "%.2f"|format(soa.net_to_driver) }} dega.{% else %}Driver company ko AED {{ "%.2f"|format(soa.net_to_driver|abs) }} wapas dega.{% endif %}
+            </div>
+
+            <div class="soa-foot">Live statement &mdash; purane entries collapse kar diye gaye hain. Generated {{ soa.statement_date }}.</div>
+
+            {# ═══ DOWNLOAD ═══ #}
             {% if kata_pdf_url %}
-            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:1rem">
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:1.2rem">
                 <a href="{{ kata_pdf_url }}" class="dv2-btn dv2-btn-primary" download style="display:inline-flex;align-items:center;gap:6px">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/><path d="M12 10v6"/><path d="M9 13l3 3 3-3"/></svg>
-                    Download Full Statement (KATA)
+                    Download Statement (PDF)
                 </a>
-            </div>
-            {% endif %}
-
-            {% if not s %}
-            <div class="dv2-card">
-                <div class="dv2-card-body">
-                    <p class="dv2-empty">No salary data for {{ kata_selected_month or 'this month' }} — figures above are the latest all-time balance.</p>
-                </div>
             </div>
             {% endif %}
         </div>
