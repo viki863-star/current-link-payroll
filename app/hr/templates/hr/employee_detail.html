@@ -101,6 +101,22 @@
         {# ════════════════════════════════════════════ #}
         {% if active_tab == 'transactions' %}
         <div class="tab-pane">
+            {# ═══ LATEST BALANCE SUMMARY ═══ #}
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:1.2rem">
+                <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);border-radius:12px;padding:16px 18px;border-left:4px solid #1565c0">
+                    <div style="font-size:.72rem;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Given (Diye)</div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#0d47a1">AED {{ "%.2f"|format(total_advance or 0) }}</div>
+                </div>
+                <div style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);border-radius:12px;padding:16px 18px;border-left:4px solid #6a1b9a">
+                    <div style="font-size:.72rem;font-weight:700;color:#6a1b9a;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Deducted (Kata)</div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#4a148c">AED {{ "%.2f"|format(total_deducted or 0) }}</div>
+                </div>
+                <div style="background:linear-gradient(135deg,{% if (txn_outstanding or 0) > 0 %}#fce4ec,#f8bbd0{% else %}#e8f5e9,#c8e6c9{% endif %});border-radius:12px;padding:16px 18px;border-left:4px solid {% if (txn_outstanding or 0) > 0 %}#c62828{% else %}#2e7d32{% endif %}">
+                    <div style="font-size:.72rem;font-weight:700;color:{% if (txn_outstanding or 0) > 0 %}#c62828{% else %}#2e7d32{% endif %};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Outstanding (Baqi — Latest)</div>
+                    <div style="font-size:1.4rem;font-weight:800;color:{% if (txn_outstanding or 0) > 0 %}#b71c1c{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(txn_outstanding or 0) }}</div>
+                </div>
+            </div>
+
             <div class="dv2-grid dv2-grid-2">
                 <div>
                     <div class="dv2-card">
@@ -176,7 +192,7 @@
                         <div class="dv2-card-header">
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
                             Transaction History
-                            <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Total: AED {{ "%.0f"|format(total_advance or 0) }}</span>
+                            <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Given: AED {{ "%.0f"|format(total_advance or 0) }} · Deducted: AED {{ "%.0f"|format(total_deducted or 0) }} · Baqi: AED {{ "%.0f"|format(txn_outstanding or 0) }}</span>
                         </div>
                         <div class="dv2-table-wrap">
                             <table class="dv2-table">
@@ -185,6 +201,8 @@
                                         <th>Date</th>
                                         <th>Type</th>
                                         <th>Amount</th>
+                                        <th style="text-align:right">Deducted</th>
+                                        <th style="text-align:right">Baqi</th>
                                         <th>Source</th>
                                         <th>Given By</th>
                                         <th>Details</th>
@@ -193,10 +211,13 @@
                                 </thead>
                                 <tbody>
                                     {% for txn in transactions %}
+                                    {% set st = (txn_statement or {}).get(txn.id) %}
                                     <tr>
                                         <td data-label="Date" class="dv2-mono">{{ txn.entry_date }}</td>
                                         <td data-label="Type"><span class="dv2-badge dv2-badge-type">{{ txn.txn_type }}</span></td>
                                         <td data-label="Amount" class="dv2-mono dv2-amount">AED {{ "%.0f"|format(txn.amount or 0) }}</td>
+                                        <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:{% if st and st.deducted > 0 %}#e65100{% else %}var(--muted){% endif %};font-weight:{% if st and st.deducted > 0 %}600{% else %}400{% endif %}">AED {{ "%.2f"|format(st.deducted if st else 0) }}</td>
+                                        <td data-label="Baqi" class="dv2-mono" style="text-align:right;font-weight:700;color:{% if st and st.remaining > 0.01 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(st.remaining if st else 0) }}</td>
                                         <td data-label="Source">{{ txn.source }}</td>
                                         <td data-label="Given By">{{ txn.given_by or '-' }}</td>
                                         <td data-label="Details" style="max-width:180px;white-space:normal">{{ txn.details }}</td>
@@ -209,7 +230,7 @@
                                         </td>
                                     </tr>
                                     {% else %}
-                                    <tr class="dv2-empty"><td colspan="7">No transactions yet.</td></tr>
+                                    <tr class="dv2-empty"><td colspan="9">No transactions yet.</td></tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -565,7 +586,7 @@
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1.2rem">
                 <div>
                     <h2 style="font-size:1.3rem;font-weight:800;color:var(--primary);margin:0">Statement of Account</h2>
-                    <p style="font-size:.82rem;color:var(--muted);margin:2px 0 0">FIFO deduction tracking &middot; {{ employee.full_name }}</p>
+                    <p style="font-size:.82rem;color:var(--muted);margin:2px 0 0">Latest truth — kitna diye &middot; kitna kata &middot; kitna baqi &middot; {{ employee.full_name }}</p>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
                     <select name="month" id="kataMonth" onchange="window.location='{{ url_for('hr.employee_kata', employee_id=employee.employee_id) }}?month='+this.value" class="dv2-select" style="min-width:160px">
@@ -582,11 +603,11 @@
                 </div>
             </div>
 
-            {% if kata_salary_row %}
             {% set s = kata_salary_row %}
 
             {# ═══ SUMMARY CARDS ═══ #}
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:1.2rem">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:1.2rem">
+                {% if s %}
                 <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:12px;padding:16px 18px;border-left:4px solid #2e7d32">
                     <div style="font-size:.72rem;font-weight:700;color:#2e7d32;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Salary</div>
                     <div style="font-size:1.4rem;font-weight:800;color:#1b5e20">AED {{ "%.2f"|format(s.net_salary or 0) }}</div>
@@ -594,40 +615,43 @@
                     <div style="font-size:.7rem;color:#388e3c;margin-top:2px">Includes OT: AED {{ "%.0f"|format(s.ot_amount) }}</div>
                     {% endif %}
                 </div>
+                {% endif %}
                 <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:12px;padding:16px 18px;border-left:4px solid #e65100">
                     <div style="font-size:.72rem;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Deducted This Month</div>
                     <div style="font-size:1.4rem;font-weight:800;color:#bf360c">AED {{ "%.2f"|format(kata_this_deduction) }}</div>
                 </div>
                 <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);border-radius:12px;padding:16px 18px;border-left:4px solid #1565c0">
-                    <div style="font-size:.72rem;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Previous Balance</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:#0d47a1">AED {{ "%.2f"|format(kata_prev_remaining) }}</div>
+                    <div style="font-size:.72rem;font-weight:700;color:#1565c0;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Advanced (Given)</div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#0d47a1">AED {{ "%.2f"|format(kata_total_given) }}</div>
+                    <div style="font-size:.7rem;color:#1565c0;margin-top:2px">Sab kitne diye — all time</div>
                 </div>
-                <div style="background:linear-gradient(135deg,{% if kata_remaining > 0 %}#fce4ec,#f8bbd0{% else %}#e8f5e9,#c8e6c9{% endif %});border-radius:12px;padding:16px 18px;border-left:4px solid {% if kata_remaining > 0 %}#c62828{% else %}#2e7d32{% endif %}">
-                    <div style="font-size:.72rem;font-weight:700;color:{% if kata_remaining > 0 %}#c62828{% else %}#2e7d32{% endif %};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Outstanding Balance</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:{% if kata_remaining > 0 %}#b71c1c{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(kata_remaining) }}</div>
+                <div style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);border-radius:12px;padding:16px 18px;border-left:4px solid #6a1b9a">
+                    <div style="font-size:.72rem;font-weight:700;color:#6a1b9a;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Total Deducted</div>
+                    <div style="font-size:1.4rem;font-weight:800;color:#4a148c">AED {{ "%.2f"|format(kata_total_deducted) }}</div>
+                    <div style="font-size:.7rem;color:#6a1b9a;margin-top:2px">Salary se kitna kata — all time</div>
+                </div>
+                <div style="background:linear-gradient(135deg,{% if kata_outstanding > 0 %}#fce4ec,#f8bbd0{% else %}#e8f5e9,#c8e6c9{% endif %});border-radius:12px;padding:16px 18px;border-left:4px solid {% if kata_outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %}">
+                    <div style="font-size:.72rem;font-weight:700;color:{% if kata_outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %};text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Outstanding (Latest)</div>
+                    <div style="font-size:1.4rem;font-weight:800;color:{% if kata_outstanding > 0 %}#b71c1c{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(kata_outstanding) }}</div>
+                    <div style="font-size:.7rem;color:{% if kata_outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %};margin-top:2px">Kitna abhi baqi — latest</div>
                 </div>
             </div>
 
-            {# ═══ DEDUCTION FLOW ═══ #}
+            {# ═══ DEDUCTION FLOW (latest truth) ═══ #}
             <div style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:1.5rem;flex-wrap:wrap">
-                <div style="text-align:center;padding:8px 16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0">
-                    <div style="font-size:.65rem;color:#16a34a;font-weight:600">PREV BALANCE</div>
-                    <div style="font-size:1rem;font-weight:700;color:#15803d">AED {{ "%.0f"|format(kata_prev_remaining) }}</div>
+                <div style="text-align:center;padding:8px 16px;background:#e3f2fd;border-radius:8px;border:1px solid #bbdefb">
+                    <div style="font-size:.65rem;color:#1565c0;font-weight:600">TOTAL GIVEN</div>
+                    <div style="font-size:1rem;font-weight:700;color:#0d47a1">AED {{ "%.0f"|format(kata_total_given) }}</div>
                 </div>
                 <div style="font-size:1.2rem;color:#94a3b8;margin:0 8px">&#8594;</div>
-                <div style="text-align:center;padding:8px 16px;background:#fff7ed;border-radius:8px;border:1px solid #fed7aa">
-                    <div style="font-size:.65rem;color:#ea580c;font-weight:600">SALARY</div>
-                    <div style="font-size:1rem;font-weight:700;color:#c2410c">AED {{ "%.0f"|format(s.net_salary or 0) }}</div>
+                <div style="text-align:center;padding:8px 16px;background:#f3e5f5;border-radius:8px;border:1px solid #e1bee7">
+                    <div style="font-size:.65rem;color:#6a1b9a;font-weight:600">DEDUCTED</div>
+                    <div style="font-size:1rem;font-weight:700;color:#4a148c">AED {{ "%.0f"|format(kata_total_deducted) }}</div>
                 </div>
                 <div style="font-size:1.2rem;color:#94a3b8;margin:0 8px">&#8594;</div>
-                <div style="text-align:center;padding:8px 16px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
-                    <div style="font-size:.65rem;color:#dc2626;font-weight:600">DEDUCTED</div>
-                    <div style="font-size:1rem;font-weight:700;color:#b91c1c">AED {{ "%.0f"|format(kata_this_deduction) }}</div>
-                </div>
-                <div style="font-size:1.2rem;color:#94a3b8;margin:0 8px">&#8594;</div>
-                <div style="text-align:center;padding:8px 16px;background:{% if kata_remaining > 0 %}#fef2f2{% else %}#f0fdf4{% endif %};border-radius:8px;border:1px solid {% if kata_remaining > 0 %}#fecaca{% else %}#bbf7d0{% endif %}">
-                    <div style="font-size:.65rem;color:{% if kata_remaining > 0 %}#dc2626{% else %}#16a34a{% endif %};font-weight:600">REMAINING</div>
-                    <div style="font-size:1rem;font-weight:700;color:{% if kata_remaining > 0 %}#b91c1c{% else %}#15803d{% endif %}">AED {{ "%.0f"|format(kata_remaining) }}</div>
+                <div style="text-align:center;padding:8px 16px;background:{% if kata_outstanding > 0 %}#fef2f2{% else %}#f0fdf4{% endif %};border-radius:8px;border:1px solid {% if kata_outstanding > 0 %}#fecaca{% else %}#bbf7d0{% endif %}">
+                    <div style="font-size:.65rem;color:{% if kata_outstanding > 0 %}#dc2626{% else %}#16a34a{% endif %};font-weight:600">BAQI (REMAINING)</div>
+                    <div style="font-size:1rem;font-weight:700;color:{% if kata_outstanding > 0 %}#b91c1c{% else %}#15803d{% endif %}">AED {{ "%.0f"|format(kata_outstanding) }}</div>
                 </div>
             </div>
 
@@ -693,10 +717,10 @@
                         <thead>
                             <tr>
                                 <th>Slip Month</th>
-                                <th>Txn Date</th>
-                                <th>Transaction Details</th>
-                                <th style="text-align:right">Txn Amount</th>
+                                <th>Date</th>
+                                <th>Details</th>
                                 <th style="text-align:right">Deducted</th>
+                                <th style="text-align:right">Running Total</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -705,8 +729,8 @@
                                 <td data-label="Slip Month" class="dv2-mono" style="font-size:.78rem">{{ dh.salary_month }}</td>
                                 <td data-label="Date" class="dv2-mono" style="font-size:.78rem">{{ dh.txn_date[:10] if dh.txn_date else '-' }}</td>
                                 <td data-label="Details" style="max-width:160px;white-space:normal;font-size:.75rem;color:var(--muted)">{{ dh.txn_details or '-' }}</td>
-                                <td data-label="Txn Amount" class="dv2-mono" style="text-align:right">AED {{ "%.2f"|format(dh.txn_amount or 0) }}</td>
                                 <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#c62828;font-weight:600">AED {{ "%.2f"|format(dh.amount_deducted) }}</td>
+                                <td data-label="Running Total" class="dv2-mono" style="text-align:right;font-weight:700">AED {{ "%.2f"|format(dh.running or 0) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -725,10 +749,10 @@
             </div>
             {% endif %}
 
-            {% else %}
+            {% if not s %}
             <div class="dv2-card">
                 <div class="dv2-card-body">
-                    <p class="dv2-empty">No salary data for {{ kata_selected_month or 'this month' }}.</p>
+                    <p class="dv2-empty">No salary data for {{ kata_selected_month or 'this month' }} — figures above are the latest all-time balance.</p>
                 </div>
             </div>
             {% endif %}
