@@ -686,7 +686,7 @@ def _kata_truth(db, employee_id: str) -> dict:
         (employee_id,),
     ).fetchall()
     slips = db.execute(
-        "SELECT salary_month, total_deductions, generated_at FROM salary_slips "
+        "SELECT salary_month, total_deductions, actual_paid_amount, generated_at FROM salary_slips "
         "WHERE driver_id = ? ORDER BY salary_month ASC, id ASC",
         (employee_id,),
     ).fetchall()
@@ -695,6 +695,7 @@ def _kata_truth(db, employee_id: str) -> dict:
     slip_rows = [
         {"salary_month": s["salary_month"],
          "total_deducted": round(float(s["total_deductions"] or 0), 2),
+         "actual_paid": round(float(s["actual_paid_amount"] or 0), 2),
          "generated_at": str(s["generated_at"] or "")}
         for s in slips
     ]
@@ -752,6 +753,116 @@ def _kata_truth(db, employee_id: str) -> dict:
         "total_deducted": total_deducted,
         "outstanding": round(max(total_given - total_deducted, 0.0), 2),
     }
+
+
+def _rebuild_fifo_allocations(db, employee_id: str) -> None:
+    """Rebuild the advance-allocation ledger so it matches the money truth.
+
+    Truth = every slip's salary_slips.total_deductions, applied oldest advance
+    first, slips in month order. Rewrites driver_transaction_deductions and the
+    cached remaining_amount / is_fully_deducted flags on driver_transactions.
+
+    This only repairs the *allocation* bookkeeping — salary amounts, payments and
+    slip totals are never touched. Call inside a transaction (POST only).
+    """
+    txns = db.execute(
+        "SELECT id, entry_date, amount, details FROM driver_transactions "
+        "WHERE driver_id = ? ORDER BY entry_date ASC, id ASC",
+        (employee_id,),
+    ).fetchall()
+    if not txns:
+        return
+    slips = db.execute(
+        "SELECT id, salary_month, total_deductions FROM salary_slips "
+        "WHERE driver_id = ? ORDER BY salary_month ASC, id ASC",
+        (employee_id,),
+    ).fetchall()
+
+    remaining = {int(t["id"]): round(float(t["amount"] or 0), 2) for t in txns}
+    db.execute("DELETE FROM driver_transaction_deductions WHERE driver_id = ?", (employee_id,))
+
+    for s in slips:
+        need = round(float(s["total_deductions"] or 0), 2)
+        if need <= 0.005:
+            continue
+        for t in txns:
+            if need <= 0.005:
+                break
+            tid = int(t["id"])
+            if remaining[tid] <= 0.005:
+                continue
+            take = round(min(remaining[tid], need), 2)
+            remaining[tid] = round(remaining[tid] - take, 2)
+            need = round(need - take, 2)
+            db.execute(
+                "INSERT INTO driver_transaction_deductions "
+                "(driver_id, transaction_id, salary_slip_id, amount_deducted, deduction_date, salary_month, note) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    employee_id, tid, s["id"], take,
+                    (t["entry_date"] or "")[:10] or s["salary_month"],
+                    s["salary_month"],
+                    f"FIFO: {t['details'] or t['entry_date']}",
+                ),
+            )
+
+    for t in txns:
+        tid = int(t["id"])
+        rem = remaining[tid]
+        db.execute(
+            "UPDATE driver_transactions SET remaining_amount = ?, is_fully_deducted = ? WHERE id = ?",
+            (rem, 1 if rem <= 0.005 else 0, tid),
+        )
+
+
+def _driver_hisab_ledger(db, employee_id: str, truth: dict) -> list:
+    """Month-by-month running advance ledger — latest month first.
+
+    Each row: salary stored that month, advance given, amount deducted, amount
+    actually paid, and the advance balance that remains *after* that month.
+    """
+    months = {}
+
+    def _slot(m):
+        if not m:
+            return None
+        e = months.get(m)
+        if e is None:
+            e = months[m] = {
+                "salary_month": m, "salary": 0.0, "given": 0.0,
+                "deducted": 0.0, "paid": 0.0, "slip_count": 0,
+            }
+        return e
+
+    for r in truth["rows"]:
+        e = _slot((r["entry_date"] or "")[:7])
+        if e:
+            e["given"] += r["amount"]
+    for s in truth["slips"]:
+        e = _slot(s["salary_month"])
+        if e:
+            e["deducted"] += s["total_deducted"]
+            e["paid"] += s["actual_paid"]
+            e["slip_count"] += 1
+    for sr in db.execute(
+        "SELECT salary_month, net_salary FROM salary_store WHERE driver_id = ?",
+        (employee_id,),
+    ).fetchall():
+        e = _slot(sr["salary_month"])
+        if e:
+            e["salary"] += float(sr["net_salary"] or 0)
+
+    balance = 0.0
+    out = []
+    for m in sorted(months):
+        e = months[m]
+        for k in ("salary", "given", "deducted", "paid"):
+            e[k] = round(e[k], 2)
+        balance = round(balance + e["given"] - e["deducted"], 2)
+        e["balance_after"] = round(max(balance, 0.0), 2)
+        out.append(e)
+    out.reverse()
+    return out
 
 
 @hr_bp.route("/hr/employees/<employee_id>/transactions", methods=["GET", "POST"])
@@ -1174,6 +1285,10 @@ def employee_salary_slip(employee_id):
 
     eid = employee["employee_id"]
 
+    # ── Driver money truth + running hisab ledger (shown on the slip page) ──
+    truth = _kata_truth(db, eid)
+    ledger = _driver_hisab_ledger(db, eid, truth)
+
     salary_rows = db.execute(
         "SELECT id, driver_id, entry_date, salary_month, ot_month, salary_mode, prorata_start_date, salary_days, daily_rate, monthly_basic_salary, basic_salary, ot_hours, ot_rate, ot_amount, ot_type, ot_trips, personal_vehicle, personal_vehicle_note, net_salary, remarks FROM salary_store WHERE driver_id = ? ORDER BY salary_month DESC",
         (eid,),
@@ -1450,35 +1565,22 @@ def employee_salary_slip(employee_id):
                         _audit_log(db, "employee_salary_slip_generated", entity_type="salary_slip",
                                    entity_id=f"{eid}:{selected_salary['salary_month']}",
                                    details=f"Deduction AED {deduction_amount:.2f} / Payable AED {salary_after_deduction:.2f}")
-                        from ..routes import _apply_fifo_deduction
-                        # Regenerating a slip must first reverse this slip's own earlier
-                        # FIFO allocation — otherwise every re-generate piles up duplicate
-                        # driver_transaction_deductions rows while salary_slips.total_deductions
-                        # stays correct (advances then look fully deducted when they are not).
-                        for _pd in db.execute(
-                            "SELECT transaction_id, amount_deducted FROM driver_transaction_deductions WHERE salary_slip_id = ?",
-                            (slip_id,),
-                        ).fetchall():
-                            _pt = db.execute(
-                                "SELECT id, amount, remaining_amount FROM driver_transactions WHERE id = ?",
-                                (_pd["transaction_id"],),
-                            ).fetchone()
-                            if not _pt:
-                                continue
-                            _amt = float(_pt["amount"] or 0)
-                            _cur = float(_pt["remaining_amount"]) if _pt["remaining_amount"] is not None else _amt
-                            _rem = min(round(_cur + float(_pd["amount_deducted"] or 0), 2), _amt)
-                            db.execute(
-                                "UPDATE driver_transactions SET remaining_amount = ?, is_fully_deducted = ? WHERE id = ?",
-                                (_rem, 1 if _rem <= 0.001 else 0, _pt["id"]),
-                            )
-                        db.execute("DELETE FROM driver_transaction_deductions WHERE salary_slip_id = ?", (slip_id,))
-                        _apply_fifo_deduction(db, eid, slip_id, deduction_amount, selected_salary["salary_month"])
+                        # Rebuild the advance-allocation ledger straight from the
+                        # truth (each slip's total_deductions, oldest advance first).
+                        # This replaces the old reversal + FIFO pair, which piled up
+                        # duplicate rows on every regenerate and left stale
+                        # remaining_amount / is_fully_deducted flags behind.
+                        _rebuild_fifo_allocations(db, eid)
                         db.commit()
                         flash(f"Salary slip generated for {selected_salary['salary_month']}.", "success")
                         return redirect(url_for("hr.employee_salary_slip", employee_id=eid))
 
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
+
+    slip_existing_deduction = float(existing_slip["total_deductions"]) if existing_slip else 0.0
+    slip_hero_salary = float(selected_salary["net_salary"]) if selected_salary else (
+        float(salary_rows[0]["net_salary"]) if salary_rows else 0.0
+    )
 
     return render_template(
         "hr/employee_detail.html",
@@ -1494,6 +1596,10 @@ def employee_salary_slip(employee_id):
         slip_store_ids=slip_store_ids,
         slip_driver_txns=driver_txns,
         slip_selected_txn_ids=selected_txn_ids,
+        slip_truth=truth,
+        slip_ledger=ledger,
+        slip_existing_deduction=slip_existing_deduction,
+        slip_hero_salary=slip_hero_salary,
     )
 
 
@@ -1563,6 +1669,8 @@ def employee_salary_slip_delete(employee_id, store_id):
     else:
         of_detail = " (Owner Fund entry kept)" if owner_fund_entry else ""
     db.execute("DELETE FROM salary_slips WHERE id = ?", (slip["id"],))
+    # Rebuild remaining advances from truth so flags stay consistent after a delete.
+    _rebuild_fifo_allocations(db, eid)
     _audit_log(db, "employee_salary_slip_deleted", entity_type="salary_slip",
                 entity_id=f"{eid}:{slip['salary_month']}",
                 details=f"store#{store_id}{of_detail}")

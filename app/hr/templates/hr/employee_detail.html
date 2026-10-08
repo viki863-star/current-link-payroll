@@ -427,32 +427,45 @@
         {# ════════════════════════════════════════════ #}
         {% elif active_tab == 'salary_slip' %}
         <div class="tab-pane">
-            <div class="dv2-grid dv2-grid-2">
-                <div>
-                    <div class="dv2-card">
-                        <div class="dv2-card-header">
-                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-                            Advance Summary
+
+            {# ═══ 1. DRIVER STATEMENT — WHAT THE DRIVER OWES / IS OWED ═══ #}
+            <div class="dv2-card" style="margin-bottom:1.2rem;border-top:3px solid var(--primary)">
+                <div class="dv2-card-header">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2h12v16l-3-2-3 2-3-2-3 2z"/><line x1="7" y1="7" x2="13" y2="7"/><line x1="7" y1="10" x2="13" y2="10"/></svg>
+                    {{ employee.full_name }} &mdash; {{ employee.employee_id }} &middot; Advance Statement (Latest)
+                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Live from salary slips</span>
+                </div>
+                <div class="dv2-card-body">
+                    <div class="dv2-stat-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px">
+                        <div class="dv2-stat-card is-total" style="border-left:4px solid #1565c0">
+                            <span class="dv2-stat-label">Salary / Month</span>
+                            <span class="dv2-stat-value" style="color:#0d47a1">AED {{ "%.2f"|format(slip_hero_salary) }}</span>
                         </div>
-                        <div class="dv2-card-body">
-                            <div class="dv2-stat-cards">
-                                <div class="dv2-stat-card is-total">
-                                    <span class="dv2-stat-label">Total Advance</span>
-                                    <span class="dv2-stat-value">AED {{ "%.0f"|format(slip_advance_summary.total_advance|float) }}</span>
-                                </div>
-                                <div class="dv2-stat-card is-deducted">
-                                    <span class="dv2-stat-label">Deducted</span>
-                                    <span class="dv2-stat-value" style="color:var(--orange)">-AED {{ "%.0f"|format(slip_advance_summary.total_deducted|float) }}</span>
-                                </div>
-                                <div class="dv2-stat-card is-remaining">
-                                    <span class="dv2-stat-label">Remaining</span>
-                                    <span class="dv2-stat-value">AED {{ "%.0f"|format(slip_advance_summary.remaining_advance|float) }}</span>
-                                </div>
-                            </div>
+                        <div class="dv2-stat-card is-total" style="border-left:4px solid #2e7d32">
+                            <span class="dv2-stat-label">Advance Given (Mila)</span>
+                            <span class="dv2-stat-value" style="color:#1b5e20">AED {{ "%.2f"|format(slip_truth.total_given) }}</span>
+                        </div>
+                        <div class="dv2-stat-card is-deducted" style="border-left:4px solid #e65100">
+                            <span class="dv2-stat-label">Deducted (Kat gaya)</span>
+                            <span class="dv2-stat-value" style="color:#e65100">-AED {{ "%.2f"|format(slip_truth.total_deducted) }}</span>
+                        </div>
+                        <div class="dv2-stat-card is-remaining" style="border-left:4px solid {% if slip_truth.outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %}">
+                            <span class="dv2-stat-label">Advance Remaining (Baqi)</span>
+                            <span class="dv2-stat-value" style="color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#1b5e20{% endif %};font-size:1.35rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</span>
                         </div>
                     </div>
+                    <p style="margin:12px 0 0;font-size:.86rem;color:var(--muted);line-height:1.6">
+                        Advance <strong style="color:#1b5e20">AED {{ "%.2f"|format(slip_truth.total_given) }}</strong> mila &rarr;
+                        <strong style="color:#e65100">AED {{ "%.2f"|format(slip_truth.total_deducted) }}</strong> salary se kat chuka &rarr;
+                        <strong style="color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(slip_truth.outstanding) }}</strong> abhi baqi.
+                        {% if slip_truth.outstanding > 0 %}Har month salary se ye baqi amount apne aap kat-ta jayega.{% else %}Advance poora clear ho chuka hai.{% endif %}
+                    </p>
+                </div>
+            </div>
 
-                    <div class="dv2-card" style="margin-top:1rem">
+            <div class="dv2-grid dv2-grid-2">
+                <div>
+                    <div class="dv2-card" style="margin-top:0">
                         <div class="dv2-card-header">Select Salary Month</div>
                         <div class="dv2-table-wrap">
                             <table class="dv2-table">
@@ -503,9 +516,14 @@
                                 function updatePreview() {
                                     var deduction = parseFloat(document.getElementById('deductionAmount').value || 0);
                                     var netSalary = parseFloat('{{ slip_selected_salary.net_salary or 0 }}');
+                                    var available = parseFloat('{{ slip_available_advance or 0 }}');
                                     var payable = netSalary - deduction;
+                                    var afterBalance = Math.max(available - deduction, 0);
                                     document.getElementById('previewDeduction').textContent = '-AED ' + deduction.toFixed(2);
                                     document.getElementById('previewPayable').textContent = 'AED ' + payable.toFixed(2);
+                                    document.getElementById('previewAfter').textContent = 'AED ' + afterBalance.toFixed(2);
+                                    document.getElementById('lineBefore').textContent = 'AED ' + available.toFixed(2);
+                                    document.getElementById('lineAfter').textContent = 'AED ' + afterBalance.toFixed(2);
                                 }
                                 </script>
 
@@ -521,15 +539,28 @@
                                 {% if slip_selected_salary.net_salary and slip_selected_salary.net_salary > 0 %}
                                 {% set deduction = (slip_values.deduction_amount or '0')|float %}
                                 {% set payable = (slip_selected_salary.net_salary or 0)|float - deduction %}
+                                {% set _after = (slip_available_advance|float) - deduction %}
+                                {% set after_balance = _after if _after > 0 else 0 %}
                                 <div class="dv2-preview">
-                                    <div class="dv2-preview-title">Slip Preview</div>
+                                    <div class="dv2-preview-title">Is Slip Ke Baad &mdash; Kya Hoga</div>
                                     <div class="dv2-preview-grid">
                                         <div class="dv2-preview-item"><span class="dv2-preview-label">Net Salary</span><span class="dv2-preview-value">AED {{ "%.2f"|format(slip_selected_salary.net_salary) }}</span></div>
                                         <div class="dv2-preview-item"><span class="dv2-preview-label">Deduction</span><span class="dv2-preview-value" id="previewDeduction">-AED {{ "%.2f"|format(deduction) }}</span></div>
                                         <div class="dv2-preview-item is-highlight">
-                                            <span class="dv2-preview-label">Net Payable</span>
+                                            <span class="dv2-preview-label">Net Payable (Driver ko)</span>
                                             <span class="dv2-preview-value" id="previewPayable">AED {{ "%.2f"|format(payable) }}</span>
                                         </div>
+                                        <div class="dv2-preview-item" style="background:rgba(198,40,40,.08)">
+                                            <span class="dv2-preview-label">Advance Baqi (After)</span>
+                                            <span class="dv2-preview-value" id="previewAfter" style="color:#c62828">AED {{ "%.2f"|format(after_balance) }}</span>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:10px;font-size:.82rem;color:var(--muted);text-align:center">
+                                        Advance baqi
+                                        <strong id="lineBefore">AED {{ "%.2f"|format(slip_available_advance|float) }}</strong>
+                                        &rarr;
+                                        <strong id="lineAfter" style="color:#c62828">AED {{ "%.2f"|format(after_balance) }}</strong>
+                                        (deduction ke baad)
                                     </div>
                                 </div>
                                 {% endif %}
@@ -573,6 +604,96 @@
                             {% endif %}
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {# ═══ 3. RUNNING HISAB — MONTH BY MONTH ═══ #}
+            <div class="dv2-card" style="margin-top:1.2rem">
+                <div class="dv2-card-header">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
+                    Running Hisab &mdash; Month by Month
+                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Balance = Given &minus; Deducted</span>
+                </div>
+                <div class="dv2-table-wrap">
+                    <table class="dv2-table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th style="text-align:right">Salary</th>
+                                <th style="text-align:right">Advance Given (+)</th>
+                                <th style="text-align:right">Deducted (&minus;)</th>
+                                <th style="text-align:right">Paid</th>
+                                <th>Slip</th>
+                                <th style="text-align:right">Balance After</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in slip_ledger %}
+                            <tr {% if loop.first %}style="background:#eff6ff"{% endif %}>
+                                <td data-label="Month" class="dv2-mono" style="font-weight:{% if loop.first %}800{% else %}500{% endif %}">{{ r.salary_month }}{% if loop.first %} &larr; latest{% endif %}</td>
+                                <td data-label="Salary" class="dv2-mono" style="text-align:right">{% if r.salary > 0 %}AED {{ "%.0f"|format(r.salary) }}{% else %}&mdash;{% endif %}</td>
+                                <td data-label="Given" class="dv2-mono" style="text-align:right;color:#2e7d32">{% if r.given > 0 %}+AED {{ "%.0f"|format(r.given) }}{% else %}&mdash;{% endif %}</td>
+                                <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#e65100">{% if r.deducted > 0 %}-AED {{ "%.0f"|format(r.deducted) }}{% else %}&mdash;{% endif %}</td>
+                                <td data-label="Paid" class="dv2-mono" style="text-align:right">{% if r.paid > 0 %}AED {{ "%.0f"|format(r.paid) }}{% else %}&mdash;{% endif %}</td>
+                                <td data-label="Slip">{% if r.slip_count > 0 %}<span style="color:var(--green);font-weight:700">&#10004;</span>{% else %}<span style="color:var(--muted);font-size:.72rem">pending</span>{% endif %}</td>
+                                <td data-label="Balance After" class="dv2-mono" style="text-align:right;font-weight:800;color:{% if r.balance_after > 0 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(r.balance_after) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr class="dv2-empty"><td colspan="7">No hisab yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if slip_ledger %}
+                        <tfoot>
+                            <tr style="background:#f8fafc">
+                                <td colspan="6" style="text-align:right;font-weight:800;border-top:2px solid var(--border)">ABHI KITNA BAQI (Balance Today)</td>
+                                <td style="text-align:right;font-weight:800;border-top:2px solid var(--border);color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:.95rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            {# ═══ 4. ADVANCE-WISE BREAKDOWN ═══ #}
+            <div class="dv2-card" style="margin-top:1.2rem">
+                <div class="dv2-card-header">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="16" height="12" rx="2"/><path d="M2 10h16"/></svg>
+                    Advance-wise Breakdown
+                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">{{ slip_truth.rows|length }} advances &middot; FIFO order</span>
+                </div>
+                <div class="dv2-table-wrap">
+                    <table class="dv2-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Advance Details</th>
+                                <th style="text-align:right">Given</th>
+                                <th style="text-align:right">Deducted</th>
+                                <th style="text-align:right">Remaining</th>
+                                <th>Status</th>
+                                <th>Cleared In</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in slip_truth.rows %}
+                            <tr>
+                                <td data-label="Date" class="dv2-mono" style="font-size:.78rem">{{ (a.entry_date or '')[:10] }}</td>
+                                <td data-label="Details" style="max-width:230px;white-space:normal;font-size:.78rem">{{ a.details or a.source or '-' }}</td>
+                                <td data-label="Given" class="dv2-mono" style="text-align:right;font-weight:600">AED {{ "%.2f"|format(a.amount) }}</td>
+                                <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#e65100">AED {{ "%.2f"|format(a.deducted) }}</td>
+                                <td data-label="Remaining" class="dv2-mono" style="text-align:right;font-weight:700;color:{% if a.remaining > 0.01 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(a.remaining) }}</td>
+                                <td data-label="Status">
+                                    {% if a.status == 'cleared' %}<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">CLEARED</span>
+                                    {% elif a.status == 'partial' %}<span style="background:#ffedd5;color:#9a3412;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">PARTIAL</span>
+                                    {% else %}<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">OUTSTANDING</span>{% endif %}
+                                </td>
+                                <td data-label="Cleared In" style="font-size:.72rem;color:var(--muted)">{% if a.deducted_in %}{{ a.deducted_in|join(', ') }}{% else %}&mdash;{% endif %}</td>
+                            </tr>
+                            {% else %}
+                            <tr class="dv2-empty"><td colspan="7">No advances recorded.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
