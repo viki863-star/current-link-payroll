@@ -524,6 +524,7 @@
                             <form method="POST" class="dv2-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="salary_store_id" value="{{ slip_selected_salary.id }}">
+                                <input type="hidden" name="paid_now_submitted" value="1">
                                 <div class="dv2-form-row">
                                     <div class="dv2-form-group">
                                         <label class="dv2-form-label">Deduct Advance (AED)</label>
@@ -551,6 +552,21 @@
                                 </script>
 
                                 <script>
+                                function updatePaidHint() {
+                                    var el = document.getElementById('paidHintText');
+                                    if (!el) return;
+                                    var deduction = parseFloat(document.getElementById('deductionAmount').value || 0);
+                                    var netSalary = parseFloat('{{ slip_selected_salary.net_salary or 0 }}');
+                                    var payable = Math.max(netSalary - deduction, 0);
+                                    var paid = document.getElementById('paidNow').checked;
+                                    if (paid) {
+                                        el.innerHTML = 'AED ' + payable.toFixed(2) + ' aaj cash mein driver ko de diya &rarr; Owner Fund se OUT entry banegi.';
+                                        el.style.color = '#047857';
+                                    } else {
+                                        el.innerHTML = 'Tick hatao &rarr; system paid <b>nahi</b> dikhayega. AED ' + payable.toFixed(2) + ' salary driver ke paas baki rahegi.';
+                                        el.style.color = '#b45309';
+                                    }
+                                }
                                 function updatePreview() {
                                     var deduction = parseFloat(document.getElementById('deductionAmount').value || 0);
                                     var netSalary = parseFloat('{{ slip_selected_salary.net_salary or 0 }}');
@@ -562,7 +578,9 @@
                                     document.getElementById('previewAfter').textContent = 'AED ' + afterBalance.toFixed(2);
                                     document.getElementById('lineBefore').textContent = 'AED ' + available.toFixed(2);
                                     document.getElementById('lineAfter').textContent = 'AED ' + afterBalance.toFixed(2);
+                                    updatePaidHint();
                                 }
+                                updatePaidHint();
                                 </script>
 
                                 {% if slip_existing_slip %}
@@ -602,6 +620,14 @@
                                     </div>
                                 </div>
                                 {% endif %}
+
+                                <label for="paidNow" style="display:flex;gap:9px;align-items:flex-start;padding:11px 13px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;margin:4px 0 14px;cursor:pointer">
+                                    <input type="checkbox" name="paid_now" id="paidNow" {% if slip_values.paid_now %}checked{% endif %} onchange="updatePaidHint()" style="margin-top:3px;width:15px;height:15px;accent-color:#0f766e">
+                                    <span style="font-size:.8rem;line-height:1.55">
+                                        <strong style="color:#0f172a">Office mein cash diya &mdash; aaj payment hui</strong><br>
+                                        <span id="paidHintText" style="color:#64748b"></span>
+                                    </span>
+                                </label>
 
                                 <div class="dv2-form-row">
                                     <div class="dv2-form-group">
@@ -770,6 +796,20 @@
             .soa-pill.ok{background:#dcfce7;color:#166534}.soa-pill.no{background:#fee2e2;color:#991b1b}
             .soa-settle{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:14px 16px;font-size:.8rem;color:#334155;line-height:1.75}
             .soa-foot{font-size:.68rem;color:#94a3b8;text-align:right;margin-top:10px}
+            .soa-pill.warn{background:#fef3c7;color:#92400e}
+            .soa-plain{background:#0b1f33;color:#e8eef6;border-radius:14px;padding:19px 21px;margin-top:16px;box-shadow:0 10px 24px rgba(11,31,51,.22)}
+            .soa-plain-title{font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:#7dd3fc;font-weight:800;margin-bottom:14px}
+            .soa-plain-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+            .soa-plain-list li{display:flex;align-items:flex-start;gap:12px}
+            .soa-plain-list .n{flex:0 0 24px;height:24px;border-radius:50%;background:rgba(255,255,255,.12);color:#93c5fd;font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:2px}
+            .soa-plain-list .t{flex:1;font-size:.87rem;line-height:1.5;color:#cbd5e1}
+            .soa-plain-list .t small{display:block;font-size:.72rem;color:#94a3b8;margin-top:3px;line-height:1.5}
+            .soa-plain-list .v{font-size:1.14rem;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;color:#fff}
+            .soa-plain-list li.l2 .v{color:#fca5a5}
+            .soa-plain-list li.l3 .v{color:#93c5fd}
+            .soa-net{margin-top:16px;padding-top:14px;border-top:1px dashed rgba(255,255,255,.22);display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+            .soa-net span{font-size:.8rem;color:#cbd5e1;line-height:1.5}
+            .soa-net b{font-size:1.55rem;font-variant-numeric:tabular-nums;color:#4ade80}
             </style>
 
             <div class="soa-head">
@@ -785,11 +825,41 @@
                 </div>
             </div>
 
+            {# ═══ SEEDHI BAAT — driver ko samajh aane wali 3 line ═══ #}
+            <div class="soa-plain">
+                <div class="soa-plain-title">Seedhi Baat &mdash; Aapke Liye</div>
+                <ol class="soa-plain-list">
+                    <li>
+                        <span class="n">1</span>
+                        <span class="t">Aapko advance mila tha (transactions se)<small>Jab jab cash/transfer diya, wo sab mila ke.</small></span>
+                        <b class="v">AED {{ "%.2f"|format(soa.given) }}</b>
+                    </li>
+                    <li class="l2">
+                        <span class="n">2</span>
+                        <span class="t">Usme se maine aapki salary se cut kiya<small>Ab advance baki AED {{ "%.2f"|format(soa.balance) }}.</small></span>
+                        <b class="v">AED {{ "%.2f"|format(soa.recovered) }}</b>
+                    </li>
+                    <li class="l3">
+                        <span class="n">3</span>
+                        <span class="t">Ab aapki salary baki hai hamare paas<small>{% if soa.pending_count %}{{ soa.pending_labels }} ka salary abhi nahi diya.{% endif %}{% if soa.unpaid_count %} {{ soa.unpaid_labels }} ka slip ban gaya lekin cash abhi baaki.{% endif %}</small></span>
+                        <b class="v">AED {{ "%.2f"|format(soa.salary_owed) }}</b>
+                    </li>
+                </ol>
+                <div class="soa-net">
+                    <span>Poora advance cut ke baad bhi<br>jo humein aapko dena hai</span>
+                    <b>AED {{ "%.2f"|format(soa.net_to_driver) }}</b>
+                </div>
+            </div>
+
             <div class="soa-grid">
                 <div class="soa-tile t-blue">
-                    <div class="soa-label">Salary Not Yet Issued</div>
-                    <div class="soa-value">AED {{ "%.2f"|format(soa.pending_total) }}</div>
-                    <div class="soa-note">{% if soa.pending_count %}{{ soa.pending_labels }} &middot; {{ soa.pending_count }} month(s) run nahi hua.{% else %}Sab months ka slip generate ho chuka hai.{% endif %}</div>
+                    <div class="soa-label">Salary Baki (Hamare Paas)</div>
+                    <div class="soa-value">AED {{ "%.2f"|format(soa.salary_owed) }}</div>
+                    <div class="soa-note">
+                        {% if soa.pending_count %}<strong>{{ soa.pending_labels }}</strong> run nahi hua (AED {{ "%.2f"|format(soa.pending_total) }}).{% endif %}
+                        {% if soa.unpaid_count %} <strong>{{ soa.unpaid_labels }}</strong> ka slip ban gaya lekin cash abhi nahi diya (AED {{ "%.2f"|format(soa.unpaid_total) }}).{% endif %}
+                        {% if not soa.pending_count and not soa.unpaid_count %}Sab months ka paisa de diya gaya.{% endif %}
+                    </div>
                 </div>
                 <div class="soa-tile t-red">
                     <div class="soa-label">Advance Balance (Driver par baki)</div>
@@ -799,7 +869,7 @@
                 <div class="soa-tile {% if soa.company_owes %}t-green{% else %}t-red{% endif %}">
                     <div class="soa-label">Net {% if soa.company_owes %}Payable to Driver{% else %}Payable by Driver{% endif %}</div>
                     <div class="soa-value" style="color:{% if soa.company_owes %}#047857{% else %}#b91c1c{% endif %}">AED {{ "%.2f"|format(soa.net_to_driver|abs) }}</div>
-                    <div class="soa-note">Pending salary AED {{ "%.2f"|format(soa.pending_total) }} − advance baki AED {{ "%.2f"|format(soa.balance) }}.</div>
+                    <div class="soa-note">Salary baki AED {{ "%.2f"|format(soa.salary_owed) }} − advance baki AED {{ "%.2f"|format(soa.balance) }}.</div>
                 </div>
             </div>
 
@@ -820,7 +890,9 @@
                     <div class="soa-m">
                         <span class="mono">{{ m.month }}</span>
                         <span class="mono">AED {{ "%.0f"|format(m.net) }}</span>
-                        {% if m.issued %}<span class="soa-pill ok">Issued</span>{% else %}<span class="soa-pill no">Not Run</span>{% endif %}
+                        {% if m.issued %}
+                            {% if m.unpaid > 0.01 %}<span class="soa-pill warn">Issued &middot; AED {{ "%.0f"|format(m.unpaid) }} baki</span>{% else %}<span class="soa-pill ok">Issued</span>{% endif %}
+                        {% else %}<span class="soa-pill no">Not Run</span>{% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -829,6 +901,7 @@
             <div class="soa-settle">
                 <strong>Settled:</strong> {{ soa.settled_label }} ({{ soa.settled_count }} month) &mdash; AED {{ "%.2f"|format(soa.recovered) }} salary se recover hua.<br>
                 {% if soa.pending_count %}<strong>Not run yet:</strong> {{ soa.pending_labels }} &mdash; AED {{ "%.2f"|format(soa.pending_total) }} salary pending.{% endif %}
+                {% if soa.unpaid_count %} <strong>Cash abhi nahi diya:</strong> {{ soa.unpaid_labels }} &mdash; AED {{ "%.2f"|format(soa.unpaid_total) }} slip ban gaya lekin payment baaki.{% endif %}
                 <br><strong>Net:</strong> {% if soa.company_owes %}Company driver ko AED {{ "%.2f"|format(soa.net_to_driver) }} dega.{% else %}Driver company ko AED {{ "%.2f"|format(soa.net_to_driver|abs) }} wapas dega.{% endif %}
             </div>
 

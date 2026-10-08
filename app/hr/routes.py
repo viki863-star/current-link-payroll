@@ -690,6 +690,57 @@ def _build_soa(db, employee_id: str, employee, truth: dict) -> dict:
             slipped_store_ids.add(int(r["salary_store_id"]))
     slipped_months = {s["salary_month"] for s in truth["slips"]}
 
+    # Money leaves the office in two ways: (1) advance booked in
+    # driver_transactions, later recovered by cutting salary, and (2) salary
+    # handed over as cash in the office. A slip that was generated but whose
+    # cash never left the office still counts as owed — never as paid.
+    unpaid_by_month: dict = {}
+    _name = (employee.get("full_name") or employee_id).strip().lower()
+    for s in db.execute(
+        "SELECT id, salary_month, salary_after_deduction, actual_paid_amount "
+        "FROM salary_slips WHERE driver_id = ? ORDER BY id ASC",
+        (employee_id,),
+    ).fetchall():
+        payable = float(s["salary_after_deduction"] or 0) or 0.0
+        paid = float(s["actual_paid_amount"] or 0) or 0.0
+        # Same resolution the paid-salary report uses: the entry booked against
+        # this slip, or the "Salary Slip <month> — <name>" owner-fund row.
+        try:
+            of_rows = db.execute(
+                "SELECT id, source_id, owner_name, details, amount "
+                "FROM owner_fund_entries "
+                "WHERE amount > 0 AND (source_id = ? OR details LIKE ?)",
+                (s["id"], f"Salary Slip {s['salary_month']}%"),
+            ).fetchall()
+        except Exception:
+            of_rows = []
+        seen = set()
+        for fr in of_rows:
+            try:
+                fid = int(fr["id"])
+            except (TypeError, ValueError):
+                continue
+            if fid in seen:
+                continue
+            matched = False
+            try:
+                if fr["source_id"] not in (None, "") and int(fr["source_id"]) == int(s["id"]):
+                    matched = True
+            except (TypeError, ValueError):
+                matched = False
+            if not matched:
+                owner = (fr["owner_name"] or "").strip().lower()
+                parts = (fr["details"] or "").split("—", 1)
+                detail_name = parts[1].strip().lower() if len(parts) > 1 else ""
+                matched = bool(_name) and (owner == _name or detail_name == _name)
+            if matched:
+                seen.add(fid)
+                paid += float(fr["amount"] or 0)
+        unpaid = round(max(payable - paid, 0.0), 2)
+        if unpaid > 0.01:
+            _m = s["salary_month"]
+            unpaid_by_month[_m] = round(unpaid_by_month.get(_m, 0.0) + unpaid, 2)
+
     months = {}
     for r in store_rows:
         mid = int(r["id"])
@@ -697,6 +748,7 @@ def _build_soa(db, employee_id: str, employee, truth: dict) -> dict:
             "month": r["salary_month"],
             "net": round(float(r["net_salary"] or 0), 2),
             "issued": mid in slipped_store_ids or r["salary_month"] in slipped_months,
+            "unpaid": unpaid_by_month.get(r["salary_month"], 0.0),
         }
     for s in truth["slips"]:
         if s["salary_month"] not in months:
@@ -704,6 +756,7 @@ def _build_soa(db, employee_id: str, employee, truth: dict) -> dict:
                 "month": s["salary_month"],
                 "net": s["total_deducted"],
                 "issued": True,
+                "unpaid": unpaid_by_month.get(s["salary_month"], 0.0),
             }
 
     month_list = [months[m] for m in sorted(months)]
@@ -711,10 +764,16 @@ def _build_soa(db, employee_id: str, employee, truth: dict) -> dict:
     settled = [m for m in month_list if m["issued"]]
 
     pending_total = round(sum(m["net"] for m in pending), 2)
+    unpaid_total = round(sum(m["unpaid"] for m in month_list), 2)
     balance = truth["outstanding"]
     given = truth["total_given"]
     recovered = truth["total_deducted"]
-    net_to_driver = round(pending_total - balance, 2)
+    # Salary the company still owes = months never run + the part of the run
+    # months that was never actually handed over as cash in the office.
+    salary_owed = round(pending_total + unpaid_total, 2)
+    net_to_driver = round(salary_owed - balance, 2)
+    unpaid_months = [m for m in month_list if m["unpaid"] > 0.01]
+    unpaid_labels = ", ".join(m["month"] for m in unpaid_months)
 
     if settled:
         first, last = settled[0]["month"], settled[-1]["month"]
@@ -738,6 +797,10 @@ def _build_soa(db, employee_id: str, employee, truth: dict) -> dict:
         "pending_labels": pending_labels,
         "pending_total": pending_total,
         "pending_count": len(pending),
+        "unpaid_total": unpaid_total,
+        "unpaid_labels": unpaid_labels,
+        "unpaid_count": len(unpaid_months),
+        "salary_owed": salary_owed,
         "settled_count": len(settled),
         "settled_label": settled_label,
         "net_to_driver": net_to_driver,
@@ -1394,6 +1457,7 @@ def employee_salary_slip(employee_id):
         "payment_source": PAYMENT_SOURCES[0],
         "paid_by": "",
         "payment_notes": "",
+        "paid_now": True,
         "deduction_mode": "manual",
         "selected_txn_ids": [],
     }
@@ -1417,6 +1481,18 @@ def employee_salary_slip(employee_id):
             )["remaining_advance"]
             if existing_slip:
                 values["deduction_amount"] = f"{float(existing_slip['total_deductions']):.2f}"
+                # Tick reflects reality: only ticked when cash actually left.
+                try:
+                    _paid_fund = db.execute(
+                        "SELECT 1 FROM owner_fund_entries WHERE source_table = 'salary_slips' "
+                        "AND source_id = ? AND amount > 0 LIMIT 1",
+                        (existing_slip["id"],),
+                    ).fetchone()
+                    values["paid_now"] = bool(_paid_fund) or (
+                        float(existing_slip["actual_paid_amount"] or 0) > 0
+                    )
+                except Exception:
+                    pass
 
     # Load driver transactions for selection
     driver_txns = db.execute(
@@ -1458,6 +1534,14 @@ def employee_salary_slip(employee_id):
             "payment_source": request.form.get("payment_source", PAYMENT_SOURCES[0]).strip() or PAYMENT_SOURCES[0],
             "paid_by": request.form.get("paid_by", "").strip(),
             "payment_notes": request.form.get("payment_notes", "").strip(),
+            # Checkbox semantics: the real form always sends paid_now_submitted,
+            # so an untick means "cash never left the office". Anything without
+            # the flag (older clients, API callers) keeps the old behaviour.
+            "paid_now": (
+                request.form.get("paid_now") in ("on", "1", "true", "True")
+                if request.form.get("paid_now_submitted")
+                else True
+            ),
             "deduction_mode": "manual",
             "selected_txn_ids": [],
         }
@@ -1558,13 +1642,17 @@ def employee_salary_slip(employee_id):
                                             (slip_id, txn["id"], remaining),
                                         )
 
-                        # Auto-create owner_fund_entry when payment source is Owner Fund
-                        if values["payment_source"] == "Owner Fund":
+                        fund_details = (
+                            f"Salary Slip {selected_salary['salary_month']} — "
+                            f"{employee['full_name']}"
+                        )
+                        # Owner Fund OUT entry is booked ONLY when the cash
+                        # actually left the office. Tick off "Office mein cash
+                        # diya" and the slip still generates, but nothing is
+                        # marked paid — the amount simply stays owed to the
+                        # driver (instead of falsely showing it was handed over).
+                        if values["payment_source"] == "Owner Fund" and values["paid_now"]:
                             slip_row_check = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
-                            fund_details = (
-                                f"Salary Slip {selected_salary['salary_month']} — "
-                                f"{employee['full_name']}"
-                            )
                             of_amount = float(salary_after_deduction)
                             # Reuse this month's payment instead of duplicating it:
                             # either the entry already linked to this slip, or an
@@ -1592,6 +1680,25 @@ def employee_salary_slip(employee_id):
                                      fund_details,
                                      "salary_slips", slip_id),
                                 )
+                        elif not values["paid_now"]:
+                            # Cash never left the office — pull back the payment
+                            # this flow booked earlier for this exact slip.
+                            stale_of = db.execute(
+                                "SELECT id FROM owner_fund_entries "
+                                "WHERE source_table='salary_slips' AND source_id = ? "
+                                "AND details = ?",
+                                (slip_id, fund_details),
+                            ).fetchall()
+                            for _sf in stale_of:
+                                db.execute("DELETE FROM owner_fund_entries WHERE id = ?", (_sf["id"],))
+                            if stale_of:
+                                _audit_log(
+                                    db, "employee_salary_slip_payment_cancelled",
+                                    entity_type="salary_slip",
+                                    entity_id=f"{eid}:{selected_salary['salary_month']}",
+                                    details=(f"Owner unticked paid — AED {salary_after_deduction:.2f} "
+                                             f"not handed over, salary stays owed"),
+                                )
 
                         slip_row = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
                         driver_display = {"driver_id": eid, "full_name": employee["full_name"],
@@ -1613,7 +1720,7 @@ def employee_salary_slip(employee_id):
 
                         generated_dir = current_app.config["GENERATED_DIR"]
                         slip_output_dir = str(Path(generated_dir) / "salary_slips")
-                        _ap = float(salary_after_deduction)
+                        _ap = float(salary_after_deduction) if values["paid_now"] else 0.0
                         pdf_path = generate_salary_slip_pdf(
                             driver_display,
                             selected_salary,

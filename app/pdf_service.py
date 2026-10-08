@@ -1116,15 +1116,99 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
     els.append(mt)
     els.append(Spacer(1, 5 * mm))
 
+    # ── SEEDHI BAAT — plain-language block the driver actually reads ──
+    DARK = colors.HexColor("#0b1f33")
+    _given = float(soa.get("given") or 0)
+    _recovered = float(soa.get("recovered") or 0)
+    _pending_total = float(soa.get("pending_total") or 0)
+    _unpaid_total = float(soa.get("unpaid_total") or 0)
+    _salary_owed = float(soa.get("salary_owed") or 0) or round(_pending_total + _unpaid_total, 2)
+    _balance = float(soa.get("balance") or 0)
+    _net = float(soa.get("net_to_driver") or 0)
+    _net_label = (
+        "Poora advance cut ke baad bhi jo humein aapko dena hai"
+        if _net >= 0 else
+        "Advance zyada ho gaya — aapko company ko dena hai"
+    )
+
+    _sub3 = []
+    if soa.get("pending_count"):
+        _sub3.append(f"{soa.get('pending_labels')} ka salary abhi nahi diya")
+    if soa.get("unpaid_count"):
+        _sub3.append(f"{soa.get('unpaid_labels')} ka cash abhi baaki")
+    _sub3 = "  ·  ".join(_sub3) or "Sab paisa de diya gaya."
+
+    plain_items = [
+        ("1", "Aapko advance mila tha (transactions se)",
+         "Jab jab cash / transfer diya, sab mila ke.", money(_given), colors.HexColor("#93c5fd")),
+        ("2", "Usme se maine aapki salary se cut kiya",
+         f"Ab advance baki AED {money(_balance)}.", money(_recovered), colors.HexColor("#fca5a5")),
+        ("3", "Ab aapki salary baki hai hamare paas",
+         _sub3, money(_salary_owed), colors.HexColor("#93c5fd")),
+    ]
+    plain_rows = []
+    for _n, _title, _sub, _val, _col in plain_items:
+        plain_rows.append([
+            P(f"<b>{_n}</b>", fontSize=8.5, textColor=colors.HexColor("#93c5fd"), alignment=TA_CENTER, leading=11),
+            P(f"<b>{_title}</b><br/><font size=6.7 color='#94a3b8'>{_sub}</font>",
+              fontSize=8.4, textColor=colors.HexColor("#e8eef6"), leading=11.5),
+            P(f"<b>{_val}</b>", fontSize=10.5, textColor=_col, alignment=TA_RIGHT, leading=13),
+        ])
+    plain_tbl = PlTable(plain_rows, colWidths=[W * 0.07, W * 0.6, W * 0.33])
+    plain_tbl.setStyle(PlTableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    net_tbl = PlTable(
+        [[P(_net_label, fontSize=8, textColor=colors.HexColor("#cbd5e1"), leading=11),
+          P(f"AED {money(abs(_net))}", fontSize=13.5, fontName="Helvetica-Bold",
+            textColor=colors.HexColor("#4ade80") if _net >= 0 else colors.HexColor("#fca5a5"),
+            alignment=TA_RIGHT, leading=16)]],
+        colWidths=[W * 0.6, W * 0.4],
+    )
+    net_tbl.setStyle(PlTableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LINEABOVE", (0, 0), (-1, 0), 0.7, colors.HexColor("#33506f")),
+        ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    plain_wrap = PlTable(
+        [[P("SEEDHI BAAT — DRIVER KE LIYE", fontSize=7, fontName="Helvetica-Bold",
+            textColor=colors.HexColor("#7dd3fc"), leading=10)],
+         [plain_tbl], [net_tbl]],
+        colWidths=[W],
+    )
+    plain_wrap.setStyle(PlTableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), DARK),
+        ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#1e3a5f")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12), ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING", (0, 0), (0, 0), 11), ("BOTTOMPADDING", (0, 0), (0, 0), 4),
+        ("TOPPADDING", (0, 1), (0, 1), 0), ("BOTTOMPADDING", (0, 1), (0, 1), 0),
+        ("LEFTPADDING", (0, 1), (0, 1), 0), ("RIGHTPADDING", (0, 1), (0, 1), 0),
+        ("TOPPADDING", (0, 2), (0, 2), 4), ("BOTTOMPADDING", (0, 2), (0, 2), 10),
+        ("LEFTPADDING", (0, 2), (0, 2), 0), ("RIGHTPADDING", (0, 2), (0, 2), 0),
+    ]))
+    els.append(plain_wrap)
+    els.append(Spacer(1, 5 * mm))
+
     # ── THREE HEADLINE BOXES ───────────────────────────────
     pending_total = float(soa.get("pending_total") or 0)
+    unpaid_total = float(soa.get("unpaid_total") or 0)
+    salary_owed = float(soa.get("salary_owed") or 0) or round(pending_total + unpaid_total, 2)
     balance = float(soa.get("balance") or 0)
     net = float(soa.get("net_to_driver") or 0)
     company_owes = bool(soa.get("company_owes"))
 
+    owed_bits = []
+    if soa.get("pending_count"):
+        owed_bits.append(f"{soa.get('pending_labels')} not run ({money(pending_total)})")
+    if soa.get("unpaid_count"):
+        owed_bits.append(f"{soa.get('unpaid_labels')} cash abhi nahi diya ({money(unpaid_total)})")
+    owed_note = "  ·  ".join(owed_bits) or "Sab paisa de diya gaya"
+
     box_defs = [
-        ("SALARY NOT YET ISSUED", money(pending_total), BLU,
-         (soa.get("pending_labels") or "All months issued") + (f" ({soa.get('pending_count')} month(s))" if soa.get("pending_count") else "")),
+        ("SALARY BAKI (HAMARE PAAS)", money(salary_owed), BLU, owed_note),
         ("ADVANCE BALANCE", money(balance), GRN if balance <= 0.01 else RED,
          f"Recovered {money(soa.get('recovered'))} of {money(soa.get('given'))}"),
         ("NET " + ("PAYABLE TO DRIVER" if company_owes else "PAYABLE BY DRIVER"), money(abs(net)),
@@ -1207,11 +1291,17 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
     ]]
     for m in soa.get("months", []):
         issued = bool(m.get("issued"))
-        status = "ISSUED" if issued else "NOT RUN"
+        m_unpaid = float(m.get("unpaid") or 0)
+        if not issued:
+            status, status_color = "NOT RUN", RED
+        elif m_unpaid > 0.01:
+            status, status_color = f"ISSUED · {money(m_unpaid)} BAKI", colors.HexColor("#b45309")
+        else:
+            status, status_color = "ISSUED", GRN
         srows.append([
             P(m.get("month", "-"), fontSize=8, textColor=INK),
             P(money(m.get("net")), fontSize=8, textColor=INK, alignment=TA_RIGHT),
-            P(f"<b>{status}</b>", fontSize=7.5, textColor=GRN if issued else RED, alignment=TA_CENTER),
+            P(f"<b>{status}</b>", fontSize=7.5, textColor=status_color, alignment=TA_CENTER),
         ])
     if len(srows) == 1:
         srows.append([P("—", fontSize=8), P("—", fontSize=8, alignment=TA_RIGHT), P("—", fontSize=8, alignment=TA_CENTER)])
@@ -1239,6 +1329,11 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
     if soa.get("pending_count"):
         settle_lines.append(
             f"<b>Not run yet:</b> {soa.get('pending_labels')} — AED {money(pending_total)} salary pending."
+        )
+    if soa.get("unpaid_count"):
+        settle_lines.append(
+            f"<b>Cash abhi nahi diya:</b> {soa.get('unpaid_labels')} — AED {money(unpaid_total)} "
+            f"ka slip ban gaya, payment abhi baaki."
         )
     settle_lines.append(
         "<b>Net position:</b> " + (
