@@ -217,6 +217,13 @@ function getToday() {
 }
 
 function addCard() {
+  // Carry over settings from the current (last) card: supplier, date, VAT toggle
+  var existing = document.querySelectorAll('.bb-card');
+  var prev = existing.length ? existing[existing.length - 1] : null;
+  var prevSupplier = prev ? prev.querySelector('select[name^="batch_supplier_"]').value : '';
+  var prevDate = prev ? (prev.querySelector('input[name^="bd_"]').value || getToday()) : getToday();
+  var prevTax = prev ? prev.querySelector('input[name^="tax_"]').checked : true;
+
   var html = '<div class="bb-card" data-idx="' + cardIdx + '">' +
     '<div class="bb-card-hdr">' +
       '<span class="bb-card-num"><span class="num">' + (document.querySelectorAll('.bb-card').length + 1) + '</span> Bill</span>' +
@@ -272,6 +279,11 @@ function addCard() {
     '</div>' +
   '</div>';
   document.getElementById('billCards').insertAdjacentHTML('beforeend', html);
+  var newCard = document.querySelectorAll('.bb-card');
+  newCard = newCard[newCard.length - 1];
+  if (prevSupplier) newCard.querySelector('select[name^="batch_supplier_"]').value = prevSupplier;
+  newCard.querySelector('input[name^="bd_"]').value = prevDate;
+  newCard.querySelector('input[name^="tax_"]').checked = prevTax;
   cardIdx++;
   renumber();
   updateTotal();
