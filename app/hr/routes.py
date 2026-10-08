@@ -695,7 +695,7 @@ def _kata_truth(db, employee_id: str) -> dict:
     slip_rows = [
         {"salary_month": s["salary_month"],
          "total_deducted": round(float(s["total_deductions"] or 0), 2),
-         "generated_at": s["generated_at"] or ""}
+         "generated_at": str(s["generated_at"] or "")}
         for s in slips
     ]
     total_deducted = round(sum(s["total_deducted"] for s in slip_rows), 2)
