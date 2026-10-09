@@ -824,7 +824,7 @@ def customer_invoice_view(cid, iid):
                 display_notes = lines[1].strip() if len(lines) > 1 else ""
             except Exception:
                 pass
-    return render_template(tmpl, c=c, inv=inv, items=items, company=company, nmdc_meta=nmdc_meta, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total, display_notes=display_notes, so_date=so_date_val)
+    return render_template(tmpl, c=c, inv=inv, items=items, company=company, nmdc_meta=nmdc_meta, sum_taxable=sum_taxable, sum_vat=sum_vat, sum_total=sum_total, display_notes=display_notes, so_date=so_date_val, amount_words=n2w(inv["total_amount"] or 0))
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/pdf")
 def customer_invoice_pdf(cid, iid):
@@ -1304,11 +1304,12 @@ def customer_invoice_pdf(cid, iid):
     WH = colors.white; BG = colors.HexColor("#f8fafc")
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64738b"); C6 = colors.HexColor("#dc2626")
-    DH = colors.HexColor("#1e293b")
     if is_cash:
-        # Cash invoice gets its own look: teal-green accent, no red VAT figures
-        TH = colors.HexColor("#0f766e")
-        DH = colors.HexColor("#115e59")
+        # Cash invoice: same navy/gold palette as the logo (never any VAT wording)
+        TH = colors.HexColor(tc if company else "#0F2B52")
+    DH = TH   # item-table header (Description/Qty/Unit/...) = DARK BLUE
+    # System gold (logo gold / menu accent) — used ONLY on VERTICAL card lines
+    GOLD = colors.HexColor("#f5a83a")
 
     cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
     c_addr = (company["address"] or "") if company else ""
@@ -1400,16 +1401,37 @@ def customer_invoice_pdf(cid, iid):
     else:
         lh = co_p
 
-    rh = Paragraph(
-        f"<b>{'CASH INVOICE' if is_cash else 'TAX INVOICE'}</b><br/>"
-        f"<font size=8 color='#64748b'># {inv_no}<br/>{inv_dt}</font>",
-        S("TI", fontSize=16, fontName="Helvetica-Bold", textColor=TH, leading=20, alignment=TA_RIGHT))
+    _title_txt = "CASH INVOICE" if is_cash else "TAX INVOICE"
+    # Solid title block — flush to the TOP-RIGHT corner, aligned with the logo row
+    title_chip = Table(
+        [[Paragraph(f"<b>{_title_txt}</b>", S("_tichip", fontSize=13.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=17))]],
+        colWidths=[W*0.31])
+    title_chip.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), TH),
+        ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    title_chip.hAlign = "RIGHT"
 
-    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
-    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    rh = Table([
+        [title_chip],
+        [Paragraph(f"#{inv_no}", S("_mn", fontSize=10, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=13))],
+        [Paragraph(f"Date {inv_dt}", S("_md", fontSize=8, textColor=C5, alignment=TA_RIGHT, leading=10))],
+    ], colWidths=[W*0.37])
+    rh.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, 0), 0), ("BOTTOMPADDING", (0, 0), (-1, 0), 3.5),
+        ("TOPPADDING", (0, 1), (-1, 1), 0), ("BOTTOMPADDING", (0, 1), (-1, 1), 1),
+        ("TOPPADDING", (0, 2), (-1, 2), 0), ("BOTTOMPADDING", (0, 2), (-1, 2), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+
+    ht = Table([[lh, rh]], colWidths=[W*0.63, W*0.37])
+    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)]))
     els.append(ht)
 
-    bl = Table([[""]], colWidths=[W], rowHeights=[2])
+    bl = Table([[""]], colWidths=[W], rowHeights=[3])
     bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(bl)
     els.append(Spacer(1, 5*mm))
@@ -1417,36 +1439,58 @@ def customer_invoice_pdf(cid, iid):
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 2. BILL TO / INVOICE INFO — bigger cards
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    def card(title, pairs):
+    def card(title, pairs, hero=None):
+        """Info card — accent left border, tinted background, title underline.
+        pairs: (label, value).  A blank label renders the value full-width
+        (used for address / phone / email lines in the BILL TO card)."""
         cw = W*0.50
         r = [[
-            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=9)),
+            Paragraph(f"<b>{title}</b>", S("_ch", fontSize=7.5, fontName="Helvetica-Bold", textColor=TH, leading=10)),
             Paragraph("", S("_cs", fontSize=2, leading=2)),
         ]]
+        _spans = []
+        if hero:
+            r.append([Paragraph(f"<b>{hero}</b>", S("_hero", fontSize=9.5, fontName="Helvetica-Bold", textColor=C4, leading=12)), ""])
+            _spans.append(("SPAN", (0, 1), (1, 1)))
         for a, b in pairs:
-            r.append([
-                Paragraph(a, S("_cl", fontSize=7, textColor=C5, leading=9.5)),
-                Paragraph(f"{b}", S("_cv", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, leading=10)),
-            ])
+            if not a:
+                r.append([Paragraph(f"{b}", S("_fl", fontSize=7.2, textColor=C4, leading=9.8)), ""])
+                _spans.append(("SPAN", (0, len(r)-1), (1, len(r)-1)))
+            else:
+                r.append([
+                    Paragraph(a, S("_cl", fontSize=7, textColor=C5, leading=9.5)),
+                    Paragraph(f"{b}", S("_cv", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, leading=10)),
+                ])
         t = Table(r, colWidths=[cw*0.25, cw*0.75])
         t.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"TOP"),
             ("TOPPADDING",(0,0),(-1,-1),2.5), ("BOTTOMPADDING",(0,0),(-1,-1),2.5),
-            ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+            ("LEFTPADDING",(0,0),(-1,-1),9), ("RIGHTPADDING",(0,0),(-1,-1),8),
             ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
-        ]))
+            ("LINEBEFORE",(0,0),(0,-1),2.5,GOLD),
+            ("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fbfcfe")),
+            ("LINEBELOW",(0,0),(1,0),0.4,colors.HexColor("#dbe4ee")),
+            ("TOPPADDING",(0,0),(-1,0),3.5), ("BOTTOMPADDING",(0,0),(-1,0),5),
+        ] + _spans))
         return t
 
-    bd = [("Customer", safe(c["customer_name"]))]
-    if not is_cash:
-        # no TRN / tax reference on a cash invoice
-        bd.append(("TRN", safe(c["trn"])))
-    if c["phone"]: bd.append(("Phone", c["phone"]))
-    if c["email"]: bd.append(("Email", c["email"]))
+    # ── BILL TO: big customer name + clean full-width lines (polished) ──
+    bd = []
     if c["address"]:
         addr_display = c["address"].replace(" , Po Box", "<br/>Po Box").replace(", Po Box", "<br/>Po Box")
-        bd.append(("Address", addr_display))
+        bd.append(("", addr_display))
+    if not is_cash:
+        # no TRN / tax reference on a cash invoice
+        bd.append(("", f"<b>TRN:</b> {safe(c['trn'])}"))
+    if c["contact_person"]:
+        bd.append(("", f"Attn: {c['contact_person']}"))
+    if c["phone"]: bd.append(("", f"Phone: {c['phone']}"))
+    if c["email"]: bd.append(("", f"Email: {c['email']}"))
     id_ = [("Invoice #", inv_no), ("Date", inv_dt)]
+    try:
+        if c["payment_terms"]: id_.append(("Payment Terms", c["payment_terms"]))
+    except (IndexError, KeyError, TypeError):
+        pass
     if inv.get("so_no"): id_.append(("SO No.", inv["so_no"]))
     if pdf_so_date: id_.append(("SO Date", pdf_so_date))
     if inv.get("lpo_no"): id_.append(("LPO No.", inv["lpo_no"]))
@@ -1461,7 +1505,7 @@ def customer_invoice_pdf(cid, iid):
     except (IndexError, KeyError):
         pass
 
-    iw = Table([[card("BILL TO", bd), Spacer(1, 3*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 3*mm, W*0.50])
+    iw = Table([[card("BILL TO", bd, hero=safe(c["customer_name"])), Spacer(1, 3*mm), card("INVOICE INFO", id_)]], colWidths=[W*0.50, 3*mm, W*0.50])
     iw.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(iw)
     els.append(Spacer(1, 5*mm))
@@ -1499,28 +1543,28 @@ def customer_invoice_pdf(cid, iid):
         nmdc_ml = nmdc_meta.get("month_label", "") or ""
         nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
-    cw = [9*mm, 40*mm, 20*mm, 12*mm, 16*mm, 20*mm, 13*mm, 19*mm, 19*mm]
+    cw = [8*mm, 56*mm, 16*mm, 11*mm, 18*mm, 20*mm, 12*mm, 20*mm, 20*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
         Paragraph("<b>Qty</b>", S("_h2", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Unit</b>", S("_hu", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
-        Paragraph("<b>Unit Price</b>", S("_h3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
-        Paragraph("<b>Taxable<br/>Amount</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Unit Price<br/>(AED)</b>", S("_h3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>Amount<br/>(AED)</b>", S("_h4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
         Paragraph("<b>VAT %</b>", S("_h5", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
-        Paragraph("<b>VAT Amount</b>", S("_h6", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+        Paragraph("<b>VAT<br/>(AED)</b>", S("_h6", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
         Paragraph("<b>Total<br/>(incl. VAT)</b>", S("_h7", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
     ]
     if is_cash:
         # CASH INVOICE design: no VAT columns at all — wider, cleaner table
-        cw = [9*mm, 66*mm, 20*mm, 16*mm, 28*mm, 29*mm]
+        cw = [8*mm, 88*mm, 16*mm, 12*mm, 26*mm, 30*mm]
         hdr = [
             Paragraph("<b>#</b>", S("_hc0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
             Paragraph("<b>Description</b>", S("_hc1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
             Paragraph("<b>Qty</b>", S("_hc2", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
             Paragraph("<b>Unit</b>", S("_hcu", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
-            Paragraph("<b>Unit Price</b>", S("_hc3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
-            Paragraph("<b>Amount</b>", S("_hc4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+            Paragraph("<b>Unit Price<br/>(AED)</b>", S("_hc3", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
+            Paragraph("<b>Amount<br/>(AED)</b>", S("_hc4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
         ]
     rws = [hdr]
     if is_nmdc:
@@ -1558,9 +1602,9 @@ def customer_invoice_pdf(cid, iid):
         _row = [
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
-            _pc(f"{float(it.get('quantity') or 0):,.4f}", alignment=TA_CENTER),
+            _pc(f"{float(it.get('quantity') or 0):,.2f}", alignment=TA_CENTER),
             _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),
-            _pc(f"{float(it.get('rate') or 0):,.4f}", alignment=TA_RIGHT),
+            _pc(f"{float(it.get('rate') or 0):,.2f}", alignment=TA_RIGHT),
             _pc(f"{amt:,.2f}", alignment=TA_RIGHT),
         ]
         if not is_cash:
@@ -1578,6 +1622,7 @@ def customer_invoice_pdf(cid, iid):
     itt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("BACKGROUND",(0,0),(-1,0),DH), ("TEXTCOLOR",(0,0),(-1,0),WH),
+        ("LINEBELOW",(0,0),(-1,0),1.2,TH),
         ("BOX",(0,0),(-1,-1),0.5,C3),
         ("INNERGRID",(0,0),(-1,-1),0.3,C3),
         ("TOPPADDING",(0,0),(-1,-1),pad_t), ("BOTTOMPADDING",(0,0),(-1,-1),pad_b),
@@ -1592,25 +1637,27 @@ def customer_invoice_pdf(cid, iid):
     tw = 90*mm
     trows = [
         [Paragraph("Sub Total", S("_st", fontSize=9, textColor=C5, leading=12)),
-         Paragraph(f"<b>AED {sub:,.2f}</b>", S("_stv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_RIGHT))],
+         Paragraph(f"<b>AED {float(sub):,.2f}</b>", S("_stv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_RIGHT))],
     ]
     if not is_cash:
         trows.append(
             [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=9, textColor=C5, leading=12)),
-             Paragraph(f"<b>AED {vat:,.2f}</b>", S("_vtv", fontSize=9, fontName="Helvetica-Bold", textColor=C6, leading=12, alignment=TA_RIGHT))]
+             Paragraph(f"<b>AED {float(vat):,.2f}</b>", S("_vtv", fontSize=9, fontName="Helvetica-Bold", textColor=C6, leading=12, alignment=TA_RIGHT))]
         )
     trows.append(
-        [Paragraph("<b>Total</b>" if is_cash else "<b>Total Due</b>", S("_td", fontSize=12, fontName="Helvetica-Bold", textColor=C4, leading=15)),
-         Paragraph(f"<b>AED {tot:,.2f}</b>", S("_tdv", fontSize=13, fontName="Helvetica-Bold", textColor=TH, leading=16, alignment=TA_RIGHT))]
+        [Paragraph("<b>Total</b>" if is_cash else "<b>Total Due</b>", S("_td", fontSize=10.5, fontName="Helvetica-Bold", textColor=colors.white, leading=14)),
+         Paragraph(f"<b>AED {float(tot):,.2f}</b>", S("_tdv", fontSize=12, fontName="Helvetica-Bold", textColor=colors.white, leading=15, alignment=TA_RIGHT))]
     )
     _tot_row = len(trows) - 1
-    tt = Table(trows, colWidths=[tw*0.40, tw*0.60])
+    tt = Table(trows, colWidths=[tw*0.45, tw*0.55])
     tt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),2), ("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ("LINEABOVE",(0,0),(-1,0),1.5,TH),
+        ("TOPPADDING",(0,0),(-1,-1),2.5), ("BOTTOMPADDING",(0,0),(-1,-1),2.5),
         ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
         ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
-        ("LINEABOVE",(0,_tot_row),(-1,_tot_row),1.5,TH),
+        ("BACKGROUND",(0,_tot_row),(-1,_tot_row),TH),
+        ("TOPPADDING",(0,_tot_row),(-1,_tot_row),5), ("BOTTOMPADDING",(0,_tot_row),(-1,_tot_row),5),
     ]))
 
     ft = Table([["", tt]], colWidths=[W - tw, tw])
@@ -1621,9 +1668,19 @@ def customer_invoice_pdf(cid, iid):
     # 5. AMOUNT IN WORDS
     # ──────────────────────────────────────────────────────────
 
-    els.append(Spacer(1, 4*mm))
-    ab = Table([[Paragraph(f"<b>Amount in Words:</b> {n2w(tot)}", S("AW", fontSize=9, textColor=C4, leading=14))]], colWidths=[W])
-    ab.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),BG),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
+    els.append(Spacer(1, 3*mm))
+    ab = Table([
+        [Paragraph("AMOUNT IN WORDS", S("_awl", fontSize=6.5, fontName="Helvetica-Bold", textColor=TH, leading=9))],
+        [Paragraph(f"<b>{n2w(tot)}</b>", S("_awt", fontSize=8.5, fontName="Helvetica-Bold", textColor=C4, leading=12))],
+    ], colWidths=[W])
+    ab.setStyle(TableStyle([
+        ("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fbfcfe")),
+        ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
+        ("LINEBEFORE",(0,0),(0,-1),2.5,GOLD),
+        ("LEFTPADDING",(0,0),(-1,-1),9),("RIGHTPADDING",(0,0),(-1,-1),9),
+        ("TOPPADDING",(0,0),(-1,0),4),("BOTTOMPADDING",(0,0),(-1,0),0),
+        ("TOPPADDING",(0,1),(-1,1),0),("BOTTOMPADDING",(0,1),(-1,1),5),
+    ]))
     els.append(ab)
 
     display_notes = inv.get("notes", "") or ""
@@ -1648,68 +1705,99 @@ def customer_invoice_pdf(cid, iid):
     if company and (company["bank_name"] or company["bank_account_name"] or company["bank_account_number"] or company["iban"]):
         bk_items = []
         if company["bank_name"]: bk_items.append(("Bank", company["bank_name"]))
-        if company["bank_account_name"]: bk_items.append(("Account", company["bank_account_name"]))
+        if company["bank_account_name"]: bk_items.append(("Account Name", company["bank_account_name"]))
         if company["bank_account_number"]: bk_items.append(("A/C No.", company["bank_account_number"]))
         if company["iban"]: bk_items.append(("IBAN", company["iban"]))
-        if company["swift_code"]: bk_items.append(("Swift", company["swift_code"]))
+        if company["swift_code"]: bk_items.append(("SWIFT / BIC", company["swift_code"]))
         if bk_items:
             els.append(Spacer(1, 3*mm))
-            els.append(Paragraph("<b>BANK DETAILS</b>", S("BD", fontSize=7, fontName="Helvetica-Bold", textColor=C5, leading=9, spaceAfter=2)))
-            bk_rows = [[
-                Paragraph(f"<font color='#64748b'>{lbl}:</font>", S("_bkl", fontSize=7, textColor=C5, leading=9)),
-                Paragraph(f"<b>{val}</b>", S("_bkv", fontSize=7, fontName="Helvetica-Bold", textColor=C4, leading=9)),
-            ] for lbl, val in bk_items]
-            bkt = Table(bk_rows, colWidths=[20*mm, W - 20*mm])
+            # compact 2-column layout: label/value pairs side by side
+            bk_rows = [[Paragraph("PAYMENT / BANK DETAILS", S("_bdh", fontSize=7, fontName="Helvetica-Bold", textColor=colors.white, leading=10)), "", "", ""]]
+            _half = (len(bk_items) + 1) // 2
+            _va = (W - 36*mm) / 2
+            for _i in range(_half):
+                _l = bk_items[_i]
+                _r = bk_items[_i + _half] if (_i + _half) < len(bk_items) else None
+                _row = [
+                    Paragraph(f"<font color='#64748b'>{_l[0]}</font>", S("_bkl", fontSize=6.8, textColor=C5, leading=9.5)),
+                    Paragraph(f"<b>{_l[1]}</b>", S("_bkv", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, leading=10)),
+                ]
+                if _r:
+                    _row += [
+                        Paragraph(f"<font color='#64748b'>{_r[0]}</font>", S("_bkl2", fontSize=6.8, textColor=C5, leading=9.5)),
+                        Paragraph(f"<b>{_r[1]}</b>", S("_bkv2", fontSize=7.5, fontName="Helvetica-Bold", textColor=C4, leading=10)),
+                    ]
+                else:
+                    _row += ["", ""]
+                bk_rows.append(_row)
+            bkt = Table(bk_rows, colWidths=[17*mm, _va, 17*mm, _va])
             bkt.setStyle(TableStyle([
-                ("VALIGN",(0,0),(-1,-1),"TOP"),
-                ("TOPPADDING",(0,0),(-1,-1),1), ("BOTTOMPADDING",(0,0),(-1,-1),1),
-                ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+                ("SPAN",(0,0),(-1,0)),
+                ("BACKGROUND",(0,0),(-1,0),TH),
+                ("BACKGROUND",(0,1),(-1,-1),colors.HexColor("#fbfcfe")),
+                ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
+                ("LINEBEFORE",(2,1),(2,-1),0.3,colors.HexColor("#e8eef6")),
+                ("LINEBELOW",(0,1),(-1,-2),0.3,colors.HexColor("#e8eef6")),
+                ("LINEBEFORE",(0,0),(0,-1),2.5,GOLD),
+                ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+                ("TOPPADDING",(0,0),(-1,-1),2.5), ("BOTTOMPADDING",(0,0),(-1,-1),2.5),
+                ("LEFTPADDING",(0,0),(-1,-1),7), ("RIGHTPADDING",(0,0),(-1,-1),7),
+                ("TOPPADDING",(0,0),(-1,0),4), ("BOTTOMPADDING",(0,0),(-1,0),4),
             ]))
             els.append(bkt)
 
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 7. SIGNATURES — stamp & sign side by side
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    els.append(Spacer(1, 4*mm))
-    sg = ParagraphStyle("SG", fontSize=8, alignment=TA_CENTER, leading=11)
+    els.append(Spacer(1, 3*mm))
+    sg = ParagraphStyle("SG", fontSize=7.5, alignment=TA_CENTER, leading=10, textColor=C5)
+    sg_cap = ParagraphStyle("SGC", fontName="Helvetica-Bold", fontSize=7, alignment=TA_CENTER, leading=10, textColor=TH)
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
     auth_img = []
     if os.path.exists(stamp_path):
-        auth_img.append(Image(stamp_path, width=60, height=60))
+        auth_img.append(Image(stamp_path, width=48, height=48))
     if os.path.exists(sign_path):
-        auth_img.append(Image(sign_path, width=60, height=60))
+        auth_img.append(Image(sign_path, width=48, height=48))
     if auth_img:
-        auth_imgs = Table([auth_img], colWidths=[60]*len(auth_img))
+        auth_imgs = Table([auth_img], colWidths=[52]*len(auth_img))
         auth_imgs.setStyle(TableStyle([
             ("ALIGN",(0,0),(-1,-1),"CENTER"),
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
             ("LEFTPADDING",(0,0),(-1,-1),2), ("RIGHTPADDING",(0,0),(-1,-1),2),
+            ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),2),
         ]))
+        auth_imgs.hAlign = "CENTER"
     else:
-        auth_imgs = Paragraph("", sg)
-    auth_cell = Table([
-        [Paragraph("_________________________", sg)],
-        [auth_imgs],
-        [Paragraph("<b>Authorized Signatory</b>", sg)],
-    ], colWidths=[W*0.38])
-    auth_cell.setStyle(TableStyle([
-        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),0),
-        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
-    ]))
-    auth_cell.setStyle(TableStyle([
-        ("ALIGN",(0,0),(-1,-1),"CENTER"),
-        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("TOPPADDING",(0,0),(-1,-1),0), ("BOTTOMPADDING",(0,0),(-1,-1),1),
-    ]))
-    sgt = Table([[
-        auth_cell,
-        Paragraph("", sg),
-    ]], colWidths=[W*0.50, W*0.50])
+        auth_imgs = Spacer(1, 50)
+
+    def _sig_cell(caption, extra_h=0, bold_line=False):
+        cell = Table([
+            [Paragraph(caption, sg_cap)],
+            [auth_imgs if extra_h <= 0 else Spacer(1, extra_h)],
+            [Paragraph("_______________________________", sg)],
+            [Paragraph("<b>Authorized Signatory</b>" if bold_line else "<b>Name, Designation &amp; Date</b>", sg)],
+        ], colWidths=[W*0.44])
+        cell.setStyle(TableStyle([
+            ("ALIGN",(0,0),(-1,-1),"CENTER"),
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("TOPPADDING",(0,0),(-1,-1),0.5), ("BOTTOMPADDING",(0,0),(-1,-1),0.5),
+            ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+            ("TOPPADDING",(0,0),(-1,0),2), ("BOTTOMPADDING",(0,-1),(-1,-1),2),
+        ]))
+        cell.hAlign = "CENTER"
+        return cell
+
+    auth_cell = _sig_cell("FOR &amp; ON BEHALF OF THE COMPANY", 0, bold_line=True)
+    cust_cell = _sig_cell("CUSTOMER ACKNOWLEDGEMENT", 52, bold_line=False)
+    sgt = Table([[auth_cell, cust_cell]], colWidths=[W*0.50, W*0.50])
     sgt.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"TOP"),
-        ("LINEABOVE",(0,0),(0,0),0.5,C5), ("LINEABOVE",(1,0),(1,0),0.5,C5),
-        ("LEFTPADDING",(0,0),(-1,-1),0), ("RIGHTPADDING",(0,0),(-1,-1),0),
+        ("BOX",(0,0),(-1,-1),0.5,colors.HexColor("#e2e8f0")),
+        ("LINEBEFORE",(1,0),(1,0),0.5,colors.HexColor("#e2e8f0")),
+        ("BACKGROUND",(0,0),(-1,-1),colors.HexColor("#fbfcfe")),
+        ("LEFTPADDING",(0,0),(-1,-1),4), ("RIGHTPADDING",(0,0),(-1,-1),4),
+        ("TOPPADDING",(0,0),(-1,-1),5), ("BOTTOMPADDING",(0,0),(-1,-1),6),
     ]))
     els.append(sgt)
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

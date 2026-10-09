@@ -13,14 +13,14 @@
 .inv-title h1 { margin:0; font-size:1.5rem; font-weight:800; color:var(--primary); letter-spacing:1px; }
 .inv-title .meta { font-size:0.8rem; color:var(--muted); margin-top:2px; }
 .inv-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
-.inv-info-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+.inv-info-card { background:#fff; border:1.5px solid #e2e8f0; border-left:3px solid #f5a83a; border-radius:10px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
 .inv-info-card h4 { margin:0 0 8px; font-size:0.6rem; text-transform:uppercase; color:#94a3b8; letter-spacing:0.7px; font-weight:700; }
 .inv-customer-name { font-size:0.88rem; font-weight:600; color:#0f172a; margin-bottom:6px; line-height:1.35; }
 .inv-info-line { font-size:0.76rem; padding:2px 0; color:#475569; line-height:1.4; }
 .inv-info-line .lbl { color:#94a3b8; display:inline-block; min-width:80px; }
 .inv-info-line .val { color:#0f172a; font-weight:600; }
 .inv-table { width:100%; border-collapse:collapse; margin-bottom:16px; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.inv-table thead { background:#1e293b; }
+.inv-table thead { background:var(--primary); }
 .inv-table th { padding:14px 12px; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.6px; color:#fff; font-weight:700; white-space:nowrap; }
 .inv-table td { padding:14px 12px; font-size:0.85rem; border-bottom:1px solid #f1f5f9; }
 .inv-table tbody tr:nth-child(even) { background:#f8fafc; }
@@ -37,16 +37,14 @@
     .btn,.btn-primary,.btn-outline { display:none !important; }
     .inv-box { border:none; padding:0; }
 }
-/* ─── Cash invoice: own look, never any VAT ─── */
-.cash-inv { border-color:#0f766e; }
-.cash-inv .inv-header { border-bottom-color:#0f766e; }
-.cash-inv .inv-title h1 { color:#0f766e; }
-.cash-inv .inv-table thead { background:#115e59; }
-.cash-inv .inv-info-card { border-color:#a7f3d0; }
+/* ─── Cash invoice: same navy/gold as the logo, never any VAT ─── */
+.cash-inv { border-color:#0F2B52; }
+.cash-inv .inv-title h1 { color:#0F2B52; }
+.cash-inv .inv-table thead { background:#16345f; }
 </style>
 
 {% set is_cash = (inv.invoice_type or 'vat') == 'cash' %}
-<div class="inv-box{{ ' cash-inv' if is_cash }}" style="{% if is_cash %}--primary:#0f766e{% elif company and company.theme_color %}--primary:{{ company.theme_color }}{% endif %};font-size:0.88rem">
+<div class="inv-box{{ ' cash-inv' if is_cash }}" style="{% if is_cash %}--primary:#0F2B52{% elif company and company.theme_color %}--primary:{{ company.theme_color }}{% endif %};font-size:0.88rem">
     {# ─── HEADER ─── #}
     <div class="inv-header">
         <div class="inv-company" style="display:flex;gap:16px;align-items:flex-start">
@@ -62,9 +60,10 @@
                 {% if not is_cash %}<div class="detail" style="font-size:0.85rem;font-weight:700">TRN: {{ company.trn_no if company else "XXXXXXXXXX" }}</div>{% endif %}
             </div>
         </div>
-        <div class="inv-title" style="min-width:200px">
-            <h1 style="font-size:1.9rem;letter-spacing:1.5px">{{ 'CASH INVOICE' if is_cash else 'TAX INVOICE' }}</h1>
-            <div class="meta" style="font-size:0.9rem;margin-top:6px"># {{ inv.invoice_no }} &middot; {{ inv.invoice_date }}</div>
+        <div class="inv-title" style="min-width:240px;text-align:right">
+            <div style="display:inline-block;background:var(--primary);color:#fff;font-size:1.2rem;font-weight:800;letter-spacing:3px;padding:11px 24px;border-radius:8px;box-shadow:0 3px 10px rgba(15,23,42,0.18)">{{ 'CASH INVOICE' if is_cash else 'TAX INVOICE' }}</div>
+            <div style="font-size:1rem;margin-top:10px;font-weight:800;color:#0f172a;letter-spacing:.5px"># {{ inv.invoice_no }}</div>
+            <div style="font-size:0.85rem;color:#64748b;margin-top:1px">Date {{ inv.invoice_date }}</div>
         </div>
     </div>
 
@@ -73,15 +72,17 @@
         <div class="inv-info-card">
             <h4>Bill To</h4>
             <div class="inv-customer-name">{{ c.customer_name }}</div>
-            {% if c.address %}<div class="inv-info-line">{{ c.address }}</div>{% endif %}
-            {% if c.trn and not is_cash %}<div class="inv-info-line"><span class="lbl">TRN:</span> <span class="val">{{ c.trn }}</span></div>{% endif %}
-            {% if c.phone %}<div class="inv-info-line"><span class="lbl">Phone:</span> <span class="val">{{ c.phone }}</span></div>{% endif %}
-            {% if c.email %}<div class="inv-info-line"><span class="lbl">Email:</span> <span class="val">{{ c.email }}</span></div>{% endif %}
+            {% if c.address %}<div class="inv-info-line" style="line-height:1.5">{{ c.address }}</div>{% endif %}
+            {% if c.trn and not is_cash %}<div class="inv-info-line" style="margin-top:5px"><b>TRN:</b> <span class="val">{{ c.trn }}</span></div>{% endif %}
+            {% if c.contact_person %}<div class="inv-info-line" style="margin-top:5px">Attn: <span class="val">{{ c.contact_person }}</span></div>{% endif %}
+            {% if c.phone %}<div class="inv-info-line">Phone: <span class="val">{{ c.phone }}</span></div>{% endif %}
+            {% if c.email %}<div class="inv-info-line">Email: <span class="val">{{ c.email }}</span></div>{% endif %}
         </div>
         <div class="inv-info-card">
             <h4>Invoice Details</h4>
             <div class="inv-info-line"><span class="lbl">Invoice #:</span> <span class="val">{{ inv.invoice_no }}</span></div>
             <div class="inv-info-line"><span class="lbl">Date:</span> <span class="val">{{ inv.invoice_date }}</span></div>
+            {% if c.payment_terms %}<div class="inv-info-line"><span class="lbl">Payment Terms:</span> <span class="val">{{ c.payment_terms }}</span></div>{% endif %}
             {% if inv.lpo_no %}<div class="inv-info-line"><span class="lbl">LPO No.:</span> <span class="val">{{ inv.lpo_no }}</span></div>{% endif %}
             {% if inv.lpo_date %}<div class="inv-info-line"><span class="lbl">LPO Date:</span> <span class="val">{{ inv.lpo_date }}</span></div>{% endif %}
             {% if inv.so_no %}<div class="inv-info-line"><span class="lbl">SO No.:</span> <span class="val">{{ inv.so_no }}</span></div>{% endif %}
@@ -95,17 +96,17 @@
         <thead>
             <tr>
                 <th style="text-align:center;width:36px">#</th>
-                <th style="text-align:left">Description</th>
+                <th style="text-align:left;min-width:260px">Description</th>
+                <th style="text-align:center;width:70px">Qty</th>
                 <th style="text-align:center;width:60px">Unit</th>
-                <th style="text-align:right;width:70px">QTY</th>
-                <th style="text-align:right;width:85px">Unit Price</th>
+                <th style="text-align:right;width:95px">Unit Price (AED)</th>
                 {% if is_cash %}
-                <th style="text-align:right;width:110px">Amount</th>
+                <th style="text-align:right;width:110px">Amount (AED)</th>
                 {% else %}
-                <th style="text-align:right;width:90px">Taxable Amt</th>
+                <th style="text-align:right;width:95px">Amount (AED)</th>
                 <th style="text-align:center;width:52px">VAT %</th>
-                <th style="text-align:right;width:80px">VAT Amt</th>
-                <th style="text-align:right;width:95px">Total Incl.</th>
+                <th style="text-align:right;width:85px">VAT (AED)</th>
+                <th style="text-align:right;width:105px">Total (incl. VAT)</th>
                 {% endif %}
             </tr>
         </thead>
@@ -117,9 +118,9 @@
             <tr>
                 <td style="text-align:center;font-weight:700;color:#64748b;font-size:0.9rem">{{ loop.index }}</td>
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
+                <td style="text-align:center;font-family:mono;font-weight:600">{{ "%.2f" % it.quantity }}</td>
                 <td style="text-align:center;color:#475569;font-weight:600">{{ it.get('unit') or 'hr' }}</td>
-                <td style="text-align:right;font-family:mono;font-weight:600">{{ "%.4f" % it.quantity }}</td>
-                <td style="text-align:right;font-family:mono">{{ "%.4f" % it.rate }}</td>
+                <td style="text-align:right;font-family:mono">{{ "%.2f" % it.rate }}</td>
                 {% if is_cash %}
                 <td style="text-align:right;font-weight:800;font-family:mono;color:#0f172a;font-size:0.9rem">{{ "%.2f" % it.amount }}</td>
                 {% else %}
@@ -143,9 +144,15 @@
             <span style="color:#64748b">VAT @ {{ "%.0f" % inv.vat_percent }}%</span><span class="mono" style="font-weight:600;color:#dc2626">AED {{ "%.2f" % inv.vat_amount }}</span>
         </div>
         {% endif %}
-        <div style="display:flex;justify-content:space-between;padding:8px 0 4px;border-top:2px solid {% if is_cash %}#0f766e{% else %}#1e293b{% endif %};margin-top:6px;font-size:1.05rem">
-            <span style="font-weight:700;color:#0f172a">{{ 'Total' if is_cash else 'Total Due' }}</span><span class="mono" style="font-weight:800;font-size:1.2rem;color:var(--primary)">AED {{ "%.2f" % inv.total_amount }}</span>
+        <div style="display:flex;justify-content:space-between;padding:9px 14px;margin-top:8px;background:{% if is_cash %}var(--primary){% else %}var(--primary){% endif %};border-radius:8px;color:#fff">
+            <span style="font-weight:800;font-size:0.95rem;letter-spacing:.5px">{{ 'Total' if is_cash else 'Total Due' }}</span><span class="mono" style="font-weight:800;font-size:1.15rem">AED {{ "%.2f" % inv.total_amount }}</span>
         </div>
+    </div>
+
+    {# ─── AMOUNT IN WORDS ─── #}
+    <div style="border:1.5px solid #e2e8f0;border-left:3px solid #f5a83a;border-radius:10px;background:#fbfcfe;padding:10px 14px;margin-bottom:16px">
+        <div style="font-size:0.6rem;letter-spacing:.8px;text-transform:uppercase;font-weight:800;color:{% if is_cash %}var(--primary){% else %}var(--primary){% endif %}">Amount in Words</div>
+        <div style="font-size:0.9rem;font-weight:700;color:#0f172a;margin-top:3px;line-height:1.4">{{ amount_words }}</div>
     </div>
 
     {# ─── NOTES ─── #}
@@ -157,27 +164,35 @@
 
     {# ─── BANK DETAILS ─── #}
     {% if company and (company.bank_name or company.bank_account_name or company.bank_account_number or company.iban) %}
-    <div style="margin-bottom:14px;padding:12px 15px;background:#fff;border-radius:10px;border:1.5px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
-        <h4 style="margin:0 0 8px;font-size:0.6rem;text-transform:uppercase;color:#94a3b8;letter-spacing:0.7px;font-weight:700">Bank Details</h4>
-        <div style="font-size:0.76rem">
-            {% if company.bank_name %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Bank:</span><span style="color:#0f172a;font-weight:500">{{ company.bank_name }}</span></div>{% endif %}
-            {% if company.bank_account_name %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Account:</span><span style="color:#0f172a;font-weight:500">{{ company.bank_account_name }}</span></div>{% endif %}
-            {% if company.bank_account_number %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">A/C No.:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.bank_account_number }}</span></div>{% endif %}
-            {% if company.iban %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">IBAN:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.iban }}</span></div>{% endif %}
-            {% if company.swift_code %}<div style="display:flex;gap:8px;padding:2px 0"><span style="color:#94a3b8;min-width:90px">Swift:</span><span style="color:#0f172a;font-weight:500" class="mono">{{ company.swift_code }}</span></div>{% endif %}
+    <div style="margin-bottom:14px;border:1.5px solid #e2e8f0;border-left:3px solid #f5a83a;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+        <div style="background:{% if is_cash %}var(--primary){% else %}var(--primary){% endif %};color:#fff;padding:7px 15px;font-size:0.62rem;text-transform:uppercase;letter-spacing:.9px;font-weight:800">Payment / Bank Details</div>
+        <div style="font-size:0.78rem;padding:8px 15px 11px;background:#fbfcfe">
+            {% if company.bank_name %}<div style="display:flex;gap:10px;padding:3px 0"><span style="color:#94a3b8;min-width:105px">Bank</span><span style="color:#0f172a;font-weight:700">{{ company.bank_name }}</span></div>{% endif %}
+            {% if company.bank_account_name %}<div style="display:flex;gap:10px;padding:3px 0"><span style="color:#94a3b8;min-width:105px">Account Name</span><span style="color:#0f172a;font-weight:700">{{ company.bank_account_name }}</span></div>{% endif %}
+            {% if company.bank_account_number %}<div style="display:flex;gap:10px;padding:3px 0"><span style="color:#94a3b8;min-width:105px">A/C No.</span><span style="color:#0f172a;font-weight:800" class="mono">{{ company.bank_account_number }}</span></div>{% endif %}
+            {% if company.iban %}<div style="display:flex;gap:10px;padding:3px 0"><span style="color:#94a3b8;min-width:105px">IBAN</span><span style="color:#0f172a;font-weight:800" class="mono">{{ company.iban }}</span></div>{% endif %}
+            {% if company.swift_code %}<div style="display:flex;gap:10px;padding:3px 0"><span style="color:#94a3b8;min-width:105px">SWIFT / BIC</span><span style="color:#0f172a;font-weight:700" class="mono">{{ company.swift_code }}</span></div>{% endif %}
         </div>
     </div>
     {% endif %}
 
     {# ─── SIGNATURES ─── #}
-    <div style="display:flex;justify-content:space-between;margin:32px 0 16px;gap:60px">
-        <div style="text-align:center;flex:1">
-            <div style="border-top:1px solid #999;width:100%;margin-bottom:6px;padding-top:8px"></div>
-            <img src="{{ url_for('static', filename='Stamp.png') }}" alt="Stamp" style="width:50px;height:50px;object-fit:contain;margin:4px 0">
-            <img src="{{ url_for('static', filename='Sign (1).png') }}" alt="Sign" style="width:50px;height:50px;object-fit:contain;margin:4px 0">
-            <div style="font-size:0.82rem;font-weight:600">Authorized Signatory</div>
+    <div style="display:flex;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;background:#fbfcfe;margin:20px 0 14px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+        <div style="flex:1;padding:14px 16px;text-align:center;border-right:1px solid #e2e8f0">
+            <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.8px;font-weight:800;color:{% if is_cash %}var(--primary){% else %}var(--primary){% endif %}">For &amp; On Behalf of the Company</div>
+            <div style="margin:10px 0 6px">
+                <img src="{{ url_for('static', filename='Stamp.png') }}" alt="Stamp" style="width:52px;height:52px;object-fit:contain;margin:2px 3px">
+                <img src="{{ url_for('static', filename='Sign (1).png') }}" alt="Sign" style="width:52px;height:52px;object-fit:contain;margin:2px 3px">
+            </div>
+            <div style="border-top:1px solid #94a3b8;width:75%;margin:8px auto 7px"></div>
+            <div style="font-size:0.8rem;font-weight:700;color:#0f172a">Authorized Signatory</div>
         </div>
-        <div style="text-align:center;flex:1"></div>
+        <div style="flex:1;padding:14px 16px;text-align:center">
+            <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.8px;font-weight:800;color:{% if is_cash %}var(--primary){% else %}var(--primary){% endif %}">Customer Acknowledgement</div>
+            <div style="height:56px"></div>
+            <div style="border-top:1px solid #94a3b8;width:75%;margin:8px auto 7px"></div>
+            <div style="font-size:0.8rem;font-weight:700;color:#0f172a">Name, Designation &amp; Date</div>
+        </div>
     </div>
 
     {# ─── ACTIONS ─── #}
