@@ -43,6 +43,10 @@
     .btn,.btn-primary,.btn-outline { display:none !important; }
     .inv-box { border:none; padding:0; }
 }
+/* Title block anchored in the TOP-RIGHT corner of the invoice card (2026 premium look) */
+.inv-chip { display:inline-block; background:var(--primary); color:#fff; font-size:1.2rem; font-weight:800; letter-spacing:3px; padding:11px 26px; border-radius:0 14px 0 10px; margin:-30px -32px 0 0; }
+@media (max-width:600px) { .inv-chip { margin:-16px -16px 0 0; } }
+@media print { .inv-chip { margin:0; } }
 /* ─── Cash invoice: same navy/gold as the logo, never any VAT ─── */
 .cash-inv { border-color:#0F2B52; }
 .cash-inv .inv-title h1 { color:#0F2B52; }
@@ -60,14 +64,14 @@
             </div>
             {% endif %}
             <div style="padding-top:{% if company and company.logo_data %}4px{% else %}0{% endif %}">
-                <h2 style="font-size:1.6rem;font-weight:800;line-height:1.2">{{ company.company_name if company else "AL SAQR TRANSPORT" }}</h2>
+                <h2 style="font-size:1.25rem;font-weight:800;line-height:1.3;letter-spacing:-0.01em">{{ company.company_name if company else "AL SAQR TRANSPORT" }}</h2>
                 <div class="detail" style="font-size:0.85rem;margin-top:4px">{{ company.address if company else "Dubai, UAE" }}</div>
                 <div class="detail" style="font-size:0.85rem">Phone: {{ company.phone_number or "+971" if company else "+971" }} &middot; Email: {{ company.email if company else "info@example.ae" }}</div>
                 {% if not is_cash %}<div class="detail" style="font-size:0.85rem;font-weight:700">TRN: {{ company.trn_no if company else "XXXXXXXXXX" }}</div>{% endif %}
             </div>
         </div>
         <div class="inv-title" style="min-width:240px;text-align:right">
-            <div style="display:inline-block;background:var(--primary);color:#fff;font-size:1.2rem;font-weight:800;letter-spacing:3px;padding:11px 24px;border-radius:8px;box-shadow:0 3px 10px rgba(15,23,42,0.18)">{{ 'CASH INVOICE' if is_cash else 'TAX INVOICE' }}</div>
+            <div class="inv-chip">{{ 'CASH INVOICE' if is_cash else 'TAX INVOICE' }}</div>
             <div style="font-size:1rem;margin-top:10px;font-weight:800;color:#0f172a;letter-spacing:.5px"># {{ inv.invoice_no }}</div>
             <div style="font-size:0.85rem;color:#64748b;margin-top:1px">Date {{ inv.invoice_date }}</div>
         </div>

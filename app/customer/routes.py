@@ -1370,8 +1370,8 @@ def customer_invoice_pdf(cid, iid):
     if not is_cash:
         # cash invoices carry no VAT / TRN reference
         ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
-    ci_html = f"<font size=14><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
-    co_p = Paragraph(ci_html, S("CO", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=17))
+    ci_html = f"<font size=11><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
+    co_p = Paragraph(ci_html, S("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=14))
 
     logo_w = 0; logo_h = 0
     if _logo_tmp_files:
