@@ -895,7 +895,7 @@ def customer_invoice_pdf(cid, iid):
         W2 = A4[0] - LM2 - RM2
 
         # â”€â”€ Footer callback: drawn on every page at the bottom margin â”€â”€
-        cn2 = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+        cn2 = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC"
         c_addr2 = (company["address"] or "") if company else ""
         c_ph2 = (company["phone_number"] or "") if company else ""
         c_em2 = (company["email"] or "") if company else ""
@@ -1311,7 +1311,7 @@ def customer_invoice_pdf(cid, iid):
     # System gold (logo gold / menu accent) — used ONLY on VERTICAL card lines
     GOLD = colors.HexColor("#f5a83a")
 
-    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC"
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""
@@ -1543,7 +1543,8 @@ def customer_invoice_pdf(cid, iid):
         nmdc_ml = nmdc_meta.get("month_label", "") or ""
         nmdc_eq_periods = nmdc_meta.get("eq_periods", []) or []
 
-    cw = [8*mm, 56*mm, 16*mm, 11*mm, 18*mm, 20*mm, 12*mm, 20*mm, 20*mm]
+    # Columns sized so big figures (e.g. 10,000.00 / 809,512.87) fit on ONE line
+    cw = [8*mm, 53*mm, 17*mm, 11*mm, 19*mm, 21*mm, 11*mm, 21*mm, 21*mm]
     hdr = [
         Paragraph("<b>#</b>", S("_h0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
         Paragraph("<b>Description</b>", S("_h1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
@@ -1557,7 +1558,7 @@ def customer_invoice_pdf(cid, iid):
     ]
     if is_cash:
         # CASH INVOICE design: no VAT columns at all — wider, cleaner table
-        cw = [8*mm, 88*mm, 16*mm, 12*mm, 26*mm, 30*mm]
+        cw = [8*mm, 84*mm, 17*mm, 12*mm, 27*mm, 34*mm]
         hdr = [
             Paragraph("<b>#</b>", S("_hc0", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=ldr)),
             Paragraph("<b>Description</b>", S("_hc1", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, leading=ldr)),
@@ -1567,6 +1568,24 @@ def customer_invoice_pdf(cid, iid):
             Paragraph("<b>Amount<br/>(AED)</b>", S("_hc4", fontSize=fs, fontName="Helvetica-Bold", textColor=WH, alignment=TA_RIGHT, leading=ldr)),
         ]
     rws = [hdr]
+
+    def _num(t, col, align=TA_RIGHT, bold=False, **kw):
+        """Numeric cell — shrink the font until the figure fits on ONE line.
+        Never wraps a digit to the next line (e.g. 809,512.87 must stay whole)."""
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        txt = str(t)
+        font = "Helvetica-Bold" if bold else "Helvetica"
+        avail = float(cw[col]) - 7.0          # column minus left/right padding
+        f = fs
+        while f > 4.5 and stringWidth(txt, font, f) > avail:
+            f -= 0.25
+        kw.setdefault("fontSize", f)
+        kw.setdefault("leading", f * 1.2)
+        kw.setdefault("alignment", align)
+        if bold:
+            kw.setdefault("fontName", font)
+        return Paragraph(txt, S("_num", **kw))
+
     if is_nmdc:
         # Row 1: Main description
         rws.append([
@@ -1602,20 +1621,20 @@ def customer_invoice_pdf(cid, iid):
         _row = [
             _pc(str(idx + (2 if is_nmdc else 1)), alignment=TA_CENTER, fontName="Helvetica-Bold"),
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
-            _pc(f"{float(it.get('quantity') or 0):,.2f}", alignment=TA_CENTER),
+            _num(f"{float(it.get('quantity') or 0):,.2f}", 2, align=TA_CENTER),
             _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),
-            _pc(f"{float(it.get('rate') or 0):,.2f}", alignment=TA_RIGHT),
-            _pc(f"{amt:,.2f}", alignment=TA_RIGHT),
+            _num(f"{float(it.get('rate') or 0):,.2f}", 4),
+            _num(f"{amt:,.2f}", 5),
         ]
         if not is_cash:
             _row.extend([
                 _pc(f"{vp_item:.2f}%", alignment=TA_CENTER),
-                _pc(f"{va_item:,.2f}", alignment=TA_RIGHT, textColor=C6),
-                Paragraph(f"<b>{ti_item:,.2f}</b>", S("_b", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr)),
+                _num(f"{va_item:,.2f}", 7, textColor=C6),
+                _num(f"{ti_item:,.2f}", 8, bold=True),
             ])
         else:
             # cash invoice: single Amount column, no VAT figures anywhere
-            _row[5] = Paragraph(f"<b>{amt:,.2f}</b>", S("_bca", fontSize=fs, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=ldr))
+            _row[5] = _num(f"{amt:,.2f}", 5, bold=True)
         rws.append(_row)
 
     itt = Table(rws, colWidths=cw, repeatRows=1)
@@ -2512,7 +2531,7 @@ def customer_quotation_pdf(cid, qid):
     C3 = colors.HexColor("#e2e8f0"); C4 = colors.HexColor("#0f172a")
     C5 = colors.HexColor("#64748b"); C6 = colors.HexColor("#dc2626")
 
-    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+    cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC"
     c_addr = (company["address"] or "") if company else ""
     c_ph = (company["phone_number"] or "") if company else ""
     c_em = (company["email"] or "") if company else ""

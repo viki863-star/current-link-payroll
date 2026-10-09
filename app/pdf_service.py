@@ -248,7 +248,7 @@ def generate_lpo_pdf(company, party, lpo: dict, assets_dir: str, output_dir: str
     pdf.setFont("Helvetica", 6.8)
     pdf.drawString(15 * mm, 20 * mm,
                    f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}  |  "
-                   f"{company.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')}  |  "
+                   f"{company.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC')}  |  "
                    f"TRN: {company.get('trn_no') or '-'}")
     _draw_footer_banner(pdf, assets_dir, True, company_profile)
 
@@ -589,7 +589,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         return PlParagraph(str(t), F("_R", **kw))
 
     els = []
-    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")
     trn = cp.get("trn_no") or "—"
 
     # ═══ HEADER ═══
@@ -851,7 +851,7 @@ def generate_simple_kata_pdf(driver, salary_row, unpaid_salary_rows, advances, p
         return PlParagraph(str(t), F("_R", **kw))
 
     els = []
-    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")
     trn = cp.get("trn_no") or "—"
 
     # ═══ HEADER ═══
@@ -1064,7 +1064,7 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
         except Exception:
             pass
 
-    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")
     parts = [x for x in [cp.get("address"), cp.get("phone_number"), cp.get("email")] if x]
     cl = [f"<font size=10.5><b>{cn}</b></font>"]
     if parts:
@@ -1428,7 +1428,7 @@ def generate_owner_fund_pdf(statement_rows, totals, output_dir: str, assets_dir:
         return Paragraph(str(t), F("_R", **kw))
 
     els = []
-    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")
     trn = cp.get("trn_no") or "—"
 
     # ═══ HEADER (matches customer SOA style) ═══
@@ -2500,7 +2500,7 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
         seller_w,
         seller_h,
         "SELLER",
-        company_profile.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"),
+        company_profile.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC"),
         company_profile.get("legal_name") or company_profile.get("company_name") or "-",
         company_profile.get("address") or "-",
         company_profile.get("trn_no") or "-",
@@ -2597,7 +2597,7 @@ def generate_tax_invoice_pdf(company_profile, party, invoice, line_items, output
 
 def _draw_invoice_header(pdf, company_profile, title_text='', logo_size=14*mm):
     company = company_profile or {}
-    c_name = company.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')
+    c_name = company.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC')
     c_addr = company.get('address', '')
     c_ph = company.get('phone_number', '')
     c_em = company.get('email', '')
@@ -2726,7 +2726,7 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
 
     cy = header_y + header_h / 2
 
-    c_name = company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
+    c_name = company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")
     pdf.setFillColor(BLUE_DARK)
     cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 13, text_area_w, min_size=9)
     pdf.setFont("Helvetica-Bold", cname_size)
@@ -3277,7 +3277,7 @@ def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str = "", show_top_rule:
     pdf.setStrokeColor(LINE)
     pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=0, stroke=1)
 
-    c_name = (company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")).upper()
+    c_name = (company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")).upper()
     cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 8, footer_w - 10 * mm, min_size=6)
     pdf.setFillColor(BLUE_DARK)
     pdf.setFont("Helvetica-Bold", cname_size)
@@ -3734,7 +3734,7 @@ def _generate_employee_list_pdf(employees, output_dir: str, company_profile: dic
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     company = company_profile or {}
-    cn = company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
+    cn = company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")
 
     doc = SimpleDocTemplate(
         str(output_path), pagesize=A4,
@@ -4031,7 +4031,7 @@ def generate_deduction_statement_pdf(driver, salary_store_row, slip_row, deducte
         return ParagraphStyle(name, **kw)
 
     els = []
-    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING")
+    cn = cp.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")
     trn = cp.get("trn_no") or "—"
 
     logo = None; LW = 0
@@ -4213,7 +4213,7 @@ def generate_fuel_report_pdf(entries, vehicle_filter, month_filter, output_dir, 
     BG = colors.HexColor('#f4f6f9'); WH = colors.white; C3 = colors.HexColor('#d1d5db')
     C4 = colors.HexColor('#111827'); C5 = colors.HexColor('#6b7280'); RD = colors.HexColor('#c62828')
     els = []
-    cn = cp.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')
+    cn = cp.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC')
     trn = cp.get('trn_no') or '—'
 
     # ═══════════════════════════════════════
@@ -4466,7 +4466,7 @@ def generate_atm_report_pdf(entries, month, year, output_dir, assets_dir='', com
     BG = colors.HexColor('#f4f6f9'); WH = colors.white; C3 = colors.HexColor('#d1d5db')
     C4 = colors.HexColor('#111827'); C5 = colors.HexColor('#6b7280'); RD = colors.HexColor('#c62828')
 
-    cn = cp.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')
+    cn = cp.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC')
     trn = cp.get('trn_no') or '—'
     els = []
 
@@ -4841,7 +4841,7 @@ def generate_annual_fee_receipt_pdf(
     pdf.drawString(
         15 * mm, 24 * mm,
         f"Generated on {datetime.now().strftime('%d-%b-%Y %I:%M %p')}  |  "
-        f"{company.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING')}  |  "
+        f"{company.get('company_name', 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC')}  |  "
         f"TRN: {company.get('trn_no') or '-'}",
     )
     pdf.setFillColor(MUTED)

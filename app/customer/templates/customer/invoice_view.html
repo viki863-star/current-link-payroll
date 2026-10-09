@@ -26,6 +26,12 @@
 .inv-table tbody tr:nth-child(even) { background:#f8fafc; }
 .inv-table tbody tr:hover { background:#eef2ff; }
 .inv-table tbody tr:last-child td { border-bottom:none; }
+/* Numbers never wrap — the column auto-adjusts instead (description wraps) */
+.inv-table td[style*="text-align:right"], .inv-table th[style*="text-align:right"],
+.inv-table td[style*="text-align:center"], .inv-table th[style*="text-align:center"] {
+    white-space:nowrap; padding-left:7px; padding-right:7px;
+}
+.inv-table td[style*="font-family:mono"] { font-size:0.8rem; }
 @media print { .inv-table { box-shadow:none; } }
 @media (max-width:600px) {
     .inv-box { padding:16px; }
@@ -96,7 +102,7 @@
         <thead>
             <tr>
                 <th style="text-align:center;width:36px">#</th>
-                <th style="text-align:left;min-width:260px">Description</th>
+                <th style="text-align:left;min-width:150px">Description</th>
                 <th style="text-align:center;width:70px">Qty</th>
                 <th style="text-align:center;width:60px">Unit</th>
                 <th style="text-align:right;width:95px">Unit Price (AED)</th>
@@ -118,16 +124,16 @@
             <tr>
                 <td style="text-align:center;font-weight:700;color:#64748b;font-size:0.9rem">{{ loop.index }}</td>
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
-                <td style="text-align:center;font-family:mono;font-weight:600">{{ "%.2f" % it.quantity }}</td>
+                <td style="text-align:center;font-family:mono;font-weight:600">{{ "{:,.2f}".format(it.quantity) }}</td>
                 <td style="text-align:center;color:#475569;font-weight:600">{{ it.get('unit') or 'hr' }}</td>
-                <td style="text-align:right;font-family:mono">{{ "%.2f" % it.rate }}</td>
+                <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(it.rate) }}</td>
                 {% if is_cash %}
-                <td style="text-align:right;font-weight:800;font-family:mono;color:#0f172a;font-size:0.9rem">{{ "%.2f" % it.amount }}</td>
+                <td style="text-align:right;font-weight:800;font-family:mono;color:#0f172a;font-size:0.9rem">{{ "{:,.2f}".format(it.amount) }}</td>
                 {% else %}
-                <td style="text-align:right;font-family:mono;font-weight:600">{{ "%.2f" % it.amount }}</td>
+                <td style="text-align:right;font-family:mono;font-weight:600">{{ "{:,.2f}".format(it.amount) }}</td>
                 <td style="text-align:center;font-family:mono;color:#64748b">{{ "%.2f" % vat_pct_item }}%</td>
-                <td style="text-align:right;font-family:mono;color:#dc2626;font-weight:600">{{ "%.2f" % vat_amt_item }}</td>
-                <td style="text-align:right;font-weight:800;font-family:mono;color:#0f172a;font-size:0.9rem">{{ "%.2f" % total_incl }}</td>
+                <td style="text-align:right;font-family:mono;color:#dc2626;font-weight:600">{{ "{:,.2f}".format(vat_amt_item) }}</td>
+                <td style="text-align:right;font-weight:800;font-family:mono;color:#0f172a;font-size:0.9rem">{{ "{:,.2f}".format(total_incl) }}</td>
                 {% endif %}
             </tr>
             {% endfor %}
@@ -137,15 +143,15 @@
     {# ─── TOTALS ─── #}
     <div style="margin-left:auto;width:320px;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 20px;margin-bottom:18px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
-            <span style="color:#64748b">Sub Total</span><span class="mono" style="font-weight:600;color:#0f172a">AED {{ "%.2f" % inv.amount }}</span>
+            <span style="color:#64748b">Sub Total</span><span class="mono" style="font-weight:600;color:#0f172a">AED {{ "{:,.2f}".format(inv.amount) }}</span>
         </div>
         {% if not is_cash %}
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
-            <span style="color:#64748b">VAT @ {{ "%.0f" % inv.vat_percent }}%</span><span class="mono" style="font-weight:600;color:#dc2626">AED {{ "%.2f" % inv.vat_amount }}</span>
+            <span style="color:#64748b">VAT @ {{ "%.0f" % inv.vat_percent }}%</span><span class="mono" style="font-weight:600;color:#dc2626">AED {{ "{:,.2f}".format(inv.vat_amount) }}</span>
         </div>
         {% endif %}
         <div style="display:flex;justify-content:space-between;padding:9px 14px;margin-top:8px;background:{% if is_cash %}var(--primary){% else %}var(--primary){% endif %};border-radius:8px;color:#fff">
-            <span style="font-weight:800;font-size:0.95rem;letter-spacing:.5px">{{ 'Total' if is_cash else 'Total Due' }}</span><span class="mono" style="font-weight:800;font-size:1.15rem">AED {{ "%.2f" % inv.total_amount }}</span>
+            <span style="font-weight:800;font-size:0.95rem;letter-spacing:.5px">{{ 'Total' if is_cash else 'Total Due' }}</span><span class="mono" style="font-weight:800;font-size:1.15rem">AED {{ "{:,.2f}".format(inv.total_amount) }}</span>
         </div>
     </div>
 

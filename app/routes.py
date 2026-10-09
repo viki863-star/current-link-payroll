@@ -6955,7 +6955,7 @@ def register_routes(app: Flask) -> None:
             return Paragraph(str(t), F("_R", **kw))
 
         els = []
-        cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+        cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC"
         trn = cp.get("trn_no") or "—"
 
         # ═══ HEADER ═══
@@ -7172,7 +7172,7 @@ def register_routes(app: Flask) -> None:
             return Paragraph(str(t), F("_R", **kw))
 
         els = []
-        cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING"
+        cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC"
         trn = cp.get("trn_no") or "—"
 
         # ═══ HEADER ═══
