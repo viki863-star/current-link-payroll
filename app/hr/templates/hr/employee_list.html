@@ -7,19 +7,47 @@
 <div class="list-shell">
     {# ─── Status Tabs ─── #}
     <div class="tab-bar">
-        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Active') }}" class="tab-link {% if status_filter == 'Active' or not status_filter %}is-active{% endif %}">
+        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Active', shift=shift_filter) }}" class="tab-link {% if status_filter == 'Active' or not status_filter %}is-active{% endif %}">
             Active <span class="tab-count">{{ total_active }}</span>
         </a>
-        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Inactive') }}" class="tab-link {% if status_filter == 'Inactive' %}is-active{% endif %}">
+        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Inactive', shift=shift_filter) }}" class="tab-link {% if status_filter == 'Inactive' %}is-active{% endif %}">
             Inactive <span class="tab-count">{{ total_inactive }}</span>
         </a>
-        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Terminated') }}" class="tab-link {% if status_filter == 'Terminated' %}is-active{% endif %}">
+        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status='Terminated', shift=shift_filter) }}" class="tab-link {% if status_filter == 'Terminated' %}is-active{% endif %}">
             Terminated <span class="tab-count">{{ total_terminated }}</span>
         </a>
         <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
-            <a href="{{ url_for('hr.employee_list_excel', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128194; Excel</a>
-            <a href="{{ url_for('hr.employee_list_pdf', q=query, status=status_filter, department=department_filter, type=employee_type_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128196; PDF</a>
+            <a href="{{ url_for('hr.employee_list_excel', q=query, status=status_filter, department=department_filter, type=employee_type_filter, shift=shift_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128194; Excel</a>
+            <a href="{{ url_for('hr.employee_list_pdf', q=query, status=status_filter, department=department_filter, type=employee_type_filter, shift=shift_filter) }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#128196; PDF</a>
             <a href="{{ url_for('hr.driver_ids') }}" class="btn btn-sm btn-outline" style="font-size:0.72rem">&#129704; Driver IDs</a>
+        </span>
+    </div>
+
+    {# ─── Shift Tabs (Morning / Night / … each with its own tab) ─── #}
+    {% set shift_icons = {'Morning':'☀️', 'Night':'🌙', 'Evening':'🌆', 'Rotating':'🔄', 'Day':'🌤️', 'General':'🧭'} %}
+    {% set shift_known = ['Morning', 'Night', 'Evening', 'Rotating', 'Day', 'General'] %}
+    {% set ordered = [] %}
+    {% for s in shift_known %}{% if s in shift_counts %}{% if ordered.append(s) %}{% endif %}{% endif %}{% endfor %}
+    {% for s in shift_counts %}{% if s not in shift_known %}{% if ordered.append(s) %}{% endif %}{% endif %}{% endfor %}
+    {% set shift_total = shift_counts.values()|sum %}
+    <div class="shift-bar {% if shift_filter %}has-accent accent-{{ shift_filter|lower }}{% endif %}">
+        <span class="shift-bar-label">SHIFT</span>
+        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status=status_filter, shift='') }}"
+           class="shift-pill sp-all {% if not shift_filter %}is-active{% endif %}">
+            <span class="sp-ico">👥</span> All Shifts <span class="sp-count">{{ shift_total }}</span>
+        </a>
+        {% for s in ordered %}
+        <a href="{{ url_for('hr.employee_list', q=query, department=department_filter, type=employee_type_filter, status=status_filter, shift=s) }}"
+           class="shift-pill sp-{{ s|lower }} {% if shift_filter == s %}is-active{% endif %}">
+            <span class="sp-ico">{{ shift_icons.get(s, '🕒') }}</span> {{ s }} <span class="sp-count">{{ shift_counts.get(s, 0) }}</span>
+        </a>
+        {% endfor %}
+        <span class="shift-bar-hint">
+            {% if shift_filter %}
+                Showing <b>{{ employees|length }}</b> of {{ shift_counts.get(shift_filter, 0) }} · {{ shift_filter }} shift
+            {% else %}
+                {{ shift_total }} employees · pick a shift tab to filter
+            {% endif %}
         </span>
     </div>
 
@@ -27,6 +55,7 @@
     <div class="filter-bar" style="border-top:none;border-radius:0 0 12px 12px;margin-top:0">
         <form method="GET" class="filter-bar-form">
             <input type="hidden" name="status" value="{{ status_filter }}">
+            <input type="hidden" name="shift" value="{{ shift_filter }}">
             <input type="text" name="q" value="{{ query }}" placeholder="Type name, ID..." class="search-input">
             <select name="department" class="filter-select">
                 <option value="">All Departments</option>
@@ -56,6 +85,7 @@
                     <th>Employee</th>
                     <th>Department</th>
                     <th>Type</th>
+                    <th>Shift</th>
                     <th>Vehicle</th>
                     <th>Join Date</th>
                     <th>Salary</th>
@@ -65,7 +95,8 @@
             </thead>
             <tbody>
                 {% for emp in employees %}
-                <tr class="emp-row" onclick="window.location='{{ url_for('hr.employee_detail', employee_id=emp.employee_id) }}'">
+                {% set emp_shift = (emp.shift or 'Morning') %}
+                <tr class="emp-row row-{{ emp_shift|lower }}" onclick="window.location='{{ url_for('hr.employee_detail', employee_id=emp.employee_id) }}'">
                     <td class="emp-cell">
                         <div class="emp-avatar-mini">
                             {% set p_url = employee_photo_url(emp) %}
@@ -82,6 +113,7 @@
                     </td>
                     <td><span class="badge badge-dept">{{ emp.department }}</span></td>
                     <td><span class="badge badge-type">{{ emp.employee_type }}</span></td>
+                    <td><span class="shift-badge {{ emp_shift|lower }}"><span class="sb-ico">{{ shift_icons.get(emp_shift, '🕒') }}</span>{{ emp_shift }}</span></td>
                     <td>{% if emp.plate_no %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ emp.plate_no }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
                     <td class="mono">{{ emp.join_date }}</td>
                     <td class="mono emp-salary">AED {{ "%.0f"|format(emp.basic_salary or 0) }}</td>
@@ -110,7 +142,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" class="empty-state">No employees found. <a href="{{ url_for('hr.employee_new') }}">Add your first employee</a>.</td>
+                    <td colspan="9" class="empty-state">No employees found. <a href="{{ url_for('hr.employee_new') }}">Add your first employee</a>.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -126,6 +158,75 @@
 }
 .tab-link.is-active .tab-count {
     background:var(--primary);color:#fff;
+}
+
+/* ── Shift tabs ─────────────────────────────────────────── */
+.shift-bar{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    background:linear-gradient(180deg,#ffffff, #fbfcfe);
+    border:1px solid #e6ecf3;border-top:none;
+    border-radius:0 0 12px 12px;
+    padding:9px 12px;margin-top:-1px;
+    box-shadow:0 1px 2px rgba(15,43,82,.04);
+    position:relative;overflow:hidden;
+}
+.shift-bar.has-accent::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:3px;
+    background:var(--accent,#1c568b);
+}
+.shift-bar.accent-morning{--accent:linear-gradient(90deg,#f5a83a,#e6871f);}
+.shift-bar.accent-night{--accent:linear-gradient(90deg,#0f2b52,#1c568b);}
+.shift-bar.has-accent::after{background:var(--accent,#1c568b);}
+.shift-bar-label{
+    font-size:.62rem;letter-spacing:.16em;font-weight:800;color:var(--muted);
+    margin-right:2px;text-transform:uppercase;
+}
+.shift-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:7px 13px;border-radius:999px;border:1px solid #e6ecf3;
+    background:#fff;color:#334155;font-size:.78rem;font-weight:600;
+    text-decoration:none;transition:transform .15s,box-shadow .15s,border-color .15s;
+    white-space:nowrap;
+}
+.shift-pill:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(15,43,82,.09);border-color:#cfdcea}
+.sp-ico{font-size:.85rem;line-height:1}
+.sp-count{
+    min-width:21px;height:18px;padding:0 6px;border-radius:9px;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:.65rem;font-weight:800;background:rgba(28,86,139,.1);color:var(--primary);
+}
+.shift-pill.is-active{color:#fff;border-color:transparent;box-shadow:0 6px 14px rgba(15,43,82,.20)}
+.shift-pill.is-active .sp-count{background:rgba(255,255,255,.26);color:#fff}
+.sp-all.is-active{background:var(--primary,#1c568b)}
+.sp-morning.is-active{background:linear-gradient(135deg,#f5a83a,#e6871f);box-shadow:0 6px 14px rgba(245,168,58,.42)}
+.sp-night.is-active{background:#0f2b52;box-shadow:0 6px 14px rgba(15,43,82,.42)}
+.sp-evening.is-active{background:#5b6b84}
+.sp-rotating.is-active{background:#475569}
+.sp-day.is-active{background:#2f7ec1}
+.sp-general.is-active{background:#64748b}
+.shift-bar-hint{
+    margin-left:auto;font-size:.7rem;color:var(--muted);font-weight:600;white-space:nowrap;
+}
+.shift-bar-hint b{color:var(--primary)}
+
+/* ── Shift column badges ─────────────────────────────────── */
+.shift-badge{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:3px 9px;border-radius:999px;font-size:.7rem;font-weight:700;white-space:nowrap;
+}
+.sb-ico{font-size:.78rem;line-height:1}
+.shift-badge.morning{background:rgba(245,168,58,.16);color:#9a5c00;border:1px solid rgba(245,168,58,.45)}
+.shift-badge.night{background:rgba(15,43,82,.10);color:#0f2b52;border:1px solid rgba(15,43,82,.30)}
+.shift-badge.evening{background:rgba(91,107,132,.12);color:#475569;border:1px solid rgba(91,107,132,.35)}
+.shift-badge.rotating{background:rgba(71,85,105,.10);color:#334155;border:1px dashed rgba(71,85,105,.45)}
+.shift-badge.day{background:rgba(47,126,193,.12);color:#1d5f9b;border:1px solid rgba(47,126,193,.4)}
+.shift-badge.general{background:rgba(100,116,139,.12);color:#475569;border:1px solid rgba(100,116,139,.35)}
+
+/* ── Row accent: each shift gets its own colour stripe ── */
+.emp-row.row-night td:first-child{box-shadow:inset 3px 0 0 #0f2b52}
+.emp-row.row-morning td:first-child{box-shadow:inset 3px 0 0 #f5a83a}
+@media (max-width:900px){
+    .shift-bar-hint{display:none}
 }
 </style>
 {% endblock %}

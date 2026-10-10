@@ -421,6 +421,7 @@ def employee_list():
     status_filter = request.args.get("status", "").strip()
     department_filter = request.args.get("department", "").strip()
     employee_type_filter = request.args.get("type", "").strip()
+    shift_filter = request.args.get("shift", "").strip()
 
     status_counts = db.execute(
         "SELECT LOWER(status) AS st, COUNT(*) AS c FROM employees GROUP BY LOWER(status)"
@@ -434,10 +435,35 @@ def employee_list():
 
     where_sql, params = employee_search_filter(query, status_filter, department_filter, employee_type_filter)
 
+    # Shift counts for the tab pills — respect every active filter EXCEPT shift
+    shift_counts = {}
+    try:
+        _sc_rows = db.execute(
+            f"""
+            SELECT CASE WHEN e.shift IS NULL OR TRIM(e.shift) = '' THEN 'Morning'
+                        ELSE TRIM(e.shift) END AS sh,
+                   COUNT(*) AS c
+            FROM employees e
+            {where_sql}
+            GROUP BY sh
+            """,
+            params,
+        ).fetchall()
+        shift_counts = {r["sh"]: r["c"] for r in _sc_rows}
+    except Exception:
+        shift_counts = {}
+
+    if shift_filter:
+        _cond = ("CASE WHEN e.shift IS NULL OR TRIM(e.shift) = '' THEN 'Morning' "
+                 "ELSE TRIM(e.shift) END = ?")
+        where_sql = (f"{where_sql} AND {_cond}" if where_sql else f"WHERE {_cond}")
+        params = list(params) + [shift_filter]
+
     employees = db.execute(
         f"""
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.photo_name, e.termination_date,
+               e.shift,
                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
@@ -462,6 +488,8 @@ def employee_list():
         status_filter=status_filter,
         department_filter=department_filter,
         employee_type_filter=employee_type_filter,
+        shift_filter=shift_filter,
+        shift_counts=shift_counts,
         departments=all_departments,
         employee_types=all_types,
         status_options=STATUS_OPTIONS,
@@ -2486,13 +2514,15 @@ def employee_list_excel():
     status_filter = request.args.get("status", "").strip()
     department_filter = request.args.get("department", "").strip()
     employee_type_filter = request.args.get("type", "").strip()
+    shift_filter = request.args.get("shift", "").strip()
 
-    where_sql, params = employee_search_filter(query, status_filter, department_filter, employee_type_filter)
+    where_sql, params = employee_search_filter(query, status_filter, department_filter, employee_type_filter, shift_filter)
 
     employees = db.execute(
         f"""
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.termination_date,
+               e.shift,
                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
@@ -2521,7 +2551,7 @@ def employee_list_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle Number", "Status", "Termination Date"]
+    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle Number", "Status", "Termination Date", "Shift"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
@@ -2530,7 +2560,7 @@ def employee_list_excel():
         vals = [emp["employee_id"], emp["full_name"], emp["phone_number"] or "", emp["email"] or "",
                 emp["employee_type"], emp["department"], emp["designation"],
                 emp["join_date"], emp["basic_salary"] or 0, emp["plate_no"] or "", emp["status"] or "",
-                emp["termination_date"] or ""]
+                emp["termination_date"] or "", (emp["shift"] or "Morning")]
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=ri, column=ci, value=v)
             c.border = border
@@ -2550,6 +2580,7 @@ def employee_list_excel():
     ws.column_dimensions["J"].width = 16
     ws.column_dimensions["K"].width = 12
     ws.column_dimensions["L"].width = 18
+    ws.column_dimensions["M"].width = 12
 
     # Vehicle Number only applies to drivers / operators — centre it for readability
     vnum_align = Alignment(horizontal="center", vertical="center")
@@ -2574,13 +2605,15 @@ def employee_list_pdf():
     status_filter = request.args.get("status", "").strip()
     department_filter = request.args.get("department", "").strip()
     employee_type_filter = request.args.get("type", "").strip()
+    shift_filter = request.args.get("shift", "").strip()
 
-    where_sql, params = employee_search_filter(query, status_filter, department_filter, employee_type_filter)
+    where_sql, params = employee_search_filter(query, status_filter, department_filter, employee_type_filter, shift_filter)
 
     employees = db.execute(
         f"""
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.termination_date,
+               e.shift,
                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id

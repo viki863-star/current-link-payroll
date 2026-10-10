@@ -157,7 +157,7 @@ def save_employee_photo(app, employee_id, full_name, photo_file):
     }
 
 
-def employee_search_filter(query, status_filter, department_filter, employee_type_filter):
+def employee_search_filter(query, status_filter, department_filter, employee_type_filter, shift_filter=""):
     conditions = []
     params = []
 
@@ -179,6 +179,13 @@ def employee_search_filter(query, status_filter, department_filter, employee_typ
     if employee_type_filter:
         conditions.append("e.employee_type = ?")
         params.append(employee_type_filter)
+
+    if shift_filter:
+        # blank/NULL shift is treated as Morning (matches column default)
+        conditions.append(
+            "CASE WHEN e.shift IS NULL OR TRIM(e.shift) = '' THEN 'Morning' ELSE TRIM(e.shift) END = ?"
+        )
+        params.append(shift_filter)
 
     where = ""
     if conditions:
