@@ -82,7 +82,7 @@
                 </thead>
                 <tbody>
                     {% for v in gvins %}
-                    <tr class="emp-row" onclick="window.location='{{ url_for('fleet.vehicle_edit', plate_no=v.plate_no) }}'">
+                    <tr class="emp-row" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
                         <td class="mono" style="font-weight:600;font-size:0.9rem">{{ v.plate_no }}</td>
                         <td><span class="badge badge-dept">{{ v.vehicle_category or 'Solo' }}</span></td>
                         <td><span class="badge badge-type">{{ v.vehicle_type }}</span></td>
