@@ -222,6 +222,7 @@
                         <option value="each" {% if it.unit_type == 'each' %}selected{% endif %}>Each</option>
                         <option value="set" {% if it.unit_type == 'set' %}selected{% endif %}>Set</option>
                         <option value="au" {% if it.unit_type == 'au' %}selected{% endif %}>AU</option>
+                        <option value="gln" {% if it.unit_type == 'gln' %}selected{% endif %}>GLN</option>
                     </select>
                     <input type="number" name="item_rate[]" value="{{ it.rate or 0 }}" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
                     <span class="item-amt" id="itemAmt_{{ loop.index0 }}">{{ "%.2f"|format(it.amount or 0) }}</span>
@@ -275,6 +276,7 @@ function addItem() {
             <option value="each">Each</option>
             <option value="set">Set</option>
             <option value="au">AU</option>
+            <option value="gln">GLN</option>
         </select>
         <input type="number" name="item_rate[]" value="0" min="0" step="any" style="text-align:right" oninput="calcItem(this);calcTotals()" placeholder="0.000">
         <span class="item-amt" id="itemAmt_${itemCount}">0.00</span>

@@ -2988,7 +2988,10 @@ def customer_lpo_edit(cid, lid):
         db.close()
         flash("LPO updated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
-    items = db.execute("SELECT id, lpo_id, description, quantity, rate, amount, created_at FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    # unit_type/vehicle_no MUST be selected: without them every unit dropdown
+    # renders with no selection, so the browser shows the first option (Hour)
+    # and saving the form would silently overwrite the real units.
+    items = db.execute("SELECT id, lpo_id, description, quantity, rate, amount, unit_type, vehicle_no, created_at FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
     db.close()
     return render_template("customer/lpo_form.html", c=c, lpo=lpo, items=items, edit=True, today=date.today().isoformat())
 
@@ -3074,7 +3077,7 @@ def customer_lpo_view(cid, lid):
         db.close()
         flash("LPO not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
-    items = db.execute("SELECT id, lpo_id, description, quantity, rate, amount, created_at FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
+    items = db.execute("SELECT id, lpo_id, description, quantity, rate, amount, unit_type, vehicle_no, created_at FROM lpo_items WHERE lpo_id=? ORDER BY sort_order", (lid,)).fetchall()
     db.close()
     return render_template("customer/lpo_view.html", c=c, lpo=lpo, items=items)
 
@@ -3160,7 +3163,8 @@ def customer_so_edit(cid, sid):
         db.close()
         flash("Service Order updated.", "success")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
-    items = db.execute("SELECT id, so_id, description, quantity, rate, amount, created_at FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
+    # same unit_type fix as LPO edit — otherwise saving overwrites units to Hour
+    items = db.execute("SELECT id, so_id, description, quantity, rate, amount, unit_type, vehicle_no, created_at FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
     db.close()
     return render_template("customer/so_form.html", c=c, so=so, items=items, edit=True, today=date.today().isoformat())
 
@@ -3186,7 +3190,7 @@ def customer_so_view(cid, sid):
         db.close()
         flash("Service Order not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="service_orders"))
-    items = db.execute("SELECT id, so_id, description, quantity, rate, amount, created_at FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
+    items = db.execute("SELECT id, so_id, description, quantity, rate, amount, unit_type, vehicle_no, created_at FROM customer_so_items WHERE so_id=? ORDER BY sort_order", (sid,)).fetchall()
     db.close()
     return render_template("customer/so_view.html", c=c, so=so, items=items)
 
