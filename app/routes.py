@@ -17770,16 +17770,19 @@ def _advance_summary(db, driver_id: str, exclude_salary_store_id: int | None = N
     # txn_type 'Return' = cash handed BACK by the driver (advance recovered in
     # cash, outside salary). It was never an advance issued — it reduces what
     # is still outstanding instead of adding to it.
+    # Distinct aliases are required: PostgreSQL names both bare aggregates
+    # "?column?", so an unaliased 2-col row collapses into a single dict key
+    # (sqlite keeps the SQL text as the name — this broke only on prod PG).
     _row = db.execute(
         """
-        SELECT COALESCE(SUM(CASE WHEN UPPER(COALESCE(txn_type, '')) = 'RETURN' THEN 0 ELSE amount END), 0),
-               COALESCE(SUM(CASE WHEN UPPER(COALESCE(txn_type, '')) = 'RETURN' THEN amount ELSE 0 END), 0)
+        SELECT COALESCE(SUM(CASE WHEN UPPER(COALESCE(txn_type, '')) = 'RETURN' THEN 0 ELSE amount END), 0) AS gross_advance,
+               COALESCE(SUM(CASE WHEN UPPER(COALESCE(txn_type, '')) = 'RETURN' THEN amount ELSE 0 END), 0) AS returned_cash
         FROM driver_transactions WHERE driver_id = ?
         """,
         (driver_id,),
     ).fetchone()
-    total_advance = float(_row[0])
-    total_returned = float(_row[1])
+    total_advance = float(_row["gross_advance"])
+    total_returned = float(_row["returned_cash"])
     if exclude_salary_store_id is None:
         total_deducted = float(
             db.execute(
