@@ -127,6 +127,7 @@
             </div>
 
             {% set txn_pct = (total_deducted / total_advance * 100) if total_advance else 0 %}
+            {% set txn_returned = total_returned or (slip_truth is defined and slip_truth.total_returned) or 0 %}
             <div class="txn-sum">
                 <div class="txn-card">
                     <span class="lbl">Total Advance Issued</span>
@@ -138,6 +139,13 @@
                     <span class="val">AED {{ "%.2f"|format(total_deducted or 0) }}</span>
                     <span class="sub">{{ "%.1f"|format(txn_pct) }}% of the advance has been set off.</span>
                 </div>
+                {% if txn_returned > 0.01 %}
+                <div class="txn-card c-green">
+                    <span class="lbl">Returned In Cash</span>
+                    <span class="val">AED {{ "%.2f"|format(txn_returned) }}</span>
+                    <span class="sub">Cash handed back to the office — reduces the open advance.</span>
+                </div>
+                {% endif %}
                 <div class="txn-card {% if (txn_outstanding or 0) > 0.01 %}c-red{% else %}c-green{% endif %}">
                     <span class="lbl">Outstanding Advance</span>
                     <span class="val">AED {{ "%.2f"|format(txn_outstanding or 0) }}</span>
@@ -162,6 +170,7 @@
                                         <option value="Advance" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Advance' else '' }}>Advance</option>
                                         <option value="Loan" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Loan' else '' }}>Loan</option>
                                         <option value="Payment" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Payment' else '' }}>Payment</option>
+                                        <option value="Return" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Return' else '' }}>Return (cash received back)</option>
                                         <option value="Other" {{ 'selected' if edit_txn and edit_txn.txn_type == 'Other' else '' }}>Other</option>
                                     </select>
                                 </div>
@@ -220,7 +229,7 @@
                         <div class="dv2-card-header">
                             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
                             Transaction History
-                            <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Issued AED {{ "%.2f"|format(total_advance or 0) }} &middot; Recovered AED {{ "%.2f"|format(total_deducted or 0) }} &middot; Outstanding AED {{ "%.2f"|format(txn_outstanding or 0) }}</span>
+                            <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Issued AED {{ "%.2f"|format(total_advance or 0) }}{% if (total_returned or 0) > 0.01 %} &middot; Returned AED {{ "%.2f"|format(total_returned) }}{% endif %} &middot; Recovered AED {{ "%.2f"|format(total_deducted or 0) }} &middot; Outstanding AED {{ "%.2f"|format(txn_outstanding or 0) }}</span>
                         </div>
                         <div class="dv2-table-wrap">
                             <table class="dv2-table">
@@ -242,8 +251,8 @@
                                     {% set st = (txn_statement or {}).get(txn.id) %}
                                     <tr>
                                         <td data-label="Date" class="dv2-mono">{{ txn.entry_date }}</td>
-                                        <td data-label="Type"><span class="dv2-badge dv2-badge-type">{{ txn.txn_type }}</span></td>
-                                        <td data-label="Amount" class="dv2-mono dv2-amount">AED {{ "%.0f"|format(txn.amount or 0) }}</td>
+                                        <td data-label="Type"><span class="dv2-badge dv2-badge-type" {% if txn.txn_type == 'Return' %}style="background:rgba(4,120,87,.12);color:#047857;border:1px solid rgba(4,120,87,.45)"{% endif %}>{{ txn.txn_type }}</span></td>
+                                        <td data-label="Amount" class="dv2-mono dv2-amount" {% if txn.txn_type == 'Return' %}style="color:#047857"{% endif %}>{{ '−' if txn.txn_type == 'Return' else '' }} AED {{ "%.0f"|format(txn.amount or 0) }}</td>
                                         <td data-label="Recovered" class="dv2-mono" style="text-align:right;color:{% if st and st.deducted > 0 %}#e65100{% else %}var(--muted){% endif %};font-weight:{% if st and st.deducted > 0 %}600{% else %}400{% endif %}">AED {{ "%.2f"|format(st.deducted if st else 0) }}</td>
                                         <td data-label="Outstanding" class="dv2-mono" style="text-align:right;font-weight:700;color:{% if st and st.remaining > 0.01 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(st.remaining if st else 0) }}</td>
                                         <td data-label="Source">{{ txn.source }}</td>
@@ -704,7 +713,7 @@
                 <div class="dv2-card-header">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
                     Running Ledger &mdash; Month by Month
-                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Balance = Issued &minus; Recovered</span>
+                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Balance = Issued &minus; Returned &minus; Recovered</span>
                 </div>
                 <div class="dv2-table-wrap">
                     <table class="dv2-table">
@@ -713,6 +722,7 @@
                                 <th>Month</th>
                                 <th style="text-align:right">Salary</th>
                                 <th style="text-align:right">Advance Given (+)</th>
+                                <th style="text-align:right">Returned (&minus;)</th>
                                 <th style="text-align:right">Deducted (&minus;)</th>
                                 <th style="text-align:right">Paid</th>
                                 <th>Slip</th>
@@ -725,19 +735,20 @@
                                 <td data-label="Month" class="dv2-mono" style="font-weight:{% if loop.first %}800{% else %}500{% endif %}">{{ r.salary_month }}{% if loop.first %} &larr; latest{% endif %}</td>
                                 <td data-label="Salary" class="dv2-mono" style="text-align:right">{% if r.salary > 0 %}AED {{ "%.0f"|format(r.salary) }}{% else %}&mdash;{% endif %}</td>
                                 <td data-label="Given" class="dv2-mono" style="text-align:right;color:#2e7d32">{% if r.given > 0 %}+AED {{ "%.0f"|format(r.given) }}{% else %}&mdash;{% endif %}</td>
+                                <td data-label="Returned" class="dv2-mono" style="text-align:right;color:#047857">{% if r.returned > 0 %}-AED {{ "%.0f"|format(r.returned) }}{% else %}&mdash;{% endif %}</td>
                                 <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#e65100">{% if r.deducted > 0 %}-AED {{ "%.0f"|format(r.deducted) }}{% else %}&mdash;{% endif %}</td>
                                 <td data-label="Paid" class="dv2-mono" style="text-align:right">{% if r.paid > 0 %}AED {{ "%.0f"|format(r.paid) }}{% else %}&mdash;{% endif %}</td>
                                 <td data-label="Slip">{% if r.slip_count > 0 %}<span style="color:var(--green);font-weight:700">&#10004;</span>{% else %}<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700">RUN</span>{% endif %}</td>
                                 <td data-label="Balance After" class="dv2-mono" style="text-align:right;font-weight:800;color:{% if r.balance_after > 0 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(r.balance_after) }}</td>
                             </tr>
                             {% else %}
-                            <tr class="dv2-empty"><td colspan="7">No hisab yet.</td></tr>
+                            <tr class="dv2-empty"><td colspan="8">No hisab yet.</td></tr>
                             {% endfor %}
                         </tbody>
                         {% if slip_ledger %}
                         <tfoot>
                             <tr style="background:#f8fafc">
-                                <td colspan="6" style="text-align:right;font-weight:800;border-top:2px solid var(--border)">CURRENT BALANCE (AS OF TODAY)</td>
+                                <td colspan="7" style="text-align:right;font-weight:800;border-top:2px solid var(--border)">CURRENT BALANCE (AS OF TODAY)</td>
                                 <td style="text-align:right;font-weight:800;border-top:2px solid var(--border);color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:.95rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</td>
                             </tr>
                         </tfoot>
@@ -771,11 +782,12 @@
                             <tr>
                                 <td data-label="Date" class="dv2-mono" style="font-size:.78rem">{{ (a.entry_date or '')[:10] }}</td>
                                 <td data-label="Details" style="max-width:230px;white-space:normal;font-size:.78rem">{{ a.details or a.source or '-' }}</td>
-                                <td data-label="Given" class="dv2-mono" style="text-align:right;font-weight:600">AED {{ "%.2f"|format(a.amount) }}</td>
+                                <td data-label="Given" class="dv2-mono" style="text-align:right;font-weight:600;{% if a.is_return %}color:#047857{% endif %}">{{ '−' if a.is_return else '' }} AED {{ "%.2f"|format(a.amount) }}</td>
                                 <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#e65100">AED {{ "%.2f"|format(a.deducted) }}</td>
                                 <td data-label="Remaining" class="dv2-mono" style="text-align:right;font-weight:700;color:{% if a.remaining > 0.01 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(a.remaining) }}</td>
                                 <td data-label="Status">
                                     {% if a.status == 'cleared' %}<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">CLEARED</span>
+                                    {% elif a.status == 'returned' %}<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">RETURNED</span>
                                     {% elif a.status == 'partial' %}<span style="background:#ffedd5;color:#9a3412;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">PARTIAL</span>
                                     {% else %}<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">OUTSTANDING</span>{% endif %}
                                 </td>
@@ -864,7 +876,7 @@
                     </li>
                     <li class="l2">
                         <span class="n">2</span>
-                        <span class="t">Recovered from salary<small>Advance balance still open: AED {{ "%.2f"|format(soa.balance) }}.</small></span>
+                        <span class="t">Recovered from salary<small>{% if (soa.returned or 0) > 0.01 %}Cash returned in person: AED {{ "%.2f"|format(soa.returned) }}. {% endif %}Advance balance still open: AED {{ "%.2f"|format(soa.balance) }}.</small></span>
                         <b class="v">AED {{ "%.2f"|format(soa.recovered) }}</b>
                     </li>
                     <li class="l3">
@@ -892,7 +904,7 @@
                 <div class="soa-tile t-red">
                     <div class="soa-label">Advance Balance (Outstanding)</div>
                     <div class="soa-value" style="color:{% if soa.balance > 0.01 %}#b91c1c{% else %}#047857{% endif %}">AED {{ "%.2f"|format(soa.balance) }}</div>
-                    <div class="soa-note">{{ "%.1f"|format(soa.recovery_pct) }}% recovered &middot; AED {{ "%.2f"|format(soa.recovered) }} of AED {{ "%.2f"|format(soa.given) }} set off.</div>
+                    <div class="soa-note">{{ "%.1f"|format(soa.recovery_pct) }}% recovered &middot; AED {{ "%.2f"|format(soa.recovered) }} from salary{% if (soa.returned or 0) > 0.01 %} + AED {{ "%.2f"|format(soa.returned) }} returned in cash{% endif %} of AED {{ "%.2f"|format(soa.given) }} set off.</div>
                 </div>
                 <div class="soa-tile {% if soa.company_owes %}t-green{% else %}t-red{% endif %}">
                     <div class="soa-label">Net {% if soa.company_owes %}Payable to Driver{% else %}Payable by Driver{% endif %}</div>
@@ -906,6 +918,9 @@
                 <div class="soa-bar"><span style="width:{{ [soa.recovery_pct, 100]|min }}%"></span></div>
                 <div class="soa-legend">
                     <div>Advance Given<b>AED {{ "%.2f"|format(soa.given) }}</b></div>
+                    {% if (soa.returned or 0) > 0.01 %}
+                    <div style="text-align:center">Returned in Cash<b style="color:#047857">AED {{ "%.2f"|format(soa.returned) }}</b></div>
+                    {% endif %}
                     <div style="text-align:center">Recovered<b style="color:#047857">AED {{ "%.2f"|format(soa.recovered) }}</b></div>
                     <div style="text-align:right">Balance<b style="color:{% if soa.balance > 0.01 %}#b91c1c{% else %}#047857{% endif %}">AED {{ "%.2f"|format(soa.balance) }}</b></div>
                 </div>
@@ -927,7 +942,7 @@
             </div>
 
             <div class="soa-settle">
-                <strong>Settled:</strong> {{ soa.settled_label }} ({{ soa.settled_count }} month) &mdash; AED {{ "%.2f"|format(soa.recovered) }} recovered from salary.<br>
+                <strong>Settled:</strong> {{ soa.settled_label }} ({{ soa.settled_count }} month) &mdash; AED {{ "%.2f"|format(soa.recovered) }} recovered from salary{% if (soa.returned or 0) > 0.01 %}, AED {{ "%.2f"|format(soa.returned) }} returned in cash{% endif %}.<br>
                 {% if soa.pending_count %}<strong>Not yet generated:</strong> {{ soa.pending_labels }} &mdash; AED {{ "%.2f"|format(soa.pending_total) }} salary pending.{% endif %}
                 {% if soa.unpaid_count %} <strong>Cash not yet paid:</strong> {{ soa.unpaid_labels }} &mdash; AED {{ "%.2f"|format(soa.unpaid_total) }} slip issued, payment outstanding.{% endif %}
                 <br><strong>Net position:</strong> {% if soa.company_owes %}The company owes the driver AED {{ "%.2f"|format(soa.net_to_driver) }}.{% else %}The driver owes the company AED {{ "%.2f"|format(soa.net_to_driver|abs) }}.{% endif %}

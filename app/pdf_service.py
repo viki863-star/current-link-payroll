@@ -370,6 +370,10 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
                 }
             )
         for txn in month_transactions:
+            if str(_pdf_row_value(txn, "txn_type") or "").strip().upper() == "RETURN":
+                # Cash handed back — never an open advance line. The month
+                # branch below adds it back as its own negative statement line.
+                continue
             txn_remaining = float(_pdf_row_value(txn, "remaining_amount") or txn["amount"])
             is_fully_deducted = int(_pdf_row_value(txn, "is_fully_deducted") or 0)
             # Hide fully deducted transactions — only show outstanding lines
@@ -477,6 +481,10 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             if item.get("sort_group") != 1:
                 continue
             amount = float(item["amount"])
+            if amount <= 0.0:
+                # Credit lines (cash returned by the driver) are never
+                # "received by driver" and must not consume the deduction pool.
+                continue
             recovered = min(amount, remaining_deduction)
             outstanding = max(amount - recovered, 0.0)
             remaining_deduction = max(remaining_deduction - recovered, 0.0)
@@ -490,18 +498,45 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
     if selected_month:
         current_month_data = _month_statement_core(selected_month)
         entries = _undeducted_received_rows(current_month_data["entries"], current_month_data["total_deducted"])
+        # Cash handed back by the driver this month — a negative advance line
+        # on the statement; it is NOT part of "received by driver this month".
+        for txn in current_month_data["transactions"]:
+            if str(_pdf_row_value(txn, "txn_type") or "").strip().upper() != "RETURN":
+                continue
+            _ret_amt = float(txn["amount"])
+            entries.append(
+                {
+                    "date": _iso_date_value(txn["entry_date"]),
+                    "amount": -_ret_amt,
+                    "original_amount": -_ret_amt,
+                    "remaining_amount": -_ret_amt,
+                    "is_fully_deducted": True,
+                    "paid_by": (_pdf_row_value(txn, "source") or _pdf_row_value(txn, "given_by") or "-").strip(),
+                    "reason": f"Return (cash back) - {(_pdf_row_value(txn, 'details') or _pdf_row_value(txn, 'given_by') or '-').strip()}",
+                    "balance_after": current_month_data["closing_balance"],
+                    "sort_group": 1,
+                    "is_return": True,
+                }
+            )
+        entries.sort(key=lambda item: (item["date"], item["sort_group"]))
         opening_balance = current_month_data["opening_balance"]
         total_salary = current_month_data["total_salary"]
         total_extra = current_month_data["total_extra"]
         base_salary_total = current_month_data["base_salary_total"]
-        total_advance = sum(float(item["amount"]) for item in current_month_data["transactions"])
+        total_advance = sum(
+            float(item["amount"])
+            for item in current_month_data["transactions"]
+            if str(_pdf_row_value(item, "txn_type") or "").strip().upper() != "RETURN"
+        )
         total_deducted = current_month_data["total_deducted"]
         total_net_paid = current_month_data["total_paid"]
         total_company_balance = current_month_data["total_company_balance"]
         closing_balance = current_month_data["closing_balance"]
         salary_entries = list(current_month_data["earning_entries"])
         total_salary_with_balance = opening_balance + total_salary
-        received_not_deducted_total = round(sum(float(item["amount"]) for item in entries), 2)
+        received_not_deducted_total = round(
+            sum(float(item["amount"]) for item in entries if float(item.get("amount", 0.0)) > 0.0), 2
+        )
         remaining_salary = round(max(total_salary_with_balance - received_not_deducted_total, 0.0), 2)
     else:
         entries = []
@@ -513,7 +548,11 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             for row in salary_rows
         )
         base_salary_total = max(total_salary - total_extra, 0.0)
-        total_advance = sum(float(item["amount"]) for item in transactions)
+        total_advance = sum(
+            float(item["amount"])
+            for item in transactions
+            if str(_pdf_row_value(item, "txn_type") or "").strip().upper() != "RETURN"
+        )
         for salary in salary_rows:
             entries.append(
                 {
@@ -527,6 +566,24 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             )
             salary_entries.append(entries[-1])
         for txn in transactions:
+            if str(_pdf_row_value(txn, "txn_type") or "").strip().upper() == "RETURN":
+                # Cash handed back — a credit line that reduces open advances.
+                _ret_amt = float(txn["amount"])
+                entries.append(
+                    {
+                        "date": _iso_date_value(txn["entry_date"]),
+                        "amount": -_ret_amt,
+                        "original_amount": -_ret_amt,
+                        "remaining_amount": -_ret_amt,
+                        "is_fully_deducted": True,
+                        "paid_by": (_pdf_row_value(txn, "source") or _pdf_row_value(txn, "given_by") or "-").strip(),
+                        "reason": f"Return (cash back) - {(_pdf_row_value(txn, 'details') or _pdf_row_value(txn, 'given_by') or '-').strip()}",
+                        "balance_after": 0.0,
+                        "sort_group": 1,
+                        "is_return": True,
+                    }
+                )
+                continue
             txn_remaining = float(_pdf_row_value(txn, "remaining_amount") or txn["amount"])
             is_fully_deducted = int(_pdf_row_value(txn, "is_fully_deducted") or 0)
             # Hide fully deducted transactions — only show outstanding lines
@@ -656,8 +713,15 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             PlParagraph(f"<b>Remaining</b><br/><font size=10 color='#e65100'>AED {format_currency(remaining_salary)}</font>", F("_s4", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
         ]]
     else:
-        total_original_advance = sum(float(item.get("original_amount", item.get("amount", 0))) for item in entries if item.get("sort_group") == 1)
-        total_remaining_advance = sum(float(item.get("remaining_amount", item.get("amount", 0))) for item in entries if item.get("sort_group") == 1)
+        total_original_advance = sum(
+            float(item.get("original_amount", item.get("amount", 0)))
+            for item in entries
+            if item.get("sort_group") == 1 and not item.get("is_return")
+        )
+        total_remaining_advance = max(
+            sum(float(item.get("remaining_amount", item.get("amount", 0))) for item in entries if item.get("sort_group") == 1),
+            0.0,
+        )
         sdata = [[
             PlParagraph(f"<b>Total Salary</b><br/><font size=10 color='#1a7d1a'>AED {format_currency(total_salary)}</font>", F("_s1", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
             PlParagraph(f"<b>Total Advances</b><br/><font size=10 color='#c62828'>AED {format_currency(total_original_advance)}</font>", F("_s2", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=10)),
@@ -703,12 +767,13 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
         d = item["date"]
         month = d[:7] if d else ""
         sg = item.get("sort_group", 1)
-        etype = {0: "Salary", 1: "Advance", 2: "Deduction", 3: "Payment", 4: "Closing"}.get(sg, "")
+        etype = "Return" if item.get("is_return") else {0: "Salary", 1: "Advance", 2: "Deduction", 3: "Payment", 4: "Closing"}.get(sg, "")
         ref = str(item.get("paid_by", "-"))
         det = str(item.get("reason", "-"))
         amount = float(item.get("amount", 0.0))
         bal = float(item.get("balance_after", 0.0))
         is_incoming = sg == 0
+        row_c = "#1a7d1a" if item.get("is_return") else "#1a56db" if is_incoming else "#c62828" if sg >= 1 else "#e65100"
         inv = amount if is_incoming else 0.0
         outv = amount if not is_incoming and sg >= 1 else 0.0
         total_in += inv
@@ -724,7 +789,7 @@ def generate_kata_pdf(driver, salary_rows, transactions, salary_slips, salary_pa
             PlParagraph(d, F("_d", fontSize=6.5, leading=9)),
             PlParagraph(f"<font color='#6b7280'>{month}</font>", F("_m", fontSize=6, textColor=C5, leading=9)),
             PlParagraph(ref, F("_r", fontSize=6.5, fontName="Helvetica-Bold", textColor=C4, leading=9)),
-            PlParagraph(f"<font color=\"{'#1a56db' if is_incoming else '#c62828' if sg >= 1 else '#e65100'}\">{etype}</font>", F("_t", fontSize=6.5, alignment=TA_CENTER, leading=9)),
+            PlParagraph(f"<font color=\"{row_c}\">{etype}</font>", F("_t", fontSize=6.5, alignment=TA_CENTER, leading=9)),
             PlParagraph(det, F("_det", fontSize=6.2, textColor=C5, leading=9)),
             PlParagraph(f"<b>{original_amount:,.2f}</b>" if sg == 1 else '<font color="#cccccc">—</font>', F("_dr", fontSize=6.5, textColor=C4 if sg == 1 else C5, alignment=TA_RIGHT, leading=9)),
             PlParagraph(f"<b>{deducted_from_line:,.2f}</b>" if deducted_from_line > 0 else '<font color="#cccccc">—</font>', F("_cr", fontSize=6.5, textColor="#e65100" if deducted_from_line > 0 else C5, alignment=TA_RIGHT, leading=9)),
@@ -5729,7 +5794,9 @@ def generate_driver_salary_card_pdf(
             a_rem = float(a.get("remaining",0))
             grand_orig += a_orig; grand_this += a_this; grand_total_cut += a_total; grand_rem += a_rem
 
-            if a_rem <= 0.001: status_txt = "CLEARED"; st_s = S("_s1",fontSize=6,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_CENTER,leading=8)
+            if a.get("is_return"):
+                status_txt = "RETURNED"; st_s = S("_sr",fontSize=6,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_CENTER,leading=8)
+            elif a_rem <= 0.001: status_txt = "CLEARED"; st_s = S("_s1",fontSize=6,fontName="Helvetica-Bold",textColor=GREEN,alignment=TA_CENTER,leading=8)
             elif a_this > 0: status_txt = "PARTIAL"; st_s = S("_s2",fontSize=6,fontName="Helvetica-Bold",textColor=ORANGE,alignment=TA_CENTER,leading=8)
             else: status_txt = "DUE"; st_s = S("_s3",fontSize=6,fontName="Helvetica-Bold",textColor=RED,alignment=TA_CENTER,leading=8)
 

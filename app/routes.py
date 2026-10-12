@@ -17767,12 +17767,19 @@ def _driver_balance(db, driver_id: str) -> float:
 
 
 def _advance_summary(db, driver_id: str, exclude_salary_store_id: int | None = None) -> dict[str, float]:
-    total_advance = float(
-        db.execute(
-            "SELECT COALESCE(SUM(amount), 0) FROM driver_transactions WHERE driver_id = ?",
-            (driver_id,),
-        ).fetchone()[0]
-    )
+    # txn_type 'Return' = cash handed BACK by the driver (advance recovered in
+    # cash, outside salary). It was never an advance issued — it reduces what
+    # is still outstanding instead of adding to it.
+    _row = db.execute(
+        """
+        SELECT COALESCE(SUM(CASE WHEN UPPER(COALESCE(txn_type, '')) = 'RETURN' THEN 0 ELSE amount END), 0),
+               COALESCE(SUM(CASE WHEN UPPER(COALESCE(txn_type, '')) = 'RETURN' THEN amount ELSE 0 END), 0)
+        FROM driver_transactions WHERE driver_id = ?
+        """,
+        (driver_id,),
+    ).fetchone()
+    total_advance = float(_row[0])
+    total_returned = float(_row[1])
     if exclude_salary_store_id is None:
         total_deducted = float(
             db.execute(
@@ -17796,10 +17803,12 @@ def _advance_summary(db, driver_id: str, exclude_salary_store_id: int | None = N
     # 8346.6666… — the form then rejected its own button press.
     total_advance = round(total_advance, 2)
     total_deducted = round(total_deducted, 2)
-    remaining_advance = round(max(total_advance - total_deducted, 0.0), 2)
+    total_returned = round(total_returned, 2)
+    remaining_advance = round(max(total_advance - total_deducted - total_returned, 0.0), 2)
     return {
         "total_advance": total_advance,
         "total_deducted": total_deducted,
+        "total_returned": total_returned,
         "remaining_advance": remaining_advance,
     }
 
@@ -17818,6 +17827,7 @@ def _apply_fifo_deduction(db, driver_id: str, salary_slip_id: int, deduction_amo
         SELECT id, entry_date, amount, details, remaining_amount, is_fully_deducted
         FROM driver_transactions
         WHERE driver_id = ? AND (is_fully_deducted = 0 OR is_fully_deducted IS NULL)
+          AND UPPER(COALESCE(txn_type, '')) <> 'RETURN'
         ORDER BY entry_date ASC, id ASC
         """,
         (driver_id,),
@@ -17870,6 +17880,7 @@ def _apply_fifo_deduction(db, driver_id: str, salary_slip_id: int, deduction_amo
         UPDATE driver_transactions
         SET remaining_amount = amount, is_fully_deducted = 0
         WHERE driver_id = ? AND remaining_amount IS NULL
+          AND UPPER(COALESCE(txn_type, '')) <> 'RETURN'
         """,
         (driver_id,),
     )
@@ -18302,7 +18313,7 @@ def _driver_month_statement_core(db, driver_id: str, month_value: str) -> tuple[
     opening_advance_left = float(
         db.execute(
             """
-            SELECT COALESCE(SUM(amount), 0)
+            SELECT COALESCE(SUM(CASE WHEN UPPER(COALESCE(txn_type, '')) = 'RETURN' THEN -amount ELSE amount END), 0)
             FROM driver_transactions
             WHERE driver_id = ? AND COALESCE(salary_month, SUBSTR(entry_date, 1, 7)) < ?
             """,
@@ -18336,6 +18347,17 @@ def _driver_month_statement_core(db, driver_id: str, month_value: str) -> tuple[
         SELECT entry_date, salary_month, txn_type, source, given_by, amount, details
         FROM driver_transactions
         WHERE driver_id = ? AND COALESCE(salary_month, SUBSTR(entry_date, 1, 7)) = ?
+          AND UPPER(COALESCE(txn_type, '')) <> 'RETURN'
+        ORDER BY entry_date ASC, id ASC
+        """,
+        (driver_id, month_value),
+    ).fetchall()
+    returned_rows = db.execute(
+        """
+        SELECT entry_date, amount, details
+        FROM driver_transactions
+        WHERE driver_id = ? AND COALESCE(salary_month, SUBSTR(entry_date, 1, 7)) = ?
+          AND UPPER(COALESCE(txn_type, '')) = 'RETURN'
         ORDER BY entry_date ASC, id ASC
         """,
         (driver_id, month_value),
@@ -18394,6 +18416,10 @@ def _driver_month_statement_core(db, driver_id: str, month_value: str) -> tuple[
                 "entry_kind": "transaction",
             }
         )
+    # Cash handed back by the driver this month — reduces the open advance.
+    for txn in returned_rows:
+        advance_left -= float(txn["amount"] or 0.0)
+    advance_left = max(advance_left, 0.0)
     total_deduction = sum(float(slip["total_deductions"] or 0.0) for slip in slip_rows)
     if total_deduction > 0:
         running_balance = max(running_balance - total_deduction, 0.0)
@@ -18459,6 +18485,7 @@ def _driver_month_statement_core(db, driver_id: str, month_value: str) -> tuple[
         "salary_total": salary_total,
         "extra_total": extra_total,
         "cash_given": sum(float(row["amount"]) for row in transaction_rows),
+        "cash_returned": round(sum(float(row["amount"] or 0.0) for row in returned_rows), 2),
         "deduction_amount": total_deduction,
         "paid_amount": sum(_payment_row_amount(row) for row in payment_rows),
         "company_balance_due": company_balance,

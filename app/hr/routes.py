@@ -383,7 +383,8 @@ def quick_transaction():
                  form_values["given_by"], amount, form_values["details"]),
             )
             new_txn_id = result.lastrowid
-            if form_values["source"] == "Owner Fund" and new_txn_id:
+            # A 'Return' is cash received back — it never flows OUT of owner fund.
+            if form_values["source"] == "Owner Fund" and new_txn_id and str(txn_type).strip().upper() != "RETURN":
                 try:
                     db.execute(
                         """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -818,8 +819,9 @@ def _build_soa(db, employee_id: str, employee, truth: dict) -> dict:
         "designation": employee.get("employee_type") or "Driver",
         "given": given,
         "recovered": recovered,
+        "returned": round(float(truth.get("total_returned") or 0.0), 2),
         "balance": balance,
-        "recovery_pct": round(recovered / given * 100, 2) if given > 0 else 0.0,
+        "recovery_pct": round((recovered + float(truth.get("total_returned") or 0.0)) / given * 100, 2) if given > 0 else 0.0,
         "months": list(reversed(month_list)),          # latest first
         "pending": pending,
         "pending_labels": pending_labels,
@@ -857,7 +859,12 @@ def _kata_truth(db, employee_id: str) -> dict:
         (employee_id,),
     ).fetchall()
 
-    total_given = round(sum(float(t["amount"] or 0) for t in txns), 2)
+    def _is_return(t):
+        # txn_type 'Return' = cash handed BACK by the driver. Not an advance.
+        return str(t["txn_type"] or "").strip().upper() == "RETURN"
+
+    total_given = round(sum(float(t["amount"] or 0) for t in txns if not _is_return(t)), 2)
+    total_returned = round(sum(float(t["amount"] or 0) for t in txns if _is_return(t)), 2)
     slip_rows = [
         {"salary_month": s["salary_month"],
          "total_deducted": round(float(s["total_deductions"] or 0), 2),
@@ -868,7 +875,7 @@ def _kata_truth(db, employee_id: str) -> dict:
     total_deducted = round(sum(s["total_deducted"] for s in slip_rows), 2)
 
     # Per-slip FIFO: each slip's deduction consumes the oldest advances first.
-    remaining_by_txn = {int(t["id"]): float(t["amount"] or 0) for t in txns}
+    remaining_by_txn = {int(t["id"]): float(t["amount"] or 0) for t in txns if not _is_return(t)}
     deducted_in: dict = {int(t["id"]): [] for t in txns}
     for s in slip_rows:
         need = s["total_deducted"]
@@ -877,6 +884,8 @@ def _kata_truth(db, employee_id: str) -> dict:
         for t in txns:
             if need <= 0.001:
                 break
+            if _is_return(t):
+                continue  # returned cash is not an advance to consume
             tid = int(t["id"])
             avail = remaining_by_txn[tid]
             if avail <= 0.001:
@@ -888,6 +897,26 @@ def _kata_truth(db, employee_id: str) -> dict:
 
     rows = []
     for t in txns:
+        if _is_return(t):
+            # Cash returned — shown as its own row, never as an open advance.
+            _ret = round(float(t["amount"] or 0), 2)
+            rows.append({
+                "id": int(t["id"]),
+                "entry_date": t["entry_date"],
+                "salary_month": t["salary_month"],
+                "txn_type": t["txn_type"],
+                "source": t["source"],
+                "given_by": t["given_by"],
+                "amount": _ret,
+                "details": t["details"],
+                "deducted": 0.0,
+                "remaining": 0.0,
+                "status": "returned",
+                "deducted_in": [],
+                "is_return": True,
+                "signed": -_ret,
+            })
+            continue
         amt = float(t["amount"] or 0)
         ded = round(amt - remaining_by_txn[int(t["id"])], 2)
         rem = round(max(amt - ded, 0.0), 2)
@@ -910,14 +939,39 @@ def _kata_truth(db, employee_id: str) -> dict:
             "remaining": rem,
             "status": status,
             "deducted_in": deducted_in[int(t["id"])],
+            "is_return": False,
+            "signed": round(amt, 2),
         })
+
+    # Cash returns clear the oldest open advances first — money truth for the
+    # per-row Remaining column (the global outstanding above already nets
+    # them out). After this the rows always sum to the headline outstanding.
+    _back = total_returned
+    for r in rows:
+        if _back <= 0.001:
+            break
+        if r.get("is_return") or r["remaining"] <= 0.001:
+            continue
+        cut = min(r["remaining"], _back)
+        r["remaining"] = round(r["remaining"] - cut, 2)
+        _back = round(_back - cut, 2)
+    for r in rows:
+        if r.get("is_return"):
+            continue
+        if r["remaining"] <= 0.01:
+            r["status"] = "cleared"
+        elif r["deducted"] > 0.01:
+            r["status"] = "partial"
+        else:
+            r["status"] = "outstanding"
 
     return {
         "rows": rows,
         "slips": slip_rows,
         "total_given": total_given,
+        "total_returned": total_returned,
         "total_deducted": total_deducted,
-        "outstanding": round(max(total_given - total_deducted, 0.0), 2),
+        "outstanding": round(max(total_given - total_deducted - total_returned, 0.0), 2),
     }
 
 
@@ -933,7 +987,8 @@ def _rebuild_fifo_allocations(db, employee_id: str) -> None:
     """
     txns = db.execute(
         "SELECT id, entry_date, amount, details FROM driver_transactions "
-        "WHERE driver_id = ? ORDER BY entry_date ASC, id ASC",
+        "WHERE driver_id = ? AND UPPER(COALESCE(txn_type, '')) <> 'RETURN' "
+        "ORDER BY entry_date ASC, id ASC",
         (employee_id,),
     ).fetchall()
     if not txns:
@@ -995,7 +1050,7 @@ def _driver_hisab_ledger(db, employee_id: str, truth: dict) -> list:
         e = months.get(m)
         if e is None:
             e = months[m] = {
-                "salary_month": m, "salary": 0.0, "given": 0.0,
+                "salary_month": m, "salary": 0.0, "given": 0.0, "returned": 0.0,
                 "deducted": 0.0, "paid": 0.0, "slip_count": 0, "store_id": None,
             }
         return e
@@ -1003,7 +1058,10 @@ def _driver_hisab_ledger(db, employee_id: str, truth: dict) -> list:
     for r in truth["rows"]:
         e = _slot((r["entry_date"] or "")[:7])
         if e:
-            e["given"] += r["amount"]
+            if r.get("is_return"):
+                e["returned"] += r["amount"]  # cash came back — reduces balance
+            else:
+                e["given"] += r["amount"]
     for s in truth["slips"]:
         e = _slot(s["salary_month"])
         if e:
@@ -1023,9 +1081,9 @@ def _driver_hisab_ledger(db, employee_id: str, truth: dict) -> list:
     out = []
     for m in sorted(months):
         e = months[m]
-        for k in ("salary", "given", "deducted", "paid"):
+        for k in ("salary", "given", "returned", "deducted", "paid"):
             e[k] = round(e[k], 2)
-        balance = round(balance + e["given"] - e["deducted"], 2)
+        balance = round(balance + e["given"] - e["returned"] - e["deducted"], 2)
         e["balance_after"] = round(max(balance, 0.0), 2)
         out.append(e)
     out.reverse()
@@ -1081,12 +1139,18 @@ def employee_transactions(employee_id):
                      form_values["given_by"], amount, form_values["details"], int(edit_id), eid),
                 )
                 new_source = form_values["source"]
+                # 'Return' = cash received back — it must never touch owner fund
+                # (no OUT entry); if this row became a Return, drop the OUT entry
+                # its old advance type may have created.
+                _is_ret = str(txn_type).strip().upper() == "RETURN"
                 if old_source != new_source:
                     existing_of = db.execute(
                         "SELECT id FROM owner_fund_entries WHERE source_table='driver_transactions' AND source_id=?",
                         (int(edit_id),),
                     ).fetchone()
-                    if new_source == "Owner Fund" and not existing_of:
+                    if _is_ret and existing_of:
+                        db.execute("DELETE FROM owner_fund_entries WHERE id=?", (existing_of["id"],))
+                    elif new_source == "Owner Fund" and not existing_of and not _is_ret:
                         db.execute(
                             """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                             (form_values["given_by"], form_values["entry_date"], amount,
@@ -1095,7 +1159,7 @@ def employee_transactions(employee_id):
                         )
                     elif old_source == "Owner Fund" and existing_of:
                         db.execute("DELETE FROM owner_fund_entries WHERE id=?", (existing_of["id"],))
-                elif new_source == "Owner Fund":
+                elif new_source == "Owner Fund" and not _is_ret:
                     db.execute(
                         """UPDATE owner_fund_entries SET owner_name=?, entry_date=?, amount=?, details=? WHERE source_table='driver_transactions' AND source_id=?""",
                         (form_values["given_by"], form_values["entry_date"], amount, form_values["details"], int(edit_id)),
@@ -1111,7 +1175,8 @@ def employee_transactions(employee_id):
                      form_values["given_by"], amount, form_values["details"]),
                 )
                 new_txn_id = result.lastrowid
-                if form_values["source"] == "Owner Fund" and new_txn_id:
+                # A 'Return' is cash received back — it never flows OUT of owner fund.
+                if form_values["source"] == "Owner Fund" and new_txn_id and str(txn_type).strip().upper() != "RETURN":
                     try:
                         db.execute(
                             """INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, source_table, source_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -1177,6 +1242,7 @@ def employee_transactions(employee_id):
         txn_form=form_values,
         transactions=transactions,
         total_advance=total_advance,
+        total_returned=truth["total_returned"],
         total_deducted=truth["total_deducted"],
         txn_outstanding=truth["outstanding"],
         txn_statement=txn_statement,
@@ -1946,12 +2012,36 @@ def employee_salary_card(employee_id, store_id):
         all_ded_map[tid]["total"] += float(d["amount_deducted"])
         all_ded_map[tid]["months"].append(d["salary_month"])
 
-    # Build advance summary with deduction info
+    # Build advance summary with deduction info.
+    # A 'Return' row is cash handed BACK — shown as a credit line, and the
+    # returned cash is allocated against the oldest open advances so each
+    # row's Remaining matches the real money position.
     advances_list = []
     total_adv = 0.0
+    returned_left = round(
+        sum(float(a["amount"]) for a in all_advances if str(a["txn_type"] or "").strip().upper() == "RETURN"),
+        2,
+    )
     for a in all_advances:
         amt = float(a["amount"])
+        if str(a["txn_type"] or "").strip().upper() == "RETURN":
+            advances_list.append({
+                "entry_date": a["entry_date"],
+                "amount": -amt,
+                "deducted_total": 0.0,
+                "deducted_this_month": 0.0,
+                "remaining": 0.0,
+                "details": f"Return (cash back) - {(a['details'] or '').strip()}",
+                "source": a["source"],
+                "deducted_in_months": [],
+                "is_return": True,
+            })
+            continue
         rem = float(a["remaining_amount"] or amt)
+        if returned_left > 0.001 and rem > 0.0:
+            cut = min(rem, returned_left)
+            rem = round(rem - cut, 2)
+            returned_left = round(returned_left - cut, 2)
         ded_total = all_ded_map.get(a["id"], {}).get("total", 0.0)
         ded_this_month = this_slip_ded_map.get(a["id"], 0.0)
         total_adv += amt
@@ -1964,6 +2054,7 @@ def employee_salary_card(employee_id, store_id):
             "details": a["details"],
             "source": a["source"],
             "deducted_in_months": all_ded_map.get(a["id"], {}).get("months", []),
+            "is_return": False,
         })
 
     # Month-wise deduction summary
@@ -2080,6 +2171,7 @@ def employee_kata(employee_id):
     # Money-truth statement — computed every time (latest, month-independent)
     truth = _kata_truth(db, eid)
     kata_total_given = truth["total_given"]
+    kata_total_returned = truth["total_returned"]
     kata_total_deducted = truth["total_deducted"]
     kata_outstanding = truth["outstanding"]
     soa = _build_soa(db, eid, employee, truth)
@@ -2131,8 +2223,14 @@ def employee_kata(employee_id):
         _y, _m = int(selected_month[:4]), int(selected_month[5:7])
         next_month_start = f"{_y + (1 if _m == 12 else 0)}-{(_m % 12) + 1:02d}-01"
 
-        given_before = round(sum(r["amount"] for r in truth["rows"] if (r["entry_date"] or "")[:10] < month_start), 2)
-        given_through = round(sum(r["amount"] for r in truth["rows"] if (r["entry_date"] or "")[:10] < next_month_start), 2)
+        def _period_given(cutoff):
+            # Returns before the cutoff reduce the balance (cash came back).
+            issued = sum(r["amount"] for r in truth["rows"] if not r.get("is_return") and (r["entry_date"] or "")[:10] < cutoff)
+            back = sum(r["amount"] for r in truth["rows"] if r.get("is_return") and (r["entry_date"] or "")[:10] < cutoff)
+            return round(issued - back, 2)
+
+        given_before = _period_given(month_start)
+        given_through = _period_given(next_month_start)
 
         prev_deductions = round(sum(s["total_deducted"] for s in truth["slips"] if s["salary_month"] < selected_month), 2)
         deducted_through = round(sum(s["total_deducted"] for s in truth["slips"] if s["salary_month"] <= selected_month), 2)
@@ -2146,6 +2244,7 @@ def employee_kata(employee_id):
 
         # Latest all-time truth — independent of the selected month
         kata_total_given = truth["total_given"]
+        kata_total_returned = truth["total_returned"]
         kata_total_deducted = truth["total_deducted"]
         kata_outstanding = truth["outstanding"]
 
@@ -2218,6 +2317,7 @@ def employee_kata(employee_id):
         kata_this_deduction=kata_this_deduction,
         kata_remaining=kata_remaining,
         kata_total_given=kata_total_given,
+        kata_total_returned=kata_total_returned,
         kata_total_deducted=kata_total_deducted,
         kata_outstanding=kata_outstanding,
         kata_deduction_history=deduction_history,
