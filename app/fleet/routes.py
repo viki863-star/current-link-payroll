@@ -1727,6 +1727,181 @@ def vehicle_link_to_head(plate_no):
 
 # ── Vehicle Profile ─────────────────────────────────────────────
 
+# ── Vehicle fuel charts (inline SVG — no external JS/CDN) ────────────────────
+
+_FUEL_NAVY = "#0f2740"
+_FUEL_ORANGE = "#E6871F"
+_FUEL_GRID = "#eef1f4"
+_FUEL_MUTED = "#868e96"
+
+
+def _fmt_k(v):
+    v = float(v or 0)
+    if v >= 1_000_000:
+        return f"{v / 1_000_000:.1f}M"
+    if v >= 1000:
+        return f"{v / 1000:.1f}k"
+    return f"{v:.0f}"
+
+
+def _fuel_bars_svg(months, current_key=None):
+    """Compact monthly fuel-spend bar chart as an inline SVG string."""
+    if not months:
+        return ""
+    peak = max(float(m["spend"] or 0) for m in months)
+    if peak <= 0:
+        return ""
+    import math
+
+    nice = 10 ** math.floor(math.log10(peak))
+    top = math.ceil(peak / nice) * nice
+    if top < peak:
+        top += nice
+
+    n = len(months)
+    W, H = 340, 128
+    pad_l, pad_r, pad_t, pad_b = 8, 8, 18, 18
+    cw = W - pad_l - pad_r
+    ch = H - pad_t - pad_b
+    step = cw / n
+    bar_w = min(24.0, step * 0.56)
+
+    parts = [
+        f'<svg viewBox="0 0 {W} {H}" style="display:block;width:100%;height:auto" '
+        f'role="img" aria-label="Monthly fuel spend">'
+    ]
+    for frac in (0.0, 0.5, 1.0):
+        gy = round(pad_t + ch * (1 - frac), 1)
+        parts.append(
+            f'<line x1="{pad_l}" y1="{gy}" x2="{W - pad_r}" y2="{gy}" '
+            f'stroke="{_FUEL_GRID}" stroke-width="1"/>'
+        )
+    parts.append(
+        f'<text x="{pad_l}" y="{pad_t - 6}" font-size="6.6" fill="{_FUEL_MUTED}">AED {_fmt_k(top)}</text>'
+    )
+    for i, m in enumerate(months):
+        spend = float(m["spend"] or 0)
+        cx = pad_l + step * i + step / 2
+        bh = (spend / top) * ch if top else 0.0
+        by = pad_t + ch - bh
+        is_cur = bool(current_key) and m["key"] == current_key
+        fill = _FUEL_ORANGE if is_cur else _FUEL_NAVY
+        op = "1" if spend > 0 else "0"
+        title = f'{m["label"]}: AED {spend:,.2f}'
+        parts.append(
+            f'<rect x="{round(cx - bar_w / 2, 1)}" y="{round(by, 1)}" width="{round(bar_w, 1)}" '
+            f'height="{round(max(bh, 0.6), 1)}" rx="2.5" fill="{fill}" opacity="{op}">'
+            f"<title>{title}</title></rect>"
+        )
+        if spend > 0 and (n <= 8 or is_cur or abs(spend - peak) < 0.005):
+            val_color = _FUEL_ORANGE if is_cur else "#495057"
+            parts.append(
+                f'<text x="{round(cx, 1)}" y="{round(by - 3, 1)}" font-size="6.6" font-weight="600" '
+                f'fill="{val_color}" text-anchor="middle">{_fmt_k(spend)}</text>'
+            )
+        month_short = (m["label"] or "").split(" ")[0]
+        mon_color = _FUEL_ORANGE if is_cur else _FUEL_MUTED
+        weight = "700" if is_cur else "500"
+        parts.append(
+            f'<text x="{round(cx, 1)}" y="{H - 5}" font-size="6.8" font-weight="{weight}" '
+            f'fill="{mon_color}" text-anchor="middle">{month_short}</text>'
+        )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _fuel_rate_svg(months, current_key=None):
+    """Compact fuel-rate (AED per gallon) trend as an inline SVG string."""
+    pts = []
+    for i, m in enumerate(months):
+        r = float(m["rate"] or 0)
+        if r > 0:
+            pts.append((i, r))
+    if not pts:
+        return ""
+
+    W, H = 340, 128
+    pad_l, pad_r, pad_t, pad_b = 30, 10, 16, 18
+    cw = W - pad_l - pad_r
+    ch = H - pad_t - pad_b
+    n = len(months)
+
+    rates = [r for _, r in pts]
+    lo, hi = min(rates), max(rates)
+    if hi - lo < 0.02:
+        lo = max(lo - 0.1, 0.0)
+        hi = hi + 0.1
+    span = (hi - lo) or 1.0
+
+    def _x(i):
+        return pad_l + cw * (i / max(n - 1, 1))
+
+    def _y(r):
+        return pad_t + ch * (1 - (r - lo) / span)
+
+    parts = [
+        f'<svg viewBox="0 0 {W} {H}" style="display:block;width:100%;height:auto" '
+        f'role="img" aria-label="Fuel rate trend">'
+    ]
+    for frac in (0.0, 0.5, 1.0):
+        gy = round(pad_t + ch * (1 - frac), 1)
+        parts.append(
+            f'<line x1="{pad_l}" y1="{gy}" x2="{W - pad_r}" y2="{gy}" '
+            f'stroke="{_FUEL_GRID}" stroke-width="1"/>'
+        )
+    parts.append(
+        f'<text x="2" y="{pad_t + 4}" font-size="6.4" fill="{_FUEL_MUTED}">{hi:.2f}</text>'
+        f'<text x="2" y="{pad_t + ch}" font-size="6.4" fill="{_FUEL_MUTED}">{lo:.2f}</text>'
+    )
+
+    coords = [(round(_x(i), 1), round(_y(r), 1)) for i, r in pts]
+    if len(coords) >= 2:
+        base_y = pad_t + ch
+        line_points = " ".join(f"{x},{y}" for x, y in coords)
+        area_d = "M " + " L ".join(f"{x},{y}" for x, y in [(coords[0][0], base_y)] + coords + [(coords[-1][0], base_y)]) + " Z"
+        parts.append(
+            f'<defs><linearGradient id="fuelRateGrad" x1="0" y1="0" x2="0" y2="1">'
+            f'<stop offset="0%" stop-color="{_FUEL_NAVY}" stop-opacity="0.16"/>'
+            f'<stop offset="100%" stop-color="{_FUEL_NAVY}" stop-opacity="0.01"/>'
+            f"</linearGradient></defs>"
+        )
+        parts.append(f'<path d="{area_d}" fill="url(#fuelRateGrad)"/>')
+        parts.append(
+            f'<polyline points="{line_points}" fill="none" stroke="{_FUEL_NAVY}" '
+            f'stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>'
+        )
+    for idx, (x, y) in enumerate(coords):
+        i, r = pts[idx]
+        m = months[i]
+        is_last = idx == len(pts) - 1
+        is_cur = bool(current_key) and m["key"] == current_key
+        color = _FUEL_ORANGE if (is_cur or is_last) else _FUEL_NAVY
+        rad = 3.0 if (is_cur or is_last) else 2.2
+        title = f'{m["label"]}: AED {r:.3f}/GLN'
+        parts.append(
+            f'<circle cx="{x}" cy="{y}" r="{rad}" fill="#fff" stroke="{color}" stroke-width="1.6">'
+            f"<title>{title}</title></circle>"
+        )
+        if is_cur or is_last or len(pts) <= 4:
+            parts.append(
+                f'<text x="{x}" y="{round(y - 5, 1)}" font-size="6.6" font-weight="600" '
+                f'fill="{color}" text-anchor="middle">{r:.3f}</text>'
+            )
+    for i, m in enumerate(months):
+        if n > 8 and i % 2 == 1 and not (bool(current_key) and m["key"] == current_key):
+            continue
+        is_cur = bool(current_key) and m["key"] == current_key
+        color = _FUEL_ORANGE if is_cur else _FUEL_MUTED
+        weight = "700" if is_cur else "500"
+        month_short = (m["label"] or "").split(" ")[0]
+        parts.append(
+            f'<text x="{round(_x(i), 1)}" y="{H - 5}" font-size="6.8" font-weight="{weight}" '
+            f'fill="{color}" text-anchor="middle">{month_short}</text>'
+        )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 @fleet_bp.route("/fleet/vehicles/<path:plate_no>")
 @_login_required("admin")
 def vehicle_profile(plate_no):
@@ -1829,6 +2004,60 @@ def vehicle_profile(plate_no):
     ).fetchall()
     fuel_total_gallons = sum(f["gallons"] for f in fuel_entries) if fuel_entries else 0
     fuel_total_amount = sum(f["total_amount"] for f in fuel_entries) if fuel_entries else 0
+
+    # ── Monthly fuel view (display-only): one section per month, newest first,
+    #    plus overview figures and the two small SVG charts. ──
+    _MONTH_ABBR = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+    def _fuel_month_label(key):
+        try:
+            year, mon = key.split("-")
+            return f"{_MONTH_ABBR[int(mon) - 1]} {year}"
+        except (ValueError, IndexError):
+            return key
+
+    fuel_month_map = {}
+    fuel_month_order = []
+    for fe in fuel_entries:
+        mkey = (fe["entry_date"] or "")[:7] or "unknown"
+        if mkey not in fuel_month_map:
+            fuel_month_map[mkey] = {
+                "key": mkey,
+                "label": _fuel_month_label(mkey),
+                "entries": [],
+                "gallons": 0.0,
+                "amount": 0.0,
+            }
+            fuel_month_order.append(mkey)
+        bucket = fuel_month_map[mkey]
+        bucket["entries"].append(fe)
+        bucket["gallons"] += float(fe["gallons"] or 0)
+        bucket["amount"] += float(fe["total_amount"] or 0)
+    fuel_months = []
+    for mkey in fuel_month_order:  # fuel_entries is date-DESC → months stay newest first
+        bucket = fuel_month_map[mkey]
+        bucket["avg_rate"] = (bucket["amount"] / bucket["gallons"]) if bucket["gallons"] > 0 else 0.0
+        fuel_months.append(bucket)
+
+    fuel_avg_rate = (fuel_total_amount / fuel_total_gallons) if fuel_total_gallons > 0 else 0.0
+    _today_key = date.today().strftime("%Y-%m")
+    fuel_this_month = fuel_month_map.get(_today_key)
+    fuel_this_month_label = _fuel_month_label(_today_key)
+
+    # Chart series: up to the 12 most recent recorded months, oldest → newest
+    _chart_keys = sorted(fuel_month_map.keys())[-12:]
+    fuel_chart_months = [
+        {
+            "key": k,
+            "label": fuel_month_map[k]["label"],
+            "spend": fuel_month_map[k]["amount"],
+            "gallons": fuel_month_map[k]["gallons"],
+            "rate": fuel_month_map[k]["avg_rate"],
+        }
+        for k in _chart_keys
+    ]
+    fuel_spend_svg = _fuel_bars_svg(fuel_chart_months, current_key=_today_key)
+    fuel_rate_svg = _fuel_rate_svg(fuel_chart_months, current_key=_today_key)
     suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
 
     # Supplier bills (Parts) for this vehicle
@@ -1889,6 +2118,13 @@ def vehicle_profile(plate_no):
         fuel_entries=fuel_entries,
         fuel_total_gallons=fuel_total_gallons,
         fuel_total_amount=fuel_total_amount,
+        fuel_months=fuel_months,
+        fuel_this_month=fuel_this_month,
+        fuel_this_month_label=fuel_this_month_label,
+        fuel_avg_rate=fuel_avg_rate,
+        fuel_spend_svg=fuel_spend_svg,
+        fuel_rate_svg=fuel_rate_svg,
+        fuel_chart_count=len(fuel_chart_months),
         supplier_bills=supplier_bills,
         parts_total_amount=parts_total_amount,
         parts_total_vat=parts_total_vat,
