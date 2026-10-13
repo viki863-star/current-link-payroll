@@ -3287,6 +3287,154 @@ def employee_ids_pdf(employee_id):
     )
 
 
+# ── Salary Certificate ──────────────────────────────────────────────
+
+def _company_profile_row(db):
+    return db.execute(
+        "SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, "
+        "address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, "
+        "invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1"
+    ).fetchone()
+
+
+def _dlabel(value):
+    """'2023-04-16' → '16 April 2023' (pass-through when unparseable)."""
+    v = (value or "").strip()
+    if len(v) >= 10:
+        try:
+            return datetime.strptime(v[:10], "%Y-%m-%d").strftime("%d %B %Y")
+        except ValueError:
+            return v[:10]
+    return v or "-"
+
+
+def _salary_certificate_context(db, employee, purpose):
+    """Read-only issuing context for the salary certificate.
+
+    Salary figures come from the latest payroll record (salary_store) when one
+    exists, otherwise from the employee master. Nothing is booked or modified —
+    the certificate only states what is payable.
+    """
+    from ..utils import num_to_words
+
+    eid = employee["employee_id"]
+
+    def _f(v):
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    latest = db.execute(
+        "SELECT salary_month, monthly_basic_salary, basic_salary, ot_amount, personal_vehicle "
+        "FROM salary_store WHERE driver_id = ? ORDER BY salary_month DESC, id DESC LIMIT 1",
+        (eid,),
+    ).fetchone()
+
+    basic = allowances = ot = 0.0
+    salary_period = ""
+    if latest:
+        basic = _f(latest["monthly_basic_salary"]) or _f(latest["basic_salary"])
+        allowances = _f(latest["personal_vehicle"])
+        ot = _f(latest["ot_amount"])
+        salary_period = (latest["salary_month"] or "").strip()
+    if basic <= 0:
+        basic = _f(employee["basic_salary"])
+
+    gross_monthly = round(basic + allowances + ot, 2)
+    gross_annual = round(gross_monthly * 12, 2)
+
+    id_bits = []
+    if (employee["passport_no"] or "").strip():
+        id_bits.append(f"Passport No. {employee['passport_no'].strip()}")
+    if (employee["iqama_no"] or "").strip():
+        id_bits.append(f"Emirates ID {employee['iqama_no'].strip()}")
+
+    issue_date = date.today()
+    purpose_clean = (purpose or "").strip()[:120] or "official purposes"
+
+    return {
+        "ref_no": f"SC-{eid}-{issue_date.strftime('%Y%m%d')}",
+        "issue_date_label": issue_date.strftime("%d %B %Y"),
+        "purpose": purpose_clean,
+        "designation": (employee["designation"] or employee["employee_type"] or "").strip() or "-",
+        "department": (employee["department"] or "").strip() or "-",
+        "contract_type": (employee["contract_type"] or "").strip() or "-",
+        "join_date_label": _dlabel(employee["join_date"]),
+        "id_doc": " | ".join(id_bits),
+        "basic": basic,
+        "allowances": allowances,
+        "ot": ot,
+        "gross_monthly": gross_monthly,
+        "gross_annual": gross_annual,
+        "gross_words": num_to_words(gross_monthly) + " Only",
+        "salary_period_label": format_month_label(salary_period) if salary_period else "",
+    }
+
+
+@hr_bp.route("/hr/employees/<employee_id>/salary-certificate")
+@_login_required("admin")
+def employee_salary_certificate(employee_id):
+    """On-screen preview of the official salary certificate."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    employee = _fetch_employee(db, employee_id)
+    if employee is None:
+        flash("Employee not found.", "error")
+        return redirect(url_for("hr.employee_list"))
+
+    purpose = (request.args.get("purpose") or "").strip()[:120]
+    cert = _salary_certificate_context(db, employee, purpose)
+    company = _company_profile_row(db)
+    company_profile = dict(company) if company else None
+    photo_url = _employee_photo_url(current_app._get_current_object(), employee)
+
+    return render_template(
+        "hr/employee_detail.html",
+        employee=employee,
+        photo_url=photo_url,
+        active_tab="certificate",
+        cert=cert,
+        company_profile=company_profile,
+    )
+
+
+@hr_bp.route("/hr/employees/<employee_id>/salary-certificate/pdf")
+@_login_required("admin")
+def employee_salary_certificate_pdf(employee_id):
+    """Download the salary certificate as an A4 PDF."""
+    _touch_admin_workspace("hr")
+    ensure_employees_table()
+    db = open_db()
+    employee = _fetch_employee(db, employee_id)
+    if employee is None:
+        flash("Employee not found.", "error")
+        return redirect(url_for("hr.employee_list"))
+
+    purpose = (request.args.get("purpose") or "").strip()[:120]
+    cert = _salary_certificate_context(db, employee, purpose)
+    company = _company_profile_row(db)
+    company_profile = dict(company) if company else None
+
+    from ..pdf_service import generate_salary_certificate_pdf
+    pdf_path = generate_salary_certificate_pdf(
+        dict(employee), cert, company_profile,
+        str(Path(current_app.config["GENERATED_DIR"]) / "certificates"),
+        current_app.config["STATIC_ASSETS_DIR"],
+    )
+    with open(pdf_path, "rb") as fh:
+        data = fh.read()
+
+    safe_id = "".join(c if c.isalnum() or c in "-_" else "_" for c in employee_id) or "employee"
+    return send_file(
+        BytesIO(data),
+        as_attachment=True,
+        download_name=f"{safe_id}_Salary_Certificate.pdf",
+        mimetype="application/pdf",
+    )
+
+
 @hr_bp.route("/hr/driver-ids")
 @_login_required("admin")
 def driver_ids():

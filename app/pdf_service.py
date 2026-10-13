@@ -5867,3 +5867,413 @@ def generate_driver_salary_card_pdf(
         if logo: os.unlink(logo._file)
     except Exception: pass
     return str(output_path)
+
+
+# ── Salary Certificate ────────────────────────────────────────────────────────
+
+def generate_salary_certificate_pdf(
+    employee: dict,
+    cert: dict,
+    company_profile: dict | None,
+    output_dir: str,
+    assets_dir: str,
+) -> str:
+    """Official A4 salary certificate for bank / visa / immigration use.
+
+    `employee` is a plain dict of the employees row and `cert` is the issuing
+    context built by app.hr.routes._salary_certificate_context (reference
+    number, issue date, purpose, salary figures). Read-only by design: the
+    certificate states what is *payable* — it never claims cash was paid.
+    """
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph as PlParagraph, Spacer,
+        Table as PlTable, TableStyle as PlTableStyle, Image as PlImage,
+    )
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY
+    from xml.sax.saxutils import escape as xesc
+    import os
+    import tempfile
+
+    emp = dict(employee)
+    c = dict(cert or {})
+    cp = dict(company_profile) if company_profile else {}
+
+    output_path = Path(output_dir) / f"{emp.get('employee_id') or 'employee'}_salary_certificate.pdf"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    theme_hex = (cp.get("theme_color") or "").strip() or "#0f2740"
+    if not theme_hex.startswith("#"):
+        theme_hex = "#" + theme_hex
+    try:
+        TH = colors.HexColor(theme_hex)
+    except Exception:
+        theme_hex = "#0f2740"
+        TH = colors.HexColor(theme_hex)
+    ACCENT = ORANGE
+    INK = colors.HexColor("#0f172a")
+    MUT = colors.HexColor("#5b6b80")
+    LN = colors.HexColor("#e3e9f2")
+    BGC = colors.HexColor("#f4f7fb")
+    WH = colors.white
+
+    LM = RM = 16 * mm
+    TM, BM = 13 * mm, 14 * mm
+    doc = SimpleDocTemplate(
+        str(output_path), pagesize=A4,
+        leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM,
+        title=f"Salary Certificate - {emp.get('full_name') or 'Employee'}",
+    )
+    W = A4[0] - LM - RM
+
+    def money(v):
+        try:
+            return f"{float(v or 0):,.2f}"
+        except Exception:
+            return "0.00"
+
+    def F(name, **kw):
+        kw.setdefault("fontSize", 9.3)
+        kw.setdefault("leading", 13.8)
+        kw.setdefault("textColor", INK)
+        return ParagraphStyle(name, **kw)
+
+    def P(text, **kw):
+        return PlParagraph(str(text), F("_p", **kw))
+
+    def _fit_pic(path, max_w=None, max_h=None):
+        try:
+            ir = ImageReader(path)
+            pw, ph = ir.getSize()
+            if not pw or not ph:
+                return None
+            w, h = float(pw), float(ph)
+            if max_w and w > max_w:
+                h *= max_w / w
+                w = max_w
+            if max_h and h > max_h:
+                w *= max_h / h
+                h = max_h
+            return PlImage(path, width=w, height=h)
+        except Exception:
+            return None
+
+    els = []
+
+    # ── Letterhead ──────────────────────────────────────────────────────
+    co_name = cp.get("legal_name") or cp.get("company_name") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC"
+    contact_bits = [str(x) for x in [cp.get("address"), cp.get("phone_number"), cp.get("email")] if x]
+    lic_bits = []
+    if cp.get("trn_no"):
+        lic_bits.append(f"TRN: {cp['trn_no']}")
+    if cp.get("trade_license_no"):
+        lic_bits.append(f"Trade Licence: {cp['trade_license_no']}")
+
+    logo_flowable = None
+    logo_tmp = None
+    if cp.get("logo_data") and cp.get("logo_type"):
+        try:
+            logo_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            logo_tmp.write(base64.b64decode(cp["logo_data"]))
+            logo_tmp.close()
+            ir = ImageReader(logo_tmp.name)
+            pw, ph = ir.getSize()
+            lh = 46.0
+            lw = lh * (pw / ph) if ph else 46.0
+            if lw > 74.0:
+                lw = 74.0
+                lh = lw * (ph / pw) if pw else 46.0
+            logo_flowable = PlImage(logo_tmp.name, width=lw, height=lh)
+        except Exception:
+            logo_flowable = None
+
+    co_lines = [f"<font size=11 color='{theme_hex}'><b>{xesc(str(co_name))}</b></font>"]
+    if contact_bits:
+        co_lines.append(f"<font size=6.8 color='#5b6b80'>{' &middot; '.join(xesc(b) for b in contact_bits)}</font>")
+    if lic_bits:
+        co_lines.append(f"<font size=6.8 color='#5b6b80'>&#160;&#160;{' &middot; '.join(xesc(b) for b in lic_bits)}</font>")
+    co_p = PlParagraph("<br/>".join(co_lines), F("co", fontSize=11, leading=14.5))
+
+    ref_no = xesc(str(c.get("ref_no") or ""))
+    issue_label = xesc(str(c.get("issue_date_label") or ""))
+    meta_p = PlParagraph(
+        f"<font size=6.6 color='#5b6b80'>Certificate Ref</font><br/>"
+        f"<font size=8.6><b>{ref_no}</b></font><br/>"
+        f"<font size=6.6 color='#5b6b80'>Date of Issue</font><br/>"
+        f"<font size=8.6><b>{issue_label}</b></font>",
+        F("meta", alignment=TA_RIGHT, leading=11.5),
+    )
+
+    if logo_flowable:
+        lcell = logo_flowable.drawWidth + 6 * mm
+        head = PlTable(
+            [[logo_flowable, co_p, meta_p]],
+            colWidths=[lcell, W * 0.56, W * 0.44 - lcell],
+        )
+    else:
+        head = PlTable([[co_p, meta_p]], colWidths=[W * 0.58, W * 0.42])
+    head.setStyle(PlTableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (-1, 0), (-1, 0), "RIGHT"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(head)
+    els.append(Spacer(1, 4))
+
+    rule = PlTable([[""], [""]], colWidths=[W], rowHeights=[2.4, 1.4])
+    rule.setStyle(PlTableStyle([
+        ("BACKGROUND", (0, 0), (0, 0), TH),
+        ("BACKGROUND", (0, 1), (0, 1), ACCENT),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(rule)
+
+    # ── Title ───────────────────────────────────────────────────────────
+    els.append(Spacer(1, 11))
+    els.append(PlParagraph(
+        "S A L A R Y &#160;&#160; C E R T I F I C A T E",
+        F("title", fontSize=17, fontName="Helvetica-Bold", textColor=TH, alignment=TA_CENTER, leading=21),
+    ))
+    els.append(Spacer(1, 3))
+    els.append(PlParagraph(
+        "T O &#160;&#160; W H O M &#160;&#160; I T &#160;&#160; M A Y &#160;&#160; C O N C E R N",
+        F("tw", fontSize=8.4, fontName="Helvetica-Bold", textColor=MUT, alignment=TA_CENTER, leading=12),
+    ))
+    els.append(Spacer(1, 10))
+
+    # ── Opening statement ───────────────────────────────────────────────
+    name = str(emp.get("full_name") or "").strip() or "-"
+    eid = str(emp.get("employee_id") or "").strip()
+    nationality = str(emp.get("nationality") or "").strip()
+    id_doc = str(c.get("id_doc") or "").strip()
+
+    who = f"<b>{xesc(name)}</b> ({xesc(eid)})"
+    appos = []
+    if nationality:
+        appos.append(f"a {xesc(nationality)} national")
+    if id_doc:
+        appos.append(f"holder of {xesc(id_doc)}")
+    if appos:
+        who += ", " + ", ".join(appos)
+        sep = ","
+    else:
+        sep = ""
+
+    body1 = (
+        f"This is to certify that {who}{sep} is employed with <b>{xesc(str(co_name))}</b> "
+        f"and is presently working as <b>{xesc(str(c.get('designation') or '-'))}</b> "
+        f"in the <b>{xesc(str(c.get('department') or '-'))}</b> department on a "
+        f"<b>{xesc(str(c.get('contract_type') or '-'))}</b> basis. The date of joining is "
+        f"<b>{xesc(str(c.get('join_date_label') or '-'))}</b> and the current employment "
+        f"status is <b>{xesc(str(emp.get('status') or '-'))}</b>."
+    )
+    els.append(P(body1, alignment=TA_JUSTIFY, fontSize=9.6, leading=14.6))
+    els.append(Spacer(1, 9))
+
+    # ── Employee particulars table ──────────────────────────────────────
+    def _lab(t):
+        return P(f"<b>{xesc(str(t))}</b>", fontSize=8.3, textColor=colors.HexColor("#475569"))
+
+    def _val(t):
+        return P(xesc(str(t or "-")), fontSize=8.5)
+
+    det_rows = [
+        [_lab("Full Name"), _val(name), _lab("Designation"), _val(c.get("designation") or emp.get("employee_type") or "-")],
+        [_lab("Employee ID"), _val(eid), _lab("Department"), _val(c.get("department") or "-")],
+        [_lab("Date of Joining"), _val(c.get("join_date_label") or "-"), _lab("Employment Status"), _val(emp.get("status") or "-")],
+        [_lab("Contract Type"), _val(c.get("contract_type") or "-"), _lab("Nationality"), _val(nationality or "-")],
+    ]
+    if id_doc:
+        det_rows.append([_lab("ID Document"), _val(id_doc), P(""), P("")])
+
+    det = PlTable(det_rows, colWidths=[W * 0.20, W * 0.30, W * 0.20, W * 0.30])
+    det_style = [
+        ("BOX", (0, 0), (-1, -1), 0.6, LN),
+        ("INNERGRID", (0, 0), (-1, -1), 0.4, LN),
+        ("BACKGROUND", (0, 0), (0, -1), BGC),
+        ("BACKGROUND", (2, 0), (2, -1), BGC),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+    ]
+    if id_doc:
+        det_style.append(("SPAN", (1, -1), (3, -1)))
+    det.setStyle(PlTableStyle(det_style))
+    els.append(det)
+    els.append(Spacer(1, 10))
+
+    # ── Salary details ──────────────────────────────────────────────────
+    period_note = ""
+    if c.get("salary_period_label"):
+        period_note = (
+            f" &#160;&#8212;&#160; <font size=7 color='#cdd8e8'>as per payroll record "
+            f"{xesc(str(c['salary_period_label']))}</font>"
+        )
+    sal_hdr = PlTable(
+        [[PlParagraph(f"<b>SALARY DETAILS</b>{period_note}", F("sah", fontSize=8.4, fontName="Helvetica-Bold", textColor=WH, leading=11))]],
+        colWidths=[W],
+    )
+    sal_hdr.setStyle(PlTableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), TH),
+        ("LEFTPADDING", (0, 0), (-1, -1), 9),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+        ("TOPPADDING", (0, 0), (-1, -1), 4.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
+    ]))
+    els.append(sal_hdr)
+
+    basic = float(c.get("basic") or 0)
+    allowances = float(c.get("allowances") or 0)
+    ot = float(c.get("ot") or 0)
+    gross_monthly = float(c.get("gross_monthly") or 0)
+    gross_annual = float(c.get("gross_annual") or 0)
+
+    sal_rows = [
+        [P("<b>COMPONENT</b>", fontSize=8, textColor=WH),
+         P("<b>MONTHLY AMOUNT (AED)</b>", fontSize=8, textColor=WH, alignment=TA_RIGHT)],
+        [P("Basic Salary"), P(f"<b>{money(basic)}</b>", alignment=TA_RIGHT)],
+    ]
+    if allowances > 0:
+        sal_rows.append([P("Allowances (Vehicle / Other)"), P(money(allowances), alignment=TA_RIGHT)])
+    if ot > 0:
+        sal_rows.append([P("Overtime Allowance"), P(money(ot), alignment=TA_RIGHT)])
+    sal_rows.append([P("<b>Total Gross Monthly Salary</b>"), P(f"<b>{money(gross_monthly)}</b>", alignment=TA_RIGHT)])
+    sal_rows.append([P("<b>Total Gross Annual Salary</b>"), P(f"<b>{money(gross_annual)}</b>", alignment=TA_RIGHT, textColor=TH)])
+
+    sal = PlTable(sal_rows, colWidths=[W * 0.66, W * 0.34])
+    sal.setStyle(PlTableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), TH),
+        ("BACKGROUND", (0, -2), (-1, -2), BGC),
+        ("BOX", (0, 0), (-1, -1), 0.6, LN),
+        ("INNERGRID", (0, 0), (-1, -1), 0.4, LN),
+        ("LINEABOVE", (0, -2), (-1, -2), 0.9, TH),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 5.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 9),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+    ]))
+    els.append(sal)
+    els.append(Spacer(1, 5))
+
+    # ── Amount in words ─────────────────────────────────────────────────
+    els.append(PlParagraph(
+        f"<b>Amount in words:</b> {xesc(str(c.get('gross_words') or ''))}",
+        F("words", fontSize=8.8, leading=12.5),
+    ))
+    els.append(Spacer(1, 8))
+
+    # ── Purpose + validity ──────────────────────────────────────────────
+    purpose = str(c.get("purpose") or "official purposes")
+    els.append(PlParagraph(
+        f"<b>Purpose:</b> This certificate is issued at the request of the employee for {xesc(purpose)}.<br/>"
+        f"<b>Validity:</b> This certificate is valid for 90 (ninety) days from the date of issue "
+        f"unless amended in writing.",
+        F("note", fontSize=8.7, leading=13.2),
+    ))
+    els.append(Spacer(1, 5))
+    els.append(PlParagraph(
+        "This document is issued solely for the purpose stated above. It is not a promise of payment, "
+        "a guarantee, or any financial commitment of the company. The figures shown are the gross "
+        "contractual salary payable, subject to the terms of employment and applicable law.",
+        F("disc", fontSize=7.2, textColor=MUT, leading=10.4),
+    ))
+
+    # ── Signature block ─────────────────────────────────────────────────
+    els.append(Spacer(1, 14))
+    stamp_img = _fit_pic(os.path.join(assets_dir, "Stamp.png"), max_w=54, max_h=54)
+    sign_img = _fit_pic(os.path.join(assets_dir, "Sign (1).png"), max_w=132, max_h=48)
+    img_cells = [x for x in [stamp_img, sign_img] if x]
+    if img_cells:
+        img_tbl = PlTable([img_cells], colWidths=[min(96, W * 0.56 / len(img_cells))] * len(img_cells))
+        img_tbl.setStyle(PlTableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ]))
+        sig_stack = PlTable(
+            [[img_tbl]],
+            colWidths=[W * 0.56],
+        )
+        sig_stack.setStyle(PlTableStyle([
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ]))
+    else:
+        sig_stack = PlTable([[""]], colWidths=[W * 0.56])
+
+    sig_p = PlParagraph(
+        f"For and on behalf of<br/><b>{xesc(str(co_name))}</b><br/>"
+        f"<font size=7 color='#5b6b80'>Authorized Signatory</font>",
+        F("sig", fontSize=8.2, alignment=TA_CENTER, leading=11.8),
+    )
+    right_inner = PlTable([[sig_stack], [sig_p]], colWidths=[W * 0.56])
+    right_inner.setStyle(PlTableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+    ]))
+
+    date_p = PlParagraph(
+        f"<font size=7.5 color='#5b6b80'>Date of Issue</font><br/><b>{issue_label}</b>",
+        F("dt", fontSize=8.6, leading=12),
+    )
+    sig_outer = PlTable([[date_p, right_inner]], colWidths=[W * 0.44, W * 0.56])
+    sig_outer.setStyle(PlTableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+        ("LINEABOVE", (1, 0), (1, 0), 0.6, LN),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(sig_outer)
+
+    # ── Footer ──────────────────────────────────────────────────────────
+    els.append(Spacer(1, 12))
+    ft_rule = PlTable([[""]], colWidths=[W], rowHeights=[1.2])
+    ft_rule.setStyle(PlTableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), ACCENT),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(ft_rule)
+    els.append(Spacer(1, 3))
+    foot_bits = [str(x) for x in [cp.get("company_name"), cp.get("address"), cp.get("phone_number"), cp.get("email")] if x]
+    if foot_bits:
+        els.append(PlParagraph(
+            " &#160;&#183;&#160; ".join(xesc(b) for b in foot_bits),
+            F("f1", fontSize=6.4, textColor=MUT, alignment=TA_CENTER, leading=8.6),
+        ))
+    els.append(PlParagraph(
+        f"Certificate {ref_no} &#160;&#183;&#160; Issued {issue_label} &#160;&#183;&#160; "
+        f"System-generated document &#8212; valid as issued.",
+        F("f2", fontSize=6.2, textColor=colors.HexColor("#94a3b8"), alignment=TA_CENTER, leading=8.6),
+    ))
+
+    doc.build(els)
+    if logo_tmp:
+        try:
+            os.unlink(logo_tmp.name)
+        except Exception:
+            pass
+    return str(output_path)

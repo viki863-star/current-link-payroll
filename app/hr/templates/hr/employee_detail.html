@@ -36,6 +36,7 @@
         </div>
         <div class="dv2-profile-actions">
             <a href="{{ url_for('hr.employee_edit', employee_id=employee.employee_id) }}" class="dv2-btn dv2-btn-primary dv2-btn-sm">&#9998; Edit</a>
+            <a href="{{ url_for('hr.employee_salary_certificate', employee_id=employee.employee_id) }}" class="dv2-btn dv2-btn-outline dv2-btn-sm">&#128220; Salary Certificate</a>
             {% if employee.status|lower == 'terminated' %}
             <form method="POST" action="{{ url_for('hr.employee_delete', employee_id=employee.employee_id) }}" style="display:inline" onsubmit="return confirm('Delete {{ employee.full_name }} ({{ employee.employee_id }}) permanently? All salary data, transactions, and assignments will also be removed.')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -90,6 +91,11 @@
            href="{{ url_for('hr.employee_ids', employee_id=employee.employee_id) }}">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="3.5" width="18" height="13" rx="2"/><circle cx="6.5" cy="9" r="2"/><path d="M11.5 8h5M11.5 11.5h5M3.5 14.5h13"/></svg>
             License &amp; ID
+        </a>
+        <a class="dv2-tab {{ 'is-active' if active_tab == 'certificate' }}"
+           href="{{ url_for('hr.employee_salary_certificate', employee_id=employee.employee_id) }}">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/><line x1="7.5" y1="9.5" x2="12.5" y2="9.5"/><line x1="7.5" y1="12.5" x2="12.5" y2="12.5"/></svg>
+            Certificate
         </a>
     </div>
 
@@ -1066,6 +1072,157 @@
                     <button type="submit" class="dv2-btn dv2-btn-primary">Save Documents</button>
                 </div>
             </form>
+        </div>
+
+        {% elif active_tab == 'certificate' %}
+        <div class="tab-pane">
+            <style>
+            .sc-doc{background:#fff;border:1px solid #e3e9f2;border-radius:14px;max-width:900px;margin:0 auto;padding:34px 40px 26px;box-shadow:0 10px 30px rgba(15,39,64,.08);color:#0f172a}
+            .sc-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+            .sc-head h1{margin:0;font-size:1.02rem;color:#0f2740;letter-spacing:.01em;line-height:1.35}
+            .sc-head .sc-addr{font-size:.71rem;color:#5b6b80;line-height:1.6;margin-top:4px}
+            .sc-head .sc-meta{font-size:.72rem;color:#5b6b80;text-align:right;line-height:1.55;white-space:nowrap}
+            .sc-head .sc-meta b{color:#0f172a;font-size:.8rem}
+            .sc-rule{height:3px;background:#0f2740;margin:13px 0 2px;border-radius:2px}
+            .sc-rule2{height:2px;background:#E6871F;margin:0 0 20px;border-radius:2px}
+            .sc-title{text-align:center;font-size:1.5rem;font-weight:800;color:#0f2740;letter-spacing:.3em;margin:16px 0 4px}
+            .sc-towhom{text-align:center;font-weight:700;letter-spacing:.2em;font-size:.8rem;color:#475569;margin-bottom:18px}
+            .sc-body{font-size:.87rem;line-height:1.8;text-align:justify;margin:0}
+            table.sc-tbl{width:100%;border-collapse:collapse;margin:16px 0 4px;font-size:.82rem}
+            .sc-tbl td{border:1px solid #e3e9f2;padding:7px 10px}
+            .sc-tbl .lab{background:#f4f7fb;font-weight:600;color:#475569;width:19%}
+            .sc-tbl .val{width:31%}
+            .sc-salhdr{background:#0f2740;color:#fff;font-weight:700;letter-spacing:.09em;font-size:.74rem;text-transform:uppercase;padding:8px 11px;border-radius:6px 6px 0 0;margin-top:22px}
+            .sc-salhdr .per{text-transform:none;letter-spacing:0;font-weight:500;font-size:.72rem;color:#cdd8e8;margin-left:8px}
+            table.sc-sal{width:100%;border-collapse:collapse;font-size:.84rem;border:1px solid #e3e9f2;border-top:none}
+            .sc-sal td{border:1px solid #e3e9f2;padding:8px 11px}
+            .sc-sal .amt{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+            .sc-sal .shd td{background:#f4f7fb;font-weight:700;color:#334155}
+            .sc-sal .tot td{background:#eef3fa;font-weight:800;border-top:2px solid #0f2740}
+            .sc-sal .tot .amt{color:#0f2740;font-size:.92rem}
+            .sc-words{font-size:.82rem;color:#334155;margin:10px 0 0}
+            .sc-note{font-size:.82rem;line-height:1.75;margin-top:15px}
+            .sc-disc{font-size:.69rem;color:#8a97a8;line-height:1.6;margin-top:11px;border-top:1px dashed #e3e8f0;padding-top:10px}
+            .sc-sign{display:flex;justify-content:space-between;align-items:flex-end;margin-top:26px;gap:20px}
+            .sc-sign .dt{font-size:.76rem;color:#475569;line-height:1.6}
+            .sc-sign .blk{text-align:center;font-size:.77rem;line-height:1.55;color:#334155}
+            .sc-sign .imgs{display:flex;gap:8px;align-items:flex-end;justify-content:center;margin-bottom:6px}
+            .sc-sign img.stamp{height:62px;width:auto;object-fit:contain}
+            .sc-sign img.sign{width:136px;height:auto;object-fit:contain}
+            .sc-foot{text-align:center;font-size:.67rem;color:#94a3b8;margin-top:20px;border-top:1px solid #e3e9f2;padding-top:9px}
+            @media print{
+                .dv2-tabs,.dv2-profile-actions,.sc-actions,.sc-intro{display:none!important}
+                body{background:#fff}
+                .sc-doc{box-shadow:none;border:none;max-width:100%;padding:0}
+            }
+            </style>
+
+            <div class="sc-intro" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1.2rem">
+                <div>
+                    <h2 style="font-size:1.3rem;font-weight:800;color:var(--primary);margin:0">&#128220; Salary Certificate</h2>
+                    <p style="font-size:.82rem;color:var(--muted);margin:2px 0 0">Official bank / visa certificate. Figures come from the employee record and the latest payroll — preview below, then download the signed PDF.</p>
+                </div>
+                <div class="sc-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <form method="get" style="display:flex;gap:6px;align-items:center">
+                        <input class="dv2-input" style="width:240px" type="text" name="purpose" maxlength="120" value="{{ cert.purpose }}" title="Purpose printed on the certificate" placeholder="e.g. bank loan application">
+                        <button class="dv2-btn dv2-btn-outline dv2-btn-sm" type="submit">Update</button>
+                    </form>
+                    <button class="dv2-btn dv2-btn-outline dv2-btn-sm" onclick="window.print()">&#128424; Print</button>
+                    <a class="dv2-btn dv2-btn-primary dv2-btn-sm" href="{{ url_for('hr.employee_salary_certificate_pdf', employee_id=employee.employee_id, purpose=cert.purpose) }}">&#11015; Download PDF</a>
+                </div>
+            </div>
+
+            <div class="sc-doc">
+                <div class="sc-head">
+                    <div style="display:flex;gap:14px;align-items:center">
+                        {% if company_profile and company_profile.logo_data %}
+                        <img src="data:{{ company_profile.logo_type or 'image/png' }};base64,{{ company_profile.logo_data }}" alt="Logo" style="height:58px;width:auto">
+                        {% endif %}
+                        <div>
+                            <h1>{{ (company_profile.legal_name or company_profile.company_name) if company_profile and (company_profile.legal_name or company_profile.company_name) else 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC' }}</h1>
+                            <div class="sc-addr">
+                                {% if company_profile and company_profile.address %}{{ company_profile.address }}<br>{% endif %}
+                                {% if company_profile and company_profile.phone_number %}{{ company_profile.phone_number }}{% endif %}
+                                {% if company_profile and company_profile.email %} &middot; {{ company_profile.email }}{% endif %}
+                                {% if company_profile and company_profile.trn_no %}<br>TRN: {{ company_profile.trn_no }}{% endif %}
+                                {% if company_profile and company_profile.trade_license_no %} &middot; Trade Licence: {{ company_profile.trade_license_no }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sc-meta">
+                        Certificate Ref:<br><b>{{ cert.ref_no }}</b><br>
+                        Date of Issue:<br><b>{{ cert.issue_date_label }}</b>
+                    </div>
+                </div>
+                <div class="sc-rule"></div>
+                <div class="sc-rule2"></div>
+
+                <div class="sc-title">SALARY CERTIFICATE</div>
+                <div class="sc-towhom">TO WHOM IT MAY CONCERN</div>
+
+                <p class="sc-body">This is to certify that <b>{{ employee.full_name }}</b> ({{ employee.employee_id }}){% if employee.nationality %}, a {{ employee.nationality }} national{% endif %}{% if cert.id_doc %}, holder of {{ cert.id_doc }}{% endif %}, is employed with <b>{{ (company_profile.legal_name or company_profile.company_name) if company_profile and (company_profile.legal_name or company_profile.company_name) else 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC' }}</b> and is presently working as <b>{{ cert.designation }}</b> in the <b>{{ cert.department }}</b> department on a <b>{{ cert.contract_type }}</b> basis. The date of joining is <b>{{ cert.join_date_label }}</b> and the current employment status is <b>{{ employee.status }}</b>.</p>
+
+                <table class="sc-tbl">
+                    <tr>
+                        <td class="lab">Full Name</td><td class="val">{{ employee.full_name }}</td>
+                        <td class="lab">Designation</td><td class="val">{{ cert.designation }}</td>
+                    </tr>
+                    <tr>
+                        <td class="lab">Employee ID</td><td class="val">{{ employee.employee_id }}</td>
+                        <td class="lab">Department</td><td class="val">{{ cert.department }}</td>
+                    </tr>
+                    <tr>
+                        <td class="lab">Date of Joining</td><td class="val">{{ cert.join_date_label }}</td>
+                        <td class="lab">Employment Status</td><td class="val">{{ employee.status }}</td>
+                    </tr>
+                    <tr>
+                        <td class="lab">Contract Type</td><td class="val">{{ cert.contract_type }}</td>
+                        <td class="lab">Nationality</td><td class="val">{{ employee.nationality or '—' }}</td>
+                    </tr>
+                    {% if cert.id_doc %}
+                    <tr>
+                        <td class="lab">ID Document</td><td class="val" colspan="3">{{ cert.id_doc }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+
+                <div class="sc-salhdr">Salary Details{% if cert.salary_period_label %}<span class="per">as per payroll record {{ cert.salary_period_label }}</span>{% endif %}</div>
+                <table class="sc-sal">
+                    <tr class="shd"><td>Component</td><td class="amt">Monthly Amount (AED)</td></tr>
+                    <tr><td>Basic Salary</td><td class="amt">{{ "{:,.2f}".format(cert.basic) }}</td></tr>
+                    {% if cert.allowances > 0 %}
+                    <tr><td>Allowances (Vehicle / Other)</td><td class="amt">{{ "{:,.2f}".format(cert.allowances) }}</td></tr>
+                    {% endif %}
+                    {% if cert.ot > 0 %}
+                    <tr><td>Overtime Allowance</td><td class="amt">{{ "{:,.2f}".format(cert.ot) }}</td></tr>
+                    {% endif %}
+                    <tr class="tot"><td>Total Gross Monthly Salary</td><td class="amt">{{ "{:,.2f}".format(cert.gross_monthly) }}</td></tr>
+                    <tr class="tot"><td>Total Gross Annual Salary</td><td class="amt">{{ "{:,.2f}".format(cert.gross_annual) }}</td></tr>
+                </table>
+
+                <div class="sc-words"><b>Amount in words:</b> {{ cert.gross_words }}</div>
+
+                <div class="sc-note">
+                    <b>Purpose:</b> This certificate is issued at the request of the employee for {{ cert.purpose }}.<br>
+                    <b>Validity:</b> This certificate is valid for 90 (ninety) days from the date of issue unless amended in writing.
+                </div>
+
+                <div class="sc-disc">This document is issued solely for the purpose stated above. It is not a promise of payment, a guarantee, or any financial commitment of the company. The figures shown are the gross contractual salary payable, subject to the terms of employment and applicable law.</div>
+
+                <div class="sc-sign">
+                    <div class="dt">Date of Issue:<br><b>{{ cert.issue_date_label }}</b></div>
+                    <div class="blk">
+                        <div class="imgs">
+                            <img class="stamp" src="{{ url_for('static', filename='Stamp.png') }}" alt="Company stamp">
+                            <img class="sign" src="{{ url_for('static', filename='Sign (1).png') }}" alt="Authorized signature">
+                        </div>
+                        For and on behalf of<br><b>{{ (company_profile.legal_name or company_profile.company_name) if company_profile and (company_profile.legal_name or company_profile.company_name) else 'CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC' }}</b><br>
+                        <span style="color:#64748b">Authorized Signatory</span>
+                    </div>
+                </div>
+
+                <div class="sc-foot">Certificate {{ cert.ref_no }} &middot; Issued {{ cert.issue_date_label }} &middot; System-generated document — valid as issued.</div>
+            </div>
         </div>
         {% endif %}
     </div>
