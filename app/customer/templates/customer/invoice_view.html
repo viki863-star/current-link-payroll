@@ -149,6 +149,14 @@
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
             <span style="color:#64748b">Sub Total</span><span class="mono" style="font-weight:600;color:#0f172a">AED {{ "{:,.2f}".format(inv.amount) }}</span>
         </div>
+        {% if (inv.discount or 0)|float > 0 %}
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
+            <span style="color:#64748b">Discount</span><span class="mono" style="font-weight:600;color:#dc2626">- AED {{ "{:,.2f}".format(inv.discount) }}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
+            <span style="color:#64748b">Total After Discount</span><span class="mono" style="font-weight:700;color:#0f172a">AED {{ "{:,.2f}".format((inv.amount or 0) - (inv.discount or 0)) }}</span>
+        </div>
+        {% endif %}
         {% if not is_cash %}
         <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem">
             <span style="color:#64748b">VAT @ {{ "%.0f" % inv.vat_percent }}%</span><span class="mono" style="font-weight:600;color:#dc2626">AED {{ "{:,.2f}".format(inv.vat_amount) }}</span>

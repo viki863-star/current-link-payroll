@@ -156,6 +156,18 @@
             <div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
                 <span>Sub Total</span><span class="mono" id="subTotalDisplay" style="font-weight:600">{{ "%.2f"|format(inv.amount or 0) }}</span>
             </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;font-size:0.85rem">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;color:#334155;margin:0">
+                    <input type="checkbox" id="discChk" {% if (inv.discount or 0)|float > 0 %}checked{% endif %} onchange="toggleDisc()"> Discount
+                </label>
+                <input type="number" name="discount" id="discInput" value="{{ '%.2f'|format(inv.discount) if (inv.discount or 0)|float > 0 else '' }}" min="0" step="0.01" placeholder="Amount" oninput="calcTotals()" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.85rem;text-align:right{{ '' if (inv.discount or 0)|float > 0 else ';display:none' }}">
+            </div>
+            <div id="discRow" style="display:none;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+                <span style="color:#64748b">Discount</span><span class="mono" id="discDisplay" style="font-weight:600;color:#c62828">-0.00</span>
+            </div>
+            <div id="netRow" style="display:none;justify-content:space-between;padding:3px 0;font-size:0.85rem">
+                <span style="color:#64748b">Total After Discount</span><span class="mono" id="netDisplay" style="font-weight:700">0.00</span>
+            </div>
             <div id="vatRow" style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.85rem">
                 <span>VAT <span id="vatLabel">@ {{ inv.vat_percent or 5 }}%</span></span><span class="mono" id="vatDisplay" style="font-weight:600;color:#c62828">{{ "%.2f"|format(inv.vat_amount or 0) }}</span>
             </div>
@@ -232,12 +244,32 @@ function calcTotals() {
     });
     const isCashMode = (document.getElementById('invoiceType').value === 'cash');
     const vatPct = isCashMode ? 0 : (parseFloat(document.getElementById('vatPercent').value) || 0);
-    const vat = sub * vatPct / 100;
-    const total = sub + vat;
+    let disc = 0;
+    const discChk = document.getElementById('discChk');
+    const discInp = document.getElementById('discInput');
+    if (discChk && discChk.checked && discInp) {
+        disc = Math.min(parseFloat(discInp.value) || 0, sub);
+    }
+    const net = sub - disc;
+    const vat = net * vatPct / 100;
+    const total = net + vat;
     document.getElementById('subTotalDisplay').textContent = sub.toFixed(2);
+    const dr = document.getElementById('discRow');
+    const nr = document.getElementById('netRow');
+    if (dr) { dr.style.display = disc > 0 ? 'flex' : 'none'; if (disc > 0) document.getElementById('discDisplay').textContent = '-' + disc.toFixed(2); }
+    if (nr) { nr.style.display = disc > 0 ? 'flex' : 'none'; if (disc > 0) document.getElementById('netDisplay').textContent = net.toFixed(2); }
     document.getElementById('vatLabel').textContent = '@ ' + vatPct + '%';
     document.getElementById('vatDisplay').textContent = vat.toFixed(2);
     document.getElementById('totalDisplay').textContent = total.toFixed(2);
+}
+
+function toggleDisc() {
+    const chk = document.getElementById('discChk');
+    const inp = document.getElementById('discInput');
+    if (!chk || !inp) return;
+    if (chk.checked) { inp.style.display = ''; inp.focus(); }
+    else { inp.style.display = 'none'; inp.value = ''; }
+    calcTotals();
 }
 
 const VAT_AUTO_NO = {{ (next_no if next_no is defined else '')|tojson }};

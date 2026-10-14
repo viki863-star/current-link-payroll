@@ -545,8 +545,14 @@ def customer_invoice_add(cid):
                     flash("At least one line item is required.", "error")
                     db.close()
                     return render_template("customer/invoice_form.html", c=c, inv={"invoice_type": inv_type}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no)
-            vat_amt = round(sub_total * vat_pct / 100, 2)
-            total = round(sub_total + vat_amt, 2)
+            try:
+                discount = round(abs(float(request.form.get("discount", 0) or 0)), 2)
+            except (TypeError, ValueError):
+                discount = 0.0
+            discount = round(min(discount, sub_total), 2)
+            net_total = round(sub_total - discount, 2)
+            vat_amt = round(net_total * vat_pct / 100, 2)
+            total = round(net_total + vat_amt, 2)
             if is_nmdc:
                 import json
                 nmdc_meta = {
@@ -557,9 +563,9 @@ def customer_invoice_add(cid):
                     "eq_periods": eq_periods,
                 }
                 notes = json.dumps(nmdc_meta) if not notes else json.dumps(nmdc_meta) + "\n" + notes
-            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes,invoice_type)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type))
+            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes,invoice_type,discount)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, discount))
             inv_id = c_inv.lastrowid
             for idx, it in enumerate(items):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
@@ -607,7 +613,7 @@ def customer_invoice_edit(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
@@ -733,10 +739,16 @@ def customer_invoice_edit(cid, iid):
                 db.close()
                 tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
                 return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no)
-            vat_amt = round(sub_total * vat_pct / 100, 2)
-            total = round(sub_total + vat_amt, 2)
-            db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,so_no=?,project_no=?,notes=?,invoice_type=? WHERE id=?""",
-                (inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, iid))
+            try:
+                discount = round(abs(float(request.form.get("discount", 0) or 0)), 2)
+            except (TypeError, ValueError):
+                discount = 0.0
+            discount = round(min(discount, sub_total), 2)
+            net_total = round(sub_total - discount, 2)
+            vat_amt = round(net_total * vat_pct / 100, 2)
+            total = round(net_total + vat_amt, 2)
+            db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,discount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,so_no=?,project_no=?,notes=?,invoice_type=? WHERE id=?""",
+                (inv_no, inv_date, sub_total, discount, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, iid))
             db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
             for idx, it in enumerate(new_items):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
@@ -781,7 +793,7 @@ def customer_invoice_view(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     if not inv:
         db.close()
         flash("Invoice not found.", "error")
@@ -843,7 +855,7 @@ def customer_invoice_pdf(cid, iid):
     _ensure_tables()
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     pdf_so_date = None
@@ -1658,6 +1670,16 @@ def customer_invoice_pdf(cid, iid):
         [Paragraph("Sub Total", S("_st", fontSize=9, textColor=C5, leading=12)),
          Paragraph(f"<b>AED {float(sub):,.2f}</b>", S("_stv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_RIGHT))],
     ]
+    _disc = float(inv.get("discount") or 0)
+    if _disc > 0:
+        trows.append(
+            [Paragraph("Discount", S("_ds", fontSize=9, textColor=C5, leading=12)),
+             Paragraph(f"<b>- AED {_disc:,.2f}</b>", S("_dsv", fontSize=9, fontName="Helvetica-Bold", textColor=colors.HexColor("#dc2626"), leading=12, alignment=TA_RIGHT))]
+        )
+        trows.append(
+            [Paragraph("Total After Discount", S("_nad", fontSize=9, textColor=C5, leading=12)),
+             Paragraph(f"<b>AED {float(sub) - _disc:,.2f}</b>", S("_nadsv", fontSize=9, fontName="Helvetica-Bold", textColor=C4, leading=12, alignment=TA_RIGHT))]
+        )
     if not is_cash:
         trows.append(
             [Paragraph(f"VAT @ {vp:.0f}%", S("_vt", fontSize=9, textColor=C5, leading=12)),
