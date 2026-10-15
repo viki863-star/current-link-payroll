@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Expiry Report{% endblock %}
+{% block page_title %}Document Expiry{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <div class="profile-card">
+        <div class="section-header">
+            <h3>Document Expiry Report</h3>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <a href="{{ url_for('documents.document_expiry_report', f='all') }}" class="btn btn-sm {{ 'btn-primary' if f == 'all' else 'btn-outline' }}">All ({{ rows|length }})</a>
+                <a href="{{ url_for('documents.document_expiry_report', f='expired') }}" class="btn btn-sm {{ 'btn-primary' if f == 'expired' else 'btn-outline' }}" style="{{ 'border-color:#b91c1c;color:#b91c1c' if f != 'expired' }}">Expired ({{ expired_n }})</a>
+                <a href="{{ url_for('documents.document_expiry_report', f='soon') }}" class="btn btn-sm {{ 'btn-primary' if f == 'soon' else 'btn-outline' }}" style="{{ 'border-color:#b45309;color:#b45309' if f != 'soon' }}">Expiring ≤30d ({{ soon_n }})</a>
+                <a href="{{ url_for('documents.document_hub') }}" class="btn btn-outline btn-sm">Documents Hub</a>
+            </div>
+        </div>
+
+        <p style="font-size:0.78rem;color:var(--muted);margin:0 0 12px">
+            Covers hub documents <strong>and</strong> documents uploaded on supplier / customer profiles
+            (VAT certificate, trade license, Emirates ID, ...). Alerts also appear on the main dashboard.
+        </p>
+
+        {% if rows %}
+        <div class="table-wrap">
+            <table class="smart-table">
+                <thead>
+                    <tr><th>Status</th><th>Document</th><th>Entity / Supplier</th><th>Source</th><th>Expiry</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr>
+                        <td>
+                            {% if r.status == 'expired' %}
+                            <span class="badge" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;font-weight:700">EXPIRED</span>
+                            {% else %}
+                            <span class="badge" style="background:#fffbeb;color:#b45309;border:1px solid #fcd34d;font-weight:700">{{ r.days_left }} day{{ '' if r.days_left == 1 else 's' }} left</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-weight:600">{{ r.doc_name }}
+                            {% if r.doc_type and r.doc_type != r.doc_name %}<span style="font-size:0.7rem;color:var(--muted);font-weight:400">({{ r.doc_type }})</span>{% endif %}
+                        </td>
+                        <td>{{ r.entity or '—' }}</td>
+                        <td><span class="badge badge-type" style="font-size:0.65rem">{{ r.source }}</span></td>
+                        <td class="mono" style="{% if r.status == 'expired' %}color:#b91c1c;font-weight:700{% elif r.days_left is not none and r.days_left <= 7 %}color:#b45309;font-weight:700{% endif %}">{{ r.expiry_date or '—' }}</td>
+                        <td><a href="{{ r.url }}" class="btn btn-xs btn-outline">Open</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">
+            {% if f == 'expired' %}No expired documents — all clear. ✅{% elif f == 'soon' %}No documents expiring within 30 days. ✅{% else %}Nothing expiring or expired — all documents are valid. ✅{% endif %}
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

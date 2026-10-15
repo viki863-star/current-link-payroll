@@ -1159,6 +1159,14 @@ def supplier_profile(sup_id):
         "SELECT id, supplier_id, doc_type, doc_name, doc_ref, file_data, file_type, expiry_date, notes, created_at FROM supplier_documents WHERE supplier_id = ? ORDER BY created_at DESC",
         (sup_id,),
     ).fetchall()
+    doc_days = {}
+    _today0 = date.today()
+    for _d in docs:
+        if _d.get("expiry_date"):
+            try:
+                doc_days[_d["id"]] = (date.fromisoformat(_d["expiry_date"][:10]) - _today0).days
+            except (ValueError, TypeError):
+                pass
 
     quotations = db.execute(
         "SELECT id, supplier_id, quotation_no, quotation_date, amount, description, file_data, file_type, notes, created_at, location, contact_details FROM supplier_quotations WHERE supplier_id = ? ORDER BY quotation_date DESC",
@@ -1210,6 +1218,8 @@ def supplier_profile(sup_id):
         earn_invoices=earn_invoices,
         earn_expenses=earn_expenses,
         today=date.today().isoformat(),
+        soon30=(date.today() + timedelta(days=30)).isoformat(),
+        doc_days=doc_days,
         comp_state=comp_state,
     )
 

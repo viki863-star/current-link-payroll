@@ -140,6 +140,92 @@ def _expiry_status(expiry_date):
         return "ok"
 
 
+@documents_bp.route("/documents/expiry-report")
+def document_expiry_report():
+    """One place that shows every expiring/expired document: the documents hub
+    plus supplier_documents and customer_documents (VAT certificate, trade
+    license, ...). Dashboard alert links land here."""
+    db = open_db()
+    f = request.args.get("f", "all").strip()
+    today = date.today()
+    horizon = (today + timedelta(days=30)).isoformat()
+    rows = []
+
+    def _days_left(expiry):
+        try:
+            return (datetime.strptime(expiry[:10], "%Y-%m-%d").date() - today).days
+        except (ValueError, TypeError):
+            return None
+
+    def _add(source, entity, doc_id, doc_name, doc_type, expiry, url):
+        st = _expiry_status(expiry)
+        if st == "ok":
+            return
+        if f == "expired" and st != "expired":
+            return
+        if f == "soon" and st != "soon":
+            return
+        rows.append({
+            "source": source, "entity": entity or "", "doc_id": doc_id,
+            "doc_name": doc_name or doc_type or "Document", "doc_type": doc_type or "",
+            "expiry_date": expiry, "status": st, "days_left": _days_left(expiry),
+            "url": url,
+        })
+
+    # 1) Documents hub
+    try:
+        for r in db.execute(
+            "SELECT id, entity_type, entity_id, doc_name, doc_category, expiry_date FROM documents "
+            "WHERE expiry_date IS NOT NULL AND expiry_date <= ? ORDER BY expiry_date",
+            (horizon,),
+        ).fetchall():
+            ent_label = ENTITY_LABELS.get(r["entity_type"], r["entity_type"] or "")
+            if r["entity_type"] == "supplier":
+                url = url_for("supplier.supplier_profile", sup_id=r["entity_id"], tab="documents")
+            elif r["entity_type"] == "customer":
+                url = url_for("customer.customer_profile", cid=r["entity_id"], tab="documents")
+            else:
+                url = url_for("documents.document_hub", expiry="expired" if _expiry_status(r["expiry_date"]) == "expired" else "soon")
+            _add(ent_label, str(r["entity_id"]), r["id"], r["doc_name"], r["doc_category"], r["expiry_date"], url)
+    except Exception:
+        pass
+
+    # 2) Supplier documents (uploaded on the supplier profile — VAT cert, trade license, ...)
+    try:
+        for r in db.execute(
+            "SELECT d.id, d.supplier_id, d.doc_name, d.doc_type, d.expiry_date, s.supplier_name "
+            "FROM supplier_documents d LEFT JOIN suppliers s ON s.id = d.supplier_id "
+            "WHERE d.expiry_date IS NOT NULL AND d.expiry_date <= ? ORDER BY d.expiry_date",
+            (horizon,),
+        ).fetchall():
+            _add("Supplier", r.get("supplier_name"), r["id"], r["doc_name"], r["doc_type"], r["expiry_date"],
+                 url_for("supplier.supplier_profile", sup_id=r["supplier_id"], tab="documents"))
+    except Exception:
+        pass
+
+    # 3) Customer documents
+    try:
+        for r in db.execute(
+            "SELECT d.id, d.customer_id, d.doc_name, d.doc_type, d.expiry_date, c.customer_name "
+            "FROM customer_documents d LEFT JOIN customers c ON c.id = d.customer_id "
+            "WHERE d.expiry_date IS NOT NULL AND d.expiry_date <= ? ORDER BY d.expiry_date",
+            (horizon,),
+        ).fetchall():
+            _add("Customer", r.get("customer_name"), r["id"], r["doc_name"], r["doc_type"], r["expiry_date"],
+                 url_for("customer.customer_profile", cid=r["customer_id"], tab="documents"))
+    except Exception:
+        pass
+
+    db.close()
+    expired_n = sum(1 for r in rows if r["status"] == "expired")
+    soon_n = sum(1 for r in rows if r["status"] == "soon")
+    return render_template(
+        "documents/expiry_report.html",
+        rows=rows, f=f, today=today.isoformat(),
+        expired_n=expired_n, soon_n=soon_n,
+    )
+
+
 @documents_bp.route("/documents")
 def document_hub():
     db = open_db()

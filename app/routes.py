@@ -1670,17 +1670,24 @@ def register_routes(app: Flask) -> None:
         except Exception:
             latest_backup_notification = None
 
-        # ── Document Expiry Alerts ──
+        # ── Document Expiry Alerts (hub documents + supplier + customer docs) ──
         try:
             today_str = __import__("datetime").date.today().isoformat()
-            expiring_soon = db.execute(
-                "SELECT COUNT(*) FROM documents WHERE expiry_date IS NOT NULL AND expiry_date >= ? AND expiry_date <= ?",
-                (today_str, (__import__("datetime").date.today() + __import__("datetime").timedelta(days=30)).isoformat())
-            ).fetchone()[0] or 0
-            expired_count = db.execute(
-                "SELECT COUNT(*) FROM documents WHERE expiry_date IS NOT NULL AND expiry_date < ?",
-                (today_str,)
-            ).fetchone()[0] or 0
+            horizon_str = (__import__("datetime").date.today() + __import__("datetime").timedelta(days=30)).isoformat()
+            expiring_soon = 0
+            expired_count = 0
+            for _tbl in ("documents", "supplier_documents", "customer_documents"):
+                try:
+                    expiring_soon += db.execute(
+                        f"SELECT COUNT(*) FROM {_tbl} WHERE expiry_date IS NOT NULL AND expiry_date >= ? AND expiry_date <= ?",
+                        (today_str, horizon_str),
+                    ).fetchone()[0] or 0
+                    expired_count += db.execute(
+                        f"SELECT COUNT(*) FROM {_tbl} WHERE expiry_date IS NOT NULL AND expiry_date < ?",
+                        (today_str,),
+                    ).fetchone()[0] or 0
+                except Exception:
+                    pass
         except Exception:
             expiring_soon = 0
             expired_count = 0

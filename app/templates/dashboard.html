@@ -105,12 +105,12 @@
   {% if doc_expired or doc_expiring_soon %}
   <div class="alert-bar">
     {% if doc_expired %}
-    <a href="{{ url_for('documents.document_hub') }}?expiry=expired" class="alert-link alert-danger">
+    <a href="{{ url_for('documents.document_expiry_report') }}?f=expired" class="alert-link alert-danger">
       <span>⏰</span> <strong>{{ doc_expired }} document{% if doc_expired > 1 %}s{% endif %} expired</strong> — Click to view
     </a>
     {% endif %}
     {% if doc_expiring_soon %}
-    <a href="{{ url_for('documents.document_hub') }}?expiry=soon" class="alert-link alert-warning">
+    <a href="{{ url_for('documents.document_expiry_report') }}?f=soon" class="alert-link alert-warning">
       <span>⚠️</span> <strong>{{ doc_expiring_soon }} document{% if doc_expiring_soon > 1 %}s{% endif %} expiring soon</strong> — Click to view
     </a>
     {% endif %}

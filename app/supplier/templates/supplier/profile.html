@@ -562,7 +562,7 @@
           <td style="font-weight:600">{{ d.doc_type }}</td>
           <td>{{ d.doc_name }}</td>
           <td class="mono">{{ d.doc_ref or '—' }}</td>
-          <td class="mono">{% if d.expiry_date and d.expiry_date < today %}<span style="color:#b91c1c;font-weight:700">{{ d.expiry_date }} (expired)</span>{% else %}{{ d.expiry_date or '—' }}{% endif %}</td>
+          <td class="mono">{% if d.expiry_date and d.expiry_date < today %}<span style="color:#b91c1c;font-weight:700">{{ d.expiry_date }} (expired)</span>{% elif d.expiry_date and soon30 and d.expiry_date <= soon30 %}<span style="color:#b45309;font-weight:700">{{ d.expiry_date }} (expiring in {{ doc_days.get(d.id, 0) }} days)</span>{% else %}{{ d.expiry_date or '—' }}{% endif %}</td>
           <td class="mono">{{ d.created_at[:10] if d.created_at else '—' }}</td>
           <td>
             <a class="btn btn-xs btn-outline" target="_blank"
