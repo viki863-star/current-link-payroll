@@ -1,5 +1,6 @@
 import os
 import base64
+import mimetypes
 from io import BytesIO
 from datetime import date, datetime, timedelta
 
@@ -369,6 +370,17 @@ def _ensure_tables():
                 pass
 
     for col, dtype in [("lpo_type", "TEXT DEFAULT 'fixed'"), ("quotation_id", "INTEGER")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_lpos ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
+    # LPO attachment (supplier quotation file uploaded against the LPO)
+    for col, dtype in [("attachment_name", "TEXT"), ("attachment_data", "TEXT"), ("attachment_type", "TEXT")]:
         try:
             db.execute(f"ALTER TABLE supplier_lpos ADD COLUMN {col} {dtype}")
             db.commit()
@@ -1804,7 +1816,9 @@ def supplier_lpo_list(sup_id):
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
     lpos = db.execute(
-        "SELECT sl.*, sq.quotation_no FROM supplier_lpos sl LEFT JOIN supplier_quotations sq ON sl.quotation_id=sq.id WHERE sl.supplier_id = ? ORDER BY sl.lpo_date DESC",
+        "SELECT sl.id, sl.supplier_id, sl.lpo_no, sl.lpo_date, sl.lpo_type, sl.amount, sl.description, sl.status, sl.notes, sl.created_at, sl.quotation_id, sl.attachment_name, "
+        "CASE WHEN sl.attachment_data IS NOT NULL OR (sl.quotation_id IS NOT NULL AND sq.file_data IS NOT NULL) THEN 1 ELSE 0 END AS has_attach, "
+        "sq.quotation_no FROM supplier_lpos sl LEFT JOIN supplier_quotations sq ON sl.quotation_id=sq.id WHERE sl.supplier_id = ? ORDER BY sl.lpo_date DESC",
         (sup_id,),
     ).fetchall()
 
@@ -1834,9 +1848,17 @@ def supplier_lpo_add(sup_id):
             return render_template("supplier/lpo_form.html", s=s, company=company, lpo={}, lpo_types=LPO_TYPES, quotations=[], qitems=[])
         qid = int(quotation_id) if quotation_id and quotation_id != "none" else None
 
+        # Supplier quotation / attachment upload (optional)
+        att_file = request.files.get("attachment")
+        att_name = att_data = att_type = None
+        if att_file and att_file.filename:
+            att_name = att_file.filename
+            att_data = base64.b64encode(att_file.read()).decode("utf-8")
+            att_type = att_file.content_type
+
         row = db.execute(
-            "INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, lpo_type, quotation_id, amount, description, notes) VALUES (?,?,?,?,?,?,?,?) RETURNING id",
-            (sup_id, lpo_no, lpo_date, lpo_type, qid, 0, description, notes),
+            "INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, lpo_type, quotation_id, amount, description, notes, attachment_name, attachment_data, attachment_type) VALUES (?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            (sup_id, lpo_no, lpo_date, lpo_type, qid, 0, description, notes, att_name, att_data, att_type),
         ).fetchone()
         lpo_id = row["id"]
 
@@ -1878,7 +1900,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id, attachment_name FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
     if not s or not lpo:
         flash("LPO not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1895,6 +1917,14 @@ def supplier_lpo_edit(sup_id, lpo_id):
             company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
             return render_template("supplier/lpo_form.html", s=s, company=company, lpo=lpo, lpo_types=LPO_TYPES, quotations=[], qitems=[])
         qid = int(quotation_id) if quotation_id and quotation_id != "none" else None
+
+        # Supplier quotation / attachment upload (only replaces when a new file is chosen)
+        att_file = request.files.get("attachment")
+        att_name = att_data = att_type = None
+        if att_file and att_file.filename:
+            att_name = att_file.filename
+            att_data = base64.b64encode(att_file.read()).decode("utf-8")
+            att_type = att_file.content_type
 
         total_amount = 0
         db.execute("DELETE FROM supplier_lpo_items WHERE lpo_id=?", (lpo_id,))
@@ -1920,6 +1950,9 @@ def supplier_lpo_edit(sup_id, lpo_id):
 
         db.execute("UPDATE supplier_lpos SET lpo_no=?, lpo_date=?, lpo_type=?, quotation_id=?, amount=?, description=?, notes=? WHERE id=?",
                    (lpo_no, lpo_date, lpo_type, qid, round(total_amount, 2), description, notes, lpo_id))
+        if att_data is not None:
+            db.execute("UPDATE supplier_lpos SET attachment_name=?, attachment_data=?, attachment_type=? WHERE id=?",
+                       (att_name, att_data, att_type, lpo_id))
         db.commit()
 
         flash("LPO updated.", "success")
@@ -1955,6 +1988,46 @@ def supplier_lpo_close(sup_id, lpo_id):
 
     flash("LPO closed.", "info")
     return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
+
+
+@supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/attachment")
+def supplier_lpo_attachment(sup_id, lpo_id):
+    """Open/download the supplier quotation attached to an LPO.
+
+    Priority: file uploaded on the LPO itself, otherwise the file of the
+    linked supplier quotation (single source of truth, no copy needed).
+    """
+    _ensure_tables()
+    db = _get_db()
+    lpo = db.execute(
+        "SELECT id, lpo_no, attachment_name, attachment_data, attachment_type, quotation_id FROM supplier_lpos WHERE id=? AND supplier_id=?",
+        (lpo_id, sup_id),
+    ).fetchone()
+    data = name = mime = None
+    if lpo and lpo["attachment_data"]:
+        data = base64.b64decode(lpo["attachment_data"])
+        name = lpo["attachment_name"] or f"{lpo['lpo_no']}_attachment"
+        mime = lpo["attachment_type"] or "application/octet-stream"
+    elif lpo and lpo["quotation_id"]:
+        q = db.execute(
+            "SELECT quotation_no, file_data, file_type FROM supplier_quotations WHERE id=? AND supplier_id=?",
+            (lpo["quotation_id"], sup_id),
+        ).fetchone()
+        if q and q["file_data"]:
+            data = base64.b64decode(q["file_data"])
+            mime = q["file_type"] or "application/octet-stream"
+            ext = mimetypes.guess_extension(mime or "") or ""
+            name = f"{q['quotation_no']}_quotation{ext}"
+    if data is None:
+        flash("No attachment found for this LPO.", "error")
+        return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
+    dl = request.args.get("download", "0") == "1"
+    return send_file(
+        BytesIO(data),
+        mimetype=mime,
+        as_attachment=dl,
+        download_name=name,
+    )
 
 
 @supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/pdf")

@@ -37,7 +37,7 @@
     {% include "supplier/_doc_header.html" with context %}
 
     <div class="lpo-body">
-      <form method="POST" id="lpoForm">
+      <form method="POST" id="lpoForm" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
         <div class="lpo-section">
@@ -81,6 +81,19 @@
                 <option value="{{ q.id }}" {% if lpo.quotation_id == q.id %}selected{% endif %}>{{ q.quotation_no }} — AED {{ "%.0f"|format(q.amount) }}</option>
                 {% endfor %}
               </select>
+            </div>
+            <div class="lpo-field">
+              <label>Supplier Quotation / Attachment</label>
+              <input type="file" name="attachment" class="form-control" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx" style="font-size:11px;padding:6px">
+              <div style="font-size:10px;color:#64748b;margin-top:4px;line-height:1.5">
+                {% if lpo.attachment_name %}
+                  📎 <a href="{{ url_for('supplier.supplier_lpo_attachment', sup_id=s.id, lpo_id=lpo.id) }}" target="_blank">{{ lpo.attachment_name }}</a> — choose a new file to replace it.
+                {% elif lpo.quotation_id %}
+                  Linked quotation's file opens automatically from the LPO list 📎, or upload a file here.
+                {% else %}
+                  Upload the supplier quotation (PDF/image). Optional.
+                {% endif %}
+              </div>
             </div>
             <div class="lpo-field">
               <label>Supplier</label>
