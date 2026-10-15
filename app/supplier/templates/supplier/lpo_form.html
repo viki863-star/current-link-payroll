@@ -103,6 +103,11 @@
               <label>Status</label>
               <div class="val" style="color:#e65100">Open</div>
             </div>
+            <div class="lpo-field" style="grid-column:1 / -1">
+              <label>Payment Terms</label>
+              <input type="text" name="payment_terms" class="form-control" value="{{ lpo.payment_terms or s.payment_terms or '' }}" placeholder="e.g. Payment within 30 days from invoice date" style="font-size:12px">
+              <div style="font-size:10px;color:#64748b;margin-top:4px;line-height:1.5">Shows on the issued LPO (PDF) as this LPO's payment term — “Payment Terms: …”. Prefilled from the supplier profile; override per LPO if needed.</div>
+            </div>
           </div>
         </div>
 

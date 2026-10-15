@@ -390,6 +390,17 @@ def _ensure_tables():
             except Exception:
                 pass
 
+    # Per-LPO payment terms (shown on the issued LPO / PDF)
+    for col, dtype in [("payment_terms", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_lpos ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
     for col, dtype in [("earning_type", "TEXT DEFAULT 'fixed'"), ("quantity", real_type), ("rate", real_type)]:
         try:
             db.execute(f"ALTER TABLE supplier_expenses ADD COLUMN {col} {dtype}")
@@ -1842,6 +1853,7 @@ def supplier_lpo_add(sup_id):
         quotation_id = request.form.get("quotation_id", "").strip()
         description = request.form.get("description", "").strip()
         notes = request.form.get("notes", "").strip()
+        payment_terms = request.form.get("payment_terms", "").strip()
         if not lpo_no or not lpo_date:
             flash("LPO number and date are required.", "error")
             company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
@@ -1857,8 +1869,8 @@ def supplier_lpo_add(sup_id):
             att_type = att_file.content_type
 
         row = db.execute(
-            "INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, lpo_type, quotation_id, amount, description, notes, attachment_name, attachment_data, attachment_type) VALUES (?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
-            (sup_id, lpo_no, lpo_date, lpo_type, qid, 0, description, notes, att_name, att_data, att_type),
+            "INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, lpo_type, quotation_id, amount, description, notes, payment_terms, attachment_name, attachment_data, attachment_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            (sup_id, lpo_no, lpo_date, lpo_type, qid, 0, description, notes, payment_terms, att_name, att_data, att_type),
         ).fetchone()
         lpo_id = row["id"]
 
@@ -1900,7 +1912,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id, attachment_name FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id, attachment_name, payment_terms FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
     if not s or not lpo:
         flash("LPO not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1912,6 +1924,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
         quotation_id = request.form.get("quotation_id", "").strip()
         description = request.form.get("description", "").strip()
         notes = request.form.get("notes", "").strip()
+        payment_terms = request.form.get("payment_terms", "").strip()
         if not lpo_no or not lpo_date:
             flash("LPO number and date are required.", "error")
             company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
@@ -1948,8 +1961,8 @@ def supplier_lpo_edit(sup_id, lpo_id):
                 (lpo_id, desc, qty, basis, rate, amt, i),
             )
 
-        db.execute("UPDATE supplier_lpos SET lpo_no=?, lpo_date=?, lpo_type=?, quotation_id=?, amount=?, description=?, notes=? WHERE id=?",
-                   (lpo_no, lpo_date, lpo_type, qid, round(total_amount, 2), description, notes, lpo_id))
+        db.execute("UPDATE supplier_lpos SET lpo_no=?, lpo_date=?, lpo_type=?, quotation_id=?, amount=?, description=?, notes=?, payment_terms=? WHERE id=?",
+                   (lpo_no, lpo_date, lpo_type, qid, round(total_amount, 2), description, notes, payment_terms, lpo_id))
         if att_data is not None:
             db.execute("UPDATE supplier_lpos SET attachment_name=?, attachment_data=?, attachment_type=? WHERE id=?",
                        (att_name, att_data, att_type, lpo_id))
@@ -2047,7 +2060,7 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id, payment_terms FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
     items = db.execute("SELECT id, lpo_id, description, qty, basis_type, day_rate, amount, sort_order FROM supplier_lpo_items WHERE lpo_id=? ORDER BY sort_order", (lpo_id,)).fetchall()
     quotation = None
     if lpo and lpo["quotation_id"]:
@@ -2148,8 +2161,6 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     if s.get("phone"): sup_lines += [Paragraph("Phone", lbl_style), Paragraph(s["phone"], val_style)]
     if s.get("email"): sup_lines += [Paragraph("Email", lbl_style), Paragraph(s["email"], val_style)]
     sup_lines.append(Spacer(1, 1*mm))
-    if s.get("payment_terms"):
-        sup_lines += [Paragraph("Payment Terms", lbl_style), Paragraph(s["payment_terms"], val_style)]
 
     sup_cell = Table([[x] for x in sup_lines], colWidths=[None])
     sup_cell.setStyle(TableStyle([
@@ -2170,6 +2181,10 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     if quotation:
         lpo_lines += [Paragraph("Quotation Ref", lbl_style),
                       Paragraph(quotation["quotation_no"], val_style)]
+    # Payment Terms: this LPO's own terms first, else supplier profile default
+    lpo_pt = (lpo.get("payment_terms") or s.get("payment_terms") or "").strip()
+    if lpo_pt:
+        lpo_lines += [Paragraph("Payment Terms", lbl_style), Paragraph(lpo_pt, val_style)]
     lpo_lines += [
         Paragraph("Status", lbl_style),
         Paragraph("<font color='#c2410c'><b>" + lpo["status"].upper() + "</b></font>",
@@ -2328,75 +2343,85 @@ def supplier_lpo_pdf(sup_id, lpo_id):
     els.append(Spacer(1, 6*mm))
 
     # ═══════════════════════════════════════════════════════
-    #  SIGNATURES
+    #  SIGNATURES (aspect-correct images, aligned sign-off boxes)
     # ═══════════════════════════════════════════════════════
     els.append(Paragraph("AUTHORIZATION", ParagraphStyle("as", fontSize=9, fontName="Helvetica-Bold", textColor=NAVY, leading=11, spaceAfter=4)))
 
     sig_style = ParagraphStyle("sg", fontSize=8, alignment=TA_CENTER, leading=11, textColor=DARK, spaceAfter=0)
+    sig_line = ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=6, spaceAfter=0)
 
-    # Load company stamp and signature images
+    # Load company stamp + signature images, aspect ratio preserved (no stretching)
     import os
     stamp_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'Stamp.png')
     sign_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'Sign (1).png')
-    stamp_img = None
-    sign_img = None
-    try:
-        if os.path.exists(stamp_path):
-            stamp_img = RLImage(stamp_path, width=55, height=55)
-        if os.path.exists(sign_path):
-            sign_img = RLImage(sign_path, width=55, height=55)
-    except Exception:
-        pass
+    IMG_BOX_W = 66.0          # pt — slot width per image
+    IMG_BOX_H = 18 * mm       # fixed slot height keeps both columns aligned
 
-    # Company signature column with stamp + sign
-    company_sig_cells = [
-        [Spacer(1, 2*mm)],
-    ]
-    if stamp_img or sign_img:
-        img_row = []
-        if stamp_img:
-            img_row.append(stamp_img)
-        if sign_img:
-            img_row.append(Spacer(1, 3*mm))
-            img_row.append(sign_img)
-        if len(img_row) == 1:
-            company_sig_cells.append(img_row)
-        else:
-            img_tbl = Table([img_row], colWidths=[55, 3*mm, 55])
-            img_tbl.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ]))
-            company_sig_cells.append([img_tbl])
-    company_sig_cells.append([Paragraph("_" * 30, ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=4))])
-    company_sig_cells.append([Paragraph("<b>COMPANY SIGNATURE &amp; STAMP</b>", sig_style)])
-    company_sig_cells.append([Paragraph("Name: _______________________", sig_style)])
-    company_sig_cells.append([Paragraph("Date: _______________________", sig_style)])
+    def _fit_image(path):
+        try:
+            if not os.path.exists(path):
+                return None
+            try:
+                from PIL import Image as _PILImage
+                with _PILImage.open(path) as _im:
+                    w, h = _im.size
+            except Exception:
+                w, h = 741, 337
+            scale = min(IMG_BOX_W / float(w), IMG_BOX_H / float(h))
+            return RLImage(path, width=float(w) * scale, height=float(h) * scale)
+        except Exception:
+            return None
 
-    company_sig_col = Table(company_sig_cells, colWidths=[70*mm])
-    company_sig_col.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-    ]))
+    sign_img = _fit_image(sign_path)
+    stamp_img = _fit_image(stamp_path)
 
-    supplier_sig_col = Table([
-        [Spacer(1, 8*mm)],
-        [Paragraph("_" * 30, ParagraphStyle("sl", fontSize=8, textColor=MUTED, alignment=TA_CENTER, leading=4))],
-        [Paragraph("<b>SUPPLIER SIGNATURE &amp; STAMP</b>", sig_style)],
-        [Paragraph("Name: _______________________", sig_style)],
-        [Paragraph("Date: _______________________", sig_style)],
-    ], colWidths=[70*mm])
+    img_cells = [im for im in (sign_img, stamp_img) if im]
+    if img_cells:
+        img_slot = Table([img_cells], colWidths=[IMG_BOX_W] * len(img_cells), rowHeights=[IMG_BOX_H])
+        img_slot.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        company_top = img_slot
+    else:
+        company_top = Spacer(1, IMG_BOX_H)
 
-    sig_data = [[company_sig_col, supplier_sig_col]]
-    sig_tbl = Table(sig_data, colWidths=[avail_w * 0.5, avail_w * 0.5])
+    def _sig_col(top_flowable):
+        t = Table([
+            [top_flowable],
+            [Paragraph("_" * 34, sig_line)],
+            [Paragraph("<b>COMPANY SIGNATURE &amp; STAMP</b>", sig_style)] if top_flowable is company_top else
+            [Paragraph("<b>SUPPLIER SIGNATURE &amp; STAMP</b>", sig_style)],
+            [Paragraph("Name: _______________________", sig_style)],
+            [Paragraph("Date: ____ / ____ / ________", sig_style)],
+        ], colWidths=[avail_w * 0.47])
+        t.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("BOX", (0, 0), (-1, -1), 0.5, LINE),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("TOPPADDING", (0, 0), (-1, 0), 7),
+            ("BOTTOMPADDING", (0, -1), (-1, -1), 7),
+        ]))
+        return t
+
+    company_sig_col = _sig_col(company_top)
+    supplier_sig_col = _sig_col(Spacer(1, IMG_BOX_H))
+
+    sig_tbl = Table([[company_sig_col, supplier_sig_col]], colWidths=[avail_w * 0.5, avail_w * 0.5])
     sig_tbl.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
     els.append(sig_tbl)
     els.append(Spacer(1, 6*mm))
@@ -2411,7 +2436,17 @@ def supplier_lpo_pdf(sup_id, lpo_id):
         "Generated on: " + datetime.now().strftime("%d-%b-%Y %I:%M %p"),
         ParagraphStyle("gn", fontSize=6, textColor=colors.HexColor("#b0b8c4"), alignment=TA_CENTER, leading=7, spaceAfter=0)))
 
-    doc.build(els)
+    def _page_decor(cv, d):
+        cv.saveState()
+        cv.setStrokeColor(LINE)
+        cv.setLineWidth(0.5)
+        cv.line(1.8 * cm, 1.0 * cm, A4[0] - 1.8 * cm, 1.0 * cm)
+        cv.setFont("Helvetica", 7)
+        cv.setFillColor(MUTED)
+        cv.drawCentredString(A4[0] / 2.0, 0.62 * cm, f"{lpo['lpo_no']}  |  Page {d.page}")
+        cv.restoreState()
+
+    doc.build(els, onFirstPage=_page_decor, onLaterPages=_page_decor)
     pdf_data = buf.getvalue()
     buf.close()
 
