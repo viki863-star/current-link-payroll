@@ -148,8 +148,10 @@ td .mono-sm { font-size:0.75rem; }
 {% elif active_tab == 'invoices' %}
 <div class="profile-card">
     <div class="section-header">
-        <h3>Invoices</h3>
+        <h3>Invoices{% if trash_mode %} — Trash{% endif %}</h3>
         <div style="display:flex;gap:6px">
+            <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='invoices') }}" class="btn btn-outline btn-sm {{ 'btn-primary' if not trash_mode }}" {% if not trash_mode and not trash_inv_count %}style="display:none"{% endif %}>Invoices ({{ active_inv_count }})</a>
+            <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='invoices', trash=1) }}" class="btn btn-outline btn-sm" {% if not trash_inv_count and not trash_mode %}style="display:none"{% endif %}>&#128465; Trash ({{ trash_inv_count }})</a>
             <a href="{{ url_for('customer.customer_soa', cid=c.id) }}" class="btn btn-outline btn-sm">SOA / Statement</a>
         <a href="{{ url_for('customer.customer_invoice_add', cid=c.id) }}" class="btn btn-primary btn-sm">+ New Invoice</a>
         </div>
@@ -163,6 +165,7 @@ td .mono-sm { font-size:0.75rem; }
                 <tr>
                     <td class="mono" style="font-weight:600">{{ inv.invoice_no }}
                         {% if (inv.invoice_type or 'vat') == 'cash' %}<span class="badge badge-type" style="font-size:0.6rem;background:#ecfdf5;color:#0f766e;border:1px solid #0f766e;margin-left:4px">CASH</span>{% endif %}
+                        {% if trash_mode %}<span class="badge" style="font-size:0.6rem;background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;margin-left:4px">TRASH</span>{% endif %}
                     </td>
                     <td class="mono">{{ inv.invoice_date }}</td>
                     <td class="mono">{{ "%.2f"|format(inv.amount) }}</td>
@@ -170,13 +173,21 @@ td .mono-sm { font-size:0.75rem; }
                     <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.2f"|format(inv.total_amount) }}</td>
                     <td>
                         <div style="display:flex;gap:4px">
+                        {% if trash_mode %}
+                        <span class="mono" style="font-size:0.72rem;color:#94a3b8;align-self:center">deleted {{ (inv.deleted_at or '')[:10] }}</span>
+                        <form method="POST" action="{{ url_for('customer.customer_invoice_restore', cid=c.id, iid=inv.id) }}" style="display:inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-xs btn-primary">Restore</button>
+                        </form>
+                        {% else %}
                         <a href="{{ url_for('customer.customer_invoice_view', cid=c.id, iid=inv.id) }}" class="btn btn-xs btn-outline">View</a>
                         <a href="{{ url_for('customer.customer_invoice_edit', cid=c.id, iid=inv.id) }}" class="btn btn-xs btn-outline">Edit</a>
                         <a href="{{ url_for('customer.customer_invoice_pdf', cid=c.id, iid=inv.id) }}" class="btn btn-xs btn-primary" target="_blank">PDF</a>
-                        <form method="POST" action="{{ url_for('customer.customer_invoice_delete', cid=c.id, iid=inv.id) }}" style="display:inline" onsubmit="return confirm('Delete invoice {{ inv.invoice_no }}?')">
+                        <form method="POST" action="{{ url_for('customer.customer_invoice_delete', cid=c.id, iid=inv.id) }}" style="display:inline" onsubmit="return askInvoiceDelete(event, this, '{{ inv.invoice_no }}')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+                            <button class="btn btn-xs btn-outline" style="color:#c62828" title="Move to Trash">&#10005;</button>
                         </form>
+                        {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -184,8 +195,59 @@ td .mono-sm { font-size:0.75rem; }
             </tbody>
         </table>
     </div>
+    {% elif trash_mode %}<p class="empty-state">&#128465; Trash is empty — nothing has been deleted.</p>
     {% else %}<p class="empty-state">No invoices yet. <a href="{{ url_for('customer.customer_invoice_add', cid=c.id) }}">Create one</a>.</p>{% endif %}
 </div>
+
+{# ═══ DELETE CONFIRM (type invoice number) ═══ #}
+<div id="invDelModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:12px;padding:20px 22px;width:min(430px,92vw);box-shadow:0 18px 50px rgba(0,0,0,.25)">
+        <h4 style="margin:0 0 6px;font-size:1rem">Move invoice to Trash?</h4>
+        <p style="margin:0 0 12px;font-size:0.85rem;color:#64748b">The invoice will disappear from lists and reports but nothing is permanently deleted — you can Restore it anytime from the Trash button.</p>
+        <p style="margin:0 0 6px;font-size:0.85rem">Type the invoice number <b class="mono" id="invDelNoText" style="color:#0f172a"></b> to confirm:</p>
+        <input id="invDelInput" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.95rem" placeholder="Invoice number" autocomplete="off" oninput="checkInvDelInput()">
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+            <button type="button" class="btn btn-outline btn-sm" onclick="closeInvoiceDelete()">Cancel</button>
+            <button type="button" id="invDelConfirmBtn" class="btn btn-sm" disabled style="background:#c62828;color:#fff;border:none;opacity:0.45" onclick="doInvoiceDelete()">&#128465; Move to Trash</button>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var delForm = null, delNo = '';
+    window.askInvoiceDelete = function (e, form, invNo) {
+        if (form.dataset.confirmed === '1') return true;
+        e.preventDefault();
+        delForm = form; delNo = invNo;
+        document.getElementById('invDelNoText').textContent = invNo;
+        var inp = document.getElementById('invDelInput');
+        inp.value = '';
+        checkInvDelInput();
+        document.getElementById('invDelModal').style.display = 'flex';
+        inp.focus();
+        return false;
+    };
+    window.checkInvDelInput = function () {
+        var v = (document.getElementById('invDelInput').value || '').trim().toUpperCase();
+        var ok = (v === delNo.toUpperCase());
+        var btn = document.getElementById('invDelConfirmBtn');
+        btn.disabled = !ok;
+        btn.style.opacity = ok ? '1' : '0.45';
+        return ok;
+    };
+    window.closeInvoiceDelete = function () {
+        document.getElementById('invDelModal').style.display = 'none';
+        delForm = null;
+    };
+    window.doInvoiceDelete = function () {
+        if (!delForm || !checkInvDelInput()) return;
+        var f = delForm;
+        document.getElementById('invDelModal').style.display = 'none';
+        f.dataset.confirmed = '1';
+        f.submit();
+    };
+})();
+</script>
 
 {# ═══════ CREDIT NOTES ═══════ #}
 {% elif active_tab == 'credit_notes' %}

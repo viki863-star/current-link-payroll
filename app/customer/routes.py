@@ -189,6 +189,7 @@ def _ensure_tables():
         ("customer_invoices", "invoice_type", "TEXT DEFAULT 'vat'"),
         ("customer_invoices", "service_order_no", "TEXT"),
         ("customer_invoices", "so_no", "TEXT"),
+        ("customer_invoices", "deleted_at", "TEXT"),
         ("customer_invoice_items", "vehicle_no", "TEXT"),
         ("customer_invoice_items", "capacity_gallon", "TEXT"),
         ("customer_invoice_items", "unit", "TEXT"),
@@ -318,23 +319,23 @@ def customer_dashboard():
     db = _get_db()
     total = db.execute("SELECT COUNT(*) FROM customers").fetchone()[0]
     active = db.execute("SELECT COUNT(*) FROM customers WHERE status='active'").fetchone()[0]
-    total_receivable = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices").fetchone()[0]
+    total_receivable = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0]
     total_cn = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes").fetchone()[0]
-    inv_count = db.execute("SELECT COUNT(*) FROM customer_invoices").fetchone()[0]
+    inv_count = db.execute("SELECT COUNT(*) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0]
     paid_total = db.execute("SELECT COALESCE(SUM(amount),0) FROM customer_payments").fetchone()[0]
     recent = db.execute("""SELECT i.*, c.customer_name FROM customer_invoices i
-        JOIN customers c ON i.customer_id=c.id ORDER BY i.created_at DESC LIMIT 8""").fetchall()
+        JOIN customers c ON i.customer_id=c.id WHERE i.deleted_at IS NULL ORDER BY i.created_at DESC LIMIT 8""").fetchall()
     recent_pmts = db.execute("""SELECT p.*, c.customer_name FROM customer_payments p
         JOIN customers c ON p.customer_id=c.id ORDER BY p.created_at DESC LIMIT 6""").fetchall()
     monthly = db.execute("""
         SELECT substr(invoice_date,1,7) AS mon,
                COUNT(*) AS cnt, COALESCE(SUM(total_amount),0) AS tot
-        FROM customer_invoices GROUP BY mon ORDER BY mon DESC LIMIT 12
+        FROM customer_invoices WHERE deleted_at IS NULL GROUP BY mon ORDER BY mon DESC LIMIT 12
     """).fetchall()
     top_customers = db.execute("""
         SELECT c.id, c.customer_name, COUNT(i.id) AS inv_cnt,
                COALESCE(SUM(i.total_amount),0) AS total
-        FROM customers c LEFT JOIN customer_invoices i ON i.customer_id=c.id
+        FROM customers c LEFT JOIN customer_invoices i ON i.customer_id=c.id AND i.deleted_at IS NULL
         GROUP BY c.id, c.customer_name ORDER BY total DESC LIMIT 5
     """).fetchall()
     db.close()
@@ -410,7 +411,14 @@ def customer_profile(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     tab = request.args.get("tab", "overview")
-    invoices = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
+    trash_mode = request.args.get("trash") == "1"
+    _inv_cols = "id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type, discount, deleted_at"
+    if trash_mode:
+        invoices = db.execute(f"SELECT {_inv_cols} FROM customer_invoices WHERE customer_id=? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC", (cid,)).fetchall()
+    else:
+        invoices = db.execute(f"SELECT {_inv_cols} FROM customer_invoices WHERE customer_id=? AND deleted_at IS NULL ORDER BY invoice_date DESC", (cid,)).fetchall()
+    active_inv_count = db.execute("SELECT COUNT(*) FROM customer_invoices WHERE customer_id=? AND deleted_at IS NULL", (cid,)).fetchone()[0]
+    trash_inv_count = db.execute("SELECT COUNT(*) FROM customer_invoices WHERE customer_id=? AND deleted_at IS NOT NULL", (cid,)).fetchone()[0]
     payments = db.execute("SELECT p.*, i.invoice_no FROM customer_payments p LEFT JOIN customer_invoices i ON p.invoice_id=i.id WHERE p.customer_id=? ORDER BY p.payment_date DESC", (cid,)).fetchall()
     contracts = db.execute("SELECT id, customer_id, contract_no, start_date, end_date, amount, status, created_at FROM customer_contracts WHERE customer_id=? ORDER BY contract_date DESC", (cid,)).fetchall()
     quotations = db.execute("""
@@ -427,7 +435,7 @@ def customer_profile(cid):
         ORDER BY entry_date DESC, id DESC
         LIMIT 100
     """, (cid,)).fetchall()
-    total_inv = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE customer_id=?", (cid,)).fetchone()[0]
+    total_inv = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE customer_id=? AND deleted_at IS NULL", (cid,)).fetchone()[0]
     total_paid = db.execute("SELECT COALESCE(SUM(amount),0) FROM customer_payments WHERE customer_id=?", (cid,)).fetchone()[0]
     total_cn = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes WHERE customer_id=?", (cid,)).fetchone()[0]
     balance = round(total_inv - total_paid - total_cn, 2)
@@ -435,7 +443,8 @@ def customer_profile(cid):
     return render_template("customer/profile.html", c=c, active_tab=tab, invoices=invoices,
         payments=payments, contracts=contracts, quotations=quotations, lpos=lpos, service_orders=service_orders, docs=docs,
         credit_notes=credit_notes, tripsheets=tripsheets,
-        total_inv=total_inv, total_paid=total_paid, total_cn=total_cn, balance=balance)
+        total_inv=total_inv, total_paid=total_paid, total_cn=total_cn, balance=balance,
+        trash_mode=trash_mode, active_inv_count=active_inv_count, trash_inv_count=trash_inv_count)
 
 # â”€â”€â”€ INVOICES â”€â”€â”€
 
@@ -613,7 +622,7 @@ def customer_invoice_edit(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
@@ -793,7 +802,7 @@ def customer_invoice_view(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
     if not inv:
         db.close()
         flash("Invoice not found.", "error")
@@ -855,7 +864,7 @@ def customer_invoice_pdf(cid, iid):
     _ensure_tables()
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     pdf_so_date = None
@@ -1875,12 +1884,59 @@ def customer_invoice_pdf(cid, iid):
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>/delete", methods=["POST"])
 def customer_invoice_delete(cid, iid):
+    _ensure_tables()
     db = _get_db()
-    db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
-    db.execute("DELETE FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid))
+    inv = db.execute("SELECT id, invoice_no, total_amount, deleted_at FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    if not inv:
+        db.close()
+        flash("Invoice not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
+    if inv.get("deleted_at"):
+        db.close()
+        flash("Invoice is already in Trash.", "info")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices", trash=1))
+    backend = current_app.config.get("DATABASE_BACKEND", "postgres")
+    now_sql = "NOW()::text" if backend == "postgres" else "datetime('now')"
+    cust = db.execute("SELECT customer_name FROM customers WHERE id=?", (cid,)).fetchone()
+    # Soft delete: invoice + items stay in DB (restorable), money history untouched.
+    db.execute(f"UPDATE customer_invoices SET deleted_at = {now_sql} WHERE id=? AND customer_id=?", (iid, cid))
+    # Audit: who / when / what (invoice no + amount + customer)
+    from ..routes import _audit_log
+    _audit_log(
+        db, "customer_invoice_deleted",
+        entity_type="customer_invoice", entity_id=str(iid),
+        details=f"{inv['invoice_no']} / AED {float(inv['total_amount'] or 0):,.2f} / {cust['customer_name'] if cust else ''}",
+    )
     db.commit()
     db.close()
-    flash("Invoice deleted.", "success")
+    flash(f"Invoice {inv['invoice_no']} moved to Trash. Restore it anytime from the Trash button.", "success")
+    return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
+
+
+@customer_bp.route("/<int:cid>/invoice/<int:iid>/restore", methods=["POST"])
+def customer_invoice_restore(cid, iid):
+    _ensure_tables()
+    db = _get_db()
+    inv = db.execute("SELECT id, invoice_no, total_amount, deleted_at FROM customer_invoices WHERE id=? AND customer_id=?", (iid, cid)).fetchone()
+    if not inv:
+        db.close()
+        flash("Invoice not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
+    if not inv.get("deleted_at"):
+        db.close()
+        flash("Invoice is already active.", "info")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
+    db.execute("UPDATE customer_invoices SET deleted_at = NULL WHERE id=? AND customer_id=?", (iid, cid))
+    cust = db.execute("SELECT customer_name FROM customers WHERE id=?", (cid,)).fetchone()
+    from ..routes import _audit_log
+    _audit_log(
+        db, "customer_invoice_restored",
+        entity_type="customer_invoice", entity_id=str(iid),
+        details=f"{inv['invoice_no']} / AED {float(inv['total_amount'] or 0):,.2f} / {cust['customer_name'] if cust else ''}",
+    )
+    db.commit()
+    db.close()
+    flash(f"Invoice {inv['invoice_no']} restored.", "success")
     return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
 
 # â”€â”€â”€ CREDIT NOTES â”€â”€â”€
@@ -1891,7 +1947,7 @@ def customer_credit_note_add(cid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    invoices = db.execute("SELECT id,invoice_no,total_amount,invoice_date FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
+    invoices = db.execute("SELECT id,invoice_no,total_amount,invoice_date FROM customer_invoices WHERE customer_id=? AND deleted_at IS NULL ORDER BY invoice_date DESC", (cid,)).fetchall()
 
     if request.method == "POST":
         cn_date = request.form.get("credit_note_date", date.today().isoformat())
@@ -1953,7 +2009,7 @@ def customer_credit_note_edit(cid, cnid):
         db.close()
         return redirect(url_for("customer.customer_profile", cid=cid, tab="credit_notes"))
 
-    invoices = db.execute("SELECT id,invoice_no,total_amount,invoice_date FROM customer_invoices WHERE customer_id=? ORDER BY invoice_date DESC", (cid,)).fetchall()
+    invoices = db.execute("SELECT id,invoice_no,total_amount,invoice_date FROM customer_invoices WHERE customer_id=? AND deleted_at IS NULL ORDER BY invoice_date DESC", (cid,)).fetchall()
 
     if request.method == "POST":
         cn_date = request.form.get("credit_note_date", cn_row["credit_note_date"])
@@ -2257,7 +2313,7 @@ def customer_payment_add(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     invoices_raw = db.execute(
-        "SELECT i.id,i.invoice_no,i.invoice_date,i.total_amount,COALESCE((SELECT SUM(p.amount) FROM customer_payments p WHERE p.invoice_id=i.id),0) AS paid,COALESCE((SELECT SUM(cn.total_amount) FROM customer_credit_notes cn WHERE cn.invoice_id=i.id),0) AS credit_notes FROM customer_invoices i WHERE i.customer_id=? ORDER BY i.invoice_date DESC",
+        "SELECT i.id,i.invoice_no,i.invoice_date,i.total_amount,COALESCE((SELECT SUM(p.amount) FROM customer_payments p WHERE p.invoice_id=i.id),0) AS paid,COALESCE((SELECT SUM(cn.total_amount) FROM customer_credit_notes cn WHERE cn.invoice_id=i.id),0) AS credit_notes FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL ORDER BY i.invoice_date DESC",
         (cid,),
     ).fetchall()
     invoices = []
@@ -3278,7 +3334,7 @@ def customer_soa(cid):
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.invoice_type as invoice_type, i.total_amount as dr,
                       COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
                       + COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cr
-               FROM customer_invoices i WHERE i.customer_id=?"""
+               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL"""
     inv_p = [cid]
     if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
     if to_date: inv_q += " AND i.invoice_date<=?"; inv_p.append(to_date)
@@ -3326,7 +3382,7 @@ def customer_soa_pdf(cid):
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.invoice_type as invoice_type, i.total_amount as dr,
                       COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
                       + COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cr
-               FROM customer_invoices i WHERE i.customer_id=?"""
+               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL"""
     inv_p = [cid]
     if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
     if to_date: inv_q += " AND i.invoice_date<=?"; inv_p.append(to_date)
@@ -3615,6 +3671,7 @@ def customer_tax_report():
     to_filter = request.args.get("to", "")
     where = ""
     params = []
+    where += " AND i.deleted_at IS NULL"
     if from_filter:
         where += " AND i.invoice_date >= ?"
         params.append(from_filter)
@@ -3678,6 +3735,7 @@ def customer_tax_report_excel():
     from_filter = request.args.get("from", "")
     to_filter = request.args.get("to", "")
     where = ""; params = []
+    where += " AND i.deleted_at IS NULL"
     if from_filter: where += " AND i.invoice_date >= ?"; params.append(from_filter)
     if to_filter: where += " AND i.invoice_date <= ?"; params.append(to_filter)
     invoices = db.execute(f"""
@@ -3761,6 +3819,7 @@ def customer_tax_report_pdf():
     from_filter = request.args.get("from", "")
     to_filter = request.args.get("to", "")
     where = ""; params = []
+    where += " AND i.deleted_at IS NULL"
     if from_filter: where += " AND i.invoice_date >= ?"; params.append(from_filter)
     if to_filter: where += " AND i.invoice_date <= ?"; params.append(to_filter)
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()

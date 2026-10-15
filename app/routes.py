@@ -1696,11 +1696,13 @@ def register_routes(app: Flask) -> None:
                        COUNT(*) AS inv_count,
                        COALESCE(SUM(total_amount),0) AS total
                 FROM customer_invoices
+                WHERE deleted_at IS NULL
                 GROUP BY mon ORDER BY mon DESC LIMIT 12
             """).fetchall()
             recent_invoices = db.execute("""
                 SELECT i.invoice_date, i.invoice_no, i.total_amount, c.customer_name
                 FROM customer_invoices i JOIN customers c ON c.id=i.customer_id
+                WHERE i.deleted_at IS NULL
                 ORDER BY i.created_at DESC LIMIT 8
             """).fetchall()
             recent_payments = db.execute("""
@@ -1801,7 +1803,7 @@ def register_routes(app: Flask) -> None:
         # invoices
         try:
             for row in db.execute(
-                "SELECT invoice_no AS id, company_name AS name, 'invoice' AS type, invoice_no AS label FROM customer_invoices WHERE invoice_no LIKE ? LIMIT 10",
+                "SELECT invoice_no AS id, company_name AS name, 'invoice' AS type, invoice_no AS label FROM customer_invoices WHERE deleted_at IS NULL AND invoice_no LIKE ? LIMIT 10",
                 (f"%{q}%",),
             ).fetchall():
                 key = ("invoice", row["id"])
@@ -6417,15 +6419,15 @@ def register_routes(app: Flask) -> None:
         pdb = _open_payroll_db()
         if pdb:
             try:
-                crows = pdb.execute("SELECT CAST(SUBSTR(invoice_date, 6, 2) AS INTEGER) AS mon, amount, vat_amount FROM customer_invoices").fetchall()
+                crows = pdb.execute("SELECT CAST(SUBSTR(invoice_date, 6, 2) AS INTEGER) AS mon, amount, vat_amount FROM customer_invoices WHERE deleted_at IS NULL").fetchall()
                 for r in crows:
                     m = int(r["mon"]) - 1
                     if 0 <= m < 12:
                         chart_sales[m] += float(r["amount"] or 0)
                         chart_output_vat[m] += float(r["vat_amount"] or 0)
                 cust_count = int(pdb.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
-                recv_total = float(pdb.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices").fetchone()[0])
-                cust_inv_count = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices").fetchone()[0])
+                recv_total = float(pdb.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0])
+                cust_inv_count = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0])
             except Exception:
                 pass
             pdb.close()
@@ -17223,7 +17225,7 @@ def _payroll_monthly_chart_data(pdb):
     months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     out = {"sales": [0.0]*12, "purchases": [0.0]*12, "output_vat": [0.0]*12, "input_vat": [0.0]*12}
     try:
-        rows = pdb.execute("SELECT invoice_date, amount, vat_amount FROM customer_invoices").fetchall()
+        rows = pdb.execute("SELECT invoice_date, amount, vat_amount FROM customer_invoices WHERE deleted_at IS NULL").fetchall()
         for r in rows:
             try:
                 parts = r["invoice_date"].split("-")
@@ -17256,7 +17258,7 @@ def _payroll_summary(pdb):
     try:
         out["customer_count"] = int(pdb.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
         out["supplier_count"] = int(pdb.execute("SELECT COUNT(*) FROM suppliers").fetchone()[0])
-        out["receivable_total"] = float(pdb.execute("SELECT COALESCE(SUM(total_amount), 0) FROM customer_invoices").fetchone()[0])
+        out["receivable_total"] = float(pdb.execute("SELECT COALESCE(SUM(total_amount), 0) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0])
         out["payable_total"] = float(pdb.execute("SELECT COALESCE(SUM(total_amount), 0) FROM supplier_invoices").fetchone()[0])
         out["open_sales"] = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices WHERE status != 'Paid'").fetchone()[0])
         out["open_purchases"] = int(pdb.execute("SELECT COUNT(*) FROM supplier_invoices WHERE status != 'Paid'").fetchone()[0])
