@@ -24,6 +24,10 @@
 </style>
 
 <div class="list-shell">
+    <div class="fa-toolbar">
+        <span style="font-size:0.8rem;color:var(--muted)">Pending decisions below — approve/reject ki poori history aur dates Approval Register me hain.</span>
+        <a href="{{ url_for('fleet.fleet_approval_register') }}" class="btn btn-sm btn-outline">&#128203; Approval Register (audit)</a>
+    </div>
     {% if pending_groups %}
     <div class="fa-toolbar">
         <h3 style="color:var(--orange)">
@@ -140,11 +144,12 @@
         {% if recent_approved %}
         <div class="table-wrap">
             <table class="smart-table" style="font-size:0.78rem">
-                <thead><tr><th>Date</th><th>Vehicle</th><th>Staff</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Submitted</th><th>Decided</th><th>Vehicle</th><th>Staff</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                     {% for j in recent_approved %}
                     <tr>
                         <td class="mono">{{ fmt_dt(j.created_at, '%Y-%m-%d') }}</td>
+                        <td class="mono" style="font-weight:700;{% if j.status == 'rejected' %}color:#b91c1c{% else %}color:#059669{% endif %}">{{ fmt_dt(j.decided_at or j.approved_at, '%Y-%m-%d') if (j.decided_at or j.approved_at) else '—' }}</td>
                         <td class="mono">{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}{{ j.plate_no }}{% endif %}</td>
                         <td>{{ j.staff_name }}</td>
                         <td class="mono">AED {{ "%.0f"|format(j.amount) }}</td>

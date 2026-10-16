@@ -112,7 +112,7 @@ _MJ_LIST_COLS = """
     mj.id, mj.vehicle_id, mj.staff_id, mj.amount, mj.category, mj.description,
     mj.attachment_name, mj.attachment_type, mj.status, mj.admin_notes,
     mj.supplier_name, mj.supplier_trn, mj.supplier_bill_no, mj.tax_mode, mj.tax_amount,
-    mj.created_at, mj.approved_at,
+    mj.created_at, mj.approved_at, mj.decided_at,
     CASE WHEN mj.attachment_data IS NOT NULL AND mj.attachment_data != '' THEN 1 ELSE 0 END AS has_attachment
 """
 
@@ -244,6 +244,16 @@ def ensure_fleet_tables():
     ):
         try:
             db.execute(_img_col)
+        except Exception:
+            pass  # column already exists
+    # Staff resignation status + approval register (decision date) columns
+    for _col_sql in (
+        "ALTER TABLE field_staff ADD COLUMN employment_status TEXT",
+        "ALTER TABLE field_staff ADD COLUMN resign_date TEXT",
+        "ALTER TABLE maintenance_jobs ADD COLUMN decided_at TEXT",
+    ):
+        try:
+            db.execute(_col_sql)
         except Exception:
             pass  # column already exists
     db.commit()
@@ -2891,7 +2901,7 @@ def fleet_staff_edit(staff_id):
     _touch_admin_workspace("fleet")
     ensure_fleet_tables()
     db = open_db()
-    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active, photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+    s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active, employment_status, resign_date, photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
     if not s:
         flash("Staff not found.", "error")
         return redirect(url_for("fleet.fleet_staff_list"))
@@ -2901,7 +2911,16 @@ def fleet_staff_edit(staff_id):
         phone = request.form.get("phone", "").strip()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
-        is_active = 1 if request.form.get("is_active") else 0
+        employment_status = request.form.get("employment_status", "").strip()
+        if employment_status not in ("Active", "Inactive", "Resigned"):
+            # Old form still cached in the browser (is_active checkbox) — keep old behaviour
+            employment_status = "Active" if request.form.get("is_active") else "Inactive"
+        is_active = 1 if employment_status == "Active" else 0
+        resign_date = request.form.get("resign_date", "").strip() or None
+        if employment_status == "Resigned":
+            resign_date = resign_date or s.get("resign_date") or date.today().isoformat()
+        else:
+            resign_date = None
 
         photo_data = s["photo_data"]
         photo_content_type = s["photo_content_type"]
@@ -2923,15 +2942,18 @@ def fleet_staff_edit(staff_id):
 
         if password:
             pw_hash = generate_password_hash(password)
-            db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, password_hash=?, is_active=?, photo_data=?, photo_content_type=? WHERE staff_id=?",
-                       (full_name, phone, username, pw_hash, is_active, photo_data, photo_content_type, staff_id))
+            db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, password_hash=?, is_active=?, employment_status=?, resign_date=?, photo_data=?, photo_content_type=? WHERE staff_id=?",
+                       (full_name, phone, username, pw_hash, is_active, employment_status, resign_date, photo_data, photo_content_type, staff_id))
         else:
             pw_hash = s["password_hash"]
-            db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, is_active=?, photo_data=?, photo_content_type=? WHERE staff_id=?",
-                       (full_name, phone, username, is_active, photo_data, photo_content_type, staff_id))
+            db.execute("UPDATE field_staff SET full_name=?, phone=?, username=?, is_active=?, employment_status=?, resign_date=?, photo_data=?, photo_content_type=? WHERE staff_id=?",
+                       (full_name, phone, username, is_active, employment_status, resign_date, photo_data, photo_content_type, staff_id))
         _sync_field_staff_to_technician(db, staff_id, full_name, phone, username, pw_hash, is_active)
         db.commit()
-        flash("Staff updated.", "success")
+        if employment_status == "Resigned":
+            flash(f"{full_name} marked as Resigned on {resign_date}. Field Staff Portal login disabled.", "success")
+        else:
+            flash("Staff updated.", "success")
         return redirect(url_for("fleet.fleet_staff_list"))
 
     return render_template("fleet/fleet_staff_form.html", page_title="Edit Staff", submit_label="Save Changes", s=s)
@@ -3001,12 +3023,16 @@ def fleet_staff_profile(staff_id):
         _touch_admin_workspace("fleet")
         ensure_fleet_tables()
         db = open_db()
-        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active, photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active, employment_status, resign_date, photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
         if not s:
             flash("Staff not found.", "error")
             return redirect(url_for("fleet.fleet_staff_list"))
 
         if request.method == "POST":
+            # Resigned staff: full history stays visible, but no new cash advances
+            if (s.get("employment_status") or "") == "Resigned":
+                flash(f"{s['full_name']} resigned on {s.get('resign_date') or '—'} — new advances are disabled.", "error")
+                return redirect(url_for("fleet.fleet_staff_profile", staff_id=staff_id))
             amount = request.form.get("amount", "").strip()
             entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
             entry_time = request.form.get("entry_time", "").strip()
@@ -3452,6 +3478,90 @@ def fleet_approvals():
     return render_template("fleet/fleet_approvals.html", pending_jobs=pending_jobs, pending_total=pending_total, recent_approved=recent_approved, pending_groups=groups)
 
 
+# ── ADMIN: Approval Register — investigation view of every job decision ──
+
+
+@fleet_bp.route("/fleet/approvals/register")
+@_login_required("admin")
+def fleet_approval_register():
+    """Audit register: every approved/rejected job with the exact decision date,
+    submitted date, staff, vehicle, bill number and rejection reason — separate
+    from the pending queue so past approvals can be investigated later."""
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+
+    status_f = (request.args.get("status") or "").strip()
+    staff_f = (request.args.get("staff") or "").strip()
+    date_from = (request.args.get("date_from") or "").strip()
+    date_to = (request.args.get("date_to") or "").strip()
+    q = (request.args.get("q") or "").strip()
+
+    where = ["mj.status IN ('approved','rejected')"]
+    params = []
+    if status_f in ("approved", "rejected"):
+        where.append("mj.status = ?")
+        params.append(status_f)
+    if staff_f:
+        where.append("mj.staff_id = ?")
+        params.append(staff_f)
+    # Decision date = decided_at (new), falling back to approved_at (older rows)
+    decision_date = "substr(COALESCE(CAST(mj.decided_at AS TEXT), CAST(mj.approved_at AS TEXT), ''), 1, 10)"
+    if date_from:
+        where.append(f"{decision_date} >= ?")
+        params.append(date_from)
+    if date_to:
+        where.append(f"{decision_date} <= ?")
+        params.append(date_to)
+    if q:
+        like = f"%{q}%"
+        where.append(
+            "(mj.description LIKE ? OR mj.supplier_bill_no LIKE ? OR mj.vehicle_id LIKE ? "
+            "OR mj.category LIKE ? OR mj.supplier_name LIKE ? OR mj.supplier_trn LIKE ? OR CAST(mj.id AS TEXT) LIKE ?)"
+        )
+        params.extend([like] * 7)
+
+    rows = db.execute(
+        f"""
+        SELECT {_MJ_LIST_COLS},
+               COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.vehicle_type,
+               s.full_name AS staff_name, s.is_active AS staff_is_active,
+               COALESCE(CAST(mj.decided_at AS TEXT), CAST(mj.approved_at AS TEXT)) AS decided
+        FROM maintenance_jobs mj
+        LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
+        LEFT JOIN field_staff s ON s.staff_id = mj.staff_id
+        WHERE {' AND '.join(where)}
+        ORDER BY decided DESC, mj.id DESC
+        """,
+        params,
+    ).fetchall()
+
+    approved_rows = [r for r in rows if r["status"] == "approved"]
+    totals = {
+        "count": len(rows),
+        "approved_n": len(approved_rows),
+        "approved_aed": sum(float(r["amount"] or 0) for r in approved_rows),
+        "rejected_n": len(rows) - len(approved_rows),
+    }
+
+    staff_list = db.execute(
+        "SELECT staff_id, full_name, employment_status, is_active FROM field_staff "
+        "WHERE staff_id IS NOT NULL AND staff_id != '' ORDER BY full_name"
+    ).fetchall()
+
+    return render_template(
+        "fleet/fleet_approval_register.html",
+        rows=rows,
+        staff_list=staff_list,
+        totals=totals,
+        status_f=status_f,
+        staff_f=staff_f,
+        date_from=date_from,
+        date_to=date_to,
+        q=q,
+    )
+
+
 @fleet_bp.route("/fleet/staff-papers-report")
 @_login_required("admin")
 def fleet_staff_papers_report():
@@ -3560,7 +3670,7 @@ def fleet_job_approve_all():
         flash("No pending jobs to approve.", "info")
         return redirect(url_for("fleet.fleet_approvals"))
     now = datetime.now().isoformat()
-    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=?, staff_amount=amount-tax_amount WHERE status='pending'", (now,))
+    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=?, decided_at=?, staff_amount=amount-tax_amount WHERE status='pending'", (now, now))
     db.commit()
     try:
         from app.notification_service import add_notification
@@ -3590,7 +3700,7 @@ def fleet_job_approve_all_staff(staff_id):
         flash("No pending jobs for this staff member.", "info")
         return redirect(url_for("fleet.fleet_approvals"))
     now = datetime.now().isoformat()
-    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=?, staff_amount=amount-tax_amount WHERE status='pending' AND staff_id = ?", (now, staff_id))
+    db.execute("UPDATE maintenance_jobs SET status='approved', approved_at=?, decided_at=?, staff_amount=amount-tax_amount WHERE status='pending' AND staff_id = ?", (now, now, staff_id))
     db.commit()
     staff_name = "Field Staff"
     try:
@@ -3618,9 +3728,10 @@ def fleet_job_approve(job_id):
     if not job:
         flash("Job not found.", "error")
         return redirect(url_for("fleet.fleet_approvals"))
+    now = datetime.now().isoformat()
     db.execute(
-        "UPDATE maintenance_jobs SET status = 'approved', approved_at = ?, staff_amount = amount - tax_amount WHERE id = ?",
-        (datetime.now().isoformat(), job_id),
+        "UPDATE maintenance_jobs SET status = 'approved', approved_at = ?, decided_at = ?, staff_amount = amount - tax_amount WHERE id = ?",
+        (now, now, job_id),
     )
     db.commit()
     try:
@@ -3659,8 +3770,8 @@ def fleet_job_reject(job_id):
     db = open_db()
     notes = request.form.get("admin_notes", "").strip() or "Rejected by admin"
     db.execute(
-        "UPDATE maintenance_jobs SET status = 'rejected', admin_notes = ? WHERE id = ?",
-        (notes, job_id),
+        "UPDATE maintenance_jobs SET status = 'rejected', admin_notes = ?, decided_at = ? WHERE id = ?",
+        (notes, datetime.now().isoformat(), job_id),
     )
     db.commit()
     try:

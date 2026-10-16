@@ -55,7 +55,7 @@
                     <td><div style="display:flex;align-items:center;gap:10px"><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="text-decoration:none"><div style="display:flex;align-items:center;gap:10px">{% if s.photo_data and s.photo_content_type %}<img src="data:{{ s.photo_content_type }};base64,{{ s.photo_data }}" class="staff-avatar" alt="{{ s.full_name }}">{% else %}<div class="staff-avatar-letter" style="background:{{ ['#F7931E','#1565C0','#2e7d32','#7b1fa2','#c62828'][loop.index0 % 5] }}">{{ s.full_name[:1]|upper }}</div>{% endif %}<span style="font-weight:600;color:var(--primary)">{{ s.full_name }}</span></div></a></div></td>
                     <td>{{ s.phone or '-' }}</td>
                     <td class="mono">{{ s.username }}</td>
-                    <td><span class="status-badge {{ 'active' if s.is_active else 'inactive' }}">{{ 'Active' if s.is_active else 'Inactive' }}</span></td>
+                    <td><span class="status-badge {{ 'active' if s.is_active else ('danger' if s.employment_status == 'Resigned' else 'inactive') }}">{{ 'Active' if s.is_active else ('Resigned' if s.employment_status == 'Resigned' else 'Inactive') }}</span></td>
                     <td><span class="staff-entry-summary"><span>Papers: {{ s.entry_count }}</span> <span>Cash: {{ s.advance_count }}</span></span></td>
                     <td class="action-cell">
                         <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-xs btn-outline">Edit</a>

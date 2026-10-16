@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Approval Register — Fleet{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Approval Register{% endblock %}
+
+{% block content %}
+<style>
+.ar-toolbar { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.ar-toolbar h3 { margin:0; font-size:1.1rem; }
+.ar-sub { margin:4px 0 0; font-size:0.78rem; color:var(--muted); max-width:640px; }
+.ar-filter { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
+.ar-filter label { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:#64748b; display:block; margin-bottom:3px; }
+.ar-filter .form-control { font-size:0.82rem; padding:7px 10px; }
+.ar-pills { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.ar-pill { border-radius:999px; padding:5px 13px; font-size:0.78rem; font-weight:700; border:1px solid; }
+.ar-note { font-size:0.7rem; color:var(--muted); margin-top:8px; }
+</style>
+
+<div class="list-shell">
+    <div class="ar-toolbar">
+        <div>
+            <h3>&#128203; Approval Register</h3>
+            <p class="ar-sub">Har approved/rejected job ka audit trail — kab submit hua, kab decision hua, bill number, aur rejection reason. Investigation ke liye alag page, pending queue se separate.</p>
+        </div>
+        <a href="{{ url_for('fleet.fleet_approvals') }}" class="btn btn-sm btn-outline">&larr; Back to Approvals</a>
+    </div>
+
+    <div class="profile-card" style="margin-bottom:16px">
+        <form method="get" class="ar-filter">
+            <div>
+                <label>Decision</label>
+                <select name="status" class="form-control">
+                    <option value="" {{ 'selected' if not status_f }}>All</option>
+                    <option value="approved" {{ 'selected' if status_f == 'approved' }}>Approved</option>
+                    <option value="rejected" {{ 'selected' if status_f == 'rejected' }}>Rejected</option>
+                </select>
+            </div>
+            <div>
+                <label>Staff</label>
+                <select name="staff" class="form-control">
+                    <option value="">All staff</option>
+                    {% for st in staff_list %}
+                    <option value="{{ st.staff_id }}" {{ 'selected' if staff_f == st.staff_id }}>{{ st.full_name }}{% if st.employment_status == 'Resigned' %} (Resigned){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Decided from</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div>
+                <label>Decided to</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+            </div>
+            <div style="flex:1;min-width:180px">
+                <label>Search</label>
+                <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="bill no / description / plate / job #">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+            <a href="{{ url_for('fleet.fleet_approval_register') }}" class="btn btn-outline btn-sm">Clear</a>
+        </form>
+        <div class="ar-pills">
+            <span class="ar-pill" style="background:#f1f5f9;color:#475569;border-color:#e2e8f0">{{ totals.count }} decision{{ '' if totals.count == 1 else 's' }}</span>
+            <span class="ar-pill" style="background:#ecfdf5;color:#047857;border-color:#a7f3d0">&#10003; {{ totals.approved_n }} approved · AED {{ "{:,.0f}".format(totals.approved_aed) }}</span>
+            <span class="ar-pill" style="background:#fef2f2;color:#b91c1c;border-color:#fecaca">&#10005; {{ totals.rejected_n }} rejected</span>
+        </div>
+        <p class="ar-note">&#128197; <b>Decided</b> = approve/reject ki tareekh (investigation answer). <b>Submitted</b> = staff ne job kab banayi thi. Purani entries (decided_at se pehle) me approved_at use hota hai.</p>
+    </div>
+
+    <div class="profile-card">
+        {% if rows %}
+        <div class="table-wrap">
+            <table class="smart-table" style="font-size:0.78rem">
+                <thead>
+                    <tr>
+                        <th>Decided</th>
+                        <th>Status</th>
+                        <th>Job</th>
+                        <th>Submitted</th>
+                        <th>Staff</th>
+                        <th>Vehicle</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Supplier &amp; Bill</th>
+                        <th class="r">Amount</th>
+                        <th>Reason / Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr>
+                        <td class="mono" style="font-weight:700;{% if r.status == 'rejected' %}color:#b91c1c{% else %}color:#059669{% endif %}">
+                            {{ fmt_dt(r.decided, '%Y-%m-%d') if r.decided else '—' }}
+                            {% if r.decided %}<div style="font-size:0.65rem;font-weight:400;color:var(--muted)">{{ fmt_dt(r.decided, '%H:%M') }}</div>{% endif %}
+                        </td>
+                        <td><span class="status-badge {{ 'active' if r.status == 'approved' else 'danger' }}">{{ r.status }}</span></td>
+                        <td class="mono" style="font-weight:700">#{{ r.id }}</td>
+                        <td class="mono">{{ fmt_dt(r.created_at, '%Y-%m-%d') }}</td>
+                        <td>
+                            {% if r.staff_name %}
+                            <a href="{{ url_for('fleet.fleet_staff_profile', staff_id=r.staff_id) }}" style="font-weight:600">{{ r.staff_name }}</a>
+                            {% if r.staff_is_active == 0 %}<span class="status-badge inactive" style="font-size:0.55rem">staff inactive</span>{% endif %}
+                            {% else %}{{ r.staff_id or '—' }}{% endif %}
+                        </td>
+                        <td class="mono">{% if r.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}{{ r.plate_no }}{% if r.vehicle_type %} <span class="badge badge-dept" style="font-size:0.58rem">{{ r.vehicle_type }}</span>{% endif %}{% endif %}</td>
+                        <td><span class="badge badge-type">{{ r.category }}</span></td>
+                        <td style="max-width:170px;white-space:normal;font-size:0.72rem">{{ r.description or '-' }}</td>
+                        <td style="font-size:0.72rem">
+                            {% if r.supplier_name %}{{ r.supplier_name }}{% if r.supplier_trn %}<div style="color:var(--muted)">TRN {{ r.supplier_trn }}</div>{% endif %}{% endif %}
+                            {% if r.supplier_bill_no %}<div class="mono" style="font-weight:700">Bill: {{ r.supplier_bill_no }}</div>{% endif %}
+                            {% if r.tax_mode == 'Tax Invoice' %}<span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:0.58rem">VAT 5%</span>{% endif %}
+                        </td>
+                        <td class="r mono" style="font-weight:700;color:#e65100">AED {{ "%.0f"|format(r.amount) }}</td>
+                        <td style="max-width:150px;white-space:normal;font-size:0.72rem;{% if r.status == 'rejected' %}color:#b91c1c;font-weight:600{% endif %}">
+                            {{ r.admin_notes or '—' }}
+                            {% if r.has_attachment %}
+                            <div style="margin-top:3px"><a href="#" onclick="viewAttachment({{ r.id }});return false" class="btn btn-xs btn-outline" style="font-size:0.62rem">&#128206; Attachment</a></div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">Koi decision nahi mila is filter me. Filters clear karke dobara dekhen.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function viewAttachment(id) {
+    window.open("/fleet/attachment/" + id);
+}
+</script>
+{% endblock %}

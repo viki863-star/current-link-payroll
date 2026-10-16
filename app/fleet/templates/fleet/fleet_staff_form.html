@@ -79,12 +79,22 @@
                 </div>
             </div>
             {% if s.staff_id %}
+            {% set emp_status = s.employment_status if s.employment_status in ['Active', 'Inactive', 'Resigned'] else ('Active' if s.is_active else 'Inactive') %}
             <div class="form-row">
                 <div class="form-group" style="flex:1">
-                    <label style="display:flex;align-items:center;gap:8px">
-                        <input type="checkbox" name="is_active" value="1" {% if s.is_active %}checked{% endif %}>
-                        Active
-                    </label>
+                    <label>Employment Status</label>
+                    <select name="employment_status" id="empStatusSel" class="form-control">
+                        <option value="Active" {% if emp_status == 'Active' %}selected{% endif %}>Active</option>
+                        <option value="Inactive" {% if emp_status == 'Inactive' %}selected{% endif %}>Inactive (suspended)</option>
+                        <option value="Resigned" {% if emp_status == 'Resigned' %}selected{% endif %}>Resigned (left the company)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row" id="resignDateRow" style="display:none">
+                <div class="form-group" style="flex:1">
+                    <label>Resignation Date</label>
+                    <input type="date" name="resign_date" class="form-control" value="{{ s.resign_date or '' }}">
+                    <small style="color:var(--muted);font-size:0.72rem;display:block;margin-top:4px">Profile par <b>RESIGNED</b> badge is tareekh ke saath dikhega aur Field Staff Portal login band ho jayega. Jobs, papers aur advances ki poori history rehti hai.</small>
                 </div>
             </div>
             {% endif %}
@@ -97,6 +107,15 @@
 </div>
 <script>
 (function(){
+    var statusSel = document.getElementById('empStatusSel');
+    function toggleResignDate() {
+        var row = document.getElementById('resignDateRow');
+        if (row && statusSel) row.style.display = statusSel.value === 'Resigned' ? '' : 'none';
+    }
+    if (statusSel) {
+        statusSel.addEventListener('change', toggleResignDate);
+        toggleResignDate();
+    }
     var input = document.querySelector('input[name="profile_photo"]');
     if (!input) return;
     input.addEventListener('change', function(e) {

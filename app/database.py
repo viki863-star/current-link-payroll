@@ -859,6 +859,8 @@ CREATE TABLE IF NOT EXISTS field_staff (
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1,
+    employment_status TEXT,
+    resign_date TEXT,
     photo_data TEXT,
     photo_content_type TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -914,6 +916,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     staff_amount REAL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     approved_at TEXT,
+    decided_at TEXT,
     paper_date TEXT,
     vat_check TEXT,
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
@@ -1782,6 +1785,8 @@ CREATE TABLE IF NOT EXISTS field_staff (
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1,
+    employment_status TEXT,
+    resign_date TEXT,
     photo_data TEXT,
     photo_content_type TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -1837,6 +1842,7 @@ CREATE TABLE IF NOT EXISTS maintenance_jobs (
     staff_amount DOUBLE PRECISION,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     approved_at TIMESTAMP,
+    decided_at TIMESTAMP,
     paper_date TEXT,
     vat_check TEXT,
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(plate_no),
