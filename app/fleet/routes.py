@@ -256,6 +256,20 @@ def ensure_fleet_tables():
             db.execute(_col_sql)
         except Exception:
             pass  # column already exists
+    # Partnership expense ledger (vehicle shared between company and a partner)
+    db.execute(f"""
+        CREATE TABLE IF NOT EXISTS vehicle_partner_ledger (
+            {id_col},
+            plate_no TEXT NOT NULL,
+            party TEXT NOT NULL,
+            entry_date TEXT NOT NULL,
+            description TEXT,
+            amount {real_type} NOT NULL DEFAULT 0,
+            notes TEXT,
+            created_at TEXT DEFAULT {default_ts}
+        )
+    """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_vpl_plate ON vehicle_partner_ledger (plate_no)")
     db.commit()
     # Fix existing fuel expenses — change earning_type from 'trip' to 'Fuel'
     try:
@@ -1931,11 +1945,12 @@ def vehicle_profile(plate_no):
 
     # Current drivers (latest assignment per vehicle, is_current=1)
     current_drivers = db.execute(
-        """SELECT DISTINCT ON (va.vehicle_id) va.vehicle_id, va.driver_id, va.assigned_from, e.full_name AS driver_name
+        """SELECT va.vehicle_id, va.driver_id, va.assigned_from, e.full_name AS driver_name
            FROM vehicle_assignments va
            JOIN employees e ON e.employee_id = va.driver_id
            WHERE va.vehicle_id = ? AND va.is_current = 1
-           ORDER BY va.vehicle_id, va.assigned_from DESC""",
+           ORDER BY va.assigned_from DESC
+           LIMIT 1""",
         (plate_no,),
     ).fetchall()
 
@@ -2114,6 +2129,30 @@ def vehicle_profile(plate_no):
     except Exception:
         ghadeer_card = None
 
+    # ── Partnership ledger (two accounts: company vs partner, e.g. Shakir ⇄ Asam Ud Din) ──
+    partner_entries = db.execute(
+        "SELECT id, party, entry_date, description, amount, notes, created_at FROM vehicle_partner_ledger WHERE plate_no = ? ORDER BY entry_date DESC, id DESC",
+        (plate_no,),
+    ).fetchall()
+    p_labels = _partner_labels(db, plate_no)
+    company_total = sum(float(e["amount"] or 0) for e in partner_entries if e["party"] == "company")
+    partner_total = sum(float(e["amount"] or 0) for e in partner_entries if e["party"] == "partner")
+    p_total = company_total + partner_total
+    p_partner_pct = p_labels["partner_percent"]
+    p_company_pct = round(100.0 - p_partner_pct, 2)
+    p_company_due = round(p_total * p_company_pct / 100.0, 2)
+    partnership = {
+        "company_total": company_total,
+        "partner_total": partner_total,
+        "total": p_total,
+        "company_pct": p_company_pct,
+        "partner_pct": p_partner_pct,
+        "company_due": p_company_due,
+        "partner_due": round(p_total * p_partner_pct / 100.0, 2),
+        # >0 → partner owes the company; <0 → company owes the partner
+        "to_company": round(company_total - p_company_due, 2),
+    }
+
     return render_template(
         "fleet/vehicle_profile.html",
         v=v,
@@ -2150,8 +2189,84 @@ def vehicle_profile(plate_no):
         fines_paid=fines_paid,
         fines_pending=fines_pending,
         ghadeer_card=ghadeer_card,
+        partner_entries=partner_entries,
+        partner_labels=p_labels,
+        partnership=partnership,
         date=date,
     )
+
+
+def _partner_labels(db, plate_no):
+    """Display names for the two partnership accounts of a vehicle."""
+    company_name = "Current Link"
+    try:
+        row = db.execute("SELECT company_name FROM company_profile LIMIT 1").fetchone()
+        if row and row["company_name"]:
+            company_name = row["company_name"]
+    except Exception:
+        pass
+    v = db.execute("SELECT ownership_type, partner_name, partner_percent FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    partner_name = v["partner_name"] if v and v["partner_name"] else "Partner"
+    pct = 50.0
+    if v and v.get("partner_percent"):
+        try:
+            pct = float(v["partner_percent"])
+        except (TypeError, ValueError):
+            pct = 50.0
+    return {
+        "company": company_name,
+        "partner": partner_name,
+        "partner_percent": pct,
+        "is_partnership": bool(v and v["ownership_type"] == "Partnership"),
+    }
+
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/partnership/entry/add", methods=["POST"])
+@_login_required("admin")
+def vehicle_partner_entry_add(plate_no):
+    """Record one partnership expense under the account of whoever paid it."""
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    if not db.execute("SELECT 1 FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone():
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+    labels = _partner_labels(db, plate_no)
+    party = request.form.get("party", "").strip()
+    if party not in ("company", "partner"):
+        flash("Choose who paid: company or partner.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="partnership"))
+    entry_date = request.form.get("entry_date", "").strip() or date.today().isoformat()
+    description = request.form.get("description", "").strip()
+    notes = request.form.get("notes", "").strip()
+    try:
+        amount = round(float(request.form.get("amount", "").strip()), 2)
+    except ValueError:
+        flash("Amount must be a number.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="partnership"))
+    if amount <= 0:
+        flash("Amount must be greater than zero.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="partnership"))
+    db.execute(
+        "INSERT INTO vehicle_partner_ledger (plate_no, party, entry_date, description, amount, notes) VALUES (?,?,?,?,?,?)",
+        (plate_no, party, entry_date, description, amount, notes),
+    )
+    db.commit()
+    who = labels["company"] if party == "company" else labels["partner"]
+    flash(f"Entry added in {who}'s account: AED {amount:,.2f}", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="partnership"))
+
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/partnership/entry/<int:entry_id>/delete", methods=["POST"])
+@_login_required("admin")
+def vehicle_partner_entry_delete(plate_no, entry_id):
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    db.execute("DELETE FROM vehicle_partner_ledger WHERE id = ? AND plate_no = ?", (entry_id, plate_no))
+    db.commit()
+    flash("Entry deleted.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="partnership"))
 
 
 # ── Delete Vehicle ────────────────────────────────────────────

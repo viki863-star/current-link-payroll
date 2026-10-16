@@ -120,6 +120,7 @@
         <a class="vp-tab {% if active_tab == 'parts' %}is-active{% endif %}" href="?tab=parts">Parts</a>
         <a class="vp-tab {% if active_tab == 'fines' %}is-active{% endif %}" href="?tab=fines">Fines</a>
         <a class="vp-tab {% if active_tab == 'expenses' %}is-active{% endif %}" href="?tab=expenses">Expenses</a>
+        <a class="vp-tab {% if active_tab == 'partnership' %}is-active{% endif %}" href="?tab=partnership">Partnership</a>
     </div>
 
     {# ═══════════════════════════════════════════ OVERVIEW ═══ #}
@@ -811,6 +812,77 @@
             </div>
         </div>
     </div>
+
+    {% elif active_tab == 'partnership' %}
+
+    <div class="vp-kpi-row">
+        <div class="vp-kpi"><div class="vp-kpi-icon">💼</div><div class="vp-kpi-label">Total Shared Expenses</div><div class="vp-kpi-value">AED {{ "{:,.2f}".format(partnership.total) }}</div><div style="font-size:.68rem;color:#868e96;margin-top:3px">{{ partnership.company_pct|round|int }}% company · {{ partnership.partner_pct|round|int }}% {{ partner_labels.partner }}</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">🏛️</div><div class="vp-kpi-label">{{ partner_labels.company }} paid</div><div class="vp-kpi-value" style="color:#1565C0">AED {{ "{:,.2f}".format(partnership.company_total) }}</div><div style="font-size:.68rem;color:#868e96;margin-top:3px">hissa due: AED {{ "{:,.2f}".format(partnership.company_due) }}</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">🤝</div><div class="vp-kpi-label">{{ partner_labels.partner }} paid</div><div class="vp-kpi-value" style="color:#7b1fa2">AED {{ "{:,.2f}".format(partnership.partner_total) }}</div><div style="font-size:.68rem;color:#868e96;margin-top:3px">hissa due: AED {{ "{:,.2f}".format(partnership.partner_due) }}</div></div>
+        <div class="vp-kpi"><div class="vp-kpi-icon">⚖️</div><div class="vp-kpi-label">Settlement (end mein kaun kitna dega)</div>
+            <div class="vp-kpi-value" style="font-size:.9rem;line-height:1.45;{% if partnership.to_company > 0 %}color:#b91c1c{% elif partnership.to_company < 0 %}color:#b45309{% else %}color:#059669{% endif %}">
+                {% if partnership.to_company > 0 %}{{ partner_labels.partner }} owes {{ partner_labels.company }}<br><b>AED {{ "{:,.2f}".format(partnership.to_company|abs) }}</b>
+                {% elif partnership.to_company < 0 %}{{ partner_labels.company }} owes {{ partner_labels.partner }}<br><b>AED {{ "{:,.2f}".format(partnership.to_company|abs) }}</b>
+                {% else %}Settled — dono barabar ✓{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="vp-card">
+        <div class="vp-card-head"><h3>+ Add Expense Entry</h3><span style="font-size:.7rem;color:#868e96">Har kharcha sirf EK dafa likhein — jis ne paisa diya, uske account me</span></div>
+        <div class="vp-card-body">
+            <form method="POST" action="{{ url_for('fleet.vehicle_partner_entry_add', plate_no=v.plate_no) }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Date</label><input type="date" name="entry_date" class="form-control" value="{{ date.today().isoformat() }}" required></div>
+                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Kis ke kharche par (paid by)</label>
+                    <select name="party" class="form-control" required>
+                        <option value="company">{{ partner_labels.company }} (company)</option>
+                        <option value="partner">{{ partner_labels.partner }} (partner)</option>
+                    </select></div>
+                <div style="flex:1;min-width:170px"><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Description</label><input type="text" name="description" class="form-control" placeholder="e.g. Diesel, insurance, tyre, repair..." required></div>
+                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Amount (AED)</label><input type="number" step="0.01" min="0.01" name="amount" class="form-control" style="width:130px" required></div>
+                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Notes (optional)</label><input type="text" name="notes" class="form-control" placeholder="bill no / ref" style="width:150px"></div>
+                <button type="submit" class="btn btn-primary btn-sm">+ Add Entry</button>
+            </form>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        {% for acc in [('company', partner_labels.company, '#1565C0'), ('partner', partner_labels.partner, '#7b1fa2')] %}
+        <div class="vp-card">
+            <div class="vp-card-head">
+                <h3>{{ acc[1] }} <span style="font-size:.68rem;color:#868e96;font-weight:400">({{ 'Company' if acc[0] == 'company' else 'Partner' }} account)</span></h3>
+                <span class="mono" style="font-weight:800;color:{{ acc[2] }}">AED {{ "{:,.2f}".format(partnership.company_total if acc[0] == 'company' else partnership.partner_total) }}</span>
+            </div>
+            <div class="vp-card-body" style="padding:0">
+                {% set acc_entries = partner_entries | selectattr('party', 'equalto', acc[0]) | list %}
+                {% if acc_entries %}
+                <table class="smart-table" style="font-size:.78rem">
+                    <thead><tr><th>Date</th><th>Description</th><th class="r">Amount</th><th></th></tr></thead>
+                    <tbody>
+                        {% for e in acc_entries %}
+                        <tr>
+                            <td class="mono">{{ e.entry_date }}</td>
+                            <td>{{ e.description or '—' }}{% if e.notes %}<div style="font-size:.65rem;color:#868e96">{{ e.notes }}</div>{% endif %}</td>
+                            <td class="r mono" style="font-weight:700">{{ "{:,.2f}".format(e.amount) }}</td>
+                            <td class="r">
+                                <form method="POST" action="{{ url_for('fleet.vehicle_partner_entry_delete', plate_no=v.plate_no, entry_id=e.id) }}" onsubmit="return confirm('Delete this entry?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-xs btn-outline" style="color:#b91c1c;border-color:#fca5a5">✕</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p style="padding:18px;text-align:center;color:#868e96;font-size:.8rem;margin:0">Koi entry nahi — upar form se pehli entry add karein.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <p style="font-size:.7rem;color:#868e96;margin-top:8px">Settlement card hisaab lagata hai {{ partnership.company_pct|round|int }}-{{ partnership.partner_pct|round|int }} split ke mutabiq: jis ne zyada diya uska paisa doosra dega. Purane settled agreement ke kharche yahan na likhein — sirf naye (future) kharche is ledger me add karein.</p>
 
     {% endif %}
 </div>
