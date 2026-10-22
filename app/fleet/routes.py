@@ -272,6 +272,7 @@ def ensure_fleet_tables():
     db.execute("CREATE INDEX IF NOT EXISTS idx_vpl_plate ON vehicle_partner_ledger (plate_no)")
     # Vehicle battery warranty (expiry date + warranty card attachment)
     for _col_sql in (
+        "ALTER TABLE vehicles ADD COLUMN battery_warranty_start TEXT",
         "ALTER TABLE vehicles ADD COLUMN battery_warranty_expiry TEXT",
         "ALTER TABLE vehicles ADD COLUMN battery_warranty_card_name TEXT",
         "ALTER TABLE vehicles ADD COLUMN battery_warranty_card_data TEXT",
@@ -338,7 +339,7 @@ def _migrate_vehicle_master(db):
 
 def _vehicle_full(plate_no):
     db = open_db()
-    v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, battery_warranty_expiry, battery_warranty_card_name FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, battery_warranty_start, battery_warranty_expiry, battery_warranty_card_name FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
     if not v:
         vm = db.execute("SELECT id, vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode, source_type, source_party_code, source_asset_code, partner_party_code, partner_name, company_share_percent, partner_share_percent, notes FROM vehicle_master WHERE vehicle_no = ?", (plate_no,)).fetchone()
         if vm:
@@ -352,6 +353,7 @@ def _vehicle_full(plate_no):
                 "status": vm["status"],
                 "notes": vm["notes"],
                 "vehicle_id": vm["vehicle_id"],
+                "battery_warranty_start": None,
                 "battery_warranty_expiry": None,
                 "battery_warranty_card_name": None,
             }
@@ -2142,14 +2144,45 @@ def vehicle_profile(plate_no):
     except Exception:
         ghadeer_card = None
 
-    # ── Battery warranty (expiry date + warranty card) ──
-    battery_days_left = None
+    # ── Battery warranty (expiry date + warranty card) — live fill level ──
+    # fill % = remaining warranty time / total warranty time (start -> expiry).
+    # Without a start date, degrade over the last 365 days before expiry so a
+    # soon-expiring battery still shows a low fill (expired = 0%, red, pulse).
+    battery = {"start": None, "expiry": None, "days_left": None, "fill": None, "level": "none", "total_days": None}
     try:
-        _bw_exp = v.get("battery_warranty_expiry")
+        _bw_start = str(v.get("battery_warranty_start") or "")[:10]
+        _bw_exp = str(v.get("battery_warranty_expiry") or "")[:10]
+        battery["start"] = _bw_start or None
+        battery["expiry"] = _bw_exp or None
         if _bw_exp:
-            battery_days_left = (datetime.strptime(str(_bw_exp)[:10], "%Y-%m-%d").date() - date.today()).days
+            exp_d = datetime.strptime(_bw_exp, "%Y-%m-%d").date()
+            battery["days_left"] = (exp_d - date.today()).days
+            fill = None
+            total = None
+            if _bw_start:
+                try:
+                    st_d = datetime.strptime(_bw_start, "%Y-%m-%d").date()
+                    total = (exp_d - st_d).days
+                    if total > 0:
+                        remaining = (exp_d - date.today()).days
+                        fill = max(0, min(100, round(remaining * 100 / total)))
+                except Exception:
+                    total = None
+            if fill is None:
+                fill = 0 if battery["days_left"] <= 0 else min(100, round(battery["days_left"] * 100 / 365))
+            battery["fill"] = fill
+            battery["total_days"] = total
+            if fill <= 0:
+                battery["level"] = "dead"
+            elif fill < 30:
+                battery["level"] = "low"
+            elif fill < 60:
+                battery["level"] = "mid"
+            else:
+                battery["level"] = "high"
     except Exception:
-        battery_days_left = None
+        pass
+    battery_days_left = battery["days_left"]
 
     # ── Partnership ledger (two accounts: company vs partner, e.g. Shakir ⇄ Asam Ud Din) ──
     partner_entries = db.execute(
@@ -2215,6 +2248,7 @@ def vehicle_profile(plate_no):
         partner_labels=p_labels,
         partnership=partnership,
         battery_days_left=battery_days_left,
+        battery=battery,
         date=date,
     )
 
@@ -2303,18 +2337,19 @@ def vehicle_battery_warranty_save(plate_no):
         flash("Vehicle not found.", "error")
         return redirect(url_for("fleet.vehicle_list"))
     expiry = request.form.get("battery_warranty_expiry", "").strip()
+    start = request.form.get("battery_warranty_start", "").strip()
     card_file = request.files.get("warranty_card")
     if card_file and card_file.filename:
         card_name = card_file.filename
         card_data = base64.b64encode(card_file.read()).decode("utf-8")
         card_type = card_file.content_type
         db.execute(
-            "UPDATE vehicles SET battery_warranty_expiry=?, battery_warranty_card_name=?, battery_warranty_card_data=?, battery_warranty_card_type=? WHERE plate_no=?",
-            (expiry or None, card_name, card_data, card_type, plate_no),
+            "UPDATE vehicles SET battery_warranty_start=?, battery_warranty_expiry=?, battery_warranty_card_name=?, battery_warranty_card_data=?, battery_warranty_card_type=? WHERE plate_no=?",
+            (start or None, expiry or None, card_name, card_data, card_type, plate_no),
         )
     else:
         # date-only update keeps the existing card safe
-        db.execute("UPDATE vehicles SET battery_warranty_expiry=? WHERE plate_no=?", (expiry or None, plate_no))
+        db.execute("UPDATE vehicles SET battery_warranty_start=?, battery_warranty_expiry=? WHERE plate_no=?", (start or None, expiry or None, plate_no))
     db.commit()
     flash("Battery warranty updated.", "success")
     return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="documents"))
