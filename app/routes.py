@@ -1688,6 +1688,18 @@ def register_routes(app: Flask) -> None:
                     ).fetchone()[0] or 0
                 except Exception:
                     pass
+            # Vehicle battery warranties (vehicle profile -> Documents tab)
+            try:
+                expiring_soon += db.execute(
+                    "SELECT COUNT(*) FROM vehicles WHERE battery_warranty_expiry IS NOT NULL AND battery_warranty_expiry != '' AND battery_warranty_expiry >= ? AND battery_warranty_expiry <= ?",
+                    (today_str, horizon_str),
+                ).fetchone()[0] or 0
+                expired_count += db.execute(
+                    "SELECT COUNT(*) FROM vehicles WHERE battery_warranty_expiry IS NOT NULL AND battery_warranty_expiry != '' AND battery_warranty_expiry < ?",
+                    (today_str,),
+                ).fetchone()[0] or 0
+            except Exception:
+                pass
         except Exception:
             expiring_soon = 0
             expired_count = 0

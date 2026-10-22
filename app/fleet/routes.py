@@ -270,6 +270,17 @@ def ensure_fleet_tables():
         )
     """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_vpl_plate ON vehicle_partner_ledger (plate_no)")
+    # Vehicle battery warranty (expiry date + warranty card attachment)
+    for _col_sql in (
+        "ALTER TABLE vehicles ADD COLUMN battery_warranty_expiry TEXT",
+        "ALTER TABLE vehicles ADD COLUMN battery_warranty_card_name TEXT",
+        "ALTER TABLE vehicles ADD COLUMN battery_warranty_card_data TEXT",
+        "ALTER TABLE vehicles ADD COLUMN battery_warranty_card_type TEXT",
+    ):
+        try:
+            db.execute(_col_sql)
+        except Exception:
+            pass  # column already exists
     db.commit()
     # Fix existing fuel expenses — change earning_type from 'trip' to 'Fuel'
     try:
@@ -327,7 +338,7 @@ def _migrate_vehicle_master(db):
 
 def _vehicle_full(plate_no):
     db = open_db()
-    v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, battery_warranty_expiry, battery_warranty_card_name FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
     if not v:
         vm = db.execute("SELECT id, vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode, source_type, source_party_code, source_asset_code, partner_party_code, partner_name, company_share_percent, partner_share_percent, notes FROM vehicle_master WHERE vehicle_no = ?", (plate_no,)).fetchone()
         if vm:
@@ -341,6 +352,8 @@ def _vehicle_full(plate_no):
                 "status": vm["status"],
                 "notes": vm["notes"],
                 "vehicle_id": vm["vehicle_id"],
+                "battery_warranty_expiry": None,
+                "battery_warranty_card_name": None,
             }
         else:
             return None
@@ -2129,6 +2142,15 @@ def vehicle_profile(plate_no):
     except Exception:
         ghadeer_card = None
 
+    # ── Battery warranty (expiry date + warranty card) ──
+    battery_days_left = None
+    try:
+        _bw_exp = v.get("battery_warranty_expiry")
+        if _bw_exp:
+            battery_days_left = (datetime.strptime(str(_bw_exp)[:10], "%Y-%m-%d").date() - date.today()).days
+    except Exception:
+        battery_days_left = None
+
     # ── Partnership ledger (two accounts: company vs partner, e.g. Shakir ⇄ Asam Ud Din) ──
     partner_entries = db.execute(
         "SELECT id, party, entry_date, description, amount, notes, created_at FROM vehicle_partner_ledger WHERE plate_no = ? ORDER BY entry_date DESC, id DESC",
@@ -2192,6 +2214,7 @@ def vehicle_profile(plate_no):
         partner_entries=partner_entries,
         partner_labels=p_labels,
         partnership=partnership,
+        battery_days_left=battery_days_left,
         date=date,
     )
 
@@ -2267,6 +2290,58 @@ def vehicle_partner_entry_delete(plate_no, entry_id):
     db.commit()
     flash("Entry deleted.", "success")
     return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="partnership"))
+
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/battery-warranty", methods=["POST"])
+@_login_required("admin")
+def vehicle_battery_warranty_save(plate_no):
+    """Set the battery warranty expiry date and/or upload the warranty card."""
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    if not db.execute("SELECT 1 FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone():
+        flash("Vehicle not found.", "error")
+        return redirect(url_for("fleet.vehicle_list"))
+    expiry = request.form.get("battery_warranty_expiry", "").strip()
+    card_file = request.files.get("warranty_card")
+    if card_file and card_file.filename:
+        card_name = card_file.filename
+        card_data = base64.b64encode(card_file.read()).decode("utf-8")
+        card_type = card_file.content_type
+        db.execute(
+            "UPDATE vehicles SET battery_warranty_expiry=?, battery_warranty_card_name=?, battery_warranty_card_data=?, battery_warranty_card_type=? WHERE plate_no=?",
+            (expiry or None, card_name, card_data, card_type, plate_no),
+        )
+    else:
+        # date-only update keeps the existing card safe
+        db.execute("UPDATE vehicles SET battery_warranty_expiry=? WHERE plate_no=?", (expiry or None, plate_no))
+    db.commit()
+    flash("Battery warranty updated.", "success")
+    return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="documents"))
+
+
+@fleet_bp.route("/fleet/vehicles/<path:plate_no>/battery-warranty/card")
+@_login_required("admin")
+def vehicle_battery_warranty_card(plate_no):
+    """Open/download the stored battery warranty card."""
+    _touch_admin_workspace("fleet")
+    ensure_fleet_tables()
+    db = open_db()
+    row = db.execute(
+        "SELECT battery_warranty_card_name, battery_warranty_card_data, battery_warranty_card_type FROM vehicles WHERE plate_no = ?",
+        (plate_no,),
+    ).fetchone()
+    if not row or not row["battery_warranty_card_data"]:
+        flash("No battery warranty card uploaded for this vehicle.", "error")
+        return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no, tab="documents"))
+    data = base64.b64decode(row["battery_warranty_card_data"])
+    dl = request.args.get("download", "0") == "1"
+    return send_file(
+        BytesIO(data),
+        mimetype=row["battery_warranty_card_type"] or "application/octet-stream",
+        as_attachment=dl,
+        download_name=row["battery_warranty_card_name"] or f"{plate_no}_battery_warranty",
+    )
 
 
 # ── Delete Vehicle ────────────────────────────────────────────

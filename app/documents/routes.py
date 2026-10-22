@@ -216,6 +216,20 @@ def document_expiry_report():
     except Exception:
         pass
 
+    # 4) Vehicle battery warranties (vehicle profile -> Documents tab)
+    try:
+        for r in db.execute(
+            "SELECT plate_no, vehicle_type, battery_warranty_expiry AS expiry "
+            "FROM vehicles WHERE battery_warranty_expiry IS NOT NULL AND battery_warranty_expiry != '' "
+            "AND battery_warranty_expiry <= ? ORDER BY battery_warranty_expiry",
+            (horizon,),
+        ).fetchall():
+            _add("Vehicle", f"{r['plate_no']} {r['vehicle_type'] or ''}".strip(), None,
+                 "🔋 Battery Warranty", "", r["expiry"],
+                 url_for("fleet.vehicle_profile", plate_no=r["plate_no"], tab="documents"))
+    except Exception:
+        pass
+
     db.close()
     expired_n = sum(1 for r in rows if r["status"] == "expired")
     soon_n = sum(1 for r in rows if r["status"] == "soon")
