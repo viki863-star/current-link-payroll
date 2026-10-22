@@ -1,496 +1,430 @@
 {% extends "base.html" %}
-{% block title %}Fleet Dashboard — Current Link ERP{% endblock %}
+{% block title %}Fleet Operations — Current Link ERP{% endblock %}
 {% block body_class %}dashboard-body{% endblock %}
 {% block page_title %}Fleet Management{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
 <style>
-/* ═══════════════════════════════════════════
-   PREMIUM FLEET COMMAND CENTER
-   ═══════════════════════════════════════════ */
-@keyframes heroReveal { from { opacity:0; transform:translateY(24px) } to { opacity:1; transform:translateY(0) } }
-@keyframes shimmerSweep { 0% { left:-40% } 100% { left:140% } }
-@keyframes badgeCount { from { opacity:0; transform:scale(0.5) } 60% { transform:scale(1.15) } to { opacity:1; transform:scale(1) } }
-@keyframes cardSlideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
-@keyframes barGrow { from { width:0% } to { width:var(--bar-pct) } }
-@keyframes rowFadeIn { from { opacity:0; transform:translateX(-16px) } to { opacity:1; transform:translateX(0) } }
-@keyframes rankPop { from { opacity:0; transform:scale(0) rotate(-20deg) } to { opacity:1; transform:scale(1) rotate(0deg) } }
-@keyframes barGlow { 0%,100% { box-shadow:0 0 4px rgba(255,138,31,0.3) } 50% { box-shadow:0 0 14px rgba(255,138,31,0.6) } }
-@keyframes barGrow { from { width:0% } to { width:var(--bar-w) } }
-@keyframes rowSlideIn { from { opacity:0; transform:translateX(-12px) } to { opacity:1; transform:translateX(0) } }
-@keyframes navCardIn { from { opacity:0; transform:scale(0.85) translateY(12px) } to { opacity:1; transform:scale(1) translateY(0) } }
+/* ═══════════════════════════════════════════════
+   FLEET OPERATIONS — clean enterprise dashboard
+   ═══════════════════════════════════════════════ */
+@keyframes foRise { from { opacity:0; transform:translateY(14px) } to { opacity:1; transform:translateY(0) } }
+@keyframes foGrow { from { width:0 } }
 
-.fd-container { max-width:1100px; margin:0 auto; }
+.fo-wrap { max-width:1360px; margin:0 auto; }
 
-/* ─── HERO ─── */
-.fd-hero {
-  background: linear-gradient(145deg,#0a1628 0%,#0F2B52 40%,#162d50 100%);
-  border-radius:22px; padding:36px 34px 30px; margin-bottom:28px;
-  position:relative; overflow:hidden;
-  animation: heroReveal 0.7s cubic-bezier(0.22,1,0.36,1) both;
-}
-.fd-hero::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:50%;
-  background:linear-gradient(180deg,rgba(255,255,255,0.06) 0%,transparent 100%);
-  border-radius:22px 22px 0 0; pointer-events:none;
-}
-.fd-hero::after {
-  content:''; position:absolute; top:-50%; width:40%; height:200%;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);
-  transform:skewX(-15deg); pointer-events:none;
-  animation: shimmerSweep 4s ease-in-out infinite;
-}
-.fd-hero-dots {
-  position:absolute; top:0; right:0; bottom:0; width:200px;
-  background-image:radial-gradient(circle,rgba(255,255,255,0.07) 1px,transparent 1px);
-  background-size:18px 18px; pointer-events:none;
-}
-.fd-hero-content { position:relative; z-index:2; }
-.fd-hero h1 {
-  margin:0; font-size:1.55rem; font-weight:800; color:#fff;
-  letter-spacing:-0.3px;
-  animation: heroReveal 0.6s 0.15s cubic-bezier(0.22,1,0.36,1) both;
-}
-.fd-hero p {
-  margin:5px 0 0; font-size:0.85rem; color:rgba(255,255,255,0.55);
-  animation: heroReveal 0.6s 0.3s cubic-bezier(0.22,1,0.36,1) both;
-}
-.fd-hero-badges { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; position:relative; z-index:2; }
-.fd-badge {
-  display:inline-flex; align-items:center; gap:7px;
-  padding:6px 16px; border-radius:22px; font-size:0.72rem; font-weight:600;
-  background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.85);
-  border:1px solid rgba(255,255,255,0.08);
-  backdrop-filter:blur(6px);
-  animation: badgeCount 0.5s cubic-bezier(0.22,1,0.36,1) both;
-  transition: transform 0.2s, background 0.2s;
-}
-.fd-badge:nth-child(1) { animation-delay:0.4s }
-.fd-badge:nth-child(2) { animation-delay:0.5s }
-.fd-badge:nth-child(3) { animation-delay:0.6s }
-.fd-badge:nth-child(4) { animation-delay:0.7s }
-.fd-badge:hover { background:rgba(255,255,255,0.14); transform:translateY(-2px) }
-.fd-badge strong { color:#fff; font-weight:800; font-family:monospace; font-size:0.8rem }
+/* ── Top bar ── */
+.fo-top { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px }
+.fo-meta { display:flex; align-items:center; gap:9px; font-size:.76rem; font-weight:600; color:var(--muted); flex-wrap:wrap }
+.fo-meta .fo-dot { width:7px; height:7px; border-radius:50%; background:#22c55e; box-shadow:0 0 0 3px rgba(34,197,94,.16); flex-shrink:0 }
+.fo-meta strong { color:var(--text); font-weight:800 }
+.fo-actions { display:flex; gap:8px; flex-wrap:wrap }
+.fo-count-pill { display:inline-block; background:#f59e0b; color:#fff; border-radius:99px; font-size:.6rem; font-weight:800; padding:1px 7px; margin-left:5px; vertical-align:1px }
 
-/* ─── KPI GRID ─── */
-.fd-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:14px; margin-bottom:26px; }
-.fd-kpi {
-  border-radius:18px; padding:18px 16px; position:relative; overflow:hidden;
-  cursor:pointer; border:none; text-decoration:none; display:block; color:inherit;
-  animation: cardSlideUp 0.5s cubic-bezier(0.22,1,0.36,1) both;
-  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s;
-}
-.fd-kpi:nth-child(1) { animation-delay:0.2s }
-.fd-kpi:nth-child(2) { animation-delay:0.3s }
-.fd-kpi:nth-child(3) { animation-delay:0.4s }
-.fd-kpi:nth-child(4) { animation-delay:0.5s }
-.fd-kpi:nth-child(5) { animation-delay:0.6s }
-.fd-kpi::before {
-  content:''; position:absolute; inset:0; border-radius:18px; padding:2px;
-  background:linear-gradient(135deg,rgba(255,255,255,0.25),rgba(255,255,255,0));
-  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
-  -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none;
-  opacity:0; transition:opacity 0.3s;
-}
-.fd-kpi:hover::before { opacity:1 }
-.fd-kpi:active { transform:scale(0.97) }
-.fd-kpi:hover { transform:translateY(-5px) scale(1.02); box-shadow:0 16px 40px rgba(0,0,0,0.2) }
-.fd-kpi-shine {
-  position:absolute; top:0; left:0; right:0; height:50%;
-  background:linear-gradient(180deg,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0) 100%);
-  border-radius:18px 18px 0 0; pointer-events:none;
-}
-.fd-kpi-icon {
-  width:36px; height:36px; border-radius:11px; display:grid; place-items:center;
-  margin-bottom:10px; position:relative; z-index:1;
-  transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
-}
-.fd-kpi:hover .fd-kpi-icon { transform:translateY(-3px) rotate(-5deg) }
-.fd-kpi-label {
-  font-size:0.6rem; font-weight:700; text-transform:uppercase;
-  letter-spacing:0.6px; margin-bottom:4px; position:relative; z-index:1;
-}
-.fd-kpi-label.light { color:rgba(255,255,255,0.75) }
-.fd-kpi-val {
-  font-size:1.4rem; font-weight:800; position:relative; z-index:1;
-  font-family:monospace; letter-spacing:-0.5px;
-}
-.fd-kpi-val.light { color:#fff; text-shadow:0 1px 4px rgba(0,0,0,0.25) }
-.fd-kpi-sub { font-size:0.62rem; position:relative; z-index:1; margin-top:3px }
-.fd-kpi-sub.light { color:rgba(255,255,255,0.55) }
+/* ── Pending alert ── */
+.fo-alert { display:flex; align-items:center; gap:11px; padding:12px 16px; border-radius:12px; font-size:.8rem; color:var(--text); background:rgba(245,158,11,.10); border:1px solid rgba(245,158,11,.4); margin-bottom:14px }
+.fo-alert svg { color:#f59e0b; flex-shrink:0 }
+.fo-alert .fo-alert-amt { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:800; font-variant-numeric:tabular-nums }
+.fo-alert a { margin-left:auto; font-weight:700; font-size:.78rem; color:var(--primary); text-decoration:none; white-space:nowrap }
+.fo-alert a:hover { text-decoration:underline }
 
-/* ─── NAV GRID ─── */
-.fd-nav { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:26px; }
-.fd-nav-card {
-  display:flex; flex-direction:column; align-items:center; gap:6px;
-  padding:16px 12px 14px; background:var(--surface); border:1px solid var(--line);
-  border-radius:14px; text-decoration:none; color:var(--text);
-  font-size:0.73rem; font-weight:600; text-align:center;
-  animation: navCardIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
-  transition: all 0.25s cubic-bezier(0.22,1,0.36,1);
-  position:relative; overflow:hidden;
+/* ── KPI strip ── */
+.fo-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(178px,1fr)); gap:14px; margin-bottom:16px }
+.fo-kpi {
+  display:flex; align-items:center; gap:12px; padding:14px 15px; min-width:0;
+  background:var(--surface); border:1px solid var(--line); border-radius:14px;
+  text-decoration:none; color:inherit; box-shadow:0 1px 2px rgba(16,24,40,.05);
+  transition:transform .18s, box-shadow .18s, border-color .18s;
+  animation:foRise .45s cubic-bezier(.22,1,.36,1) both;
 }
-.fd-nav-card::before {
-  content:''; position:absolute; top:0; left:0; width:4px; height:100%;
-  border-radius:0 4px 4px 0; background:var(--primary); opacity:0;
-  transition: opacity 0.2s;
-}
-.fd-nav-card:hover::before { opacity:1 }
-.fd-nav-card:hover { border-color:var(--primary); color:var(--primary); transform:translateY(-3px) scale(1.03); box-shadow:0 8px 24px rgba(15,43,82,0.12) }
-.fd-nav-card svg { color:var(--primary); width:20px; height:20px; transition: transform 0.3s }
-.fd-nav-card:hover svg { transform:rotate(-8deg) scale(1.1) }
-.fd-nav-card:nth-child(1) { animation-delay:0.15s }
-.fd-nav-card:nth-child(2) { animation-delay:0.2s }
-.fd-nav-card:nth-child(3) { animation-delay:0.25s }
-.fd-nav-card:nth-child(4) { animation-delay:0.3s }
-.fd-nav-card:nth-child(5) { animation-delay:0.35s }
-.fd-nav-card:nth-child(6) { animation-delay:0.4s }
-.fd-nav-card:nth-child(7) { animation-delay:0.45s }
-.fd-nav-card:nth-child(8) { animation-delay:0.5s }
-.fd-nav-card:nth-child(9) { animation-delay:0.55s }
-.fd-nav-card:nth-child(10) { animation-delay:0.6s }
-.fd-nav-card:nth-child(11) { animation-delay:0.65s }
-.fd-nav-card.highlight {
-  border-color:#ff8a1f; background:linear-gradient(145deg,rgba(255,138,31,0.06),rgba(255,138,31,0.02));
-  animation-name: navCardIn;
-}
-.fd-nav-card.highlight::before { background:#ff8a1f; opacity:1 }
-.fd-nav-card.highlight:hover { border-color:#e67600; color:#e67600; box-shadow:0 8px 24px rgba(255,138,31,0.15) }
+.fo-kpi:nth-child(1){animation-delay:.03s} .fo-kpi:nth-child(2){animation-delay:.08s}
+.fo-kpi:nth-child(3){animation-delay:.13s} .fo-kpi:nth-child(4){animation-delay:.18s}
+.fo-kpi:nth-child(5){animation-delay:.23s} .fo-kpi:nth-child(6){animation-delay:.28s}
+.fo-kpi:hover { transform:translateY(-2px); box-shadow:0 8px 22px rgba(16,24,40,.10); border-color:rgba(59,130,246,.45) }
+.fo-kpi-ico { width:38px; height:38px; border-radius:11px; flex-shrink:0; display:grid; place-items:center; background:rgba(59,130,246,.13); color:#3b82f6 }
+.fo-kpi--green  .fo-kpi-ico { background:rgba(34,197,94,.14); color:#22c55e }
+.fo-kpi--amber  .fo-kpi-ico { background:rgba(245,158,11,.16); color:#f59e0b }
+.fo-kpi--teal   .fo-kpi-ico { background:rgba(20,184,166,.14); color:#14b8a6 }
+.fo-kpi-label { font-size:.62rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted) }
+.fo-kpi-val { font-size:1.45rem; font-weight:800; color:var(--text); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums; letter-spacing:-.02em; line-height:1.15; margin-top:1px }
+.fo-kpi-val--money { font-size:1.05rem; letter-spacing:-.01em }
+.fo-kpi-sub { font-size:.64rem; color:var(--muted); margin-top:2px }
+.fo-kpi-sub .fo-up { color:#16a34a; font-weight:700 }
+.fo-kpi-sub .fo-warn { color:#f59e0b; font-weight:700 }
+.fo-kpi-body { min-width:0 }
 
-/* ─── PANELS ─── */
-.fd-panels { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px; }
-.fd-panel { background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.04); }
-.fd-panel-head { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
-.fd-panel-head h3 { margin:0; font-size:0.85rem; font-weight:700; display:flex; align-items:center; gap:8px; }
-.fd-panel-head a { font-size:0.72rem; font-weight:600; color:var(--primary); text-decoration:none; }
-.fd-panel-head a:hover { text-decoration:underline; }
+/* ── Rows / cards ── */
+.fo-row { display:grid; gap:16px; margin-bottom:16px; align-items:stretch }
+.fo-row--b { grid-template-columns:1.7fr 1fr 1.05fr }
+.fo-row--c { grid-template-columns:1fr 1fr }
+.fo-row--d { grid-template-columns:1.6fr 1fr }
+.fo-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:0 1px 2px rgba(16,24,40,.05); overflow:hidden; display:flex; flex-direction:column; min-width:0 }
+.fo-card-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line) }
+.fo-card-head h3 { margin:0; font-size:.8rem; font-weight:700; color:var(--text); display:flex; align-items:center; gap:9px; min-width:0 }
+.fo-head-ico { width:26px; height:26px; border-radius:8px; background:rgba(59,130,246,.12); color:#3b82f6; display:grid; place-items:center; flex-shrink:0 }
+.fo-head-stat { font-size:.68rem; font-weight:700; color:var(--muted); white-space:nowrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums }
+.fo-card-head a { font-size:.7rem; font-weight:700; color:var(--primary); text-decoration:none; white-space:nowrap }
+.fo-card-head a:hover { text-decoration:underline }
+.fo-card-body { padding:14px 16px; flex:1 }
+.fo-card-body--flush { padding:0; overflow-x:auto }
+.fo-empty { padding:30px 16px; text-align:center; color:var(--muted); font-size:.8rem }
 
-/* ─── CHARTS ─── */
-.fd-chart { padding:16px 18px; }
-.fd-chart-bar-wrap {
-  display:flex; align-items:center; gap:10px; margin-bottom:6px;
-  animation: rowSlideIn 0.35s cubic-bezier(0.22,1,0.36,1) both;
-}
-.fd-chart-label { font-size:0.72rem; font-weight:600; min-width:80px; color:var(--text); }
-.fd-chart-bar {
-  height:24px; border-radius:6px; display:flex; align-items:center;
-  padding:0 8px; font-size:0.68rem; font-weight:700; color:#fff; min-width:fit-content;
-  animation: barGrow 0.9s cubic-bezier(0.22,1,0.36,1) both;
-  transition: filter 0.2s, box-shadow 0.2s;
-}
-.fd-chart-bar:hover { filter:brightness(1.15); box-shadow:0 2px 12px rgba(0,0,0,0.15) }
-.fd-chart-bar.orange { background:linear-gradient(90deg,#ff8a1f,#e65100); }
-.fd-chart-bar.blue { background:linear-gradient(90deg,#1a3d6e,#0F2B52); }
-.fd-chart-bar.green { background:linear-gradient(90deg,#22c55e,#16a34a); }
-.fd-chart-bar.purple { background:linear-gradient(90deg,#7c3aed,#6d28d9); }
-.fd-chart-bar.red { background:linear-gradient(90deg,#ef4444,#dc2626); }
-.fd-chart-bar.teal { background:linear-gradient(90deg,#14b8a6,#0d9488); }
-.fd-chart-bar.pink { background:linear-gradient(90deg,#ec4899,#db2777); }
-.fd-chart-colors { display:flex; gap:4px; }
-.chart-color-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+/* ── Charts ── */
+.fo-chart { position:relative; height:232px }
+.fo-donut-flex { display:flex; align-items:center; gap:18px }
+.fo-donut-wrap { position:relative; width:124px; height:124px; flex-shrink:0 }
+.fo-donut-center { position:absolute; inset:0; display:grid; place-content:center; text-align:center; pointer-events:none }
+.fo-donut-center strong { font-size:1.3rem; font-weight:800; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--text); line-height:1 }
+.fo-donut-center span { font-size:.54rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:700; margin-top:3px }
+.fo-leg { flex:1; min-width:0 }
+.fo-leg-row { display:flex; align-items:center; gap:9px; font-size:.76rem; color:var(--text); padding:5px 0 }
+.fo-leg-dot { width:9px; height:9px; border-radius:3px; flex-shrink:0 }
+.fo-leg-val { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:800; font-variant-numeric:tabular-nums }
+.fo-leg-pct { margin-left:auto; font-size:.67rem; font-weight:700; color:var(--muted) }
+.fo-mini { display:flex; gap:16px; margin-top:11px; padding-top:11px; border-top:1px dashed var(--line); flex-wrap:wrap }
+.fo-mini span { font-size:.71rem; font-weight:600; color:var(--muted) }
+.fo-mini strong { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:800; font-variant-numeric:tabular-nums }
+.fo-mini .fo-g { color:#16a34a } .fo-mini .fo-s { color:var(--muted) }
 
-/* ─── RESPONSIVE ─── */
-@media(max-width:768px){
-  .fd-panels { grid-template-columns:1fr; }
-  .fd-kpi-grid { grid-template-columns:repeat(3,1fr); }
-  .fd-nav { grid-template-columns:repeat(3,1fr); }
-  .fd-charts-row { grid-template-columns:1fr !important; }
-  .tv-bar-wrap { width:80px; }
+/* ── Top vehicles bars ── */
+.fo-bar-row { display:grid; grid-template-columns:18px 62px 1fr auto; align-items:center; gap:9px; padding:5px 0; text-decoration:none; color:inherit; border-radius:8px; transition:background .14s }
+.fo-bar-row:hover { background:rgba(59,130,246,.06) }
+.fo-bar-rank { font-size:.58rem; font-weight:800; color:var(--muted); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; text-align:right }
+.fo-bar-label { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.74rem; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.fo-bar-track { height:20px; background:rgba(59,130,246,.09); border-radius:6px; overflow:hidden; min-width:40px }
+.fo-bar-fill { height:100%; border-radius:6px; background:linear-gradient(90deg,#3b82f6,#1d4ed8); animation:foGrow .7s cubic-bezier(.22,1,.36,1) both }
+.fo-bar-meta { font-size:.64rem; color:var(--muted); font-weight:600; white-space:nowrap; text-align:right; min-width:104px }
+.fo-bar-meta strong { display:block; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.73rem; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums }
+
+/* ── Quick links ── */
+.fo-links { padding:7px 8px 10px; overflow:auto; max-height:312px; flex:1 }
+.fo-links::-webkit-scrollbar { width:6px }
+.fo-links::-webkit-scrollbar-thumb { background:rgba(148,163,184,.4); border-radius:99px }
+.fo-group { font-size:.56rem; font-weight:800; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); padding:10px 9px 4px }
+.fo-link { display:flex; align-items:center; gap:9px; padding:6px 9px; border-radius:9px; font-size:.75rem; font-weight:600; color:var(--text); text-decoration:none; transition:background .14s, color .14s }
+.fo-link:hover { background:rgba(59,130,246,.09); color:var(--primary) }
+.fo-link svg { width:14px; height:14px; color:var(--muted); flex-shrink:0; transition:color .14s }
+.fo-link:hover svg { color:var(--primary) }
+.fo-link--signal svg { color:#f59e0b }
+.fo-link .fo-chev { margin-left:auto; color:var(--muted); font-weight:800; font-size:.85rem; line-height:1 }
+
+/* ── Tables ── */
+.fo-table { width:100%; border-collapse:collapse; font-size:.78rem }
+.fo-table th { text-align:left; font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); padding:9px 15px; background:rgba(59,130,246,.05); border-bottom:1px solid var(--line); white-space:nowrap }
+.fo-table td { padding:9px 15px; border-bottom:1px solid var(--line); color:var(--text); vertical-align:middle }
+.fo-table tbody tr:last-child td { border-bottom:none }
+.fo-table tbody tr.clickable { cursor:pointer; transition:background .13s }
+.fo-table tbody tr.clickable:hover { background:rgba(59,130,246,.06) }
+.fo-mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:700; font-variant-numeric:tabular-nums }
+.fo-num { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap }
+.fo-amt-in  { color:#16a34a } .fo-amt-out { color:#f59e0b }
+.fo-bal-pos { color:#16a34a; font-weight:800 } .fo-bal-neg { color:#ef4444; font-weight:800 }
+.fo-sub-id { font-size:.64rem; color:var(--muted); font-weight:600 }
+
+/* ── Vehicles mini-list (premium rows) ── */
+.fo-vrow { display:flex; align-items:center; gap:12px; padding:9px 14px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; transition:background .14s }
+.fo-vrow:hover { background:rgba(59,130,246,.055) }
+.fo-plate {
+  position:relative; flex-shrink:0; min-width:62px; text-align:center;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-weight:800; font-size:.8rem; letter-spacing:.08em;
+  color:#fff; background:linear-gradient(160deg,#16406b,#0c2340);
+  border-radius:7px; padding:6px 8px 6px 13px; overflow:hidden;
+  box-shadow:0 2px 6px rgba(12,35,64,.3), inset 0 1px 0 rgba(255,255,255,.10);
 }
-@media(max-width:480px){
-  .fd-kpi-grid { grid-template-columns:repeat(2,1fr); }
-  .fd-nav { grid-template-columns:repeat(2,1fr); }
-  .tv-bar-wrap { display:none; }
+.fo-plate::before { content:''; position:absolute; left:0; top:0; bottom:0; width:5px; background:linear-gradient(180deg,#60a5fa,#1d4ed8) }
+.fo-vinfo { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px }
+.fo-vtype { font-size:.77rem; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.fo-vsub { font-size:.63rem; font-weight:600; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.fo-vright { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0 }
+.fo-vstat { display:inline-flex; align-items:center; gap:5px; font-size:.58rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:2px 8px; border-radius:99px }
+.fo-vstat i { width:5px; height:5px; border-radius:50%; flex-shrink:0 }
+.fo-vstat--active { background:rgba(34,197,94,.13); color:#16a34a }
+.fo-vstat--active i { background:#22c55e; box-shadow:0 0 0 2px rgba(34,197,94,.2) }
+.fo-vstat--inactive { background:rgba(148,163,184,.16); color:var(--muted) }
+.fo-vstat--inactive i { background:#94a3b8 }
+.fo-vowner { font-size:.6rem; font-weight:700; color:var(--muted); max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.fo-vowner--partner { color:#0d9488 }
+.fo-vrow .fo-chev { opacity:0; transform:translateX(-3px); transition:.15s; color:var(--muted); font-weight:800; font-size:.85rem; flex-shrink:0 }
+.fo-vrow:hover .fo-chev { opacity:1; transform:none }
+.fo-vfoot { display:block; text-align:center; padding:9px; font-size:.7rem; font-weight:800; color:var(--primary); text-decoration:none; border-top:1px solid var(--line); background:rgba(59,130,246,.045); transition:background .14s }
+.fo-vfoot:hover { background:rgba(59,130,246,.1); text-decoration:none }
+
+/* ── Responsive ── */
+@media (max-width:1150px){
+  .fo-row--b { grid-template-columns:1fr 1fr }
+  .fo-row--b > .fo-card--trend { grid-column:1 / -1 }
+}
+@media (max-width:860px){
+  .fo-row--b, .fo-row--c, .fo-row--d { grid-template-columns:1fr }
+  .fo-top { flex-direction:column; align-items:flex-start }
+}
+@media (max-width:560px){
+  .fo-kpis { grid-template-columns:repeat(2,1fr) }
+  .fo-bar-meta { min-width:0 }
 }
 </style>
 
-<div class="fd-container">
-  {# ═════ HERO ═════ #}
-  <div class="fd-hero">
-    <div class="fd-hero-dots"></div>
-    <div class="fd-hero-content">
-      <h1>Fleet Command Center</h1>
-      <p>Vehicles, assignments, field staff, approvals &amp; maintenance — all in one place</p>
-      <div class="fd-hero-badges">
-        <span class="fd-badge">Total &#9654; <strong data-count="{{ total }}">0</strong></span>
-        <span class="fd-badge">Standard &#9654; <strong data-count="{{ standard_count }}">0</strong></span>
-        <span class="fd-badge">Partnership &#9654; <strong data-count="{{ partnership_count }}">0</strong></span>
-        <span class="fd-badge">Pending &#9654; <strong data-count="{{ pending_count }}">0</strong></span>
-      </div>
+<div class="fo-wrap">
+
+  {# ═════ TOP BAR ═════ #}
+  <div class="fo-top">
+    <div class="fo-meta">
+      <span class="fo-dot"></span>
+      <strong>{{ total }}</strong> vehicles
+      <span>·</span> <strong class="fo-g" style="color:#16a34a">{{ active_count }}</strong> active
+      <span>·</span> {{ standard_count }} standard
+      <span>·</span> {{ partnership_count }} partnership
+    </div>
+    <div class="fo-actions">
+      <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline btn-sm">Vehicle Registry</a>
+      <a href="{{ url_for('fleet.fleet_approvals') }}" class="btn btn-outline btn-sm">Approvals{% if pending_count %}<span class="fo-count-pill">{{ pending_count }}</span>{% endif %}</a>
+      <a href="{{ url_for('fleet.vehicle_add') }}" class="btn btn-primary btn-sm">+ Add Vehicle</a>
     </div>
   </div>
 
-  {# ═════ KPI GRID ═════ #}
-  <div class="fd-kpi-grid">
-    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#0c2340,#0F2B52);box-shadow:0 8px 28px rgba(15,43,82,0.4)">
-      <div class="fd-kpi-shine"></div>
-      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.1)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><path d="M7 3V1"/><path d="M13 3V1"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg></div>
-      <div class="fd-kpi-label light">Total Vehicles</div>
-      <div class="fd-kpi-val light" data-count="{{ total }}">0</div>
-    </a>
-    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Standard') }}" style="background:linear-gradient(145deg,#ff8a1f,#e67600);box-shadow:0 8px 28px rgba(230,118,0,0.3)">
-      <div class="fd-kpi-shine"></div>
-      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg></div>
-      <div class="fd-kpi-label light">Standard</div>
-      <div class="fd-kpi-val light" data-count="{{ standard_count }}">0</div>
-    </a>
-    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Partnership') }}" style="background:linear-gradient(145deg,#7c3aed,#6d28d9);box-shadow:0 8px 28px rgba(124,58,237,0.3)">
-      <div class="fd-kpi-shine"></div>
-      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg></div>
-      <div class="fd-kpi-label light">Partnership</div>
-      <div class="fd-kpi-val light" data-count="{{ partnership_count }}">0</div>
-    </a>
-    <a class="fd-kpi" href="{{ url_for('fleet.fleet_approvals') }}" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 28px rgba(239,68,68,0.3)">
-      <div class="fd-kpi-shine"></div>
-      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-      <div class="fd-kpi-label light">Pending Jobs</div>
-      <div class="fd-kpi-val light" data-count="{{ pending_count }}">0</div>
-      <div class="fd-kpi-sub light">awaiting approval</div>
-    </a>
-    <a class="fd-kpi" href="{{ url_for('fleet.vehicle_list') }}" style="background:linear-gradient(145deg,#e65100,#d84315);box-shadow:0 8px 28px rgba(230,81,0,0.3)">
-      <div class="fd-kpi-shine"></div>
-      <div class="fd-kpi-icon" style="background:rgba(255,255,255,0.15)"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-      <div class="fd-kpi-label light">Maintenance Cost</div>
-      <div class="fd-kpi-val light" style="font-size:1rem" data-count="{{ "%.0f"|format(total_maintenance_cost) }}">0</div>
-      <div class="fd-kpi-sub light">{{ pending_count }} pending AED {{ "%.0f"|format(total_pending_cost) }}</div>
-    </a>
-  </div>
-
-  {# ═════ QUICK NAV ═════ #}
-  <div class="fd-nav">
-    <a class="fd-nav-card" href="{{ url_for('fleet.vehicle_list') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg>
-      Vehicle Registry
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.ghadeer_cards') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M12 2.7s5.5 6.1 5.5 10.3a5.5 5.5 0 0 1-11 0C6.5 8.8 12 2.7 12 2.7z"/></svg>
-      Ghadeer Cards
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.vehicle_add') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-      Add Vehicle
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.vehicle_list') }}?status=active">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M5 3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2"/><path d="M8 2v4"/><path d="M12 2v4"/><path d="M2 9h16"/></svg>
-      Active Vehicles
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_approvals') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Pending Approvals
-    </a>
-    <a class="fd-nav-card highlight" href="{{ url_for('fleet.vat_quick') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="#ff8a1f" stroke-width="1.8" width="20" height="20"><path d="M6.5 20a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/><path d="M11 4 14 8 6 11l-3-4z"/><circle cx="13" cy="15.5" r="2.5"/></svg>
-      Quick VAT Editor
-    </a>
-    <a class="fd-nav-card highlight" href="{{ url_for('fleet.vat_pending') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="#d97706" stroke-width="1.8" width="20" height="20"><path d="M10 2v6"/><path d="M10 8 14 6"/><path d="M10 8 6 6"/><path d="M3 8a7 7 0 1 1 14 0v9a14 14 0 0 1-14 0z"/></svg>
-      Pending VAT Conversion
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_staff_list') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg>
-      Field Staff
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_staff_papers_report') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v3"/><path d="M9 17v-5h5"/><path d="M9 17v-5H4"/><circle cx="16" cy="15" r="2"/><circle cx="13" cy="17" r="2"/><path d="M16 13v2"/></svg>
-      Papers Report
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_maintenance_suppliers') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="5" r="3"/><path d="M18 11v6"/><path d="M21 14h-6"/><path d="M4 12V9"/><path d="M4 12"/></svg>
-      Maintenance Suppliers
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.fleet_maintenance_entry') }}">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      Maintenance Entry
-    </a>
-    <a class="fd-nav-card" href="{{ url_for('fleet.fuel_list') }}">
-      <svg viewBox="0 0 20 20" fill="#e65100" stroke="none" width="20" height="20"><path d="M3.5 14.5a5.5 5.5 0 0 1 0-11h4.7a4.5 4.5 0 0 1 7.6-2.5 4.5 4.5 0 0 1 .7 5.5 5.5 5.5 0 0 1-6 8.5H3.5z"/><path d="M8 17.5v.5h6v-.5a3 3 0 0 0-3-3h0a3 3 0 0 0-3 3z" fill="#e65100"/></svg>
-      Fuel Entries
-    </a>
-    <a class="fd-nav-card highlight" href="/technician-login">
-      <svg viewBox="0 0 20 20" fill="none" stroke="#ff8a1f" stroke-width="1.8" width="20" height="20"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="10 17 10 10 17 10"/><line x1="10" y1="10" x2="21" y2="21"/></svg>
-      Staff Login Portal
-    </a>
-  </div>
-
-  {# ═════ PENDING APPROVALS ALERT ═════ #}
+  {# ═════ PENDING ALERT ═════ #}
   {% if pending_jobs %}
-  <div class="fd-alert fd-alert-orange">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" style="flex-shrink:0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    <span><strong>{{ pending_jobs|length }} pending {{ 'job' if pending_jobs|length == 1 else 'jobs' }}</strong> awaiting approval — AED {{ "%.0f"|format(total_pending_cost) }}</span>
-    <a href="{{ url_for('fleet.fleet_approvals') }}" style="font-size:0.82rem;font-weight:600;color:#e67600;text-decoration:none">Review now &rarr;</a>
+  <div class="fo-alert">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l3 2"/></svg>
+    <span><strong>{{ pending_count }} pending {{ 'job' if pending_count == 1 else 'jobs' }}</strong> awaiting approval — <span class="fo-alert-amt">AED {{ '{:,.0f}'.format(total_pending_cost) }}</span></span>
+    <a href="{{ url_for('fleet.fleet_approvals') }}">Review now &rarr;</a>
   </div>
   {% endif %}
 
-  {# ═════ TOP VEHICLES CHART + PANELS ═════ #}
-  <div class="fd-panels">
-    <div class="fd-panel">
-      <div class="fd-panel-head">
-        <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Top Vehicles by Expense</h3>
-        <a href="{{ url_for('fleet.vehicle_list') }}">View all</a>
+  {# ═════ KPI STRIP ═════ #}
+  <div class="fo-kpis">
+    <a class="fo-kpi" href="{{ url_for('fleet.vehicle_list') }}">
+      <div class="fo-kpi-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" width="18" height="18"><rect x="1" y="4" width="18" height="11" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="1.6"/><circle cx="14" cy="15" r="1.6"/></svg></div>
+      <div class="fo-kpi-body">
+        <div class="fo-kpi-label">Fleet Total</div>
+        <div class="fo-kpi-val">{{ total }}</div>
+        <div class="fo-kpi-sub">{{ total - active_count }} inactive</div>
       </div>
-      <div class="fd-chart">
-        {% set max_spent = top_vehicles[0].total_spent if top_vehicles else 1 %}
-        {% if max_spent == 0 %}{% set max_spent = 1 %}{% endif %}
-        {% set colors = ['orange','blue','green','purple','red'] %}
-        {% for v in top_vehicles %}
-        {% set pct = (v.total_spent / max_spent * 100)|round|int %}
-        {% set ci = loop.index0 % colors|length %}
-        <a href="{{ vehicle_url(v.plate_no) }}" style="text-decoration:none;color:inherit">
-          <div class="fd-chart-bar-wrap" style="animation-delay:{{ loop.index0 * 0.08 }}s">
-            <span class="fd-chart-label">{{ v.plate_no }}</span>
-            <div class="fd-chart-bar {{ colors[ci] }}" style="--bar-w:{{ pct }}%;width:0%;animation-delay:{{ 0.3 + loop.index0 * 0.1 }}s">
-              AED {{ "%.0f"|format(v.total_spent) }}
-            </div>
-            <span style="font-size:0.6rem;color:var(--muted);white-space:nowrap">({{ v.job_count }} jobs)</span>
-          </div>
-        </a>
-        {% else %}
-        <div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem">No approved jobs yet.</div>
-        {% endfor %}
+    </a>
+    <a class="fo-kpi fo-kpi--green" href="{{ url_for('fleet.vehicle_list', status='Active') }}">
+      <div class="fo-kpi-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" width="18" height="18"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M6.5 10l2.5 2.5 5-5"/></svg></div>
+      <div class="fo-kpi-body">
+        <div class="fo-kpi-label">Active</div>
+        <div class="fo-kpi-val">{{ active_count }}</div>
+        <div class="fo-kpi-sub">{% if total %}{{ ((active_count / total) * 100)|round|int }}% of fleet{% else %}—{% endif %}</div>
       </div>
-    </div>
-    <div class="fd-panel">
-      <div class="fd-panel-head">
-        <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg> Recent Jobs</h3>
+    </a>
+    <a class="fo-kpi" href="{{ url_for('fleet.vehicle_list', ownership='Standard') }}">
+      <div class="fo-kpi-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" width="18" height="18"><path d="M3 17V8l5-4 5 4v9"/><path d="M13 17V11h4v6"/><path d="M1 17h18"/></svg></div>
+      <div class="fo-kpi-body">
+        <div class="fo-kpi-label">Standard</div>
+        <div class="fo-kpi-val">{{ standard_count }}</div>
+        <div class="fo-kpi-sub">company owned</div>
       </div>
-      {% if recent_jobs %}
-      <table class="fd-table">
-        <thead><tr><th>Vehicle</th><th>Staff</th><th>Amount</th><th>Category</th></tr></thead>
-        <tbody>
-          {% for j in recent_jobs %}
-          <tr class="clickable" onclick="window.location='{{ vehicle_url(j.plate_no) }}'">
-            <td style="font-family:monospace">{{ j.plate_no }}</td>
-            <td>{{ j.staff_name }}</td>
-            <td style="font-weight:600">AED {{ "%.0f"|format(j.amount) }}</td>
-            <td><span class="badge badge-type">{{ j.category }}</span></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <div style="padding:30px;text-align:center;color:var(--muted);font-size:0.85rem">No completed jobs yet.</div>
-      {% endif %}
-    </div>
+    </a>
+    <a class="fo-kpi fo-kpi--teal" href="{{ url_for('fleet.vehicle_list', ownership='Partnership') }}">
+      <div class="fo-kpi-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" width="18" height="18"><circle cx="7" cy="7" r="3"/><circle cx="14" cy="8" r="2.5"/><path d="M1.5 17v-1a4 4 0 0 1 4-4h2.5a4 4 0 0 1 4 4v1"/><path d="M13.5 12.2A3.9 3.9 0 0 1 18.5 16v1"/></svg></div>
+      <div class="fo-kpi-body">
+        <div class="fo-kpi-label">Partnership</div>
+        <div class="fo-kpi-val">{{ partnership_count }}</div>
+        <div class="fo-kpi-sub">shared ownership</div>
+      </div>
+    </a>
+    <a class="fo-kpi {% if pending_count %}fo-kpi--amber{% endif %}" href="{{ url_for('fleet.fleet_approvals') }}">
+      <div class="fo-kpi-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" width="18" height="18"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l3 2"/></svg></div>
+      <div class="fo-kpi-body">
+        <div class="fo-kpi-label">Pending Approvals</div>
+        <div class="fo-kpi-val">{{ pending_count }}</div>
+        <div class="fo-kpi-sub">{% if pending_count %}<span class="fo-warn">AED {{ '{:,.0f}'.format(total_pending_cost) }} awaiting</span>{% else %}all cleared{% endif %}</div>
+      </div>
+    </a>
+    <a class="fo-kpi" href="{{ url_for('fleet.fuel_list') }}">
+      <div class="fo-kpi-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" width="18" height="18"><path d="M4 17V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v13"/><path d="M2.5 17h11"/><path d="M12 7h2.5a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5"/><path d="M6 6h4"/></svg></div>
+      <div class="fo-kpi-body">
+        <div class="fo-kpi-label">Fuel — This Month</div>
+        <div class="fo-kpi-val fo-kpi-val--money">AED {{ '{:,.0f}'.format(fuel_total_amount) }}</div>
+        <div class="fo-kpi-sub">{{ fuel_entries_count }} {{ 'entry' if fuel_entries_count == 1 else 'entries' }}</div>
+      </div>
+    </a>
   </div>
 
-  {# ═════ STAFF BALANCES ═════ #}
-  <div class="fd-panel" style="margin-bottom:18px">
-    <div class="fd-panel-head">
-      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/></svg> Field Staff Balances</h3>
-      <a href="{{ url_for('fleet.fleet_staff_list') }}">View all</a>
-    </div>
-    <table class="fd-table">
-      <thead><tr><th>Staff</th><th>Phone</th><th>Received</th><th>Spent</th><th>Balance</th><th></th></tr></thead>
-      <tbody>
-        {% for s in staff_balances %}
-        {% set bal = s.total_received|float - s.total_spent|float %}
-        <tr class="clickable" onclick="window.location='{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}'">
-          <td style="font-weight:600">{{ s.full_name }}<br><span class="mono" style="font-size:0.65rem;color:var(--muted)">{{ s.staff_id }}</span></td>
-          <td style="font-size:0.72rem">{{ s.phone or '—' }}</td>
-          <td style="font-weight:600;color:#16a34a">AED {{ "%.0f"|format(s.total_received) }}</td>
-          <td style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(s.total_spent) }}</td>
-          <td style="font-weight:700;font-size:0.85rem;color:{{ '#16a34a' if bal >= 0 else '#dc2626' }}">AED {{ "%.0f"|format(bal|abs) }} {{ 'Left' if bal >= 0 else 'Due' }}</td>
-          <td><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" class="btn btn-xs btn-primary">Profile</a></td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" style="padding:30px;text-align:center;color:var(--muted)">No field staff.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  {# ═════ CHARTS ROW ═════ #}
-  <div class="fd-charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px">
-    {# Monthly Maintenance Trend #}
-    <div class="fd-panel" style="margin:0">
-      <div class="fd-panel-head">
-        <h3>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M3 17V7l4 4 3-6 4 3 3-4v13z"/></svg>
-          Maintenance Trend (6 months)
-        </h3>
+  {# ═════ ROW B — trend · composition · quick links ═════ #}
+  <div class="fo-row fo-row--b">
+    <div class="fo-card fo-card--trend">
+      <div class="fo-card-head">
+        <h3><span class="fo-head-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M3 17V7l4 4 3-6 4 3 3-4v13z"/></svg></span> Maintenance Trend</h3>
+        <span class="fo-head-stat">approved AED {{ '{:,.0f}'.format(total_maintenance_cost) }}</span>
       </div>
-      <div style="padding:12px 16px 16px">
+      <div class="fo-card-body">
         {% if chart_months %}
-        <canvas id="maintTrendChart" height="160"></canvas>
+        <div class="fo-chart"><canvas id="foTrend"></canvas></div>
         {% else %}
-        <p style="text-align:center;padding:30px 0;color:var(--muted)">No data yet</p>
+        <div class="fo-empty">No approved maintenance yet — trend appears after the first approval.</div>
         {% endif %}
       </div>
     </div>
 
-    {# Vehicle Status Donut #}
-    <div class="fd-panel" style="margin:0">
-      <div class="fd-panel-head">
-        <h3>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><circle cx="10" cy="10" r="8"/><path d="M10 2a8 8 0 0 1 0 16V2z"/></svg>
-          Fleet Composition
-        </h3>
+    <div class="fo-card">
+      <div class="fo-card-head">
+        <h3><span class="fo-head-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><circle cx="10" cy="10" r="8"/><path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg></span> Fleet Composition</h3>
       </div>
-      <div style="padding:12px 16px 16px;display:flex;align-items:center;gap:20px">
-        <div style="width:130px;height:130px;flex-shrink:0">
-          <canvas id="fleetDonut"></canvas>
+      <div class="fo-card-body">
+        {% if total %}
+        <div class="fo-donut-flex">
+          <div class="fo-donut-wrap">
+            <canvas id="foDonut"></canvas>
+            <div class="fo-donut-center"><strong>{{ total }}</strong><span>vehicles</span></div>
+          </div>
+          <div class="fo-leg">
+            {% set own_sum = standard_count + partnership_count %}
+            {% set std_pct = ((standard_count / own_sum) * 100)|round|int if own_sum else 0 %}
+            <div class="fo-leg-row"><span class="fo-leg-dot" style="background:#3b82f6"></span> Standard <span class="fo-leg-val">{{ standard_count }}</span><span class="fo-leg-pct">{{ std_pct }}%</span></div>
+            <div class="fo-leg-row"><span class="fo-leg-dot" style="background:#14b8a6"></span> Partnership <span class="fo-leg-val">{{ partnership_count }}</span><span class="fo-leg-pct">{{ 100 - std_pct if own_sum else 0 }}%</span></div>
+          </div>
         </div>
-        <div style="flex:1">
-          <div style="margin-bottom:10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:8px"></span><strong style="font-family:monospace">{{ chart_vehicle_status.Active }}</strong> Active</div>
-          <div style="margin-bottom:10px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:8px"></span><strong style="font-family:monospace">{{ chart_vehicle_status.Standard }}</strong> Standard</div>
-          <div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:8px"></span><strong style="font-family:monospace">{{ chart_vehicle_status.Partnership }}</strong> Partnership</div>
+        <div class="fo-mini">
+          <span><strong class="fo-g">{{ active_count }}</strong> active</span>
+          <span><strong class="fo-s">{{ total - active_count }}</strong> inactive</span>
         </div>
-      </div>
-    </div>
-  </div>
-
-  {# ═════ VEHICLES TABLE ═════ #}
-  <div class="fd-panel">
-    <div class="fd-panel-head">
-      <h3><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="1" y="3" width="18" height="12" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="2"/><circle cx="14" cy="15" r="2"/></svg> All Vehicles</h3>
-      <a href="{{ url_for('fleet.vehicle_list') }}">View all</a>
-    </div>
-    <table class="fd-table">
-      <thead><tr><th>Plate</th><th>Type</th><th>Owner</th><th>Status</th></tr></thead>
-      <tbody>
-        {% for v in vehicles[:6] %}
-        <tr class="clickable" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
-          <td style="font-weight:600;font-family:monospace">{{ v.plate_no }}</td>
-          <td>{{ v.vehicle_type }}</td>
-          <td>{% if v.ownership_type == 'Partnership' %}{{ v.partner_name or 'Partner' }}{% else %}Standard{% endif %}</td>
-          <td><span class="status-badge {{ v.status|lower }}">{{ v.status }}</span></td>
-        </tr>
         {% else %}
-        <tr><td colspan="4" style="padding:30px;text-align:center;color:var(--muted)">No vehicles yet.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+        <div class="fo-empty">No vehicles yet.</div>
+        {% endif %}
+      </div>
+    </div>
 
-<script>
-/* ─── COUNTER ANIMATION ─── */
-(function(){
-  function animateCount(el, target, duration) {
-    var start = 0;
-    var startTime = null;
-    var isFloat = String(target).indexOf('.') !== -1;
-    function step(timestamp) {
-      if (!startTime) startTime = timestamp;
-      var progress = Math.min((timestamp - startTime) / duration, 1);
-      var ease = 1 - Math.pow(1 - progress, 3);
-      var current = Math.floor(ease * target);
-      el.textContent = isFloat ? current.toLocaleString() : current;
-      if (progress < 1) requestAnimationFrame(step);
-      else el.textContent = isFloat ? target.toLocaleString() : target;
-    }
-    requestAnimationFrame(step);
-  }
-  document.querySelectorAll('[data-count]').forEach(function(el, i) {
-    var raw = el.getAttribute('data-count');
-    var target = parseFloat(raw.replace(/,/g, ''));
-    if (isNaN(target)) return;
-    setTimeout(function() { animateCount(el, target, 1200 + i * 200); }, 600 + i * 100);
-  });
-})();
-</script>
+    <div class="fo-card">
+      <div class="fo-card-head">
+        <h3><span class="fo-head-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M13 2L4 8.5V18h6v-5h4v-5h3z"/></svg></span> Quick Access</h3>
+      </div>
+      <div class="fo-links">
+        <div class="fo-group">Registry</div>
+        <a class="fo-link" href="{{ url_for('fleet.vehicle_list') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="1" y="4" width="18" height="11" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="1.6"/><circle cx="14" cy="15" r="1.6"/></svg> Vehicle Registry <span class="fo-chev">›</span></a>
+        <a class="fo-link" href="{{ url_for('fleet.vehicle_list', status='Active') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M6.5 10l2.5 2.5 5-5"/></svg> Active Vehicles <span class="fo-chev">›</span></a>
+        <a class="fo-link" href="{{ url_for('fleet.vehicle_add') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg> Add Vehicle <span class="fo-chev">›</span></a>
+        <a class="fo-link" href="{{ url_for('fleet.ghadeer_cards') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.7s5.5 6.1 5.5 10.3a5.5 5.5 0 0 1-11 0C6.5 8.8 12 2.7 12 2.7z"/></svg> Ghadeer Cards <span class="fo-chev">›</span></a>
+
+        <div class="fo-group">Operations</div>
+        <a class="fo-link" href="{{ url_for('fleet.fleet_approvals') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 16v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="10" cy="6" r="3.5"/></svg> Pending Approvals {% if pending_count %}<span class="fo-count-pill" style="margin-left:2px">{{ pending_count }}</span>{% endif %} <span class="fo-chev">›</span></a>
+        <a class="fo-link" href="{{ url_for('fleet.fleet_maintenance_entry') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="2.5" width="12" height="15" rx="1.5"/><line x1="7" y1="6.5" x2="13" y2="6.5"/><line x1="7" y1="10" x2="13" y2="10"/><line x1="7" y1="13.5" x2="11" y2="13.5"/></svg> Maintenance Entry <span class="fo-chev">›</span></a>
+        <a class="fo-link" href="{{ url_for('fleet.fleet_maintenance_suppliers') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="6.5" r="3"/><path d="M16 17v-1.5a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4V17"/><line x1="16" y1="4" x2="16" y2="8"/><line x1="14" y1="6" x2="18" y2="6"/></svg> Maintenance Suppliers <span class="fo-chev">›</span></a>
+        <a class="fo-link" href="{{ url_for('fleet.fuel_list') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 17V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v13"/><path d="M2.5 17h11"/><path d="M12 7h2.5a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 0 3 0V8l-2.5-2.5"/></svg> Fuel Entries <span class="fo-chev">›</span></a>
+        <a class="fo-link" href="{{ url_for('fleet.fleet_staff_papers_report') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 2.5h7l4 4V17a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z"/><path d="M12 2.5V7h4"/></svg> Papers Report <span class="fo-chev">›</span></a>
+
+        <div class="fo-group">Tools &amp; Staff</div>
+        <a class="fo-link fo-link--signal" href="{{ url_for('fleet.vat_quick') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6.5 16.5a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4z"/><path d="M13.5 3.5l3 3-7.5 7.5-4 1 1-4z"/></svg> Quick VAT Editor <span class="fo-chev">›</span></a>
+        <a class="fo-link fo-link--signal" href="{{ url_for('fleet.vat_pending') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 8a7 7 0 1 1 14 0v9a14 14 0 0 1-14 0z"/><path d="M10 8V5"/><path d="M10 11l2.5-2.5"/></svg> Pending VAT Conversion <span class="fo-chev">›</span></a>
+        <a class="fo-link" href="{{ url_for('fleet.fleet_staff_list') }}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10" cy="6.5" r="3.5"/><path d="M17 17v-1.5a4.5 4.5 0 0 0-4.5-4.5h-5A4.5 4.5 0 0 0 3 15.5V17"/></svg> Field Staff <span class="fo-chev">›</span></a>
+        <a class="fo-link fo-link--signal" href="/technician-login"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="2.5" width="12" height="15" rx="2"/><circle cx="10" cy="8" r="2"/><path d="M6.5 14.5a3.7 3.7 0 0 1 7 0"/></svg> Staff Login Portal <span class="fo-chev">›</span></a>
+      </div>
+    </div>
+  </div>
+
+  {# ═════ ROW C — recent jobs · top vehicles ═════ #}
+  <div class="fo-row fo-row--c">
+    <div class="fo-card">
+      <div class="fo-card-head">
+        <h3><span class="fo-head-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12.5 8.5L4 17h8.5V8.5z"/><path d="M14.5 11.5l1-1a2 2 0 0 0-2.8-2.8l-1 1"/><circle cx="4.8" cy="15.2" r=".6" fill="currentColor"/></svg></span> Recent Jobs</h3>
+        <span class="fo-head-stat">last 10 approved</span>
+      </div>
+      <div class="fo-card-body fo-card-body--flush">
+        {% if recent_jobs %}
+        <table class="fo-table">
+          <thead><tr><th>Vehicle</th><th>Staff</th><th>Category</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>
+            {% for j in recent_jobs %}
+            <tr class="clickable" onclick="window.location='{{ vehicle_url(j.plate_no) }}'">
+              <td class="fo-mono">{{ j.plate_no }}</td>
+              <td>{{ j.staff_name }}</td>
+              <td><span class="badge badge-type">{{ j.category }}</span></td>
+              <td class="fo-num" style="text-align:right">AED {{ '{:,.0f}'.format(j.amount) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="fo-empty">No approved jobs yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="fo-card">
+      <div class="fo-card-head">
+        <h3><span class="fo-head-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><line x1="4" y1="17" x2="16" y2="17"/><rect x="5" y="10" width="3" height="7" rx="1"/><rect x="9" y="6" width="3" height="11" rx="1"/><rect x="13" y="3" width="3" height="14" rx="1"/></svg></span> Top Vehicles by Expense</h3>
+        <a href="{{ url_for('fleet.vehicle_list') }}">Registry</a>
+      </div>
+      <div class="fo-card-body">
+        {% set max_spent = top_vehicles[0].total_spent if top_vehicles else 1 %}
+        {% if max_spent == 0 %}{% set max_spent = 1 %}{% endif %}
+        {% for v in top_vehicles %}
+        {% set pct = (v.total_spent / max_spent * 100)|round|int %}
+        <a class="fo-bar-row" href="{{ vehicle_url(v.plate_no) }}">
+          <span class="fo-bar-rank">{{ '%02d'|format(loop.index) }}</span>
+          <span class="fo-bar-label">{{ v.plate_no }}</span>
+          <span class="fo-bar-track"><span class="fo-bar-fill" style="width:{{ pct }}%"></span></span>
+          <span class="fo-bar-meta"><strong>AED {{ '{:,.0f}'.format(v.total_spent) }}</strong>{{ v.job_count }} {{ 'job' if v.job_count == 1 else 'jobs' }}</span>
+        </a>
+        {% else %}
+        <div class="fo-empty">No approved jobs yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {# ═════ ROW D — staff balances · all vehicles ═════ #}
+  <div class="fo-row fo-row--d">
+    <div class="fo-card">
+      <div class="fo-card-head">
+        <h3><span class="fo-head-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><circle cx="10" cy="6.5" r="3.5"/><path d="M17 17v-1.5a4.5 4.5 0 0 0-4.5-4.5h-5A4.5 4.5 0 0 0 3 15.5V17"/></svg></span> Field Staff Balances</h3>
+        <a href="{{ url_for('fleet.fleet_staff_list') }}">View all</a>
+      </div>
+      <div class="fo-card-body fo-card-body--flush">
+        <table class="fo-table">
+          <thead><tr><th>Staff</th><th>Phone</th><th style="text-align:right">Received</th><th style="text-align:right">Spent</th><th style="text-align:right">Balance</th><th></th></tr></thead>
+          <tbody>
+            {% for s in staff_balances %}
+            {% set bal = s.total_received|float - s.total_spent|float %}
+            <tr class="clickable" onclick="window.location='{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}'">
+              <td><strong>{{ s.full_name }}</strong><br><span class="fo-sub-id">{{ s.staff_id }}</span></td>
+              <td style="font-size:.73rem">{{ s.phone or '—' }}</td>
+              <td class="fo-num fo-amt-in" style="text-align:right">{{ '{:,.0f}'.format(s.total_received|float) }}</td>
+              <td class="fo-num fo-amt-out" style="text-align:right">{{ '{:,.0f}'.format(s.total_spent|float) }}</td>
+              <td class="fo-num {{ 'fo-bal-pos' if bal >= 0 else 'fo-bal-neg' }}" style="text-align:right">{{ '{:,.0f}'.format(bal|abs) }} {{ 'Left' if bal >= 0 else 'Due' }}</td>
+              <td style="text-align:right"><a href="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" class="btn btn-xs btn-primary" onclick="event.stopPropagation()">Profile</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6"><div class="fo-empty">No field staff yet.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="fo-card">
+      <div class="fo-card-head">
+        <h3><span class="fo-head-ico"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="1" y="4" width="18" height="11" rx="2"/><path d="M5 19h10"/><circle cx="6" cy="15" r="1.6"/><circle cx="14" cy="15" r="1.6"/></svg></span> Vehicles <span class="fo-head-stat" style="font-size:.66rem">{{ total }} total</span></h3>
+        <a href="{{ url_for('fleet.vehicle_list') }}">View all &rarr;</a>
+      </div>
+      <div class="fo-card-body fo-card-body--flush">
+        {% for v in vehicles[:6] %}
+        <a class="fo-vrow" href="{{ vehicle_url(v.plate_no) }}">
+          <span class="fo-plate">{{ v.plate_no }}</span>
+          <span class="fo-vinfo">
+            <span class="fo-vtype">{{ v.vehicle_type }}</span>
+            <span class="fo-vsub">{% if v.model %}{{ v.model }}{% if v.year %} &middot; {{ v.year }}{% endif %}{% elif v.year %}{{ v.year }}{% endif %}</span>
+          </span>
+          <span class="fo-vright">
+            <span class="fo-vstat fo-vstat--{{ 'active' if (v.status or '')|lower == 'active' else 'inactive' }}"><i></i>{{ v.status or '—' }}</span>
+            {% if v.ownership_type == 'Partnership' %}<span class="fo-vowner fo-vowner--partner">{{ v.partner_name or 'Partnership' }}</span>{% else %}<span class="fo-vowner">Standard</span>{% endif %}
+          </span>
+          <span class="fo-chev">›</span>
+        </a>
+        {% else %}
+        <div class="fo-empty">No vehicles yet — <a href="{{ url_for('fleet.vehicle_add') }}" style="color:var(--primary);font-weight:700">add your first vehicle</a>.</div>
+        {% endfor %}
+      </div>
+      {% if total > 6 %}
+      <a class="fo-vfoot" href="{{ url_for('fleet.vehicle_list') }}">View all {{ total }} vehicles &rarr;</a>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
 
 <script>
 (function(){
@@ -498,42 +432,41 @@
   var costs  = {{ chart_costs|tojson }};
   var jobs   = {{ chart_job_counts|tojson }};
 
-  if (months.length && document.getElementById('maintTrendChart')) {
-    new Chart(document.getElementById('maintTrendChart'), {
+  if (months.length && window.Chart && document.getElementById('foTrend')) {
+    new Chart(document.getElementById('foTrend'), {
       type: 'bar',
       data: {
         labels: months,
         datasets: [
-          { label:'Cost (AED)', data:costs, backgroundColor:'rgba(34,197,94,0.7)', borderColor:'#22c55e', borderWidth:1, borderRadius:4, yAxisID:'y' },
-          { label:'Jobs', data:jobs, type:'line', borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.1)', tension:0.3, pointRadius:3, yAxisID:'y1' }
+          { label:'Cost (AED)', data:costs, backgroundColor:'rgba(59,130,246,0.78)', hoverBackgroundColor:'#3b82f6', borderRadius:5, borderSkipped:false, yAxisID:'y', order:2 },
+          { label:'Jobs', data:jobs, type:'line', borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.12)', tension:0.35, pointRadius:3, pointBackgroundColor:'#f59e0b', borderWidth:2, yAxisID:'y1', order:1 }
         ]
       },
       options: {
         responsive:true,
         maintainAspectRatio:false,
-        plugins:{ legend:{ position:'bottom', labels:{ font:{ size:11 }, boxWidth:12, padding:10 } } },
+        plugins:{ legend:{ position:'bottom', labels:{ usePointStyle:true, boxWidth:8, font:{ size:11 }, padding:14 } } },
         scales:{
           x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } },
-          y:{ position:'left', grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{ size:10 } }, title:{ display:true, text:'AED', font:{ size:10 } } },
+          y:{ position:'left', grid:{ color:'rgba(148,163,184,0.16)' }, ticks:{ font:{ size:10 } }, title:{ display:true, text:'AED', font:{ size:10 } } },
           y1:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ font:{ size:10 }, stepSize:1 }, title:{ display:true, text:'Jobs', font:{ size:10 } } }
         }
       }
     });
   }
 
-  var vs = {{ chart_vehicle_status|tojson }};
-  if (document.getElementById('fleetDonut')) {
-    new Chart(document.getElementById('fleetDonut'), {
+  if (window.Chart && document.getElementById('foDonut')) {
+    new Chart(document.getElementById('foDonut'), {
       type: 'doughnut',
       data: {
-        labels: Object.keys(vs),
-        datasets: [{ data: Object.values(vs), backgroundColor:['#22c55e','#3b82f6','#f59e0b'], borderWidth:0 }]
+        labels: ['Standard','Partnership'],
+        datasets: [{ data: [{{ standard_count }}, {{ partnership_count }}], backgroundColor:['#3b82f6','#14b8a6'], borderWidth:0, hoverOffset:4 }]
       },
       options: {
         responsive:true,
         maintainAspectRatio:false,
-        cutout:'65%',
-        plugins:{ legend:{ display:false } }
+        cutout:'72%',
+        plugins:{ legend:{ display:false }, tooltip:{ enabled:true } }
       }
     });
   }

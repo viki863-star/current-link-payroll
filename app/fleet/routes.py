@@ -496,21 +496,29 @@ def fleet_dashboard():
     _today = _date.today()
     _cm = f"{_today.year:04d}-{_today.month:02d}"
     fuel_row = db.execute(
-        "SELECT COUNT(*) AS entries, COALESCE(SUM(total_amount),0) AS total FROM fuel_entries WHERE LEFT(entry_date, 7) = %s",
+        "SELECT COUNT(*) AS entries, COALESCE(SUM(total_amount),0) AS total FROM fuel_entries WHERE substr(entry_date, 1, 7) = ?",
         (_cm,),
     ).fetchone()
     fuel_entries_count = fuel_row["entries"] if fuel_row else 0
     fuel_total_amount = float(fuel_row["total"] if fuel_row else 0)
 
-    # Chart data: monthly maintenance trend (last 6 months)
-    _monthly_maint = db.execute("""
-        SELECT TO_CHAR(created_at, 'YYYY-MM') AS ym,
+    # Chart data: monthly maintenance trend (last 6 months) — dialect-aware
+    # (Postgres branch is the exact same SQL this always ran on prod)
+    _backend = current_app.config.get("DATABASE_BACKEND", "sqlite")
+    if _backend == "postgres":
+        _ym_expr = "TO_CHAR(created_at, 'YYYY-MM')"
+        _since_sql = "created_at >= (CURRENT_DATE - INTERVAL '6 months')"
+    else:
+        _ym_expr = "strftime('%Y-%m', created_at)"
+        _since_sql = "created_at >= datetime('now', '-6 months')"
+    _monthly_maint = db.execute(f"""
+        SELECT {_ym_expr} AS ym,
                COALESCE(SUM(amount),0) AS total,
                COUNT(*) AS jobs
         FROM maintenance_jobs
         WHERE status = 'approved'
-          AND created_at >= (CURRENT_DATE - INTERVAL '6 months')
-        GROUP BY TO_CHAR(created_at, 'YYYY-MM')
+          AND {_since_sql}
+        GROUP BY {_ym_expr}
         ORDER BY ym
     """).fetchall()
     chart_months = [r["ym"] for r in _monthly_maint]
@@ -588,10 +596,12 @@ def vehicle_list():
             f"""SELECT v.*, va.driver_id, e.full_name AS driver_name
                 FROM vehicles v
                 LEFT JOIN (
-                    SELECT DISTINCT ON (vehicle_id) vehicle_id, driver_id
-                    FROM vehicle_assignments
-                    WHERE is_current = 1
-                    ORDER BY vehicle_id, assigned_from DESC
+                    SELECT vehicle_id, driver_id FROM (
+                        SELECT vehicle_id, driver_id,
+                               ROW_NUMBER() OVER (PARTITION BY vehicle_id ORDER BY assigned_from DESC) AS rn
+                        FROM vehicle_assignments
+                        WHERE is_current = 1
+                    ) ranked WHERE rn = 1
                 ) va ON va.vehicle_id = v.plate_no
                 LEFT JOIN employees e ON e.employee_id = va.driver_id
                 WHERE {where_sql}
