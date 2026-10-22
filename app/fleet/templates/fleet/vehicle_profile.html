@@ -466,25 +466,44 @@
         <div class="vp-card-body">
             <form method="POST" action="{{ url_for('fleet.vehicle_battery_warranty_save', plate_no=v.plate_no) }}" enctype="multipart/form-data" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Start / purchase date</label><input type="date" name="battery_warranty_start" class="form-control" value="{{ v.battery_warranty_start or '' }}"></div>
-                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Warranty expiry date</label><input type="date" name="battery_warranty_expiry" class="form-control" value="{{ v.battery_warranty_expiry or '' }}"></div>
+                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Start / purchase date</label><input type="date" id="bwStart" name="battery_warranty_start" class="form-control" value="{{ v.battery_warranty_start or '' }}"></div>
+                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Warranty period</label>
+                    <select id="bwPeriod" name="battery_warranty_period" class="form-control" style="font-size:11px;padding:6px">
+                        <option value="6" {% if battery.period_months == 6 %}selected{% endif %}>6 months</option>
+                        <option value="12" {% if battery.period_months == 12 %}selected{% elif battery.period_months is none and not battery.expiry %}selected{% endif %}>1 year</option>
+                        <option value="18" {% if battery.period_months == 18 %}selected{% endif %}>18 months</option>
+                        <option value="24" {% if battery.period_months == 24 %}selected{% endif %}>2 years</option>
+                        <option value="36" {% if battery.period_months == 36 %}selected{% endif %}>3 years</option>
+                        <option value="custom" {% if battery.period_months is none and battery.expiry %}selected{% elif battery.period_months is not none and battery.period_months not in [6, 12, 18, 24, 36] %}selected{% endif %}>Custom (expiry date khud edit karein)</option>
+                    </select>
+                </div>
+                <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Expiry date (auto)</label><input type="date" id="bwExpiry" name="battery_warranty_expiry" class="form-control" value="{{ v.battery_warranty_expiry or '' }}"></div>
                 <div><label style="font-size:.7rem;font-weight:700;color:#64748b;display:block;margin-bottom:3px">Warranty card (PDF/image)</label><input type="file" name="warranty_card" class="form-control" accept=".pdf,.png,.jpg,.jpeg" style="font-size:11px;padding:6px"></div>
                 <button type="submit" class="btn btn-primary btn-sm">Save</button>
                 {% if v.battery_warranty_card_name %}
                 <a href="{{ url_for('fleet.vehicle_battery_warranty_card', plate_no=v.plate_no) }}" class="btn btn-outline btn-sm" target="_blank">📎 View Card</a>
                 {% endif %}
             </form>
-            <div style="font-size:.68rem;color:#868e96;margin-top:6px">Battery icon live hai: warranty time kam hone par fill % bhi kam hota hai (start date se exact calculation, warna last 365 din ke basis par). Expiry dashboard alerts aur expiry report me bhi aata hai. Naya card upload karne par purana replace hoga; sirf dates badalne par card safe rehta hai.</div>
+            <div style="font-size:.68rem;color:#868e96;margin-top:6px">Start date + period (default 1 year) se expiry automatic calculate ho jati hai — sirf purchase date bharo. Battery icon live hai: warranty time kam hone par fill % bhi kam hota hai. Expiry dashboard alerts aur expiry report me bhi aata hai. Naya card upload karne par purana replace hoga; sirf dates badalne par card safe rehta hai.</div>
         </div>
     </div>
     <script>
     (function(){
+        var startI=document.getElementById('bwStart'),
+            perI=document.getElementById('bwPeriod'),
+            expI=document.getElementById('bwExpiry');
         function bwLevel(f){ if(f<=0) return 'dead'; if(f<30) return 'low'; if(f<60) return 'mid'; return 'high'; }
+        function bwAddMonths(iso, months){
+            var p=iso.split('-'), y=+p[0], m=+p[1]-1, d=+p[2];
+            m+=months; y+=Math.floor(m/12); m=m%12;
+            var dim=[31,((y%4===0&&y%100!==0)||y%400===0)?29:28,31,30,31,30,31,31,30,31,30,31][m];
+            return y+'-'+String(m+1).padStart(2,'0')+'-'+String(Math.min(d,dim)).padStart(2,'0');
+        }
         function bwColor(l){ return l==='high' ? 'url(#bwGHigh)' : l==='mid' ? 'url(#bwGMid)' : 'url(#bwGLow)'; }
         function bwTick(){
             var icon=document.getElementById('bwIcon'); if(!icon) return;
-            var exp=icon.getAttribute('data-expiry'); if(!exp) return;
-            var start=icon.getAttribute('data-start');
+            var exp=(expI&&expI.value) || icon.getAttribute('data-expiry'); if(!exp) return;
+            var start=(startI&&startI.value) || icon.getAttribute('data-start');
             var today=new Date(); today.setHours(0,0,0,0);
             var expD=new Date(exp+'T00:00:00');
             var days=Math.round((expD-today)/86400000);
@@ -513,6 +532,31 @@
             var t=document.getElementById('bwTitle');
             if(t) t.textContent='Battery warranty: '+(start||'?')+' \u2192 '+exp+' \u2014 '+days+' day(s) left ('+fill+'%)';
         }
+        function bwSyncExpiry(){
+            if(!startI||!perI||!expI) return;
+            if(!startI.value || perI.value==='custom') return;
+            var nx=bwAddMonths(startI.value, parseInt(perI.value,10));
+            if(expI.value!==nx){
+                expI.value=nx;
+                expI.style.boxShadow='0 0 0 2px #22c55e';
+                setTimeout(function(){ expI.style.boxShadow=''; },700);
+            }
+        }
+        function bwInitPeriod(){
+            if(!startI||!perI||!expI) return;
+            var st=startI.value, ex=expI.value;
+            if(st&&ex){
+                var opts=[6,12,18,24,36], matched='custom';
+                for(var i=0;i<opts.length;i++){ if(bwAddMonths(st,opts[i])===ex){ matched=String(opts[i]); break; } }
+                perI.value=matched;
+            } else if(st && perI.value!=='custom'){
+                bwSyncExpiry();
+            }
+        }
+        if(startI) startI.addEventListener('change', function(){ bwSyncExpiry(); bwTick(); });
+        if(perI) perI.addEventListener('change', function(){ bwSyncExpiry(); bwTick(); });
+        if(expI) expI.addEventListener('change', bwInitPeriod);
+        bwInitPeriod();
         bwTick();
         setInterval(bwTick, 60000);
     })();

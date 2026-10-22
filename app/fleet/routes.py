@@ -337,6 +337,16 @@ def _migrate_vehicle_master(db):
     db.commit()
 
 
+def _bw_add_months(d0, months):
+    """Add months to a date, clamping the day to the target month's length."""
+    m = d0.month - 1 + months
+    y = d0.year + m // 12
+    m = m % 12 + 1
+    day = min(d0.day, [31, 29 if (y % 4 == 0 and y % 100 != 0) or y % 400 == 0 else 28,
+                       31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1])
+    return date(y, m, day)
+
+
 def _vehicle_full(plate_no):
     db = open_db()
     v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, battery_warranty_start, battery_warranty_expiry, battery_warranty_card_name FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
@@ -2148,7 +2158,7 @@ def vehicle_profile(plate_no):
     # fill % = remaining warranty time / total warranty time (start -> expiry).
     # Without a start date, degrade over the last 365 days before expiry so a
     # soon-expiring battery still shows a low fill (expired = 0%, red, pulse).
-    battery = {"start": None, "expiry": None, "days_left": None, "fill": None, "level": "none", "total_days": None}
+    battery = {"start": None, "expiry": None, "days_left": None, "fill": None, "level": "none", "total_days": None, "period_months": None}
     try:
         _bw_start = str(v.get("battery_warranty_start") or "")[:10]
         _bw_exp = str(v.get("battery_warranty_expiry") or "")[:10]
@@ -2166,6 +2176,10 @@ def vehicle_profile(plate_no):
                     if total > 0:
                         remaining = (exp_d - date.today()).days
                         fill = max(0, min(100, round(remaining * 100 / total)))
+                    # warranty period (months) when expiry == start + N months exactly
+                    _pm = (exp_d.year - st_d.year) * 12 + (exp_d.month - st_d.month)
+                    if _pm > 0 and _bw_add_months(st_d, _pm) == exp_d:
+                        battery["period_months"] = _pm
                 except Exception:
                     total = None
             if fill is None:
