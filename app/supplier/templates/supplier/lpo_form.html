@@ -96,6 +96,17 @@
               </div>
             </div>
             <div class="lpo-field">
+              <label>Signed Copy (supplier signed LPO)</label>
+              <input type="file" name="signed_copy" class="form-control" accept=".pdf,.png,.jpg,.jpeg" style="font-size:11px;padding:6px">
+              <div style="font-size:10px;color:#64748b;margin-top:4px;line-height:1.5">
+                {% if lpo.signed_name %}
+                  ✅ <a href="{{ url_for('supplier.supplier_lpo_signed', sup_id=s.id, lpo_id=lpo.id) }}" target="_blank">{{ lpo.signed_name }}</a> — choose a new file to replace it.
+                {% else %}
+                  When the supplier returns the signed LPO, upload it here — the LPO list will show a ✅ Signed badge. Separate from the quotation attachment.
+                {% endif %}
+              </div>
+            </div>
+            <div class="lpo-field">
               <label>Supplier</label>
               <div class="val">{{ s.supplier_name }}</div>
             </div>

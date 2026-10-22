@@ -390,6 +390,17 @@ def _ensure_tables():
             except Exception:
                 pass
 
+    # Signed copy returned by the supplier (kept separate from the quotation attachment)
+    for col, dtype in [("signed_name", "TEXT"), ("signed_data", "TEXT"), ("signed_type", "TEXT")]:
+        try:
+            db.execute(f"ALTER TABLE supplier_lpos ADD COLUMN {col} {dtype}")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
     # Per-LPO payment terms (shown on the issued LPO / PDF)
     for col, dtype in [("payment_terms", "TEXT")]:
         try:
@@ -1837,8 +1848,9 @@ def supplier_lpo_list(sup_id):
         flash("Supplier not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
     lpos = db.execute(
-        "SELECT sl.id, sl.supplier_id, sl.lpo_no, sl.lpo_date, sl.lpo_type, sl.amount, sl.description, sl.status, sl.notes, sl.created_at, sl.quotation_id, sl.attachment_name, "
+        "SELECT sl.id, sl.supplier_id, sl.lpo_no, sl.lpo_date, sl.lpo_type, sl.amount, sl.description, sl.status, sl.notes, sl.created_at, sl.quotation_id, sl.attachment_name, sl.signed_name, "
         "CASE WHEN sl.attachment_data IS NOT NULL OR (sl.quotation_id IS NOT NULL AND sq.file_data IS NOT NULL) THEN 1 ELSE 0 END AS has_attach, "
+        "CASE WHEN sl.signed_data IS NOT NULL THEN 1 ELSE 0 END AS has_signed, "
         "sq.quotation_no FROM supplier_lpos sl LEFT JOIN supplier_quotations sq ON sl.quotation_id=sq.id WHERE sl.supplier_id = ? ORDER BY sl.lpo_date DESC",
         (sup_id,),
     ).fetchall()
@@ -1878,9 +1890,17 @@ def supplier_lpo_add(sup_id):
             att_data = base64.b64encode(att_file.read()).decode("utf-8")
             att_type = att_file.content_type
 
+        # Supplier-signed copy returned later (optional, separate slot)
+        sg_file = request.files.get("signed_copy")
+        sg_name = sg_data = sg_type = None
+        if sg_file and sg_file.filename:
+            sg_name = sg_file.filename
+            sg_data = base64.b64encode(sg_file.read()).decode("utf-8")
+            sg_type = sg_file.content_type
+
         row = db.execute(
-            "INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, lpo_type, quotation_id, amount, description, notes, payment_terms, attachment_name, attachment_data, attachment_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
-            (sup_id, lpo_no, lpo_date, lpo_type, qid, 0, description, notes, payment_terms, att_name, att_data, att_type),
+            "INSERT INTO supplier_lpos (supplier_id, lpo_no, lpo_date, lpo_type, quotation_id, amount, description, notes, payment_terms, attachment_name, attachment_data, attachment_type, signed_name, signed_data, signed_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            (sup_id, lpo_no, lpo_date, lpo_type, qid, 0, description, notes, payment_terms, att_name, att_data, att_type, sg_name, sg_data, sg_type),
         ).fetchone()
         lpo_id = row["id"]
 
@@ -1922,7 +1942,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
     _ensure_tables()
     db = _get_db()
     s = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers WHERE id = ?", (sup_id,)).fetchone()
-    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id, attachment_name, payment_terms FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
+    lpo = db.execute("SELECT id, supplier_id, lpo_no, lpo_date, description, amount, status, notes, created_at, lpo_type, quotation_id, attachment_name, signed_name, payment_terms FROM supplier_lpos WHERE id=? AND supplier_id=?", (lpo_id, sup_id)).fetchone()
     if not s or not lpo:
         flash("LPO not found.", "error")
         return redirect(url_for("supplier.supplier_list"))
@@ -1948,6 +1968,14 @@ def supplier_lpo_edit(sup_id, lpo_id):
             att_name = att_file.filename
             att_data = base64.b64encode(att_file.read()).decode("utf-8")
             att_type = att_file.content_type
+
+        # Supplier-signed copy (only replaces when a new file is chosen)
+        sg_file = request.files.get("signed_copy")
+        sg_name = sg_data = sg_type = None
+        if sg_file and sg_file.filename:
+            sg_name = sg_file.filename
+            sg_data = base64.b64encode(sg_file.read()).decode("utf-8")
+            sg_type = sg_file.content_type
 
         total_amount = 0
         db.execute("DELETE FROM supplier_lpo_items WHERE lpo_id=?", (lpo_id,))
@@ -1976,6 +2004,9 @@ def supplier_lpo_edit(sup_id, lpo_id):
         if att_data is not None:
             db.execute("UPDATE supplier_lpos SET attachment_name=?, attachment_data=?, attachment_type=? WHERE id=?",
                        (att_name, att_data, att_type, lpo_id))
+        if sg_data is not None:
+            db.execute("UPDATE supplier_lpos SET signed_name=?, signed_data=?, signed_type=? WHERE id=?",
+                       (sg_name, sg_data, sg_type, lpo_id))
         db.commit()
 
         flash("LPO updated.", "success")
@@ -2044,6 +2075,30 @@ def supplier_lpo_attachment(sup_id, lpo_id):
     if data is None:
         flash("No attachment found for this LPO.", "error")
         return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
+    dl = request.args.get("download", "0") == "1"
+    return send_file(
+        BytesIO(data),
+        mimetype=mime,
+        as_attachment=dl,
+        download_name=name,
+    )
+
+
+@supplier_bp.route("/<int:sup_id>/lpos/<int:lpo_id>/signed")
+def supplier_lpo_signed(sup_id, lpo_id):
+    """Open/download the supplier-signed copy returned against an LPO."""
+    _ensure_tables()
+    db = _get_db()
+    lpo = db.execute(
+        "SELECT id, lpo_no, signed_name, signed_data, signed_type FROM supplier_lpos WHERE id=? AND supplier_id=?",
+        (lpo_id, sup_id),
+    ).fetchone()
+    if not lpo or not lpo["signed_data"]:
+        flash("No signed copy found for this LPO.", "error")
+        return redirect(url_for("supplier.supplier_lpo_list", sup_id=sup_id))
+    data = base64.b64decode(lpo["signed_data"])
+    name = lpo["signed_name"] or f"{lpo['lpo_no']}_signed"
+    mime = lpo["signed_type"] or "application/octet-stream"
     dl = request.args.get("download", "0") == "1"
     return send_file(
         BytesIO(data),
