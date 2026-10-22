@@ -3650,13 +3650,30 @@ def customer_list():
     _ensure_tables()
     db = _get_db()
     search = request.args.get("search", "").strip()
+    # has_logo flag only — full logo blobs are served by /customer/<id>/logo
+    # (keeps this page's HTML small so it opens fast)
+    _cols = "id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, (CASE WHEN logo_data IS NOT NULL AND logo_data != '' THEN 1 ELSE 0 END) AS has_logo, created_at"
     if search:
-        customers = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE customer_name LIKE ? OR phone LIKE ? OR email LIKE ? ORDER BY customer_name",
+        customers = db.execute(f"SELECT {_cols} FROM customers WHERE customer_name LIKE ? OR phone LIKE ? OR email LIKE ? ORDER BY customer_name",
             (f"%{search}%", f"%{search}%", f"%{search}%")).fetchall()
     else:
-        customers = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers ORDER BY customer_name").fetchall()
+        customers = db.execute(f"SELECT {_cols} FROM customers ORDER BY customer_name").fetchall()
     db.close()
     return render_template("customer/list.html", customers=customers, search=search)
+
+
+@customer_bp.route("/<int:cid>/logo")
+def customer_logo(cid):
+    """Serve one customer's logo image (cached) — used by the list avatars."""
+    from io import BytesIO
+    _ensure_tables()
+    db = _get_db()
+    row = db.execute("SELECT logo_data, logo_type FROM customers WHERE id=?", (cid,)).fetchone()
+    db.close()
+    if not row or not row["logo_data"]:
+        return ("", 404)
+    data = base64.b64decode(row["logo_data"])
+    return send_file(BytesIO(data), mimetype=row["logo_type"] or "image/png", max_age=604800)
 
 
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

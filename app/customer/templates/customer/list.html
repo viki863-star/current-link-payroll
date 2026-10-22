@@ -30,7 +30,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px">
         {% for c in customers %}
         <a href="{{ url_for('customer.customer_profile', cid=c.id) }}" class="cus-card">
-            <div class="cus-avatar">{% if c.logo_data %}<img src="data:{{ c.logo_type or 'image/png' }};base64,{{ c.logo_data }}" style="width:48px;height:48px;border-radius:12px;object-fit:contain;background:#fff">{% else %}{{ c.customer_name[:2]|upper }}{% endif %}</div>
+            <div class="cus-avatar">{% if c.has_logo %}<img src="{{ url_for('customer.customer_logo', cid=c.id) }}" style="width:48px;height:48px;border-radius:12px;object-fit:contain;background:#fff">{% else %}{{ c.customer_name[:2]|upper }}{% endif %}</div>
             <div class="cus-info">
                 <div class="name">{{ c.customer_name }}</div>
                 <div class="meta">
