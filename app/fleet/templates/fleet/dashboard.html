@@ -92,8 +92,9 @@
 .fo-bar-row:hover { background:rgba(59,130,246,.06) }
 .fo-bar-rank { font-size:.58rem; font-weight:800; color:var(--muted); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; text-align:right }
 .fo-bar-label { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.74rem; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-.fo-bar-track { height:20px; background:rgba(59,130,246,.09); border-radius:6px; overflow:hidden; min-width:40px }
-.fo-bar-fill { height:100%; border-radius:6px; background:linear-gradient(90deg,#3b82f6,#1d4ed8); animation:foGrow .7s cubic-bezier(.22,1,.36,1) both }
+.fo-bar-track { height:22px; background:rgba(59,130,246,.10); border-radius:6px; overflow:hidden; min-width:40px }
+.fo-bar-fill { display:block; height:100%; min-width:3px; border-radius:6px; background:linear-gradient(90deg,#3b82f6,#1d4ed8); box-shadow:inset 0 1px 0 rgba(255,255,255,.22); animation:foGrow .7s cubic-bezier(.22,1,.36,1) both }
+.fo-bar-row:first-child .fo-bar-rank { color:#f59e0b }
 .fo-bar-meta { font-size:.64rem; color:var(--muted); font-weight:600; white-space:nowrap; text-align:right; min-width:104px }
 .fo-bar-meta strong { display:block; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.73rem; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums }
 
@@ -353,12 +354,13 @@
         {% if max_spent == 0 %}{% set max_spent = 1 %}{% endif %}
         {% for v in top_vehicles %}
         {% set pct = (v.total_spent / max_spent * 100)|round|int %}
-        <a class="fo-bar-row" href="{{ vehicle_url(v.plate_no) }}">
+        {% set real = v.plate_no and v.plate_no not in ('N/A', 'NA', '-') %}
+        <{{ 'a' if real else 'div' }} class="fo-bar-row" {% if real %}href="{{ vehicle_url(v.plate_no) }}"{% endif %}>
           <span class="fo-bar-rank">{{ '%02d'|format(loop.index) }}</span>
-          <span class="fo-bar-label">{{ v.plate_no }}</span>
+          <span class="fo-bar-label" {% if not real %}style="color:var(--muted)"{% endif %}>{{ v.plate_no }}</span>
           <span class="fo-bar-track"><span class="fo-bar-fill" style="width:{{ pct }}%"></span></span>
           <span class="fo-bar-meta"><strong>AED {{ '{:,.0f}'.format(v.total_spent) }}</strong>{{ v.job_count }} {{ 'job' if v.job_count == 1 else 'jobs' }}</span>
-        </a>
+        </{{ 'a' if real else 'div' }}>
         {% else %}
         <div class="fo-empty">No approved jobs yet.</div>
         {% endfor %}
