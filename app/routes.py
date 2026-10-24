@@ -1036,7 +1036,8 @@ def register_routes(app: Flask) -> None:
                 
                 flash(f"Welcome Field Staff {technician['technician_code']}.", "success")
                 
-                return redirect(url_for("technician_simple"))
+                # Render page directly instead of redirect — iOS Safari loses session cookie on redirect.
+                return technician_simple()
                 
             except ValidationError as exc:
                 _record_failed_login(db, "technician", identifier)
