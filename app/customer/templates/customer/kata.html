@@ -27,6 +27,7 @@
         <h2>STATEMENT OF ACCOUNT</h2>
         <div style="display:flex;gap:8px">
             <a href="{{ url_for('customer.customer_soa_pdf', cid=c.id, from=from_date, to=to_date) if from_date or to_date else url_for('customer.customer_soa_pdf', cid=c.id) }}" class="btn btn-sm" target="_blank" style="background:rgba(255,255,255,0.25);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.78rem;text-decoration:none">Download PDF</a>
+            <a href="{{ url_for('customer.customer_soa_excel', cid=c.id, from=from_date, to=to_date) if from_date or to_date else url_for('customer.customer_soa_excel', cid=c.id) }}" class="btn btn-sm" target="_blank" style="background:#1a7d1a;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:0.78rem;text-decoration:none">Download Excel</a>
             <a href="{{ url_for('customer.customer_profile', cid=c.id) }}" class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:0.78rem;text-decoration:none">&larr; Profile</a>
         </div>
     </div>
