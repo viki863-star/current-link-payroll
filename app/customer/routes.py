@@ -3861,8 +3861,13 @@ def customer_soa_excel(cid):
     buf.seek(0)
 
     safe_name = "".join(ch for ch in c['customer_name'] if ch.isalnum() or ch in (" ", "-", "_")).strip().replace(" ", "_")
-    return send_file(buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    resp = send_file(buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                      as_attachment=True, download_name=f"SOA_{safe_name}.xlsx")
+    # Browser cache na kare — har baar fresh data download ho
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 
 # â”€â”€â”€ LIST â”€â”€â”€
