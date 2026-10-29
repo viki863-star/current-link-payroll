@@ -1391,8 +1391,23 @@ def customer_invoice_pdf(cid, iid):
     if not is_cash:
         # cash invoices carry no VAT / TRN reference
         ci_lines.append(f"<font size=7 color='#64748b'><b>TRN: {c_trn}</b></font>")
-    ci_html = f"<font size=11><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
-    co_p = Paragraph(ci_html, S("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=14))
+    from reportlab.pdfbase.pdfmetrics import stringWidth as _sw
+    _avail_w = (0.63*W - (250/188.0*26*mm) - 6*mm) if _logo_tmp_files else 0.63*W
+    _words = cn.split()
+    _split = None
+    if len(_words) >= 4 and len(cn) <= 64:
+        for i in range(2, len(_words)):
+            _l1 = " ".join(_words[:i]); _l2 = " ".join(_words[i:])
+            _f = min(_avail_w/_sw(_l1, "Helvetica-Bold", 10), _avail_w/_sw(_l2, "Helvetica-Bold", 10)) * 10
+            if _split is None or _f > _split[0]:
+                _split = (_f, _l1, _l2)
+    if _split and _split[0] >= 11.5:
+        # company name on TWO balanced lines at the largest size that fits
+        _nf = round(min(_split[0], 13.0), 1)
+        ci_html = f"<font size={_nf}><b>{_split[1]}<br/>{_split[2]}</b></font><br/>" + "<br/>".join(ci_lines)
+    else:
+        ci_html = f"<font size=11><b>{cn}</b></font><br/>" + "<br/>".join(ci_lines)
+    co_p = Paragraph(ci_html, S("CO", fontSize=12, fontName="Helvetica-Bold", textColor=TH, leading=15))
 
     logo_w = 0; logo_h = 0
     if _logo_tmp_files:
@@ -1406,7 +1421,7 @@ def customer_invoice_pdf(cid, iid):
             tmp_c = rlcanvas.Canvas(tmp_buf)
             ci_width = W*0.65 - 6*mm
             co_p.wrapOn(tmp_c, ci_width, 1000)
-            text_h = max(co_p.height, 22*mm)
+            text_h = max(co_p.height, 26*mm)
             tmp_c.save()
             ratio = text_h / oh
             logo_w = int(ow * ratio)
@@ -1417,13 +1432,13 @@ def customer_invoice_pdf(cid, iid):
             pass
 
     if logo:
-        lh = Table([[logo, Spacer(1, 6*mm), co_p]], colWidths=[LW if LW else 0, 6*mm, W*0.65 - (LW if LW else 0) - 6*mm])
+        lh = Table([[logo, Spacer(1, 6*mm), co_p]], colWidths=[LW if LW else 0, 6*mm, W*0.63 - (LW if LW else 0) - 6*mm])
         lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     else:
         lh = co_p
 
     _title_txt = "CASH INVOICE" if is_cash else "TAX INVOICE"
-    # Solid title block — flush to the TOP-RIGHT corner, aligned with the logo row
+    # Title block — flush to the content margins (aligned with logo top + right margin)
     title_chip = Table(
         [[Paragraph(f"<b>{_title_txt}</b>", S("_tichip", fontSize=13.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=17))]],
         colWidths=[W*0.31])
@@ -1442,7 +1457,7 @@ def customer_invoice_pdf(cid, iid):
     ], colWidths=[W*0.37])
     rh.setStyle(TableStyle([
         ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, 0), 0), ("BOTTOMPADDING", (0, 0), (-1, 0), 3.5),
+        ("TOPPADDING", (0, 0), (-1, 0), 0), ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
         ("TOPPADDING", (0, 1), (-1, 1), 0), ("BOTTOMPADDING", (0, 1), (-1, 1), 1),
         ("TOPPADDING", (0, 2), (-1, 2), 0), ("BOTTOMPADDING", (0, 2), (-1, 2), 0),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -1805,12 +1820,17 @@ def customer_invoice_pdf(cid, iid):
     stamp_path = os.path.join(current_app.root_path, 'static', 'Stamp.png')
     sign_path = os.path.join(current_app.root_path, 'static', 'Sign (1).png')
     auth_img = []
+    auth_cw = []
     if os.path.exists(stamp_path):
-        auth_img.append(Image(stamp_path, width=48, height=48))
+        # stamp: bigger, true aspect (472x529) — not squashed
+        _sh = 68; _swid = int(round(_sh * 472 / 529))
+        auth_img.append(Image(stamp_path, width=_swid, height=_sh)); auth_cw.append(_swid + 6)
     if os.path.exists(sign_path):
-        auth_img.append(Image(sign_path, width=48, height=48))
+        # signature: true aspect (741x337)
+        _gw = 88; _gh = int(round(_gw * 337 / 741))
+        auth_img.append(Image(sign_path, width=_gw, height=_gh)); auth_cw.append(_gw + 6)
     if auth_img:
-        auth_imgs = Table([auth_img], colWidths=[52]*len(auth_img))
+        auth_imgs = Table([auth_img], colWidths=auth_cw)
         auth_imgs.setStyle(TableStyle([
             ("ALIGN",(0,0),(-1,-1),"CENTER"),
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
@@ -1819,7 +1839,7 @@ def customer_invoice_pdf(cid, iid):
         ]))
         auth_imgs.hAlign = "CENTER"
     else:
-        auth_imgs = Spacer(1, 50)
+        auth_imgs = Spacer(1, 70)
 
     def _sig_cell(caption, extra_h=0, bold_line=False):
         cell = Table([
@@ -3642,6 +3662,208 @@ def customer_soa_pdf(cid):
         except Exception: pass
     pdf_data = buf.getvalue(); buf.close()
     return send_file(BytesIO(pdf_data), mimetype="application/pdf", as_attachment=True, download_name=f"SOA_{c['customer_name']}.pdf")
+
+
+# â”€â”€â”€ SOA EXCEL â”€â”€â”€
+@customer_bp.route("/<int:cid>/soa/excel")
+def customer_soa_excel(cid):
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c:
+        return redirect(url_for("customer.customer_dashboard"))
+    from_date = request.args.get("from", "")
+    to_date = request.args.get("to", "")
+    db = _get_db()
+
+    entries = []
+
+    # ─── Invoices (Dr) with PO ref (so_no) and LPO ref (lpo_no) ───
+    inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref,
+                      i.invoice_type as invoice_type, i.total_amount as dr,
+                      i.lpo_no, i.so_no,
+                      COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as pmt_cr
+               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL"""
+    inv_p = [cid]
+    if from_date:
+        inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
+    if to_date:
+        inv_q += " AND i.invoice_date<=?"; inv_p.append(to_date)
+    inv_q += " ORDER BY i.invoice_date, i.id"
+    for inv in db.execute(inv_q, inv_p).fetchall():
+        d = dict(inv)
+        d["type"] = "Cash Invoice" if (d.get("invoice_type") or "vat").lower() == "cash" else "Invoice"
+        # cr = payments only (credit notes appear as separate rows below)
+        d["cr"] = d.get("pmt_cr", 0) or 0
+        d.pop("pmt_cr", None)
+        # PO reference = so_no, LPO reference = lpo_no
+        d["po_ref"] = d.get("so_no") or ""
+        d["lpo_ref"] = d.get("lpo_no") or ""
+        d["related_inv"] = ""
+        entries.append(d)
+
+    # ─── Credit Notes (Cr) as separate rows, linked to original invoice ───
+    cn_q = """SELECT cn.credit_note_date as d, cn.credit_note_no as ref,
+                     'Credit Note' as type, 0 as dr, cn.total_amount as cr,
+                     cn.invoice_id,
+                     i.lpo_no, i.so_no, i.invoice_no as related_inv
+              FROM customer_credit_notes cn
+              LEFT JOIN customer_invoices i ON cn.invoice_id = i.id
+              WHERE cn.customer_id=?"""
+    cn_p = [cid]
+    if from_date:
+        cn_q += " AND cn.credit_note_date>=?"; cn_p.append(from_date)
+    if to_date:
+        cn_q += " AND cn.credit_note_date<=?"; cn_p.append(to_date)
+    cn_q += " ORDER BY cn.credit_note_date, cn.id"
+    for cn in db.execute(cn_q, cn_p).fetchall():
+        d = dict(cn)
+        d["po_ref"] = d.get("so_no") or ""
+        d["lpo_ref"] = d.get("lpo_no") or ""
+        d["related_inv"] = d.get("related_inv") or ""
+        entries.append(d)
+
+    # ─── Unallocated Payments (Cr) ───
+    unalloc_pmt_q = """SELECT payment_date as d, reference_no as ref,
+                        'Payment' as type, 0 as dr, amount as cr,
+                        NULL as invoice_id, NULL as lpo_no, NULL as so_no,
+                        '' as related_inv
+                 FROM customer_payments WHERE customer_id=? AND invoice_id IS NULL"""
+    unalloc_pmt_p = [cid]
+    if from_date:
+        unalloc_pmt_q += " AND payment_date>=?"; unalloc_pmt_p.append(from_date)
+    if to_date:
+        unalloc_pmt_q += " AND payment_date<=?"; unalloc_pmt_p.append(to_date)
+    unalloc_pmt_q += " ORDER BY payment_date"
+    for pmt in db.execute(unalloc_pmt_q, unalloc_pmt_p).fetchall():
+        d = dict(pmt)
+        d["po_ref"] = ""
+        d["lpo_ref"] = ""
+        d["related_inv"] = ""
+        entries.append(d)
+
+    entries.sort(key=lambda x: (x.get("d", ""), x.get("type", ""), x.get("ref", "")))
+
+    balance = 0
+    for e in entries:
+        balance += (e.get("dr", 0) or 0) - (e.get("cr", 0) or 0)
+        e["bal"] = round(balance, 2)
+
+    total_dr = round(sum(e.get("dr", 0) or 0 for e in entries), 2)
+    total_cr = round(sum(e.get("cr", 0) or 0 for e in entries), 2)
+    closing = round(total_dr - total_cr, 2)
+    db.close()
+
+    # ─── Build Excel ───
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "SOA"
+
+    company = db = None  # not needed for excel; keep minimal
+    # Re-fetch company name for title
+    db2 = _get_db()
+    crow = db2.execute("SELECT company_name FROM company_profile LIMIT 1").fetchone()
+    comp_name = crow["company_name"] if crow else "Company"
+    db2.close()
+
+    # Title
+    ws["A1"] = comp_name
+    ws["A1"].font = Font(bold=True, size=14, color="1A3A5C")
+    ws["A2"] = "STATEMENT OF ACCOUNT"
+    ws["A2"].font = Font(bold=True, size=12, color="1A3A5C")
+    ws["A3"] = f"Customer: {c['customer_name']}"
+    ws["A3"].font = Font(bold=True, size=11)
+    if c.get("trn"):
+        ws["A4"] = f"TRN: {c['trn']}"
+        ws["A4"].font = Font(size=9, color="6B7280")
+    if from_date or to_date:
+        ws["A5"] = f"Period: {from_date or '…'} to {to_date or '…'}"
+        ws["A5"].font = Font(size=9, color="6B7280")
+    row = 6 if (from_date or to_date) else 5
+    ws[f"A{row}"] = f"Generated: {__import__('datetime').datetime.now().strftime('%d-%b-%Y %H:%M')}"
+    ws[f"A{row}"].font = Font(size=8, color="6B7280", italic=True)
+
+    # Header
+    hdr_row = row + 2
+    headers = ["Date", "Document #", "Type", "PO Ref", "LPO Ref", "Related Inv", "Dr (AED)", "Cr (AED)", "Balance (AED)"]
+    for col, h in enumerate(headers, start=1):
+        cell = ws.cell(row=hdr_row, column=col, value=h)
+        cell.font = Font(bold=True, color="FFFFFF", size=9)
+        cell.fill = PatternFill("solid", fgColor="1A3A5C")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = Border(bottom=Side(style="thin", color="B0B0B0"),
+                             top=Side(style="thin", color="B0B0B0"),
+                             left=Side(style="thin", color="B0B0B0"),
+                             right=Side(style="thin", color="B0B0B0"))
+
+    # Data rows
+    r = hdr_row + 1
+    money_fmt = '#,##0.00'
+    for e in entries:
+        dr = e.get("dr", 0) or 0
+        cr = e.get("cr", 0) or 0
+        bal = e.get("bal", 0) or 0
+        vals = [
+            e.get("d", ""),
+            e.get("ref", ""),
+            e.get("type", ""),
+            e.get("po_ref", ""),
+            e.get("lpo_ref", ""),
+            e.get("related_inv", ""),
+            dr if dr > 0 else None,
+            cr if cr > 0 else None,
+            bal,
+        ]
+        for col, val in enumerate(vals, start=1):
+            cell = ws.cell(row=r, column=col, value=val)
+            cell.font = Font(size=9)
+            cell.border = Border(bottom=Side(style="thin", color="E0E0E0"))
+            if col in (7, 8, 9):
+                cell.number_format = money_fmt
+                cell.alignment = Alignment(horizontal="right")
+            elif col == 1:
+                cell.alignment = Alignment(horizontal="center")
+            else:
+                cell.alignment = Alignment(horizontal="left")
+        # Highlight credit note rows
+        if e.get("type") == "Credit Note":
+            for col in range(1, 10):
+                ws.cell(row=r, column=col).fill = PatternFill("solid", fgColor="FFF3E0")
+        r += 1
+
+    # Closing total row
+    ws.cell(row=r, column=3, value="CLOSING BALANCE").font = Font(bold=True, size=9)
+    ws.cell(row=r, column=7, value=total_dr).number_format = money_fmt
+    ws.cell(row=r, column=8, value=total_cr).number_format = money_fmt
+    ws.cell(row=r, column=9, value=closing).number_format = money_fmt
+    for col in range(1, 10):
+        cell = ws.cell(row=r, column=col)
+        cell.font = Font(bold=True, size=9)
+        cell.fill = PatternFill("solid", fgColor="D9E1F2")
+        cell.border = Border(top=Side(style="medium", color="1A3A5C"),
+                             bottom=Side(style="medium", color="1A3A5C"))
+        if col in (7, 8, 9):
+            cell.alignment = Alignment(horizontal="right")
+
+    # Column widths
+    widths = [12, 22, 16, 14, 14, 16, 14, 14, 16]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    ws.freeze_panes = ws.cell(row=hdr_row + 1, column=1)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    safe_name = "".join(ch for ch in c['customer_name'] if ch.isalnum() or ch in (" ", "-", "_")).strip().replace(" ", "_")
+    return send_file(buf, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                     as_attachment=True, download_name=f"SOA_{safe_name}.xlsx")
+
 
 # â”€â”€â”€ LIST â”€â”€â”€
 
