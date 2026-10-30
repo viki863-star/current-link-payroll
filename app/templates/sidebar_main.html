@@ -75,6 +75,13 @@
                 <span class="erp-nav-copy"><strong>Fleet</strong></span>
             </a>
 
+            {# Ghadeer Cards #}
+            {% set is_ghadeer = request.endpoint == 'fleet.ghadeer_cards' %}
+            <a class="erp-nav-link {{ 'is-active' if is_ghadeer }}" href="{{ url_for('fleet.ghadeer_cards') }}" data-tip="Ghadeer Cards">
+                <span class="erp-nav-icon">{{ nav_icon('handshake') }}</span>
+                <span class="erp-nav-copy"><strong>Ghadeer Cards</strong></span>
+            </a>
+
             {# HR & Employees #}
             {% set is_hr = request.endpoint and request.endpoint.startswith('hr.') %}
             <a class="erp-nav-link {{ 'is-active' if is_hr }}" href="{{ url_for('hr.hr_dashboard') }}" data-tip="HR &amp; Employees">
