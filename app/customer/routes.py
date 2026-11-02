@@ -3484,39 +3484,30 @@ def customer_soa_pdf(cid):
             _logo_tmp_files.append(f.name)
         except Exception: pass
 
-    # E-INVOICE style company info block
-    lic = company.get("trade_license_no") or ""
-    addr = company.get("address") or ""; ph = company.get("phone_number") or ""; em = company.get("email") or ""
-    cinfo_rows = [[Paragraph(f"<font size=11><b>{cn}</b></font>", F("_co", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))]]
-    contact_parts = [x for x in [addr, ph, em, f"TRN: {trn}", f"License: {lic}" if lic else ""] if x and x != f"TRN: —" and x != "License: "]
-    if contact_parts:
-        cinfo_rows.append([Paragraph(f"<font size=6.5 color='#6b7280'>{' &middot; '.join(contact_parts)}</font>", F("_ci", fontSize=6.5, textColor=C5, leading=9))])
-    co_tbl = Table(cinfo_rows, colWidths=[W*0.55])
-    co_tbl.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)]))
-
-    # Prominent title block (right) like e-invoice "TAX INVOICE"
-    title_block = Table([
-        [Paragraph("<font size=16><b>STATEMENT</b><br/><b>OF ACCOUNT</b></font>", F("soa_t", fontSize=16, fontName="Helvetica-Bold", textColor=TH, leading=19, alignment=TA_RIGHT))],
-        [Paragraph(f"<font size=7.5 color='#888'>Customer: <b>{c['customer_name']}</b></font>", F("soa_c", fontSize=7.5, textColor=C5, leading=10, alignment=TA_RIGHT))],
-        [Paragraph(f"<font size=7.5 color='#888'>TRN: <b>{trn}</b></font>", F("soa_trn", fontSize=7.5, textColor=C5, leading=10, alignment=TA_RIGHT))],
-    ], colWidths=[W*0.45])
-    title_block.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-    ]))
-
+    cl = [f"<font size=11><b>{cn}</b></font>"]
+    addr = company["address"] or ""; ph = company["phone_number"] or ""; em = company["email"] or ""
+    parts = [x for x in [addr] if x]
+    cparts = [x for x in [ph, em, f"TRN: {trn}"] if x and x != f"TRN: —"]
+    if parts or cparts:
+        info = " &middot; ".join(parts + cparts)
+        cl.append(f"<font size=6.5 color='#6b7280'>{info}</font>")
+    co_p = Paragraph("<br/>".join(cl), F("CO", fontSize=11, fontName="Helvetica-Bold", textColor=TH, leading=13))
     if logo:
-        ht = Table([[logo, Spacer(1, 3*mm), co_tbl, Spacer(1, 3*mm), title_block]], colWidths=[LW, 3*mm, W*0.30, 3*mm, W*0.45])
+        lh = Table([[logo, Spacer(1, 3*mm), co_p]], colWidths=[LW, 3*mm, W*0.65 - LW - 3*mm])
+        lh.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     else:
-        ht = Table([[co_tbl, Spacer(1, 5*mm), title_block]], colWidths=[W*0.55, 5*mm, W*0.45])
+        lh = co_p
+    rh = Paragraph(
+        f"<b>STATEMENT<br/>OF ACCOUNT</b>",
+        F("TI", fontSize=14, fontName="Helvetica-Bold", textColor=TH, leading=18, alignment=TA_RIGHT))
+    ht = Table([[lh, rh]], colWidths=[W*0.65, W*0.35])
     ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
     els.append(ht)
-
-    gold_line = Table([[""]], colWidths=[W], rowHeights=[1.2])
-    gold_line.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(gold_line)
-    els.append(Spacer(1, 3*mm))
+    els.append(Spacer(1, 2*mm))
+    hr = Table([[""]], colWidths=[W], rowHeights=[2])
+    hr.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+    els.append(hr)
+    els.append(Spacer(1, 4*mm))
 
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # CUSTOMER INFO
@@ -3667,20 +3658,7 @@ def customer_soa_pdf(cid):
         ft_txt += f" | {rng}"
     els.append(Paragraph(ft_txt, F("_ft", fontSize=7, textColor=C5, alignment=TA_CENTER, leading=9)))
 
-    def _soa_footer(canvas, doc_obj):
-        canvas.saveState()
-        canvas.setFont("Helvetica", 6.5)
-        canvas.setFillColor(colors.HexColor("#94a3b8"))
-        footer = f"{cn}  |  Transport and General Contracting LLC SPC"
-        if lic:
-            footer += f"  |  License: {lic}"
-        if trn and trn != "—":
-            footer += f"  |  TRN: {trn}"
-        canvas.drawString(LM, 10*mm, footer)
-        canvas.drawRightString(A4[0] - RM, 10*mm, f"Page {canvas.getPageNumber()}")
-        canvas.restoreState()
-
-    doc.build(els, onFirstPage=_soa_footer, onLaterPages=_soa_footer)
+    doc.build(els)
     for f in _logo_tmp_files:
         try: os.remove(f)
         except Exception: pass
