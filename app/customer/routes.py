@@ -215,13 +215,19 @@ def _ensure_tables():
         ("customer_quotation_items", "rate_text", "TEXT DEFAULT ''"),
         ("customers", "logo_data", "TEXT"),
         ("customers", "logo_type", "TEXT"),
+        ("customers", "peppol_id", "TEXT"),
         ("company_profile", "logo_data", "TEXT"),
+        ("company_profile", "logo_type", "TEXT"),
         ("company_profile", "logo_type", "TEXT"),
         ("company_profile", "theme_color", "TEXT DEFAULT '#0F2B52'"),
         ("company_profile", "bank_name", "TEXT"),
         ("company_profile", "bank_account_name", "TEXT"),
         ("company_profile", "bank_account_number", "TEXT"),
         ("company_profile", "iban", "TEXT"),
+        ("customer_invoices", "e_invoice", "TEXT DEFAULT 'no'"),
+        ("customer_invoices", "e_invoice_status", "TEXT DEFAULT 'pending'"),
+        ("customer_invoices", "e_invoice_xml", "TEXT"),
+        ("customer_invoices", "e_invoice_sent_at", "TEXT"),
     ]
     for table, col, dtype in alter_ops:
         sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {dtype}" if backend == "postgres" else f"ALTER TABLE {table} ADD COLUMN {col} {dtype}"
@@ -412,7 +418,7 @@ def customer_profile(cid):
     db = _get_db()
     tab = request.args.get("tab", "overview")
     trash_mode = request.args.get("trash") == "1"
-    _inv_cols = "id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type, discount, deleted_at"
+    _inv_cols = "id, customer_id, invoice_no, invoice_date, amount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type, discount, e_invoice, e_invoice_status, e_invoice_sent_at, deleted_at"
     if trash_mode:
         invoices = db.execute(f"SELECT {_inv_cols} FROM customer_invoices WHERE customer_id=? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC", (cid,)).fetchall()
     else:
@@ -572,9 +578,10 @@ def customer_invoice_add(cid):
                     "eq_periods": eq_periods,
                 }
                 notes = json.dumps(nmdc_meta) if not notes else json.dumps(nmdc_meta) + "\n" + notes
-            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes,invoice_type,discount)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, discount))
+            e_invoice = "yes" if request.form.get("e_invoice") == "1" else "no"
+            c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes,invoice_type,discount,e_invoice)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, discount, e_invoice))
             inv_id = c_inv.lastrowid
             for idx, it in enumerate(items):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
@@ -622,7 +629,7 @@ def customer_invoice_edit(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type, e_invoice FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     lpos = db.execute("SELECT id,lpo_no,lpo_date,amount FROM customer_lpos WHERE customer_id=? AND status!='closed' ORDER BY lpo_date DESC", (cid,)).fetchall()
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
@@ -668,6 +675,7 @@ def customer_invoice_edit(cid, iid):
                 if so_row:
                     so_no = so_row["so_no"]
             notes = request.form.get("notes", "").strip()
+            e_invoice = "yes" if request.form.get("e_invoice") == "1" else "no"
             new_items = []
             sub_total = 0
             lpo_no = None
@@ -756,8 +764,8 @@ def customer_invoice_edit(cid, iid):
             net_total = round(sub_total - discount, 2)
             vat_amt = round(net_total * vat_pct / 100, 2)
             total = round(net_total + vat_amt, 2)
-            db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,discount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,so_no=?,project_no=?,notes=?,invoice_type=? WHERE id=?""",
-                (inv_no, inv_date, sub_total, discount, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, iid))
+            db.execute("""UPDATE customer_invoices SET invoice_no=?,invoice_date=?,amount=?,discount=?,vat_percent=?,vat_amount=?,total_amount=?,lpo_no=?,lpo_date=?,so_no=?,project_no=?,notes=?,invoice_type=?,e_invoice=? WHERE id=?""",
+                (inv_no, inv_date, sub_total, discount, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, e_invoice, iid))
             db.execute("DELETE FROM customer_invoice_items WHERE invoice_id=?", (iid,))
             for idx, it in enumerate(new_items):
                 db.execute("INSERT INTO customer_invoice_items (invoice_id,description,quantity,rate,amount,sort_order,unit,vehicle_no) VALUES (?,?,?,?,?,?,?,?)",
@@ -802,7 +810,7 @@ def customer_invoice_view(cid, iid):
     c = _get_customer_or_404(cid)
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type, e_invoice FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
     if not inv:
         db.close()
         flash("Invoice not found.", "error")
@@ -864,7 +872,7 @@ def customer_invoice_pdf(cid, iid):
     _ensure_tables()
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
-    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
+    inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type, e_invoice FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
     company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
     pdf_so_date = None
@@ -3871,6 +3879,198 @@ def customer_soa_excel(cid):
     resp.headers["Pragma"] = "no-cache"
     resp.headers["Expires"] = "0"
     return resp
+
+
+@customer_bp.route("/e-invoice/outbox")
+def e_invoice_outbox():
+    """List all e-invoices (pending/sent/failed) across customers."""
+    _ensure_tables()
+    db = _get_db()
+    rows = db.execute("""
+        SELECT i.id, i.invoice_no, i.invoice_date, i.total_amount, i.vat_amount,
+               i.e_invoice, i.e_invoice_status, i.e_invoice_sent_at,
+               c.customer_name, c.trn, c.peppol_id, c.id AS customer_id
+        FROM customer_invoices i
+        JOIN customers c ON i.customer_id = c.id
+        WHERE i.deleted_at IS NULL
+        ORDER BY i.e_invoice_sent_at DESC, i.created_at DESC
+    """).fetchall()
+    db.close()
+    return render_template("customer/e_invoice_outbox.html", rows=rows)
+
+
+@customer_bp.route("/<int:cid>/invoice/<int:iid>/e-invoice/send", methods=["POST"])
+def e_invoice_send(cid, iid):
+    """Mark an invoice as sent via e-invoicing and generate UBL XML."""
+    _ensure_tables()
+    db = _get_db()
+    inv = db.execute("SELECT * FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
+    if not inv:
+        db.close()
+        flash("Invoice not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid))
+    customer = db.execute("SELECT * FROM customers WHERE id=?", (cid,)).fetchone()
+    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    items = db.execute("SELECT * FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order, id", (iid,)).fetchall()
+
+    xml = _generate_ubl_invoice_xml(db, inv, company, customer, items)
+    from datetime import datetime
+    now_iso = datetime.now().isoformat(timespec="seconds")
+
+    db.execute("""UPDATE customer_invoices
+                  SET e_invoice='yes', e_invoice_status='sent',
+                      e_invoice_xml=?, e_invoice_sent_at=?
+                  WHERE id=?""", (xml, now_iso, iid))
+    db.commit()
+    db.close()
+    flash("E-invoice (UBL XML) generated and marked as sent.", "success")
+    return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
+
+
+@customer_bp.route("/<int:cid>/invoice/<int:iid>/e-invoice/xml")
+def e_invoice_xml(cid, iid):
+    """Download the generated UBL XML for an e-invoice."""
+    _ensure_tables()
+    db = _get_db()
+    inv = db.execute("SELECT e_invoice_xml, e_invoice_status, invoice_no FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
+    db.close()
+    if not inv or not inv["e_invoice_xml"]:
+        flash("No e-invoice XML available for this invoice.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid))
+    from flask import send_file
+    from io import BytesIO
+    return send_file(BytesIO(inv["e_invoice_xml"].encode("utf-8")),
+                     mimetype="application/xml",
+                     as_attachment=True,
+                     download_name=f"e-invoice_{inv['invoice_no'] if inv['invoice_no'] else iid}.xml")
+
+
+def _xml_escape(text):
+    if text is None:
+        return ""
+    return (str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;"))
+
+
+def _generate_ubl_invoice_xml(db, inv, company, customer, items):
+    """Build a UBL 2.1 Invoice XML string for e-invoicing (Peppol ready)."""
+    inv_no = _xml_escape(inv["invoice_no"] or "")
+    inv_date = _xml_escape(inv["invoice_date"] or "")
+    company_name = _xml_escape(company["company_name"] if company else "Current Link")
+    company_trn = _xml_escape(company.get("trn_no") or "")
+    company_peppol = _xml_escape("0235:1050467925")
+    cust_name = _xml_escape(customer["customer_name"] or "")
+    cust_trn = _xml_escape(customer.get("trn") or "")
+    cust_peppol = _xml_escape(customer.get("peppol_id") or "")
+
+    lines_xml = []
+    line_no = 1
+    for it in items:
+        desc = _xml_escape(it.get("description") or "")
+        qty = float(it.get("quantity") or 0)
+        rate = float(it.get("rate") or 0)
+        line_amt = float(it.get("amount") or (qty * rate))
+        vat_pct = float(it.get("vat_percent_item") or inv.get("vat_percent") or 5)
+        vat_amt = round(line_amt * vat_pct / 100, 2)
+        lines_xml.append(f"""
+            <cac:InvoiceLine>
+                <cbc:ID>{line_no}</cbc:ID>
+                <cbc:InvoicedQuantity unitCode="C62">{qty}</cbc:InvoicedQuantity>
+                <cbc:LineExtensionAmount currencyID="AED">{line_amt:.2f}</cbc:LineExtensionAmount>
+                <cac:PricingReference>
+                    <cac:AlternativeConditionPrice>
+                        <cbc:PriceAmount currencyID="AED">{rate:.2f}</cbc:PriceAmount>
+                        <cbc:PriceTypeCode>VAT</cbc:PriceTypeCode>
+                    </cac:AlternativeConditionPrice>
+                </cac:PricingReference>
+                <cac:TaxSubtotal>
+                    <cbc:TaxableAmount currencyID="AED">{line_amt:.2f}</cbc:TaxableAmount>
+                    <cbc:TaxAmount currencyID="AED">{vat_amt:.2f}</cbc:TaxAmount>
+                    <cac:TaxCategory>
+                        <cbc:TaxExemptionReasonCode>VAT</cbc:TaxExemptionReasonCode>
+                        <cac:TaxScheme>
+                            <cbc:ID schemeAgencyID="6" schemeID="UN/ECE 5153">VAT</cbc:ID>
+                        </cac:TaxScheme>
+                    </cac:TaxCategory>
+                </cac:TaxSubtotal>
+                <cac:Item>
+                    <cbc:Name>{desc}</cbc:Name>
+                </cac:Item>
+                <cac:Price>
+                    <cbc:PriceAmount currencyID="AED">{rate:.2f}</cbc:PriceAmount>
+                </cac:Price>
+            </cac:InvoiceLine>""")
+        line_no += 1
+
+    total_amount = float(inv["total_amount"] or 0)
+    vat_amount = float(inv.get("vat_amount") or 0)
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+    <cbc:UBLVersionID>2.1</cbc:UBLVersionID>
+    <cbc:CustomizationID>urn:oasis:names:specification:ubl:specification:ubl-peppol-only-ubl-2</cbc:CustomizationID>
+    <cbc:ProfileID>urn:peppol:names:specification:ubl:specification:ubl-peppol-only-ubl-2:invoice</cbc:ProfileID>
+    <cbc:ID>{inv_no}</cbc:ID>
+    <cbc:IssueDate>{inv_date}</cbc:IssueDate>
+    <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+    <cbc:DocumentCurrencyCode>AED</cbc:DocumentCurrencyCode>
+    <cac:AccountingSupplierParty>
+        <cac:Party>
+            <cbc:EndpointID schemeID="0235">{company_peppol}</cbc:EndpointID>
+            <cac:PartyTaxScheme>
+                <cbc:CompanyID>{company_trn}</cbc:CompanyID>
+                <cac:TaxScheme>
+                    <cbc:ID>VAT</cbc:ID>
+                </cac:TaxScheme>
+            </cac:PartyTaxScheme>
+            <cac:PartyLegalEntity>
+                <cbc:RegistrationName>{company_name}</cbc:RegistrationName>
+                <cbc:CompanyID>{company_trn}</cbc:CompanyID>
+            </cac:PartyLegalEntity>
+            <cac:PostalAddress>
+                <cbc:CountrySubentity>Abu Dhabi</cbc:CountrySubentity>
+                <cac:Country>
+                    <cbc:IdentificationCode>AE</cbc:IdentificationCode>
+                </cac:Country>
+            </cac:PostalAddress>
+        </cac:Party>
+    </cac:AccountingSupplierParty>
+    <cac:AccountingCustomerParty>
+        <cac:Party>
+            <cbc:EndpointID schemeID="0235">{cust_peppol}</cbc:EndpointID>
+            <cac:PartyTaxScheme>
+                <cbc:CompanyID>{cust_trn}</cbc:CompanyID>
+                <cac:TaxScheme>
+                    <cbc:ID>VAT</cbc:ID>
+                </cac:TaxScheme>
+            </cac:PartyTaxScheme>
+            <cac:PartyLegalEntity>
+                <cbc:RegistrationName>{cust_name}</cbc:RegistrationName>
+                <cbc:CompanyID>{cust_trn}</cbc:CompanyID>
+            </cac:PartyLegalEntity>
+            <cac:PostalAddress>
+                <cbc:CountrySubentity>Abu Dhabi</cbc:CountrySubentity>
+                <cac:Country>
+                    <cbc:IdentificationCode>AE</cbc:IdentificationCode>
+                </cac:Country>
+            </cac:PostalAddress>
+        </cac:Party>
+    </cac:AccountingCustomerParty>
+    <cac:TaxTotal>
+        <cbc:TaxAmount currencyID="AED">{vat_amount:.2f}</cbc:TaxAmount>
+    </cac:TaxTotal>
+    <cac:LegalMonetaryTotal>
+        <cbc:TaxInclusiveAmount currencyID="AED">{total_amount:.2f}</cbc:TaxInclusiveAmount>
+    </cac:LegalMonetaryTotal>
+    {"".join(lines_xml)}
+</Invoice>"""
+    return xml
 
 
 # â”€â”€â”€ LIST â”€â”€â”€
