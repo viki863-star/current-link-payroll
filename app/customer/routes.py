@@ -224,6 +224,7 @@ def _ensure_tables():
         ("company_profile", "bank_account_name", "TEXT"),
         ("company_profile", "bank_account_number", "TEXT"),
         ("company_profile", "iban", "TEXT"),
+        ("company_profile", "e_invoice_start_date", "TEXT DEFAULT '2027-01-01'"),
         ("customer_invoices", "e_invoice", "TEXT DEFAULT 'no'"),
         ("customer_invoices", "e_invoice_status", "TEXT DEFAULT 'pending'"),
         ("customer_invoices", "e_invoice_xml", "TEXT"),
@@ -467,6 +468,9 @@ def customer_invoice_add(cid):
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     inv_type = "vat"
+    e_invoice_start_date = db.execute("SELECT e_invoice_start_date FROM company_profile LIMIT 1").fetchone()
+    e_invoice_start_date = e_invoice_start_date["e_invoice_start_date"] if e_invoice_start_date else "2027-01-01"
+    auto_e_invoice = date.today().isoformat() >= e_invoice_start_date
     if request.method == "POST":
         try:
             _safe_rollback(db)
@@ -579,6 +583,9 @@ def customer_invoice_add(cid):
                 }
                 notes = json.dumps(nmdc_meta) if not notes else json.dumps(nmdc_meta) + "\n" + notes
             e_invoice = "yes" if request.form.get("e_invoice") == "1" else "no"
+            # From e_invoice_start_date onwards, all new invoices are e-invoices by default
+            if inv_date >= e_invoice_start_date:
+                e_invoice = "yes"
             c_inv = db.execute("""INSERT INTO customer_invoices (customer_id,invoice_no,invoice_date,amount,vat_percent,vat_amount,total_amount,lpo_no,lpo_date,so_no,project_no,notes,invoice_type,discount,e_invoice)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (cid, inv_no, inv_date, sub_total, vat_pct, vat_amt, total, lpo_no, lpo_date, so_no, project_no, notes, inv_type, discount, e_invoice))
@@ -599,10 +606,10 @@ def customer_invoice_add(cid):
             current_app.logger.error("Invoice add failed: %s\n%s", e, traceback.format_exc())
             flash(f"Error creating invoice: {e}", "error")
             tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
-            return render_template(tmpl, c=c, inv={"invoice_type": inv_type}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no)
+            return render_template(tmpl, c=c, inv={"invoice_type": inv_type}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no, e_invoice_start_date=e_invoice_start_date, auto_e_invoice=auto_e_invoice)
     db.close()
     tmpl = "customer/invoice_form_nmdc.html" if is_nmdc else "customer/invoice_form.html"
-    return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no)
+    return render_template(tmpl, c=c, inv={}, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), next_no=next_no, next_cash_no=next_cash_no, e_invoice_start_date=e_invoice_start_date, auto_e_invoice=auto_e_invoice)
 
 @customer_bp.route("/service-items/search")
 def service_items_search():
@@ -654,6 +661,11 @@ def customer_invoice_edit(cid, iid):
     is_nmdc_edit = "nmdc" in (c["customer_name"] or "").lower()
     next_cash_no = _next_cash_invoice_no(db)
     inv_type = (inv.get("invoice_type") or "vat") if inv else "vat"
+    e_invoice_start_date_edit = db.execute("SELECT e_invoice_start_date FROM company_profile LIMIT 1").fetchone()
+    e_invoice_start_date_edit = e_invoice_start_date_edit["e_invoice_start_date"] if e_invoice_start_date_edit else "2027-01-01"
+    auto_e_invoice_edit = (inv.get("invoice_date") or "") >= e_invoice_start_date_edit
+    e_invoice_start_date = db.execute("SELECT e_invoice_start_date FROM company_profile LIMIT 1").fetchone()
+    e_invoice_start_date = e_invoice_start_date["e_invoice_start_date"] if e_invoice_start_date else "2027-01-01"
     if request.method == "POST":
         try:
             _safe_rollback(db)
@@ -676,6 +688,9 @@ def customer_invoice_edit(cid, iid):
                     so_no = so_row["so_no"]
             notes = request.form.get("notes", "").strip()
             e_invoice = "yes" if request.form.get("e_invoice") == "1" else "no"
+            # From e_invoice_start_date onwards, all new invoices are e-invoices by default
+            if inv_date >= e_invoice_start_date:
+                e_invoice = "yes"
             new_items = []
             sub_total = 0
             lpo_no = None
@@ -755,7 +770,7 @@ def customer_invoice_edit(cid, iid):
                 flash("At least one line item is required.", "error")
                 db.close()
                 tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
-                return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no)
+                return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no, e_invoice_start_date=e_invoice_start_date_edit, auto_e_invoice=auto_e_invoice_edit)
             try:
                 discount = round(abs(float(request.form.get("discount", 0) or 0)), 2)
             except (TypeError, ValueError):
@@ -783,7 +798,7 @@ def customer_invoice_edit(cid, iid):
             current_app.logger.error("Invoice edit failed: %s\n%s", e, traceback.format_exc())
             flash(f"Error updating invoice: {e}", "error")
             tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
-            return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no)
+            return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, next_cash_no=next_cash_no, e_invoice_start_date=e_invoice_start_date_edit, auto_e_invoice=auto_e_invoice_edit)
     db.close()
     nmdc_meta = {}
     display_notes = inv.get("notes", "") or ""
@@ -802,7 +817,7 @@ def customer_invoice_edit(cid, iid):
                 except Exception:
                     pass
     tmpl_e = "customer/invoice_form_nmdc.html" if is_nmdc_edit else "customer/invoice_form.html"
-    return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, nmdc_meta=nmdc_meta, display_notes=display_notes, next_cash_no=next_cash_no)
+    return render_template(tmpl_e, c=c, inv=inv, items=items, lpos=lpos, sos=sos, svc_items=svc_items, today=date.today().isoformat(), edit=True, selected_lpo_id=selected_lpo_id, selected_so_id=selected_so_id, nmdc_meta=nmdc_meta, display_notes=display_notes, next_cash_no=next_cash_no, e_invoice_start_date=e_invoice_start_date_edit, auto_e_invoice=auto_e_invoice_edit)
 
 @customer_bp.route("/<int:cid>/invoice/<int:iid>")
 def customer_invoice_view(cid, iid):
