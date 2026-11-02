@@ -3354,7 +3354,8 @@ def customer_soa(cid):
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.invoice_type as invoice_type, i.total_amount as dr,
                       COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
                       + COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cr
-               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL"""
+               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL
+               AND (i.invoice_type IS NULL OR lower(i.invoice_type) != 'cash')"""
     inv_p = [cid]
     if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
     if to_date: inv_q += " AND i.invoice_date<=?"; inv_p.append(to_date)
@@ -3402,7 +3403,8 @@ def customer_soa_pdf(cid):
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.invoice_type as invoice_type, i.total_amount as dr,
                       COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
                       + COALESCE((SELECT SUM(cn2.total_amount) FROM customer_credit_notes cn2 WHERE cn2.invoice_id = i.id),0) as cr
-               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL"""
+               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL
+               AND (i.invoice_type IS NULL OR lower(i.invoice_type) != 'cash')"""
     inv_p = [cid]
     if from_date: inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
     if to_date: inv_q += " AND i.invoice_date<=?"; inv_p.append(to_date)
@@ -3682,7 +3684,8 @@ def customer_soa_excel(cid):
                       i.invoice_type as invoice_type, i.total_amount as dr,
                       i.lpo_no, i.so_no,
                       COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0) as pmt_cr
-               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL"""
+               FROM customer_invoices i WHERE i.customer_id=? AND i.deleted_at IS NULL
+                AND (i.invoice_type IS NULL OR lower(i.invoice_type) != 'cash')"""
     inv_p = [cid]
     if from_date:
         inv_q += " AND i.invoice_date>=?"; inv_p.append(from_date)
