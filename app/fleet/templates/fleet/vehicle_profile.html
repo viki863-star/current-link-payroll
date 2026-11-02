@@ -915,7 +915,7 @@
     {# ═══════════════════════════════════════════ EXPENSES ═══ #}
     {% elif active_tab == 'expenses' %}
 
-    {% set grand_total = fuel_total_amount + (v.total_cost or 0) + parts_total_amount + fines_total %}
+    {% set grand_total = (v.total_cost or 0) + fines_total %}
 
     <div class="vp-kpi-row">
         <div class="vp-kpi"><div class="vp-kpi-icon">⛽</div><div class="vp-kpi-label">Fuel</div><div class="vp-kpi-value" style="color:#e65100">AED {{ "%.0f"|format(fuel_total_amount) }}</div><div style="font-size:.68rem;color:#868e96;margin-top:3px">{{ "%.1f"|format((fuel_total_amount / grand_total * 100) if grand_total > 0 else 0) }}%</div></div>
