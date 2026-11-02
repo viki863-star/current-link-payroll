@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}E-Invoice Outbox — Current Link ERP{% endblock %}
+{% block page_title %}E-Invoice Outbox{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <style>
+        .eo-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+        .eo-table th { padding:10px 12px; background:#f0f2f5; font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); text-align:left; white-space:nowrap }
+        .eo-table td { padding:10px 12px; border-bottom:1px solid #eef2f6; color:var(--text) }
+        .eo-table tr:last-child td { border-bottom:none }
+        .eo-empty { padding:30px; text-align:center; color:var(--muted) }
+        .eo-badge { font-size:0.65rem; font-weight:600; padding:3px 8px; border-radius:99px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace }
+        .eo-badge--pending { background:#fff3cd; color:#856404 }
+        .eo-badge--sent { background:#d4edda; color:#155724 }
+        .eo-badge--failed { background:#f8d7da; color:#721c24 }
+        .eo-badge--ack { background:#cce5ff; color:#004085 }
+        .eo-actions { display:flex;gap:6px;flex-wrap:wrap }
+        .eo-note { font-size:0.78rem;color:var(--muted);margin-top:8px }
+    </style>
+
+    <div style="margin-bottom:14px">
+        <a href="{{ url_for('customer.customer_dashboard') }}" class="btn btn-outline btn-sm">&larr; Back to Dashboard</a>
+        <a href="{{ url_for('customer.customer_list') }}" class="btn btn-outline btn-sm">All Customers</a>
+    </div>
+
+    <div class="profile-card">
+        <div class="section-header">
+            <h3 style="margin:0;font-size:1rem">E-Invoice Outbox</h3>
+            <p style="margin:2px 0 0;font-size:0.75rem;color:var(--muted)">UBL 2.1 XML e-invoices — Peppol ready</p>
+        </div>
+
+        {% if rows %}
+        <div class="table-wrap">
+            <table class="eo-table">
+                <thead>
+                    <tr>
+                        <th style="width:14%">Date</th>
+                        <th style="width:14%">Invoice #</th>
+                        <th style="width:20%">Customer</th>
+                        <th style="width:12%">Amount (AED)</th>
+                        <th style="width:12%">E-Inv</th>
+                        <th style="width:14%">Status</th>
+                        <th style="width:12%">Sent At</th>
+                        <th style="width:14%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr>
+                        <td class="mono">{{ r.invoice_date or '—' }}</td>
+                        <td class="mono" style="font-weight:600">{{ r.invoice_no or '—' }}</td>
+                        <td style="font-size:0.85rem">{{ r.customer_name }}</td>
+                        <td class="mono" style="text-align:right">AED {{ "%.2f"|format(r.total_amount) }}</td>
+                        <td class="mono" style="font-size:0.72rem">{{ 'Yes' if r.e_invoice == 'yes' else 'No' }}</td>
+                        <td>
+                            <span class="eo-badge eo-badge--{{ r.e_invoice_status or 'pending' }}">{{ r.e_invoice_status or 'pending' }}</span>
+                        </td>
+                        <td class="mono">{{ (r.e_invoice_sent_at or '')[:16] or '—' }}</td>
+                        <td>
+                            <div class="eo-actions">
+                                {% if r.e_invoice_status != 'sent' and r.e_invoice == 'yes' %}
+                                <form method="POST" action="{{ url_for('customer.e_invoice_send', cid=r.customer_id, iid=r.id) }}" style="display:inline" onsubmit="return confirm('Send e-invoice for {{ r.invoice_no }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-xs btn-primary">Send</button>
+                                </form>
+                                {% elif r.e_invoice_xml %}
+                                <a href="{{ url_for('customer.e_invoice_xml', cid=r.customer_id, iid=r.id) }}" class="btn btn-xs btn-outline" title="Download UBL XML">XML</a>
+                                {% else %}
+                                <span class="btn btn-xs btn-outline" style="color:#94a3b8;cursor:default">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="eo-empty">
+            <p>No e-invoices yet.</p>
+            <p style="font-size:0.85rem;margin-top:6px">Create an invoice with <b>Send via E-Invoicing (Peppol)</b> checked, then click <b>Send XML</b> to generate the UBL XML file.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="profile-card" style="margin-top:12px">
+        <h3 style="margin:0 0 8px;font-size:0.9rem">About UAE E-Invoicing</h3>
+        <p style="font-size:0.85rem;color:var(--muted);margin:0">
+            <b>Current Link Peppol ID:</b> <span class="mono" style="color:#0c2340">0235:1050467925</span><br>
+            <b>Standard:</b> UBL 2.1 (Peppol) &nbsp;|&nbsp; <b>VAT:</b> 5% &nbsp;|&nbsp; <b>Currency:</b> AED<br>
+            <b>Phase:</b> Info only — ASP integration pending your decision.
+        </p>
+    </div>
+</div>
+{% endblock %}

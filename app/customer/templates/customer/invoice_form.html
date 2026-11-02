@@ -181,6 +181,15 @@
             <textarea name="notes" class="form-control" rows="2" placeholder="Payment terms, delivery notes, etc.">{{ inv.notes or '' }}</textarea>
         </div>
 
+        {# ─── E-Invoicing (Peppol) ─── #}
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#eef4ff;border:1px solid #eef2f6;border-radius:10px;margin-bottom:16px">
+            <input type="checkbox" name="e_invoice" id="eInvoice" value="1" {% if inv.e_invoice == 'yes' %}checked{% endif %} style="width:16px;height:16px;margin-top:2px">
+            <label for="eInvoice" style="margin:0;font-size:0.82rem;font-weight:600;color:#0c2340">
+                Send via E-Invoicing (Peppol)
+            </label>
+            <span style="font-size:0.72rem;color:var(--muted);font-weight:500">UBL XML + Peppol ID</span>
+        </div>
+
         <button type="submit" class="btn btn-primary" style="margin-top:6px;width:100%;padding:12px;font-size:1rem">{{ 'Update Invoice' if edit else 'Create Invoice' }}</button>
     </form>
 </div>

@@ -118,6 +118,7 @@ td .mono-sm { font-size:0.75rem; }
         <h3 style="margin:0 0 12px;font-size:0.95rem">Financial Details</h3>
         <table class="info-table" style="width:100%">
             <tr><td style="width:35%">TRN (VAT)</td><td class="mono">{{ c.trn or '—' }}</td></tr>
+            <tr><td>Peppol ID (E-Invoice)</td><td class="mono">{{ c.peppol_id or '—' }}</td></tr>
             <tr><td>Trade License</td><td>{{ c.trade_license or '—' }}</td></tr>
             <tr><td>Credit Limit</td><td>AED {{ "%.0f"|format(c.credit_limit) if c.credit_limit else '—' }}</td></tr>
             <tr><td>Payment Terms</td><td>{{ c.payment_terms or '—' }}</td></tr>
@@ -159,7 +160,7 @@ td .mono-sm { font-size:0.75rem; }
     {% if invoices %}
     <div class="table-wrap">
         <table class="smart-table">
-            <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>VAT</th><th>Total</th><th></th></tr></thead>
+            <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>VAT</th><th>Total</th><th>E-Invoice</th><th></th></tr></thead>
             <tbody>
                 {% for inv in invoices %}
                 <tr>
@@ -171,6 +172,24 @@ td .mono-sm { font-size:0.75rem; }
                     <td class="mono">{{ "%.2f"|format(inv.amount) }}</td>
                     <td class="mono" style="{% if (inv.invoice_type or 'vat') == 'cash' %}color:#94a3b8{% endif %}">{{ "%.2f"|format(inv.vat_amount) }}</td>
                     <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.2f"|format(inv.total_amount) }}</td>
+                    <td>
+                        <div style="display:flex;gap:4px;align-items:flex-start;flex-wrap:wrap">
+                            {% if inv.e_invoice == 'yes' %}
+                            <span class="badge badge-type" style="font-size:0.6rem;background:#eef4ff;color:#0c2340;border:1px solid #0c2340">E-Invoice</span>
+                            <span class="mono-sm" style="color:#64748b">{{ inv.e_invoice_status or 'pending' }}</span>
+                            {% if inv.e_invoice_status != 'sent' %}
+                            <form method="POST" action="{{ url_for('customer.e_invoice_send', cid=c.id, iid=inv.id) }}" style="display:inline;margin-top:2px">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-xs btn-primary" style="font-size:0.7rem;padding:3px 8px">Send XML</button>
+                            </form>
+                            {% elif inv.e_invoice_xml %}
+                            <a href="{{ url_for('customer.e_invoice_xml', cid=c.id, iid=inv.id) }}" class="btn btn-xs btn-outline" style="font-size:0.7rem;padding:3px 8px" title="Download UBL XML">XML</a>
+                            {% endif %}
+                            {% else %}
+                            <span class="mono-sm" style="color:#94a3b8">—</span>
+                            {% endif %}
+                        </div>
+                    </td>
                     <td>
                         <div style="display:flex;gap:4px">
                         {% if trash_mode %}
