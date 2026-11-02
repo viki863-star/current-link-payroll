@@ -377,6 +377,18 @@ document.addEventListener('DOMContentLoaded', function() {
     var sel = document.getElementById('lpoSelect');
     if (sel && sel.value) { loadLpoItems(); }
     {% endif %}
+    var einvCheckbox = document.getElementById('eInvoice');
+    var einvDateInput = document.getElementById('invoice_date');
+    var autoEinv = {{ 'true' if auto_e_invoice else 'false' }};
+    if (einvCheckbox && einvDateInput) {
+        function checkEinvDate() {
+            if (autoEinv || (einvDateInput.value && einvDateInput.value >= '{{ e_invoice_start_date }}')) {
+                einvCheckbox.checked = true;
+            }
+        }
+        checkEinvDate();
+        einvDateInput.addEventListener('change', checkEinvDate);
+    }
 });
 
 document.getElementById('invoiceForm').addEventListener('submit', function(e) {
