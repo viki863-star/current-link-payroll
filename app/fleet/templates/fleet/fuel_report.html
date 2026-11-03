@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Fuel Report — Current Link ERP{% endblock %}
+{% block page_title %}Fuel Report{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <style>
+        .eo-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+        .eo-table th { padding: 10px 12px; background: #f0f2f5; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; color: var(--muted); text-align: left; white-space: nowrap }
+        .eo-table td { padding: 10px 12px; border-bottom: 1px solid #eef2f6; color: var(--text) }
+        .eo-table tr:last-child td { border-bottom:none }
+        .eo-table tr:hover { background: #f8fafc; }
+        .fo-wrap { max-width: 1400px; margin: 0 auto; }
+        .fo-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px }
+        .fo-actions { display: flex; gap: 8px; flex-wrap: wrap }
+        .fo-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px }
+        .fo-kpi { display: flex; align-items: center; gap: 12px; padding: 14px 15px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; text-decoration: none; color: inherit; box-shadow: 0 1px 2px rgba(16,24,40,.05); transition: transform .18s }
+        .fo-kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(16,24,40,.10) }
+        .fo-kpi-ico { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center; background: rgba(59,130,246,.13); color: #3b82f6 }
+        .fo-kpi-label { font-size: .62rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted) }
+        .fo-kpi-val { font-size: 1.45rem; font-weight: 800; color: var(--text); font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.15 }
+        .fo-kpi-sub { font-size: .64rem; color: var(--muted); margin-top: 2px }
+        .fo-green { color: #16a34a }
+        .fo-orange { color: #d97706 }
+        .fo-blue { color: #1c568b }
+        .btn-sm { padding: 6px 14px; font-size: .78rem }
+    </style>
+
+    <div class="fo-wrap">
+        <div class="fo-top">
+            <div class="fo-meta">
+                <h2 style="margin:0;font-size:1.2rem;font-weight:800;color:var(--text)">Fuel Report</h2>
+                <span style="font-size:.85rem;color:var(--muted)">Vehicle-wise &amp; Month-wise Fuel Consumption</span>
+            </div>
+            <div class="fo-actions">
+                <form method="GET" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+                    <select name="vehicle" class="btn btn-outline btn-sm" style="padding:6px 12px">
+                        <option value="">All Vehicles</option>
+                        {% for v in vehicles %}
+                        <option value="{{ v.plate_no }}" {% if vehicle_filter == v.plate_no %}selected{% endif %}>{{ v.plate_no }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="month" class="btn btn-outline btn-sm" style="padding:6px 12px">
+                        <option value="">All Months</option>
+                        {% for m in monthly %}
+                        <option value="{{ m.month }}" {% if month_filter == m.month %}selected{% endif %}>{{ m.month }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="date" name="date_from" class="btn btn-outline btn-sm" style="padding:6px 8px" value="{{ date_from }}">
+                    <input type="date" name="date_to" class="btn btn-outline btn-sm" style="padding:6px 8px" value="{{ date_to }}">
+                    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                    <a href="{{ url_for('fleet.fleet_fuel_report') }}" class="btn btn-outline btn-sm">Clear</a>
+                </form>
+            </div>
+        </div>
+
+        {% if rows %}
+        <div class="fo-kpis">
+            <div class="fo-kpi">
+                <div class="fo-kpi-ico"><span>⛽</span></div>
+                <div class="fo-kpi-body">
+                    <div class="fo-kpi-label">Total Fuel (GLN)</div>
+                    <div class="fo-kpi-val">{{ grand_gallons }}</div>
+                </div>
+            </div>
+            <div class="fo-kpi">
+                <div class="fo-kpi-ico"><span>💵</span></div>
+                <div class="fo-kpi-body">
+                    <div class="fo-kpi-label">Total Amount (AED)</div>
+                    <div class="fo-kpi-val fo-kpi-val--money">{{ grand_amount }}</div>
+                </div>
+            </div>
+            <div class="fo-kpi">
+                <div class="fo-kpi-ico"><span>📋</span></div>
+                <div class="fo-kpi-body">
+                    <div class="fo-kpi-label">Total Entries</div>
+                    <div class="fo-kpi-val">{{ rows|length }}</div>
+                </div>
+            </div>
+            <div class="fo-kpi">
+                <div class="fo-kpi-ico"><span>🚛</span></div>
+                <div class="fo-kpi-body">
+                    <div class="fo-kpi-label">Unique Vehicles</div>
+                    <div class="fo-kpi-val">{{ rows|map(attribute='vehicle_plate')|unique|length }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="fo-card">
+            <div class="fo-card-head">
+                <h3>Vehicle × Month Summary</h3>
+                <span class="fo-head-stat">{{ rows|length }} entries</span>
+            </div>
+            <div class="fo-card-body">
+                <table class="fo-table">
+                    <thead>
+                        <tr>
+                            <th>Plate</th>
+                            <th>Month</th>
+                            <th style="text-align:right">Gallons</th>
+                            <th style="text-align:right">Amount (AED)</th>
+                            <th style="text-align:right">Entries</th>
+                            <th style="text-align:center">Avg Rate (AED/GLN)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rows %}
+                        <tr>
+                            <td class="fo-mono" style="font-weight:600">{{ r.vehicle_plate }}</td>
+                            <td class="mono">{{ r.month }}</td>
+                            <td class="fo-num" style="text-align:right">{{ "%.2f" % (r.total_gallons or 0) }}</td>
+                            <td class="fo-num" style="text-align:right">{{ "%.2f" % (r.total_amount or 0) }}</td>
+                            <td class="fo-num" style="text-align:center">{{ r.entry_count }}</td>
+                            <td class="fo-num" style="text-align:center">{{ "%.2f" % ((r.total_amount or 0) / (r.total_gallons or 1)) }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr style="font-weight:800;background:#f8fafc">
+                            <td colspan="2">Total</td>
+                            <td class="fo-num" style="text-align:right">{{ "%.2f" % grand_gallons }}</td>
+                            <td class="fo-num" style="text-align:right">{{ "%.2f" % grand_amount }}</td>
+                            <td class="fo-num" style="text-align:center">{{ rows|length }}</td>
+                            <td class="fo-num" style="text-align:center">{{ "%.2f" % (grand_amount / grand_gallons if grand_gallons else 0) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="fo-card">
+            <div class="fo-card-head">
+                <h3>Monthly Summary (All Vehicles)</h3>
+                <span class="fo-head-stat">{{ monthly|length }} months</span>
+            </div>
+            <div class="fo-card-body">
+                <table class="fo-table">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th style="text-align:right">Total Gallons</th>
+                            <th style="text-align:right">Total Amount (AED)</th>
+                            <th style="text-align:right">Entries</th>
+                            <th style="text-align:center">Avg Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in monthly %}
+                        <tr>
+                            <td class="fo-mono" style="font-weight:600">{{ m.month }}</td>
+                            <td class="fo-num" style="text-align:right">{{ "%.2f" % (m.total_gallons or 0) }}</td>
+                            <td class="fo-num" style="text-align:right">{{ "%.2f" % (m.total_amount or 0) }}</td>
+                            <td class="fo-num" style="text-align:center">{{ m.entry_count }}</td>
+                            <td class="fo-num" style="text-align:center">{{ "%.2f" % ((m.total_amount or 0) / (m.total_gallons or 1)) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="fo-empty">No fuel entries found for the selected filters.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

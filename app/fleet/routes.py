@@ -4283,7 +4283,8 @@ def fuel_add():
 
 
 def _insert_fuel_entry(db, vehicle_plate, entry_date, gallons, rate, supplier, notes):
-    """Insert one fuel entry plus its linked supplier_expense; returns (fuel_id, total)."""
+    """Insert one fuel entry ONLY into fuel_entries table (no supplier_expenses).
+    Returns (fuel_id, total)."""
     total = round(gallons * rate, 2)
     fuel_desc = f"{gallons} GLN × {rate} = AED {total} — {vehicle_plate}"
     if db.backend == "postgres":
@@ -4293,12 +4294,6 @@ def _insert_fuel_entry(db, vehicle_plate, entry_date, gallons, rate, supplier, n
             (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes),
         )
         fuel_id = fuel_result.fetchone()[0]
-        exp_result = db.execute(
-            """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-               VALUES (?, ?, ?, 'Fuel', ?, 'Fuel', ?, ?, ?, 'approved') RETURNING id""",
-            (supplier["id"], entry_date, total, notes or fuel_desc, gallons, rate, vehicle_plate),
-        )
-        expense_id = exp_result.fetchone()[0]
     else:
         db.execute(
             """INSERT INTO fuel_entries (vehicle_plate, entry_date, gallons, rate_per_gallon, total_amount, supplier_id, supplier_name, notes)
@@ -4306,13 +4301,6 @@ def _insert_fuel_entry(db, vehicle_plate, entry_date, gallons, rate, supplier, n
             (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes),
         )
         fuel_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
-        db.execute(
-            """INSERT INTO supplier_expenses (supplier_id, expense_date, amount, category, description, earning_type, quantity, rate, vehicle_no, status)
-               VALUES (?, ?, ?, 'Fuel', ?, 'Fuel', ?, ?, ?, 'approved')""",
-            (supplier["id"], entry_date, total, notes or fuel_desc, gallons, rate, vehicle_plate),
-        )
-        expense_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
-    db.execute("UPDATE fuel_entries SET source_expense_id = ? WHERE id = ?", (expense_id, fuel_id))
     return fuel_id, total
 
 
@@ -4352,14 +4340,6 @@ def fuel_edit(entry_id):
                WHERE id=?""",
             (vehicle_plate, entry_date, gallons, rate, total, supplier["id"], supplier["supplier_name"], notes, entry_id),
         )
-        # Update linked supplier_expenses
-        if entry["source_expense_id"]:
-            fuel_desc = f"{gallons} GLN × {rate} = AED {total} — {vehicle_plate}"
-            db.execute(
-                """UPDATE supplier_expenses SET expense_date=?, amount=?, quantity=?, rate=?, vehicle_no=?, description=?, earning_type=?, category=?
-                   WHERE id=?""",
-                (entry_date, total, gallons, rate, vehicle_plate, notes or fuel_desc, 'Fuel', 'Fuel', entry["source_expense_id"]),
-            )
         db.commit()
         flash("Fuel entry updated.", "success")
         return redirect(url_for("fleet.fuel_list"))
@@ -4378,12 +4358,91 @@ def fuel_delete(entry_id):
     if not entry:
         flash("Fuel entry not found.", "error")
         return redirect(url_for("fleet.fuel_list"))
-    if entry["source_expense_id"]:
-        db.execute("DELETE FROM supplier_expenses WHERE id = ?", (entry["source_expense_id"],))
     db.execute("DELETE FROM fuel_entries WHERE id = ?", (entry_id,))
     db.commit()
     flash("Fuel entry deleted.", "info")
     return redirect(url_for("fleet.fuel_list"))
+
+
+@fleet_bp.route("/fleet/fuel-report", methods=["GET"])
+@_login_required("admin")
+def fleet_fuel_report():
+    """Vehicle-wise & month-wise fuel consumption report."""
+    _ensure_tables()
+    db = open_db()
+
+    vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
+
+    # Filters
+    vehicle_filter = request.args.get("vehicle", "").strip()
+    month_filter = request.args.get("month", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
+
+    where = []
+    params = []
+    if vehicle_filter:
+        where.append("fe.vehicle_plate = ?")
+        params.append(vehicle_filter)
+    if month_filter:
+        where.append("substr(fe.entry_date,1,7) = ?")
+        params.append(month_filter[:7])
+    else:
+        if date_from:
+            where.append("fe.entry_date >= ?")
+            params.append(date_from)
+        if date_to:
+            where.append("fe.entry_date <= ?")
+            params.append(date_to)
+
+    where_sql = ""
+    if where:
+        where_sql = "WHERE " + " AND ".join(where)
+
+    # Aggregated report: vehicle × month
+    rows = db.execute(f"""
+        SELECT
+            fe.vehicle_plate,
+            substr(fe.entry_date,1,7) AS month,
+            SUM(fe.gallons) AS total_gallons,
+            SUM(fe.total_amount) AS total_amount,
+            COUNT(*) AS entry_count,
+            MIN(fe.entry_date) AS first_entry,
+            MAX(fe.entry_date) AS last_entry
+        FROM fuel_entries fe
+        {where_sql}
+        GROUP BY fe.vehicle_plate, substr(fe.entry_date,1,7)
+        ORDER BY fe.vehicle_plate, substr(fe.entry_date,1,7) DESC
+    """, params).fetchall()
+
+    grand_gallons = sum(float(r["total_gallons"] or 0) for r in rows)
+    grand_amount = sum(float(r["total_amount"] or 0) for r in rows)
+
+    # Monthly summary (all vehicles)
+    monthly = db.execute(f"""
+        SELECT
+            substr(fe.entry_date,1,7) AS month,
+            SUM(fe.gallons) AS total_gallons,
+            SUM(fe.total_amount) AS total_amount,
+            COUNT(*) AS entry_count
+        FROM fuel_entries fe
+        {where_sql}
+        GROUP BY substr(fe.entry_date,1,7)
+        ORDER BY substr(fe.entry_date,1,7) DESC
+    """, params).fetchall()
+
+    return render_template(
+        "fleet/fuel_report.html",
+        vehicles=vehicles,
+        rows=rows,
+        monthly=monthly,
+        grand_gallons=round(grand_gallons, 2),
+        grand_amount=round(grand_amount, 2),
+        vehicle_filter=vehicle_filter,
+        month_filter=month_filter,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
 
 @fleet_bp.route("/fleet/fuel/supplier/<int:supplier_id>")
