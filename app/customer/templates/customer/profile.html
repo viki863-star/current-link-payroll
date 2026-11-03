@@ -406,6 +406,12 @@ td .mono-sm { font-size:0.75rem; }
                         <div style="display:flex;gap:4px">
                         <a href="{{ url_for('customer.customer_quotation_view', cid=c.id, qid=q.id) }}" class="btn btn-xs btn-outline">View</a>
                         <a href="{{ url_for('customer.customer_quotation_edit', cid=c.id, qid=q.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                        {% if q.status == 'approved' %}
+                        <form method="POST" action="{{ url_for('customer.customer_quotation_create_lpo', cid=c.id, qid=q.id) }}" style="display:inline" onsubmit="return confirm('Create LPO from this quotation?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-xs btn-primary" style="font-size:0.7rem">Create LPO</button>
+                        </form>
+                        {% endif %}
                         <form method="POST" action="{{ url_for('customer.customer_quotation_delete', cid=c.id, qid=q.id) }}" style="display:inline" onsubmit="return confirm('Delete quotation {{ q.quotation_no }}?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
