@@ -2601,6 +2601,64 @@ def customer_quotation_approve(cid, qid):
     flash(f"Quotation {q['quotation_no']} approved!", "success")
     return redirect(url_for("customer.customer_quotation_view", cid=cid, qid=qid))
 
+
+@customer_bp.route("/<int:cid>/quotation/<int:qid>/create-lpo", methods=["POST"])
+def customer_quotation_create_lpo(cid, qid):
+    """Create an LPO from an approved quotation.
+    LPO number and date are NOT required at creation — they can be filled in later
+    when editing the LPO. Quotation items are copied to LPO items.
+    """
+    _ensure_tables()
+    c = _get_customer_or_404(cid)
+    if not c:
+        return redirect(url_for("customer.customer_dashboard"))
+    db = _get_db()
+
+    q = db.execute(
+        "SELECT id, customer_id, quotation_no, quotation_date, sub_total, vat_percent, vat_amount, total_amount, status, notes FROM customer_quotations WHERE id=? AND customer_id=?",
+        (qid, cid),
+    ).fetchone()
+    if not q:
+        db.close()
+        flash("Quotation not found.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+
+    if q["status"] != "approved":
+        db.close()
+        flash("Only approved quotations can be converted to LPO.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+
+    items = db.execute(
+        "SELECT id, quotation_id, description, quantity, rate, amount, unit, rate_text, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order",
+        (qid,),
+    ).fetchall()
+
+    if not items:
+        db.close()
+        flash("Quotation has no line items to create LPO.", "error")
+        return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
+
+    total = round(sum(float(it["amount"] or 0) for it in items), 2)
+
+    # Create LPO WITHOUT requiring lpo_no or lpo_date — they can be filled later
+    cur = db.execute(
+        """INSERT INTO customer_lpos (customer_id,lpo_no,lpo_date,amount,status,notes,file_data,file_type)
+           VALUES (?,?,?,?,?,?,?,?)""",
+        (cid, None, "", total, "pending", f"Created from quotation {q['quotation_no']}", None, None),
+    )
+    lpo_id = cur.lastrowid
+
+    for idx, it in enumerate(items):
+        db.execute(
+            "INSERT INTO lpo_items (lpo_id,description,quantity,rate,amount,unit_type,vehicle_no,sort_order) VALUES (?,?,?,?,?,?,?,?)",
+            (lpo_id, it["description"], it["quantity"], it["rate"], it["amount"], it["unit"], "", idx),
+        )
+
+    db.commit()
+    db.close()
+    flash(f"LPO created from quotation {q['quotation_no']}. LPO number/date can be added later when editing the LPO.", "success")
+    return redirect(url_for("customer.customer_profile", cid=cid, tab="lpos"))
+
 @customer_bp.route("/<int:cid>/quotation/<int:qid>/view")
 def customer_quotation_view(cid, qid):
     _ensure_tables()
