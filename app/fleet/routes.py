@@ -4368,7 +4368,7 @@ def fuel_delete(entry_id):
 @_login_required("admin")
 def fleet_fuel_report():
     """Vehicle-wise & month-wise fuel consumption report."""
-    _ensure_tables()
+    ensure_fleet_tables()
     db = open_db()
 
     vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
