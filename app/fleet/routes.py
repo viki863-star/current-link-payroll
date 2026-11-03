@@ -4417,6 +4417,7 @@ def fleet_fuel_report():
 
     grand_gallons = sum(float(r["total_gallons"] or 0) for r in rows)
     grand_amount = sum(float(r["total_amount"] or 0) for r in rows)
+    unique_vehicles = len(set(r["vehicle_plate"] for r in rows))
 
     # Monthly summary (all vehicles)
     monthly = db.execute(f"""
