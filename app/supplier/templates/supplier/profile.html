@@ -93,14 +93,6 @@
   <a href="{{ url_for('supplier.supplier_soa', sup_id=s.id) }}" class="tab-btn">SOA</a>
 </div>
 
-{% if comp_state and not comp_state.is_verified %}
-<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:11px 16px;margin-bottom:14px;font-size:0.8rem">
-  ⚠ <b>Input tax risk:</b> this supplier is <b>{{ comp_state.label|lower }}</b>.
-  FTA Decision No. 13 of 2026 requires supplier verification before deducting input tax —
-  <a href="{{ url_for('supplier.supplier_compliance', sup_id=s.id) }}" style="color:#92400e;font-weight:700">complete the verification record</a>.
-  {% if comp_state.next_due %} Next due: {{ comp_state.next_due }}.{% endif %}
-</div>
-{% endif %}
 
 {# ═══════════════════════════════════════════════════ #}
 {# DASHBOARD OVERVIEW                                  #}
