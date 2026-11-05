@@ -683,6 +683,10 @@
                                         </select>
                                     </div>
                                     <div class="dv2-form-group">
+                                        <label class="dv2-form-label">Payment Date</label>
+                                        <input type="date" name="payment_date" value="{{ slip_values.payment_date or slip_existing_slip.payment_date if slip_existing_slip else '' }}" class="dv2-input">
+                                    </div>
+                                    <div class="dv2-form-group">
                                         <label class="dv2-form-label">Paid By</label>
                                         <input type="text" name="paid_by" value="{{ slip_values.paid_by or '' }}" class="dv2-input" placeholder="Person name">
                                     </div>
