@@ -4,83 +4,85 @@
 
 {% block content %}
 <style>
-  /* ─── Layout ─── */
-  .af-shell { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+  /* ─── Layout & Shell ─── */
+  .ap-shell { max-width: 1140px; margin: 0 auto; padding: 0 16px; }
 
   /* ─── Header ─── */
-  .af-header { margin-bottom: 24px; }
-  .af-back { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); text-decoration: none; font-weight: 500; margin-bottom: 10px; transition: all 0.15s; }
-  .af-back:hover { color: var(--primary); gap: 10px; }
-  .af-headline { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
-  .af-headline h1 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--ink); letter-spacing: -0.3px; }
-  .af-party-meta { display: flex; gap: 12px; flex-wrap: wrap; color: #64748b; font-size: 0.8rem; }
-  .af-party-meta .lbl { font-weight: 600; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.2px; }
-  .af-party-meta span { color: #0f172a; }
+  .ap-header { margin-bottom: 24px; }
+  .ap-back { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); text-decoration: none; font-weight: 500; margin-bottom: 10px; transition: all 0.15s; }
+  .ap-back:hover { color: var(--primary); gap: 10px; }
+  .ap-headline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .ap-headline h1 { margin: 0; font-size: 1.3rem; font-weight: 800; color: var(--ink); letter-spacing: -0.4px; }
+  .ap-party-meta { display: flex; gap: 12px; flex-wrap: wrap; color: #64748b; font-size: 0.8rem; }
+  .ap-party-meta .lbl { font-weight: 600; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.2px; }
+  .ap-party-meta span { color: #0f172a; }
 
   /* ─── Stats Strip ─── */
-  .af-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
-  @media (max-width: 700px) { .af-stats { grid-template-columns: 1fr; } }
-  .af-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 14px; }
-  .af-stat-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.3rem; flex-shrink: 0; }
-  .af-stat-icon.total { background: #eef2f7; color: #1e293b; }
-  .af-stat-icon.paid { background: #f0fdf4; color: #16a34a; }
-  .af-stat-icon.due { background: #fff7ed; color: #e65100; }
-  .af-stat-body { }
-  .af-stat-val { font-size: 1.15rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
-  .af-stat-label { font-size: 0.72rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
-  .af-stat-pct { font-size: 0.7rem; font-weight: 700; margin-top: 2px; }
-  .af-stat-pct.green { color: #16a34a; }
-  .af-stat-pct.orange { color: #e65100; }
+  .ap-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  @media (max-width: 700px) { .ap-stats { grid-template-columns: 1fr; } }
+  .ap-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 14px; }
+  .ap-stat-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.3rem; flex-shrink: 0; }
+  .ap-stat-icon.total { background: #eef2f7; color: #1e293b; }
+  .ap-stat-icon.paid { background: #f0fdf4; color: #16a34a; }
+  .ap-stat-icon.due { background: #fff7ed; color: #e65100; }
+  .ap-stat-body { }
+  .ap-stat-val { font-size: 1.15rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
+  .ap-stat-val.paid { color: #16a34a; }
+  .ap-stat-val.due { color: #e65100; }
+  .ap-stat-label { font-size: 0.72rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
+  .ap-stat-pct { font-size: 0.7rem; font-weight: 700; margin-top: 2px; }
+  .ap-stat-pct.green { color: #16a34a; }
+  .ap-stat-pct.orange { color: #e65100; }
 
   /* ─── Section Header ─── */
-  .af-section { margin-bottom: 20px; }
-  .af-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-  .af-section h2 { margin: 0; font-size: 0.88rem; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.4px; }
-  .af-actions { display: flex; gap: 8px; }
+  .ap-section { margin-bottom: 20px; }
+  .ap-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .ap-section h2 { margin: 0; font-size: 0.88rem; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.4px; }
+  .ap-actions { display: flex; gap: 8px; }
 
-  /* ─── Cards Grid ─── */
-  .af-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .af-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-  .af-card-head { display: flex; align-items: center; justify-content: space-between; }
-  .af-card-title { font-size: 0.85rem; font-weight: 700; color: var(--ink); margin: 0; }
-  .af-card-sub { font-size: 0.68rem; color: #64748b; margin: 0; font-weight: 500; }
-  .af-card-body { display: flex; flex-direction: column; gap: 8px; }
-  .af-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
-  .af-row:last-child { border-bottom: none; }
-  .af-row .lbl { color: #64748b; font-weight: 500; font-size: 0.78rem; }
-  .af-row .val { font-weight: 700; font-size: 0.88rem; }
-  .af-row .val.paid { color: #16a34a; }
-  .af-row .val.due { color: #e65100; }
-  .af-row .val.total { color: #1e293b; }
-  .af-progress { margin-top: 6px; height: 6px; background: #f1f5f9; border-radius: 6px; overflow: hidden; font-size: 0; }
-  .af-progress-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
-  .af-progress-fill.paid { background: linear-gradient(90deg, #16a34a, #4ade80); }
-  .af-progress-fill.due { background: linear-gradient(90deg, #e65100, #fb923c); }
+  /* ─── Fee Breakdown Cards ─── */
+  .ap-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .ap-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .ap-card-head { display: flex; align-items: center; justify-content: space-between; }
+  .ap-card-title { font-size: 0.85rem; font-weight: 700; color: var(--ink); margin: 0; }
+  .ap-card-sub { font-size: 0.68rem; color: #64748b; margin: 0; font-weight: 500; }
+  .ap-card-body { display: flex; flex-direction: column; gap: 8px; }
+  .ap-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+  .ap-row:last-child { border-bottom: none; }
+  .ap-row .lbl { color: #64748b; font-weight: 500; font-size: 0.78rem; }
+  .ap-row .val { font-weight: 700; font-size: 0.88rem; }
+  .ap-row .val.paid { color: #16a34a; }
+  .ap-row .val.due { color: #e65100; }
+  .ap-row .val.total { color: #1e293b; }
+  .ap-progress { margin-top: 6px; height: 6px; background: #f1f5f9; border-radius: 6px; overflow: hidden; }
+  .ap-progress-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+  .ap-progress-fill.paid { background: linear-gradient(90deg, #16a34a, #4ade80); }
+  .ap-progress-fill.due { background: linear-gradient(90deg, #e65100, #fb923c); }
 
   /* ─── SOA Table ─── */
-  .af-table-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-  .af-table-head { background: #f8fafc; border-bottom: 1px solid var(--line); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
-  .af-table-head h3 { margin: 0; font-size: 0.88rem; font-weight: 700; color: var(--ink); }
-  .af-table-head .count { font-size: 0.72rem; color: #64748b; }
-  table.af-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-  table.af-table th { text-align: left; padding: 12px 16px; font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 2px solid #f1f5f9; white-space: nowrap; }
-  table.af-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-  table.af-table tr:last-child td { border-bottom: none; }
-  table.af-table tr:hover td { background: #f8fafc; }
-  .af-mono { font-family: 'SF Mono', Consolas, monospace; font-size: 0.78rem; }
-  .af-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 600; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.3px; }
-  .af-amt-dr { color: #1976d2; font-weight: 700; }
-  .af-amt-cr { color: #16a34a; font-weight: 700; }
-  .af-bal-zero { color: #16a34a; font-weight: 700; }
-  .af-bal-pos { color: #e65100; font-weight: 700; }
-  .af-total-row { background: #f0f7ff; font-weight: 700; }
-  .af-total-row td { border-top: 2px solid var(--line); color: #1e293b; }
+  .ap-table-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .ap-table-head { background: #f8fafc; border-bottom: 1px solid var(--line); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .ap-table-head h3 { margin: 0; font-size: 0.88rem; font-weight: 700; color: var(--ink); }
+  .ap-table-head .count { font-size: 0.72rem; color: #64748b; }
+  table.ap-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  table.ap-table th { text-align: left; padding: 12px 16px; font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 2px solid #f1f5f9; white-space: nowrap; }
+  table.ap-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  table.ap-table tr:last-child td { border-bottom: none; }
+  table.ap-table tr:hover td { background: #f8fafc; }
+  .ap-mono { font-family: 'SF Mono', Consolas, monospace; font-size: 0.78rem; }
+  .ap-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 600; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.3px; }
+  .ap-amt-dr { color: #1976d2; font-weight: 700; }
+  .ap-amt-cr { color: #16a34a; font-weight: 700; }
+  .ap-bal-zero { color: #16a34a; font-weight: 700; }
+  .ap-bal-pos { color: #e65100; font-weight: 700; }
+  .ap-total-row { background: #f0f7ff; font-weight: 700; }
+  .ap-total-row td { border-top: 2px solid var(--line); color: #1e293b; }
 
   /* ─── Empty State ─── */
-  .af-empty { text-align: center; padding: 48px 24px; color: #64748b; }
-  .af-empty .icon { font-size: 3rem; margin-bottom: 10px; opacity: 0.5; }
-  .af-empty p { margin: 0 0 8px; font-size: 0.85rem; color: #0f172a; font-weight: 500; }
-  .af-empty small { font-size: 0.75rem; color: #94a3b8; }
+  .ap-empty { text-align: center; padding: 48px 24px; color: #64748b; }
+  .ap-empty .icon { font-size: 3rem; margin-bottom: 10px; opacity: 0.5; }
+  .ap-empty p { margin: 0 0 8px; font-size: 0.85rem; color: #0f172a; font-weight: 500; }
+  .ap-empty small { font-size: 0.75rem; color: #94a3b8; }
 
   /* ─── Action Buttons ─── */
   .btn-sm { padding: 6px 14px; font-size: 0.78rem; font-weight: 600; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
@@ -89,48 +91,56 @@
   .btn-sm.primary:hover { background: #0d47a1; border-color: #0d47a1; }
   .btn-sm.green { background: #16a34a; color: #fff; border-color: #16a34a; }
   .btn-sm.green:hover { background: #15803d; border-color: #15803d; }
+  .btn-sm.danger { background: #fee2e2; color: #c62828; border-color: #fecaca; }
+  .btn-sm.danger:hover { background: #c62828; color: #fff; border-color: #c62828; }
   .btn-sm.outline { border-color: var(--line); }
   .btn-sm.outline:hover { border-color: #c62828; color: #c62828; }
 
-  /* ─── Modal ─── */
-  .af-modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; }
-  .af-modal-overlay.is-open { display: flex; animation: afFadeIn 0.2s ease; }
-  @keyframes afFadeIn { from { opacity: 0 } to { opacity: 1 } }
-  @keyframes afSlideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
-  .af-modal { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; width: 92%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18); animation: afSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-  .af-modal-header { padding: 18px 24px 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
-  .af-modal-header h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
-  .af-modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #94a3b8; padding: 4px 8px; border-radius: 6px; transition: all 0.15s; }
-  .af-modal-close:hover { background: #f1f5f9; color: var(--ink); }
-  .af-modal-body { padding: 16px 24px 20px; }
-  .af-modal-footer { padding: 12px 24px 18px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 8px; }
-  .af-form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-  .af-form-group label { font-size: 0.75rem; font-weight: 600; color: var(--ink); }
-  .af-form-group label .req { color: #c62828; font-size: 0.7rem; }
-  .af-form-group input, .af-form-group select, .af-form-group textarea { padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: var(--surface); color: var(--ink); transition: border-color 0.2s; }
-  .af-form-group input:focus, .af-form-group select:focus, .af-form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1); }
-  .af-form-group.full { grid-column: 1 / -1; }
-  .af-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 500px) { .af-form-grid { grid-template-columns: 1fr; } }
-
   /* ─── Fee Type Badge Colors ─── */
-  .af-tb-visa { background: #f3e5f5; color: #7b1fa2; }
-  .af-tb-vehicle { background: #e3f2fd; color: #1565c0; }
-  .af-tb-mulkia { background: #fff3e0; color: #e65100; }
-  .af-tb-fine { background: #ffebee; color: #c62828; }
-  .af-tb-insurance { background: #e8f5e9; color: #2e7d32; }
-  .af-tb-other { background: #eceff1; color: #546e7a; }
-  .af-tb-payment { background: #f0fdf4; color: #16a34a; }
+  .ap-tb-visa { background: #f3e5f5; color: #7b1fa2; }
+  .ap-tb-vehicle { background: #e3f2fd; color: #1565c0; }
+  .ap-tb-mulkia { background: #fff3e0; color: #e65100; }
+  .ap-tb-fine { background: #ffebee; color: #c62828; }
+  .ap-tb-insurance { background: #e8f5e9; color: #2e7d32; }
+  .ap-tb-other { background: #eceff1; color: #546e7a; }
+  .ap-tb-payment { background: #f0fdf4; color: #16a34a; }
+
+  /* ─── Modal ─── */
+  .ap-modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; }
+  .ap-modal-overlay.is-open { display: flex; animation: apFadeIn 0.2s ease; }
+  @keyframes apFadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes apSlideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+  .ap-modal { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; width: 92%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18); animation: apSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .ap-modal-header { padding: 18px 24px 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+  .ap-modal-header h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
+  .ap-modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #94a3b8; padding: 4px 8px; border-radius: 6px; transition: all 0.15s; }
+  .ap-modal-close:hover { background: #f1f5f9; color: var(--ink); }
+  .ap-modal-body { padding: 16px 24px 20px; }
+  .ap-modal-footer { padding: 12px 24px 18px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 8px; }
+  .ap-form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .ap-form-group label { font-size: 0.75rem; font-weight: 600; color: var(--ink); }
+  .ap-form-group label .req { color: #c62828; font-size: 0.7rem; }
+  .ap-form-group input, .ap-form-group select, .ap-form-group textarea { padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: var(--surface); color: var(--ink); transition: border-color 0.2s; }
+  .ap-form-group input:focus, .ap-form-group select:focus, .ap-form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1); }
+  .ap-form-group.full { grid-column: 1 / -1; }
+  .ap-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 500px) { .ap-form-grid { grid-template-columns: 1fr; } }
+
+  /* Delete confirmation modal */
+  .ap-delete-confirm { text-align: center; padding: 24px; }
+  .ap-delete-confirm .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+  .ap-delete-confirm p { margin: 0 0 8px; font-size: 0.85rem; color: #0f172a; font-weight: 500; }
+  .ap-delete-confirm .receipt { font-family: monospace; font-weight: 700; color: #c62828; margin-bottom: 8px; }
 </style>
 
-<div class="af-shell">
+<div class="ap-shell">
 
   <!-- ─── Header ─── -->
-  <div class="af-header">
-    <a href="{{ url_for('annual_fees') }}" class="af-back">← Back to Annual Fees</a>
-    <div class="af-headline">
+  <div class="ap-header">
+    <a href="{{ url_for('annual_fees') }}" class="ap-back">← Back to Annual Fees</a>
+    <div class="ap-headline">
       <h1>{{ party.party_name }}</h1>
-      <div class="af-party-meta">
+      <div class="ap-party-meta">
         <span><span class="lbl">Code</span> {{ party.party_code }}</span>
         {% if party.vehicle_no %}<span><span class="lbl">Vehicle</span> {{ party.vehicle_no }}</span>{% endif %}
         {% if party.contact_person %}<span><span class="lbl">Contact</span> {{ party.contact_person }}</span>{% endif %}
@@ -143,92 +153,92 @@
 
   <!-- ─── Stats Strip ─── -->
   {% set paid_pct = ((overall.received / overall.annual * 100)|round|int) if overall.annual > 0 else 0 %}
-  <div class="af-stats">
-    <div class="af-stat">
-      <div class="af-stat-icon total">💰</div>
+  <div class="ap-stats">
+    <div class="ap-stat">
+      <div class="ap-stat-icon total">💰</div>
       <div>
-        <div class="af-stat-val">AED {{ "%.2f"|format(overall.annual) }}</div>
-        <div class="af-stat-label">Total Annual Fees</div>
-        <div class="af-stat-pct">{{ overall.entries }} entry{{ 's' if overall.entries != 1 else '' }}</div>
+        <div class="ap-stat-val total">AED {{ "%.2f"|format(overall.annual) }}</div>
+        <div class="ap-stat-label">Total Annual Fees</div>
+        <div class="ap-stat-pct">{{ overall.entries }} entry{{ 's' if overall.entries != 1 else '' }}</div>
       </div>
     </div>
-    <div class="af-stat">
-      <div class="af-stat-icon paid">✅</div>
+    <div class="ap-stat">
+      <div class="ap-stat-icon paid">✅</div>
       <div>
-        <div class="af-stat-val paid">AED {{ "%.2f"|format(overall.received) }}</div>
-        <div class="af-stat-label">Paid</div>
-        <div class="af-stat-pct green">{{ paid_pct }}% collected</div>
+        <div class="ap-stat-val paid">AED {{ "%.2f"|format(overall.received) }}</div>
+        <div class="ap-stat-label">Paid</div>
+        <div class="ap-stat-pct green">{{ paid_pct }}% collected</div>
       </div>
     </div>
-    <div class="af-stat">
-      <div class="af-stat-icon due">⏳</div>
+    <div class="ap-stat">
+      <div class="ap-stat-icon due">⏳</div>
       <div>
-        <div class="af-stat-val due">AED {{ "%.2f"|format(overall.balance) }}</div>
-        <div class="af-stat-label">Outstanding</div>
-        <div class="af-stat-pct orange">{{ overall.due }} item{{ 's' if overall.due != 1 else '' }} due</div>
+        <div class="ap-stat-val due">AED {{ "%.2f"|format(overall.balance) }}</div>
+        <div class="ap-stat-label">Outstanding</div>
+        <div class="ap-stat-pct orange">{{ overall.due }} item{{ 's' if overall.due != 1 else '' }} due</div>
       </div>
     </div>
   </div>
 
-  <!-- ─── Fee Type Cards ─── -->
-  <div class="af-section">
-    <div class="af-section-head">
+  <!-- ─── Fee Breakdown Cards ─── -->
+  <div class="ap-section">
+    <div class="ap-section-head">
       <h2>Fee Breakdown</h2>
-      <button class="btn-sm primary" onclick="document.getElementById('addFeeModal').classList.add('is-open')">+ Add Fee</button>
+      <button class="btn-sm primary" onclick="openAddFeeModal()">+ Add Fee</button>
     </div>
-    <div class="af-cards">
+    <div class="ap-cards">
       {% set vs = type_summary.get('Visa', {'annual': 0, 'received': 0, 'balance': 0, 'entries': 0, 'due': 0}) %}
       {% set pct = ((vs.received / vs.annual * 100)|round|int) if vs.annual > 0 else 0 %}
-      <div class="af-card" style="border-left: 3px solid #7b1fa2;">
-        <div class="af-card-head">
-          <div class="af-stat-icon" style="width:36px;height:36px;background:#f3e5f5;color:#7b1fa2;font-size:1.1rem">🪪</div>
+      <div class="ap-card" style="border-left: 3px solid #7b1fa2;">
+        <div class="ap-card-head">
+          <div class="ap-stat-icon" style="width:36px;height:36px;background:#f3e5f5;color:#7b1fa2;font-size:1.1rem">🪪</div>
           <div style="text-align:right">
-            <div class="af-card-title">Visa Fee</div>
-            <div class="af-card-sub">{{ vs.entries }} entry{{ 's' if vs.entries != 1 else '' }} · {{ vs.due }} due</div>
+            <div class="ap-card-title">Visa Fee</div>
+            <div class="ap-card-sub">{{ vs.entries }} entry{{ 's' if vs.entries != 1 else '' }} · {{ vs.due }} due</div>
           </div>
         </div>
-        <div class="af-card-body">
-          <div class="af-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(vs.annual) }}</span></div>
-          <div class="af-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(vs.received) }}</span></div>
-          <div class="af-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(vs.balance) }}</span></div>
-          <div class="af-progress"><div class="af-progress-fill paid" style="width:{{ pct }}%"></div></div>
+        <div class="ap-card-body">
+          <div class="ap-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(vs.annual) }}</span></div>
+          <div class="ap-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(vs.received) }}</span></div>
+          <div class="ap-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(vs.balance) }}</span></div>
+          <div class="ap-progress"><div class="ap-progress-fill paid" style="width:{{ pct }}%"></div></div>
         </div>
       </div>
 
       {% set vs2 = type_summary.get('Vehicle', {'annual': 0, 'received': 0, 'balance': 0, 'entries': 0, 'due': 0}) %}
       {% set pct2 = ((vs2.received / vs2.annual * 100)|round|int) if vs2.annual > 0 else 0 %}
-      <div class="af-card" style="border-left: 3px solid #1565c0;">
-        <div class="af-card-head">
-          <div class="af-stat-icon" style="width:36px;height:36px;background:#e3f2fd;color:#1565c0;font-size:1.1rem">🚛</div>
+      <div class="ap-card" style="border-left: 3px solid #1565c0;">
+        <div class="ap-card-head">
+          <div class="ap-stat-icon" style="width:36px;height:36px;background:#e3f2fd;color:#1565c0;font-size:1.1rem">🚛</div>
           <div style="text-align:right">
-            <div class="af-card-title">Vehicle Fee</div>
-            <div class="af-card-sub">{{ vs2.entries }} entry{{ 's' if vs2.entries != 1 else '' }} · {{ vs2.due }} due</div>
+            <div class="ap-card-title">Vehicle Fee</div>
+            <div class="ap-card-sub">{{ vs2.entries }} entry{{ 's' if vs2.entries != 1 else '' }} · {{ vs2.due }} due</div>
           </div>
         </div>
-        <div class="af-card-body">
-          <div class="af-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(vs2.annual) }}</span></div>
-          <div class="af-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(vs2.received) }}</span></div>
-          <div class="af-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(vs2.balance) }}</span></div>
-          <div class="af-progress"><div class="af-progress-fill paid" style="width:{{ pct2 }}%"></div></div>
+        <div class="ap-card-body">
+          <div class="ap-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(vs2.annual) }}</span></div>
+          <div class="ap-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(vs2.received) }}</span></div>
+          <div class="ap-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(vs2.balance) }}</span></div>
+          <div class="ap-progress"><div class="ap-progress-fill paid" style="width:{{ pct2 }}%"></div></div>
         </div>
       </div>
 
       {% for ft, v in type_summary.items() %}
         {% if ft not in ('Visa', 'Vehicle') and v.entries > 0 %}
         {% set pct3 = ((v.received / v.annual * 100)|round|int) if v.annual > 0 else 0 %}
-        <div class="af-card">
-          <div class="af-card-head">
-            <div class="af-stat-icon" style="width:36px;height:36px;background:#eceff1;color:#546e7a;font-size:1.1rem">📄</div>
+        <div class="ap-card">
+          <div class="ap-card-head">
+            <div class="ap-stat-icon" style="width:36px;height:36px;background:#eceff1;color:#546e7a;font-size:1.1rem">📄</div>
             <div style="text-align:right">
-              <div class="af-card-title">{{ ft }}</div>
-              <div class="af-card-sub">{{ v.entries }} entry{{ 's' if v.entries != 1 else '' }} · {{ v.due }} due</div>
+              <div class="ap-card-title">{{ ft }}</div>
+              <div class="ap-card-sub">{{ v.entries }} entry{{ 's' if v.entries != 1 else '' }} · {{ v.due }} due</div>
             </div>
           </div>
-          <div class="af-card-body">
-            <div class="af-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(v.annual) }}</span></div>
-            <div class="af-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(v.received) }}</span></div>
-            <div class="af-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(v.balance) }}</span></div>
-            <div class="af-progress"><div class="af-progress-fill paid" style="width:{{ pct3 }}%"></div></div>
+          <div class="ap-card-body">
+            <div class="ap-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(v.annual) }}</span></div>
+            <div class="ap-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(v.received) }}</span></div>
+            <div class="ap-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(v.balance) }}</span></div>
+            <div class="ap-progress"><div class="ap-progress-fill paid" style="width:{{ pct3 }}%"></div></div>
           </div>
         </div>
         {% endif %}
@@ -237,23 +247,23 @@
   </div>
 
   <!-- ─── Statement of Account ─── -->
-  <div class="af-section">
-    <div class="af-section-head">
+  <div class="ap-section">
+    <div class="ap-section-head">
       <h2>Statement of Account</h2>
-      <div class="af-actions">
+      <div class="ap-actions">
         <a href="{{ url_for('annual_fee_soa_pdf', party_code=party.party_code) }}" class="btn-sm primary" target="_blank">📄 Download PDF</a>
-        <button class="btn-sm green" onclick="document.getElementById('payModal').classList.add('is-open')">💳 Record Payment</button>
-        <button class="btn-sm" onclick="document.getElementById('addTransModal').classList.add('is-open')">📝 Add Transaction</button>
+        <button class="btn-sm green" onclick="openPayModal()">💳 Record Payment</button>
+        <button class="btn-sm" onclick="openAddFeeModal()">📝 Add Transaction</button>
       </div>
     </div>
 
     {% if soa_rows %}
-    <div class="af-table-card">
-      <div class="af-table-head">
+    <div class="ap-table-card">
+      <div class="ap-table-head">
         <h3>Transaction History</h3>
         <span class="count">{{ soa_rows|length }} entr{{ 'y' if soa_rows|length == 1 else 'ies' }}</span>
       </div>
-      <table class="af-table">
+      <table class="ap-table">
         <thead>
           <tr>
             <th>Date</th>
@@ -263,7 +273,7 @@
             <th style="text-align:right">Debit (AED)</th>
             <th style="text-align:right">Credit (AED)</th>
             <th style="text-align:right">Balance (AED)</th>
-            <th style="max-width:120px">Actions</th>
+            <th style="max-width:130px">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -272,52 +282,55 @@
           {% if row.soa_type == 'fee' %}
             {% set running.bal = running.bal + row.amount %}
             <tr>
-              <td class="af-mono">{{ row.date }}</td>
-              <td><span class="af-badge af-tb-{{ row.fee_type|lower|replace(' ', '') }}">{{ row.fee_type }}</span></td>
+              <td class="ap-mono">{{ row.date }}</td>
+              <td><span class="ap-badge ap-tb-{{ row.fee_type|lower|replace(' ', '') }}">{{ row.fee_type }}</span></td>
               <td>{{ row.description or '—' }}</td>
-              <td class="af-mono" style="font-weight:600">{{ row.ref_no }}</td>
-              <td class="af-amt-dr" style="text-align:right">{{ "%.2f"|format(row.amount) }}</td>
-              <td class="af-mono" style="text-align:right;color:#94a3b8">—</td>
-              <td style="text-align:right" class="{% if running.bal > 0.009 %}af-bal-pos{% else %}af-bal-zero{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
+              <td class="ap-mono" style="font-weight:600">{{ row.ref_no }}</td>
+              <td class="ap-amt-dr" style="text-align:right">{{ "%.2f"|format(row.amount) }}</td>
+              <td class="ap-mono" style="text-align:right;color:#94a3b8">—</td>
+              <td style="text-align:right" class="{% if running.bal > 0.009 %}ap-bal-pos{% else %}ap-bal-zero{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
               <td style="white-space:nowrap;font-size:0.75rem">
-                <button class="btn-sm" style="padding:4px 10px;color:#c62828" onclick="editFeeEntry('{{ row.ref_no }}','{{ row.fee_type }}','{{ row.description or '' }}','{{ row.vehicle_no or '' }}','{{ row.date }}','{{ row.amount }}','{{ row.notes or '' }}')">Edit</button>
-                <form method="post" action="{{ url_for('delete_annual_fee', fee_no=row.ref_no) }}" style="display:inline" onsubmit="return confirm('Delete {{ row.ref_no }}?');">
+                <button class="btn-sm" style="padding:4px 10px;color:#1976d2" onclick="openEditFeeModal('{{ row.ref_no }}','{{ row.fee_type }}','{{ row.description or '' }}','{{ row.vehicle_no or '' }}','{{ row.date }}','{{ row.amount }}','{{ row.notes or '' }}')">Edit</button>
+                <form method="post" action="{{ url_for('delete_annual_fee', fee_no=row.ref_no) }}" style="display:inline" onsubmit="return confirm('Delete fee {{ row.ref_no }}?');">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn-sm" style="padding:4px 10px;color:#c62828;border-color:#c62828">Delete</button>
+                  <button type="submit" class="btn-sm danger" style="padding:4px 10px">Delete</button>
                 </form>
               </td>
             </tr>
           {% elif row.soa_type == 'payment' %}
             {% set running.bal = running.bal - row.amount %}
             <tr>
-              <td class="af-mono">{{ row.date }}</td>
-              <td><span class="af-badge af-tb-payment">💰 Payment</span></td>
+              <td class="ap-mono">{{ row.date }}</td>
+              <td><span class="ap-badge ap-tb-payment">💰 Payment</span></td>
               <td>{{ row.description or 'Payment received' }}</td>
-              <td class="af-mono" style="font-weight:600">{{ row.ref_no }}</td>
-              <td class="af-mono" style="text-align:right;color:#94a3b8">—</td>
-              <td class="af-amt-cr" style="text-align:right">{{ "%.2f"|format(row.amount) }}</td>
-              <td style="text-align:right" class="{% if running.bal > 0.009 %}af-bal-pos{% else %}af-bal-zero{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
+              <td class="ap-mono" style="font-weight:600">{{ row.ref_no }}</td>
+              <td class="ap-mono" style="text-align:right;color:#94a3b8">—</td>
+              <td class="ap-amt-cr" style="text-align:right">{{ "%.2f"|format(row.amount) }}</td>
+              <td style="text-align:right" class="{% if running.bal > 0.009 %}ap-bal-pos{% else %}ap-bal-zero{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
               <td style="white-space:nowrap;font-size:0.75rem">
-                {% if row.receipt_url %}
-                <a href="{{ row.receipt_url }}" class="btn-sm" style="padding:4px 10px" target="_blank">Receipt</a>
-                {% endif %}
+                <button class="btn-sm" style="padding:4px 10px;color:#1976d2" onclick="openEditPaymentModal('{{ row.ref_no }}','{{ row.party_code }}','{{ row.payment_date }}','{{ row.amount }}','{{ row.payment_method }}','{{ row.reference or '' }}','{{ row.notes or '' }}')">Edit</button>
+                <form method="post" action="{{ url_for('delete_annual_fee_payment', receipt_no=row.ref_no) }}" style="display:inline" onsubmit="return confirmDeletePayment('{{ row.ref_no }}', '{{ row.amount }}');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="party_code" value="{{ row.party_code }}">
+                  <button type="submit" class="btn-sm danger" style="padding:4px 10px">Delete</button>
+                </form>
               </td>
             </tr>
           {% endif %}
           {% endfor %}
-          <tr class="af-total-row">
+          <tr class="ap-total-row">
             <td colspan="3">Closing Balance</td>
             <td></td>
             <td style="text-align:right"></td>
             <td style="text-align:right"></td>
-            <td style="text-align:right" class="af-bal-pos">{{ "%.2f"|format(overall.balance) }}</td>
+            <td style="text-align:right" class="ap-bal-pos">{{ "%.2f"|format(overall.balance) }}</td>
             <td></td>
           </tr>
         </tbody>
       </table>
     </div>
     {% else %}
-    <div class="af-empty">
+    <div class="ap-empty">
       <div class="icon">📋</div>
       <p>No transactions yet</p>
       <small>Add a fee entry or record a payment to start tracking.</small>
@@ -328,48 +341,48 @@
 </div>
 
 <!-- ─── Add Fee Modal ─── -->
-<div class="af-modal-overlay" id="addFeeModal">
-  <div class="af-modal">
-    <div class="af-modal-header">
-      <h3 id="afAddFeeTitle">➕ Add Fee Entry</h3>
-      <button class="af-modal-close" onclick="document.getElementById('addFeeModal').classList.remove('is-open')">✕</button>
+<div class="ap-modal-overlay" id="apAddFeeModal">
+  <div class="ap-modal">
+    <div class="ap-modal-header">
+      <h3 id="apAddFeeTitle">➕ Add Fee Entry</h3>
+      <button class="ap-modal-close" onclick="closeModal('apAddFeeModal')">✕</button>
     </div>
     <form method="post" action="{{ url_for('add_party_annual_fee', party_code=party.party_code) }}">
-    <div class="af-modal-body">
+    <div class="ap-modal-body">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="af-form-grid">
-        <div class="af-form-group">
+      <div class="ap-form-grid">
+        <div class="ap-form-group">
           <label>Fee Type <span class="req">*</span></label>
-          <select name="fee_type" id="afFeeType" required>
+          <select name="fee_type" id="apFeeType" required>
             {% for item in fee_type_options %}
             <option value="{{ item }}">{{ item }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="af-form-group">
+        <div class="ap-form-group">
           <label>Due Date <span class="req">*</span></label>
           <input type="date" name="due_date" required>
         </div>
-        <div class="af-form-group">
+        <div class="ap-form-group">
           <label>Annual Amount (AED) <span class="req">*</span></label>
           <input type="number" step="0.01" name="annual_amount" placeholder="0.00" required>
         </div>
-        <div class="af-form-group" id="afVehicleNoGroup">
+        <div class="ap-form-group" id="apVehicleNoGroup">
           <label>Vehicle No</label>
           <input type="text" name="vehicle_no" placeholder="e.g. ABC-1234">
         </div>
-        <div class="af-form-group full">
+        <div class="ap-form-group full">
           <label>Description</label>
           <input type="text" name="description" placeholder="e.g. Visa renewal 2025">
         </div>
-        <div class="af-form-group full">
+        <div class="ap-form-group full">
           <label>Notes</label>
           <textarea name="notes" rows="2" placeholder="Any notes..."></textarea>
         </div>
       </div>
     </div>
-    <div class="af-modal-footer">
-      <button type="button" class="btn-sm" onclick="document.getElementById('addFeeModal').classList.remove('is-open')">Cancel</button>
+    <div class="ap-modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('apAddFeeModal')">Cancel</button>
       <button type="submit" class="btn-sm primary">Save Entry</button>
     </div>
     </form>
@@ -377,127 +390,81 @@
 </div>
 
 <!-- ─── Edit Fee Modal ─── -->
-<div class="af-modal-overlay" id="editFeeModal">
-  <div class="af-modal">
-    <div class="af-modal-header">
+<div class="ap-modal-overlay" id="apEditFeeModal">
+  <div class="ap-modal">
+    <div class="ap-modal-header">
       <h3>✏️ Edit Fee Entry</h3>
-      <button class="af-modal-close" onclick="document.getElementById('editFeeModal').classList.remove('is-open')">✕</button>
+      <button class="ap-modal-close" onclick="closeModal('apEditFeeModal')">✕</button>
     </div>
-    <form method="post" id="afEditFeeForm">
-    <div class="af-modal-body">
+    <form method="post" id="apEditFeeForm">
+    <div class="ap-modal-body">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="af-form-grid">
-        <div class="af-form-group">
+      <div class="ap-form-grid">
+        <div class="ap-form-group">
           <label>Fee No</label>
-          <input type="text" id="afEditFeeNoDisplay" readonly style="background:#f1f5f9;color:#64748b">
+          <input type="text" id="apEditFeeNoDisplay" readonly style="background:#f1f5f9;color:#64748b">
         </div>
-        <div class="af-form-group">
+        <div class="ap-form-group">
           <label>Fee Type <span class="req">*</span></label>
-          <select name="fee_type" id="afEditFeeType" required>
+          <select name="fee_type" id="apEditFeeType" required>
             {% for item in fee_type_options %}
             <option value="{{ item }}">{{ item }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="af-form-group">
+        <div class="ap-form-group">
           <label>Due Date <span class="req">*</span></label>
-          <input type="date" name="due_date" id="afEditDueDate" required>
+          <input type="date" name="due_date" id="apEditDueDate" required>
         </div>
-        <div class="af-form-group">
+        <div class="ap-form-group">
           <label>Annual Amount (AED) <span class="req">*</span></label>
-          <input type="number" step="0.01" name="annual_amount" id="afEditAnnualAmount" placeholder="0.00" required>
+          <input type="number" step="0.01" name="annual_amount" id="apEditAnnualAmount" placeholder="0.00" required>
         </div>
-        <div class="af-form-group" id="afEditVehicleNoGroup">
+        <div class="ap-form-group" id="apEditVehicleNoGroup">
           <label>Vehicle No</label>
-          <input type="text" name="vehicle_no" id="afEditVehicleNo" placeholder="e.g. ABC-1234">
+          <input type="text" name="vehicle_no" id="apEditVehicleNo" placeholder="e.g. ABC-1234">
         </div>
-        <div class="af-form-group full">
+        <div class="ap-form-group full">
           <label>Description</label>
-          <input type="text" name="description" id="afEditDescription">
+          <input type="text" name="description" id="apEditDescription">
         </div>
-        <div class="af-form-group full">
+        <div class="ap-form-group full">
           <label>Notes</label>
-          <textarea name="notes" id="afEditNotes" rows="2"></textarea>
+          <textarea name="notes" id="apEditNotes" rows="2"></textarea>
         </div>
       </div>
     </div>
-    <div class="af-modal-footer">
-      <button type="button" class="btn-sm" onclick="document.getElementById('editFeeModal').classList.remove('is-open')">Cancel</button>
+    <div class="ap-modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('apEditFeeModal')">Cancel</button>
       <button type="submit" class="btn-sm primary">Save Changes</button>
     </div>
     </form>
   </div>
 </div>
 
-<!-- ─── Add Transaction (General) Modal ─── -->
-<div class="af-modal-overlay" id="addTransModal">
-  <div class="af-modal">
-    <div class="af-modal-header">
-      <h3>📝 Add Transaction</h3>
-      <button class="af-modal-close" onclick="document.getElementById('addTransModal').classList.remove('is-open')">✕</button>
-    </div>
-    <form method="post" action="{{ url_for('add_party_annual_fee', party_code=party.party_code) }}">
-    <div class="af-modal-body">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="af-form-grid">
-        <div class="af-form-group">
-          <label>Transaction Type <span class="req">*</span></label>
-          <select name="fee_type" required>
-            <option value="Mulkia">🇦🇪 Mulkia</option>
-            <option value="Fine">🚨 Fine</option>
-            <option value="Insurance">🛡️ Insurance</option>
-            <option value="Other">📦 Other</option>
-          </select>
-        </div>
-        <div class="af-form-group">
-          <label>Date <span class="req">*</span></label>
-          <input type="date" name="due_date" required>
-        </div>
-        <div class="af-form-group">
-          <label>Amount (AED) <span class="req">*</span></label>
-          <input type="number" step="0.01" name="annual_amount" placeholder="0.00" required>
-        </div>
-        <div class="af-form-group full">
-          <label>Description <span class="req">*</span></label>
-          <input type="text" name="description" placeholder="e.g. Mulkia renewal for ABC-1234" required>
-        </div>
-        <div class="af-form-group full">
-          <label>Notes</label>
-          <textarea name="notes" rows="2" placeholder="Any notes..."></textarea>
-        </div>
-      </div>
-    </div>
-    <div class="af-modal-footer">
-      <button type="button" class="btn-sm" onclick="document.getElementById('addTransModal').classList.remove('is-open')">Cancel</button>
-      <button type="submit" class="btn-sm primary">Save Transaction</button>
-    </div>
-    </form>
-  </div>
-</div>
-
 <!-- ─── Record Payment Modal ─── -->
-<div class="af-modal-overlay" id="payModal">
-  <div class="af-modal">
-    <div class="af-modal-header">
+<div class="ap-modal-overlay" id="apPayModal">
+  <div class="ap-modal">
+    <div class="ap-modal-header">
       <h3>💳 Record Payment</h3>
-      <button class="af-modal-close" onclick="document.getElementById('payModal').classList.remove('is-open')">✕</button>
+      <button class="ap-modal-close" onclick="closeModal('apPayModal')">✕</button>
     </div>
     <form method="post" action="{{ url_for('record_annual_fee_payment', party_code=party.party_code) }}">
-    <div class="af-modal-body">
+    <div class="ap-modal-body">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <p style="font-size:0.78rem;color:#64748b;margin:0 0 14px 0;background:#f0f7ff;padding:10px 14px;border-radius:8px;border-left:3px solid var(--primary)">
         💡 Enter the amount received. It will be applied to the oldest outstanding fees first.
       </p>
-      <div class="af-form-grid">
-        <div class="af-form-group">
+      <div class="ap-form-grid">
+        <div class="ap-form-group">
           <label>Payment Amount (AED) <span class="req">*</span></label>
           <input type="number" step="0.01" name="amount" placeholder="0.00" required>
         </div>
-        <div class="af-form-group">
+        <div class="ap-form-group">
           <label>Payment Date <span class="req">*</span></label>
           <input type="date" name="payment_date" required>
         </div>
-        <div class="af-form-group">
+        <div class="ap-form-group">
           <label>Payment Method</label>
           <select name="payment_method">
             <option value="Cash">Cash</option>
@@ -507,11 +474,11 @@
             <option value="Other">Other</option>
           </select>
         </div>
-        <div class="af-form-group">
+        <div class="ap-form-group">
           <label>Reference</label>
           <input type="text" name="reference" placeholder="e.g. Cheque no, transfer ref">
         </div>
-        <div class="af-form-group full">
+        <div class="ap-form-group full">
           <label>Notes</label>
           <textarea name="notes" rows="2" placeholder="Payment notes..."></textarea>
         </div>
@@ -522,67 +489,159 @@
       </div>
       {% endif %}
     </div>
-    <div class="af-modal-footer">
-      <button type="button" class="btn-sm" onclick="document.getElementById('payModal').classList.remove('is-open')">Cancel</button>
+    <div class="ap-modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('apPayModal')">Cancel</button>
       <button type="submit" class="btn-sm primary">Record Payment</button>
     </div>
     </form>
   </div>
 </div>
 
+<!-- ─── Edit Payment Modal ─── -->
+<div class="ap-modal-overlay" id="apEditPaymentModal">
+  <div class="ap-modal">
+    <div class="ap-modal-header">
+      <h3>✏️ Edit Payment</h3>
+      <button class="ap-modal-close" onclick="closeModal('apEditPaymentModal')">✕</button>
+    </div>
+    <form method="post" id="apEditPaymentForm">
+    <div class="ap-modal-body">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="party_code" id="apEditPaymentPartyCode">
+      <input type="hidden" name="receipt_no" id="apEditPaymentReceiptNo" value="{{ request.path.split('/')[-2] if 'edit' in request.path else '' }}">
+      <div class="ap-form-grid">
+        <div class="ap-form-group">
+          <label>Receipt No</label>
+          <input type="text" id="apEditPaymentReceiptNoDisplay" readonly style="background:#f1f5f9;color:#64748b">
+        </div>
+        <div class="ap-form-group">
+          <label>Payment Date <span class="req">*</span></label>
+          <input type="date" name="payment_date" id="apEditPaymentDate" required>
+        </div>
+        <div class="ap-form-group">
+          <label>Amount (AED) <span class="req">*</span></label>
+          <input type="number" step="0.01" name="amount" id="apEditPaymentAmount" placeholder="0.00" required>
+        </div>
+        <div class="ap-form-group">
+          <label>Payment Method</label>
+          <select name="payment_method" id="apEditPaymentMethod">
+            <option value="Cash">Cash</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Card">Card</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="ap-form-group">
+          <label>Reference</label>
+          <input type="text" name="reference" id="apEditPaymentReference" placeholder="e.g. Cheque no, transfer ref">
+        </div>
+        <div class="ap-form-group full">
+          <label>Notes</label>
+          <textarea name="notes" id="apEditPaymentNotes" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="ap-modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('apEditPaymentModal')">Cancel</button>
+      <button type="submit" class="btn-sm primary">Save Changes</button>
+    </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── Delete Payment Confirmation ─── -->
+<div class="ap-modal-overlay" id="apDeletePaymentModal">
+  <div class="ap-modal" style="max-width:420px">
+    <div class="ap-modal-header">
+      <h3>🗑️ Delete Payment</h3>
+      <button class="ap-modal-close" onclick="closeModal('apDeletePaymentModal')">✕</button>
+    </div>
+    <div class="ap-modal-body">
+      <div class="ap-delete-confirm">
+        <div class="icon">⚠️</div>
+        <p>Deleting this payment will reverse its effect on all fee balances.</p>
+        <div class="receipt" id="apDeleteReceiptDisplay"></div>
+        <div style="font-size:0.78rem;color:#64748b;margin-top:8px">Fee balances will be recalculated automatically.</div>
+      </div>
+    </div>
+    <div class="ap-modal-footer">
+      <button type="button" class="btn-sm" onclick="closeModal('apDeletePaymentModal')">Cancel</button>
+      <form method="post" id="apDeletePaymentForm" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="party_code" id="apDeletePartyCode">
+        <input type="hidden" name="receipt_no" id="apDeleteReceiptNo">
+        <button type="submit" class="btn-sm danger">Delete Payment</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
-  /* Pre-select fee type in Add Fee modal */
-  function openAddFeeModal(type) {
-    var modal = document.getElementById('addFeeModal');
-    var sel = document.getElementById('afFeeType');
-    var title = document.getElementById('afAddFeeTitle');
-    if (title) title.textContent = '➕ Add ' + type + ' Fee';
-    if (sel) {
-      for (var i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === type) { sel.selectedIndex = i; break; }
-      }
+  function closeModal(id) { document.getElementById(id).classList.remove('is-open'); }
+
+  /* Add Fee */
+  function openAddFeeModal() {
+    document.getElementById('apAddFeeModal').classList.add('is-open');
+    var sel = document.getElementById('apFeeType');
+    var vg = document.getElementById('apVehicleNoGroup');
+    if (sel && vg) {
+      vg.style.display = sel.value === 'Vehicle' ? '' : 'none';
+      sel.addEventListener('change', function() { vg.style.display = this.value === 'Vehicle' ? '' : 'none'; }, {once: true});
     }
-    toggleVehicleNo();
-    modal.classList.add('is-open');
   }
 
-  var selFee = document.getElementById('afFeeType');
-  var vehGrp = document.getElementById('afVehicleNoGroup');
-  if (selFee && vehGrp) {
-    function toggleVehicleNo() { vehGrp.style.display = selFee.value === 'Vehicle' ? '' : 'none'; }
-    selFee.addEventListener('change', toggleVehicleNo);
-    toggleVehicleNo();
-  }
-
-  /* Edit fee entry */
-  function editFeeEntry(feeNo, feeType, desc, vehicleNo, dueDate, amount, notes) {
-    document.getElementById('afEditFeeForm').action = '{{ url_for("edit_party_annual_fee", party_code=party.party_code, fee_no="__PF__") }}'.replace('__PF__', feeNo);
-    document.getElementById('afEditFeeNoDisplay').value = feeNo;
-    var s = document.getElementById('afEditFeeType');
+  /* Edit Fee */
+  function openEditFeeModal(feeNo, feeType, desc, vehicleNo, dueDate, amount, notes) {
+    document.getElementById('apEditFeeForm').action = '{{ url_for("edit_party_annual_fee", party_code=party.party_code, fee_no="__PF__") }}'.replace('__PF__', feeNo);
+    document.getElementById('apEditFeeNoDisplay').value = feeNo;
+    var s = document.getElementById('apEditFeeType');
     for (var i = 0; i < s.options.length; i++) { if (s.options[i].value === feeType) { s.selectedIndex = i; break; } }
-    document.getElementById('afEditDueDate').value = dueDate;
-    document.getElementById('afEditAnnualAmount').value = amount;
-    document.getElementById('afEditVehicleNo').value = vehicleNo;
-    document.getElementById('afEditDescription').value = desc;
-    document.getElementById('afEditNotes').value = notes;
-    toggleEditVehicleNo();
-    document.getElementById('editFeeModal').classList.add('is-open');
+    var vg = document.getElementById('apEditVehicleNoGroup');
+    if (vg) vg.style.display = feeType === 'Vehicle' ? '' : 'none';
+    s.addEventListener('change', function() { document.getElementById('apEditVehicleNoGroup').style.display = this.value === 'Vehicle' ? '' : 'none'; }, {once: true});
+    document.getElementById('apEditDueDate').value = dueDate;
+    document.getElementById('apEditAnnualAmount').value = amount;
+    document.getElementById('apEditVehicleNo').value = vehicleNo;
+    document.getElementById('apEditDescription').value = desc;
+    document.getElementById('apEditNotes').value = notes;
+    document.getElementById('apEditFeeModal').classList.add('is-open');
   }
 
-  var selEdit = document.getElementById('afEditFeeType');
-  var vehEditGrp = document.getElementById('afEditVehicleNoGroup');
-  if (selEdit && vehEditGrp) {
-    function toggleEditVehicleNo() { vehEditGrp.style.display = selEdit.value === 'Vehicle' ? '' : 'none'; }
-    selEdit.addEventListener('change', toggleEditVehicleNo);
-    toggleEditVehicleNo();
+  /* Record Payment */
+  function openPayModal() { document.getElementById('apPayModal').classList.add('is-open'); }
+
+  /* Edit Payment */
+  function openEditPaymentModal(receiptNo, partyCode, payDate, amount, payMethod, reference, notes) {
+    document.getElementById('apEditPaymentForm').action = '{{ url_for("edit_annual_fee_payment_post", receipt_no="__RN__") }}'.replace('__RN__', receiptNo);
+    document.getElementById('apEditPaymentPartyCode').value = partyCode;
+    document.getElementById('apEditPaymentReceiptNo').value = receiptNo;
+    document.getElementById('apEditPaymentReceiptNoDisplay').value = receiptNo;
+    document.getElementById('apEditPaymentDate').value = payDate;
+    document.getElementById('apEditPaymentAmount').value = amount;
+    var sm = document.getElementById('apEditPaymentMethod');
+    for (var i = 0; i < sm.options.length; i++) { if (sm.options[i].value === payMethod) { sm.selectedIndex = i; break; } }
+    document.getElementById('apEditPaymentReference').value = reference;
+    document.getElementById('apEditPaymentNotes').value = notes;
+    document.getElementById('apEditPaymentModal').classList.add('is-open');
+  }
+
+  /* Delete Payment Confirmation */
+  function confirmDeletePayment(receiptNo, amount) {
+    event.preventDefault();
+    document.getElementById('apDeleteReceiptDisplay').textContent = receiptNo;
+    document.getElementById('apDeleteReceiptNo').value = receiptNo;
+    document.getElementById('apDeletePartyCode').value = '{{ party.party_code }}';
+    document.getElementById('apDeletePaymentModal').classList.add('is-open');
+    return false;
   }
 
   /* Close modal on overlay click */
-  document.querySelectorAll('.af-modal-overlay').forEach(function(ov) {
+  document.querySelectorAll('.ap-modal-overlay').forEach(function(ov) {
     ov.addEventListener('click', function(e) { if (e.target === ov) ov.classList.remove('is-open'); });
   });
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') document.querySelectorAll('.af-modal-overlay.is-open').forEach(function(m) { m.classList.remove('is-open'); });
+    if (e.key === 'Escape') document.querySelectorAll('.ap-modal-overlay.is-open').forEach(function(m) { m.classList.remove('is-open'); });
   });
 </script>
 {% endblock %}

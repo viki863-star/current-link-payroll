@@ -5279,6 +5279,131 @@ def register_routes(app: Flask) -> None:
             flash(str(exc), "error")
             return redirect(url_for("annual_fee_party_profile", party_code=party_code))
 
+    @app.get("/annual-fees/payment/<receipt_no>/edit")
+    @_login_required("admin")
+    def edit_annual_fee_payment_get(receipt_no: str):
+        """Return payment data as JSON for the edit modal."""
+        db = open_db()
+        _ensure_annual_fee_payments_table(db)
+        payment = db.execute(
+            """
+            SELECT receipt_no, fee_no, party_code, payment_date, amount,
+                   payment_method, reference, notes
+            FROM annual_fee_payments
+            WHERE receipt_no = ?
+            """,
+            (receipt_no,),
+        ).fetchone()
+        if not payment:
+            return jsonify({"error": "Payment not found"}), 404
+        return jsonify({
+            "receipt_no": payment["receipt_no"],
+            "fee_no": payment["fee_no"],
+            "party_code": payment["party_code"],
+            "payment_date": payment["payment_date"],
+            "amount": float(payment["amount"] or 0),
+            "payment_method": payment["payment_method"] or "Cash",
+            "reference": payment["reference"] or "",
+            "notes": payment["notes"] or "",
+        })
+
+    @app.post("/annual-fees/payment/<receipt_no>/edit")
+    @_login_required("admin")
+    def edit_annual_fee_payment_post(receipt_no: str):
+        """Edit a payment and re-apply all party payments in FIFO order."""
+        db = open_db()
+        _ensure_annual_fee_payments_table(db)
+        party_code = (request.form.get("party_code") or "").strip().upper()
+        try:
+            _validate_party_reference(db, party_code)
+
+            amount = _parse_decimal(request.form.get("amount", ""), "Payment amount", required=True, minimum=0.01)
+            payment_method = (request.form.get("payment_method") or "Cash").strip() or "Cash"
+            payment_date = _validate_date_text(request.form.get("payment_date", ""), "Payment date")
+            reference = (request.form.get("reference") or "").strip()
+            notes = (request.form.get("notes") or "").strip()
+
+            # Verify payment exists and belongs to this party
+            payment = db.execute(
+                "SELECT receipt_no, party_code FROM annual_fee_payments WHERE receipt_no = ?",
+                (receipt_no,),
+            ).fetchone()
+            if not payment:
+                flash("Payment receipt not found.", "error")
+                return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+            if payment["party_code"] != party_code:
+                flash("Payment does not belong to this party.", "error")
+                return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+            # Update the payment record
+            db.execute(
+                """
+                UPDATE annual_fee_payments
+                SET payment_date = ?, amount = ?, payment_method = ?, reference = ?, notes = ?
+                WHERE receipt_no = ?
+                """,
+                (payment_date, amount, payment_method, reference, notes, receipt_no),
+            )
+
+            # Re-apply all payments for this party (FIFO) to keep fee balances consistent
+            _reapply_party_payments(db, party_code)
+
+            _audit_log(
+                db,
+                "annual_fee_payment_edited",
+                entity_type="annual_fee_payment",
+                entity_id=receipt_no,
+                details=f"{party_code} / AED {amount} / {receipt_no}",
+            )
+            db.commit()
+            flash(f"Payment {receipt_no} updated to AED {amount:,.2f}.", "success")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+        except ValidationError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+    @app.post("/annual-fees/payment/<receipt_no>/delete")
+    @_login_required("admin")
+    def delete_annual_fee_payment(receipt_no: str):
+        """Delete a payment and reverse its application to fees (FIFO re-apply)."""
+        db = open_db()
+        _ensure_annual_fee_payments_table(db)
+        party_code = (request.form.get("party_code") or "").strip().upper()
+        try:
+            _validate_party_reference(db, party_code)
+
+            payment = db.execute(
+                "SELECT receipt_no, party_code FROM annual_fee_payments WHERE receipt_no = ?",
+                (receipt_no,),
+            ).fetchone()
+            if not payment:
+                flash("Payment receipt not found.", "error")
+                return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+            if payment["party_code"] != party_code:
+                flash("Payment does not belong to this party.", "error")
+                return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+            db.execute("DELETE FROM annual_fee_payments WHERE receipt_no = ?", (receipt_no,))
+
+            # Re-apply remaining payments to reverse the deleted one's effect
+            _reapply_party_payments(db, party_code)
+
+            _audit_log(
+                db,
+                "annual_fee_payment_deleted",
+                entity_type="annual_fee_payment",
+                entity_id=receipt_no,
+                details=f"{party_code} / {receipt_no}",
+            )
+            db.commit()
+            flash(f"Payment {receipt_no} deleted and fee balances reversed.", "success")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
+        except ValidationError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("annual_fee_party_profile", party_code=party_code))
+
     @app.get("/annual-fees/party/<party_code>/receipt/<receipt_no>")
     @_login_required("admin")
     def annual_fee_receipt_pdf(party_code: str, receipt_no: str):
@@ -16931,6 +17056,77 @@ def _ensure_annual_fee_payments_table(db):
             )
         """)
         db.commit()
+
+
+def _reapply_party_payments(db, party_code: str, exclude_receipt_no: str | None = None):
+    """Reset all fee payments for a party and re-apply remaining payments in FIFO order.
+
+    Used when a payment is edited (amount changed) or deleted — ensures all
+    fee received_amount/balance_amount/status stay consistent.
+    """
+    # Reset all fees for this party to unpaid
+    db.execute(
+        """
+        UPDATE annual_fee_entries
+        SET received_amount = 0, balance_amount = annual_amount, status = 'Due'
+        WHERE party_code = ?
+        """,
+        (party_code,),
+    )
+
+    # Fetch remaining payments in chronological order
+    if exclude_receipt_no:
+        payments = db.execute(
+            """
+            SELECT receipt_no, amount, payment_date
+            FROM annual_fee_payments
+            WHERE party_code = ? AND receipt_no != ?
+            ORDER BY payment_date ASC, id ASC
+            """,
+            (party_code, exclude_receipt_no),
+        ).fetchall()
+    else:
+        payments = db.execute(
+            """
+            SELECT receipt_no, amount, payment_date
+            FROM annual_fee_payments
+            WHERE party_code = ?
+            ORDER BY payment_date ASC, id ASC
+            """,
+            (party_code,),
+        ).fetchall()
+
+    for p in payments:
+        remaining = round(float(p["amount"] or 0), 2)
+        if remaining <= 0.009:
+            continue
+        outstanding = db.execute(
+            """
+            SELECT fee_no, annual_amount, received_amount, balance_amount
+            FROM annual_fee_entries
+            WHERE party_code = ? AND balance_amount > 0.009
+            ORDER BY id ASC
+            """,
+            (party_code,),
+        ).fetchall()
+        for r in outstanding:
+            if remaining <= 0.009:
+                break
+            bal = round(float(r["balance_amount"] or 0), 2)
+            apply = round(min(remaining, bal), 2)
+            new_received = round(float(r["received_amount"] or 0) + apply, 2)
+            new_balance = round(float(r["annual_amount"]) - new_received, 2)
+            new_status = "Paid" if new_balance <= 0.009 else "Partial"
+            db.execute(
+                """
+                UPDATE annual_fee_entries
+                SET received_amount = ?, balance_amount = ?, status = ?
+                WHERE fee_no = ?
+                """,
+                (new_received, max(new_balance, 0.0), new_status, r["fee_no"]),
+            )
+            remaining = round(remaining - apply, 2)
+    db.commit()
 
 
 def _fleet_maintenance_filter_values(request):
