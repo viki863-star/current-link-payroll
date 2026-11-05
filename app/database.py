@@ -223,6 +223,7 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     received_by TEXT,
     payment_method TEXT DEFAULT 'Cash',
     details TEXT,
+    vehicle_no TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -1150,6 +1151,7 @@ CREATE TABLE IF NOT EXISTS owner_fund_entries (
     received_by TEXT,
     payment_method TEXT DEFAULT 'Cash',
     details TEXT,
+    vehicle_no TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -2121,6 +2123,7 @@ REQUIRED_COLUMNS = {
         "transaction_type": "TEXT NOT NULL DEFAULT 'IN'",
         "source_table": "TEXT",
         "source_id": "BIGINT",
+        "vehicle_no": "TEXT",
     },
     "company_profile": {
         "legal_name": "TEXT",

@@ -166,6 +166,10 @@
             <input type="text" name="received_by" value="{{ values.received_by if values.transaction_type == 'OUT' else '' }}" placeholder="Person or company name">
           </div>
           <div class="fg">
+            <label>Vehicle No</label>
+            <input type="text" name="vehicle_no" value="{{ values.vehicle_no if values.transaction_type == 'OUT' else '' }}" placeholder="e.g. DXB-1234">
+          </div>
+          <div class="fg">
             <label>Payment Method</label>
             <select name="payment_method">
               {% for item in ["Cash", "Bank", "Cheque", "Other"] %}

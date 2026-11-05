@@ -8156,12 +8156,13 @@ def register_routes(app: Flask) -> None:
                 "payment_method": "Cash",
                 "transaction_type": "IN",
                 "details": "",
+                "vehicle_no": "",
             }
 
             if edit_entry_id:
                 existing_entry = db.execute(
                     """
-                    SELECT id, owner_name, entry_date, amount, received_by, payment_method, transaction_type, details
+                    SELECT id, owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, vehicle_no
                     FROM owner_fund_entries
                     WHERE id = ?
                     """,
@@ -8177,6 +8178,7 @@ def register_routes(app: Flask) -> None:
                         "payment_method": existing_entry["payment_method"] or "Cash",
                         "transaction_type": existing_entry["transaction_type"] or "IN",
                         "details": existing_entry["details"] or "",
+                        "vehicle_no": existing_entry["vehicle_no"] or "",
                     }
 
             if request.method == "POST":
@@ -8193,7 +8195,13 @@ def register_routes(app: Flask) -> None:
                     "payment_method": request.form.get("payment_method", "Cash").strip() or "Cash",
                     "transaction_type": request.form.get("transaction_type", "IN").strip() or "IN",
                     "details": request.form.get("details", "").strip(),
+                    "vehicle_no": request.form.get("vehicle_no", "").strip(),
                 }
+                # Append vehicle number to details for Money Out entries so it
+                # shows in the Details column and Excel/PDF exports.
+                if values["transaction_type"] == "OUT" and values["vehicle_no"]:
+                    base_details = values["details"] or ""
+                    values["details"] = f"{base_details} | Vehicle {values['vehicle_no']}".strip(" |")
                 try:
                     amount = _parse_decimal(values["amount"], "Amount", minimum=0.01)
                 except ValidationError as exc:
@@ -8206,7 +8214,7 @@ def register_routes(app: Flask) -> None:
                             db.execute(
                                 """
                                 UPDATE owner_fund_entries
-                                SET owner_name = ?, entry_date = ?, amount = ?, received_by = ?, payment_method = ?, transaction_type = ?, details = ?
+                                SET owner_name = ?, entry_date = ?, amount = ?, received_by = ?, payment_method = ?, transaction_type = ?, details = ?, vehicle_no = ?
                                 WHERE id = ?
                                 """,
                                 (
@@ -8217,6 +8225,7 @@ def register_routes(app: Flask) -> None:
                                     values["payment_method"],
                                     values["transaction_type"],
                                     values["details"],
+                                    values["vehicle_no"],
                                     values["entry_id"],
                                 ),
                             )
@@ -8231,8 +8240,8 @@ def register_routes(app: Flask) -> None:
                         else:
                             db.execute(
                                 """
-                                INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                                INSERT INTO owner_fund_entries (owner_name, entry_date, amount, received_by, payment_method, transaction_type, details, vehicle_no)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                                 """,
                                 (
                                     values["owner_name"],
@@ -8242,6 +8251,7 @@ def register_routes(app: Flask) -> None:
                                     values["payment_method"],
                                     values["transaction_type"],
                                     values["details"],
+                                    values["vehicle_no"],
                                 ),
                             )
                             _audit_log(
@@ -18167,7 +18177,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         driver_status_map[_d["driver_id"]] = _d["status"]
     for entry in db.execute(
         """
-        SELECT id, source_table, source_id, owner_name, entry_date, amount, received_by, transaction_type, details
+        SELECT id, source_table, source_id, owner_name, entry_date, amount, received_by, transaction_type, details, vehicle_no
         FROM owner_fund_entries
         ORDER BY entry_date ASC, id ASC
         """
@@ -18190,6 +18200,9 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 }
             )
         else:  # OUT
+            out_details = entry["details"] or ""
+            if entry.get("vehicle_no"):
+                out_details = f"{out_details} | Vehicle {entry['vehicle_no']}".strip(" |")
             rows.append(
                 {
                     "id": entry["id"],
@@ -18198,7 +18211,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                     "entry_date": entry["entry_date"],
                     "reference": f"Owner Fund / {entry['owner_name']}",
                     "party": entry["received_by"] or "-",
-                    "details": entry["details"] or "-",
+                    "details": out_details or "-",
                     "incoming": 0.0,
                     "outgoing": float(entry["amount"]),
                     "movement": "Outgoing",
