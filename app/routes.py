@@ -6734,7 +6734,7 @@ def register_routes(app: Flask) -> None:
                 _add(mk, "maintenance_jobs", r["amount"])
                 _add_detail(
                     d,
-                    "Maintenance Job",
+                    f"Job by {r['staff_name'] or 'Admin'}",
                     f"JOB-{r['id']}",
                     r["category"] or r["description"] or "Maintenance job",
                     r["vehicle_id"],
@@ -6891,7 +6891,7 @@ def register_routes(app: Flask) -> None:
                 d = r["paper_date"] or r["created_at"]
                 _add_detail(
                     d,
-                    "Maintenance Job",
+                    f"Job by {r['staff_name'] or 'Admin'}",
                     f"JOB-{r['id']}",
                     r["category"] or r["description"] or "Maintenance job",
                     r["vehicle_id"],
