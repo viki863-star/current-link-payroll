@@ -4902,6 +4902,9 @@ def fleet_job_delete(job_id):
         db.execute("DELETE FROM maintenance_jobs WHERE id = ?", (job_id,))
         db.commit()
         flash("Job deleted.", "info")
+    nxt = request.form.get("next") or request.args.get("next")
+    if nxt:
+        return redirect(nxt)
     return redirect(url_for("fleet.fleet_approvals"))
 
 
