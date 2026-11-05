@@ -18171,10 +18171,15 @@ def _owner_fund_view_totals(rows):
 def _owner_fund_statement(db, reverse: bool = True, filters=None):
     filters = filters or {"month": "", "movement": OWNER_FUND_MOVEMENT_OPTIONS[0], "entry_type": ENTRY_TYPE_OPTIONS[0], "search": ""}
     rows = []
-    # Driver status lookup — used to red-highlight Inactive / Terminated drivers in Excel
+    # Driver status + vehicle lookup — vehicle number + type shown in Details
     driver_status_map = {}
-    for _d in db.execute("SELECT driver_id, status FROM drivers").fetchall():
+    driver_vehicle_map = {}
+    for _d in db.execute("SELECT driver_id, status, vehicle_no, vehicle_type FROM drivers").fetchall():
         driver_status_map[_d["driver_id"]] = _d["status"]
+        driver_vehicle_map[_d["driver_id"]] = {
+            "vehicle_no": _d["vehicle_no"],
+            "vehicle_type": _d["vehicle_type"],
+        }
     for entry in db.execute(
         """
         SELECT id, source_table, source_id, owner_name, entry_date, amount, received_by, transaction_type, details, vehicle_no
@@ -18201,11 +18206,29 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
             )
         else:  # OUT
             out_details = entry["details"] or ""
-            if entry.get("vehicle_no"):
-                out_details = f"{out_details} | Vehicle {entry['vehicle_no']}".strip(" |")
+            veh_no = entry.get("vehicle_no")
+            veh_type = ""
+            # If no stored vehicle_no, look up driver from source table and get vehicle info
+            st = entry.get("source_table") or ""
+            sid = entry.get("source_id")
+            if not veh_no and st in ("driver_transactions", "salary_payments", "salary_slips") and sid:
+                try:
+                    if st == "driver_transactions":
+                        src = db.execute("SELECT driver_id FROM driver_transactions WHERE id = ?", (sid,)).fetchone()
+                    elif st == "salary_payments":
+                        src = db.execute("SELECT driver_id FROM salary_payments WHERE id = ?", (sid,)).fetchone()
+                    else:  # salary_slips
+                        src = db.execute("SELECT driver_id FROM salary_slips WHERE id = ?", (sid,)).fetchone()
+                    if src and src["driver_id"] in driver_vehicle_map:
+                        veh_no = driver_vehicle_map[src["driver_id"]]["vehicle_no"]
+                        veh_type = driver_vehicle_map[src["driver_id"]]["vehicle_type"]
+                except Exception:
+                    pass
+            if veh_no:
+                vt = f" ({veh_type})" if veh_type else ""
+                out_details = f"{out_details} | Vehicle {veh_no}{vt}".strip(" |")
             # Determine entry type based on source table — booked salary
             # payments show up here (not in the unlinked queries below).
-            st = entry.get("source_table") or ""
             if st in ("driver_transactions", "salary_payments", "salary_slips"):
                 out_entry_type = "Salary to Driver"
             else:
@@ -18229,7 +18252,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         """
         SELECT driver_transactions.id, driver_transactions.entry_date, driver_transactions.driver_id, driver_transactions.given_by,
                driver_transactions.amount, driver_transactions.details, drivers.full_name,
-               drivers.vehicle_no, drivers.shift
+               drivers.vehicle_no, drivers.vehicle_type, drivers.shift
         FROM driver_transactions
         LEFT JOIN drivers ON drivers.driver_id = driver_transactions.driver_id
         WHERE source = 'Owner Fund'
@@ -18242,9 +18265,10 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     ).fetchall():
         driver_name = entry["full_name"] or entry["driver_id"]
         veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
+        vt = f" ({entry['vehicle_type']})" if entry.get("vehicle_type") else ""
         shift = f" | Shift {entry['shift']}" if entry.get("shift") else ""
         base = entry["details"] or ""
-        details = f"{base}{veh}{shift}" if base else f"{driver_name}{veh}{shift}"
+        details = f"{base}{veh}{vt}{shift}" if base else f"{driver_name}{veh}{vt}{shift}"
         rows.append(
             {
                 "source_table": "driver_transactions",
@@ -18264,7 +18288,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         """
         SELECT salary_payments.id, salary_payments.salary_store_id, salary_payments.payment_date, salary_payments.driver_id, salary_payments.paid_by,
                salary_payments.amount, salary_payments.salary_month, drivers.full_name,
-               drivers.vehicle_no, drivers.shift
+               drivers.vehicle_no, drivers.vehicle_type, drivers.shift
         FROM salary_payments
         LEFT JOIN drivers ON drivers.driver_id = salary_payments.driver_id
         WHERE salary_payments.payment_source = 'Owner Fund'
@@ -18277,6 +18301,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     ).fetchall():
         driver_name = entry["full_name"] or entry["driver_id"]
         veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
+        vt = f" ({entry['vehicle_type']})" if entry.get("vehicle_type") else ""
         shift = f" | Shift {entry['shift']}" if entry.get("shift") else ""
         rows.append(
             {
@@ -18285,7 +18310,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "entry_date": entry["payment_date"],
                 "reference": "Salary Slip",
                 "party": entry["paid_by"] or "-",
-                "details": f"{driver_name} | Salary {entry['salary_month']}{veh}{shift}",
+                "details": f"{driver_name} | Salary {entry['salary_month']}{veh}{vt}{shift}",
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
@@ -18297,7 +18322,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         """
         SELECT salary_slips.id, salary_slips.salary_store_id, DATE(salary_slips.generated_at) AS payment_date, salary_slips.driver_id, salary_slips.paid_by,
                salary_slips.net_payable AS amount, salary_slips.salary_month, drivers.full_name,
-               drivers.vehicle_no, drivers.shift
+               drivers.vehicle_no, drivers.vehicle_type, drivers.shift
         FROM salary_slips
         LEFT JOIN drivers ON drivers.driver_id = salary_slips.driver_id
         WHERE salary_slips.payment_source = 'Owner Fund'
@@ -18316,6 +18341,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
     ).fetchall():
         driver_name = entry["full_name"] or entry["driver_id"]
         veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
+        vt = f" ({entry['vehicle_type']})" if entry.get("vehicle_type") else ""
         shift = f" | Shift {entry['shift']}" if entry.get("shift") else ""
         rows.append(
             {
@@ -18324,7 +18350,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "entry_date": entry["payment_date"],
                 "reference": "Salary Slip",
                 "party": entry["paid_by"] or "-",
-                "details": f"{driver_name} | Salary {entry['salary_month']}{veh}{shift}",
+                "details": f"{driver_name} | Salary {entry['salary_month']}{veh}{vt}{shift}",
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
