@@ -98,6 +98,16 @@ def ensure_employees_table():
         except Exception:
             db.rollback()
 
+    # Migration: add payment_date column to salary_slips (additive — never touches existing rows)
+    try:
+        if backend == "postgres":
+            db.execute("ALTER TABLE salary_slips ADD COLUMN IF NOT EXISTS payment_date TEXT")
+        else:
+            db.execute("ALTER TABLE salary_slips ADD COLUMN payment_date TEXT")
+        db.commit()
+    except Exception:
+        db.rollback()
+
     try:
         sync_drivers_to_employees(db)
     except Exception:
@@ -1684,11 +1694,12 @@ def employee_salary_slip(employee_id):
                                 UPDATE salary_slips
                                 SET total_deductions=?, available_advance=?, remaining_advance=?,
                                     salary_after_deduction=?, net_payable=?,
-                                    generated_at=CURRENT_TIMESTAMP
+                                    payment_date=?
                                 WHERE id=? AND driver_id=?
                                 """,
                                 (deduction_amount, available_advance, remaining_advance,
                                  salary_after_deduction, salary_after_deduction,
+                                 values["payment_date"],
                                  existing_slip["id"], eid),
                             )
                             slip_id = existing_slip["id"]
@@ -1699,14 +1710,16 @@ def employee_salary_slip(employee_id):
                                     driver_id, salary_store_id, salary_month, source_filter,
                                     total_deductions, available_advance, remaining_advance,
                                     salary_after_deduction, actual_paid_amount,
-                                    company_balance_due, payment_source, paid_by, net_payable, pdf_path
+                                    company_balance_due, payment_source, paid_by, net_payable, pdf_path,
+                                    payment_date
                                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 """,
                                 (eid, selected_salary["id"], selected_salary["salary_month"], "",
                                  deduction_amount, available_advance, remaining_advance,
                                  salary_after_deduction, 0.0, salary_after_deduction,
                                  values["payment_source"], values["paid_by"] or None,
-                                 salary_after_deduction, ""),
+                                 salary_after_deduction, "",
+                                 values["payment_date"]),
                             )
                             slip_id = result.lastrowid
                             if not slip_id:
