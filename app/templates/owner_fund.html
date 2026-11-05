@@ -36,7 +36,10 @@
   <div class="form-section">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
       <h3 style="margin:0;font-size:0.88rem;font-weight:700">Filter &amp; Export</h3>
-      <a href="{{ pdf_url }}" class="btn btn-primary btn-sm">Download PDF</a>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <a href="{{ pdf_url }}" class="btn btn-primary btn-sm">Download PDF</a>
+        <a href="{{ url_for('owner_fund_excel', **filters) }}" class="btn btn-sm btn-outline" style="background:#1a7d1a;border-color:#1a7d1a;color:#fff">Download Excel</a>
+      </div>
     </div>
     <form method="get" class="form-row">
       <div class="fg">

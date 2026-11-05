@@ -8396,6 +8396,129 @@ def register_routes(app: Flask) -> None:
         relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
         return redirect(url_for("generated_file", filename=relative_path))
 
+    @app.get("/owner-fund/excel")
+    @_login_required("admin")
+    def owner_fund_excel():
+        """Download the filtered Owner Fund statement as Excel.
+
+        Respects all filters (date_from/date_to/month/movement/search), so
+        selecting "Incoming" downloads only Incoming rows and selecting
+        "Outgoing" downloads only Money Out / Owner Expense rows.
+        """
+        db = open_db()
+        filters = _owner_fund_filter_values(request)
+        statement = _owner_fund_statement(db, reverse=False, filters=filters)
+        view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(statement)
+
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Owner Fund Statement"
+
+        hf = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+        hfill = PatternFill("solid", fgColor="1a3a5c")
+        center = Alignment(horizontal="center", vertical="center")
+        left = Alignment(horizontal="left", vertical="center")
+        right = Alignment(horizontal="right", vertical="center")
+        thin = Side(style="thin", color="d8e4f5")
+        border = Border(top=thin, left=thin, right=thin, bottom=thin)
+
+        heads = [
+            "Date", "Month", "Reference", "Type", "Details",
+            "In (AED)", "Out (AED)", "Balance (AED)",
+        ]
+        for ci, h in enumerate(heads, 1):
+            c = ws.cell(row=1, column=ci, value=h)
+            c.font = hf
+            c.fill = hfill
+            c.alignment = center
+            c.border = border
+
+        # Filter info row
+        movement = filters.get("movement") or "All"
+        info = f"Filter: Movement={movement}"
+        if filters.get("date_from") and filters.get("date_to"):
+            info += f" | Period: {filters['date_from']} to {filters['date_to']}"
+        if filters.get("month"):
+            info += f" | Month: {filters['month']}"
+        if filters.get("search"):
+            info += f" | Search: {filters['search']}"
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(heads))
+        ic = ws.cell(row=2, column=1, value=info)
+        ic.font = Font(name="Calibri", italic=True, size=9, color="6b7280")
+
+        row_idx = 4
+        for row in statement:
+            d = str(row.get("entry_date", ""))
+            month = d[:7] if d and len(d) >= 7 else ""
+            values = [
+                d,
+                month,
+                str(row.get("reference", "") or "-"),
+                str(row.get("movement") or "-"),
+                str(row.get("details", "") or "-"),
+                float(row.get("incoming", 0) or 0),
+                float(row.get("outgoing", 0) or 0),
+                float(row.get("balance", 0) or 0),
+            ]
+            for ci, v in enumerate(values, 1):
+                c = ws.cell(row=row_idx, column=ci, value=v)
+                c.border = border
+                c.alignment = left if ci in (1, 3, 4, 5) else right
+                if ci in (6, 7, 8):
+                    c.number_format = '#,##0.00'
+            # Color the type cell
+            tc = ws.cell(row=row_idx, column=4)
+            mv = str(row.get("movement") or "").lower()
+            if mv in ("in", "incoming"):
+                tc.font = Font(color="1a7d1a", bold=True)
+            elif mv in ("out", "outgoing"):
+                tc.font = Font(color="c62828", bold=True)
+            row_idx += 1
+
+        # Totals row
+        tr = ws.cell(row=row_idx, column=5, value="TOTALS")
+        tr.font = Font(bold=True)
+        tr.fill = PatternFill("solid", fgColor="f4f6f9")
+        for ci in (6, 7, 8):
+            tc = ws.cell(row=row_idx, column=ci)
+            tc.font = Font(bold=True)
+            tc.fill = PatternFill("solid", fgColor="f4f6f9")
+            tc.border = border
+            tc.number_format = '#,##0.00'
+        tc6 = ws.cell(row=row_idx, column=6, value=view_incoming)
+        tc7 = ws.cell(row=row_idx, column=7, value=view_outgoing)
+        tc8 = ws.cell(row=row_idx, column=8, value=view_closing)
+        for ci in (6, 7, 8):
+            c = ws.cell(row=row_idx, column=ci)
+            c.border = border
+
+        widths = [14, 10, 30, 12, 52, 14, 14, 16]
+        for ci, w in enumerate(widths, 1):
+            ws.column_dimensions[chr(64 + ci)].width = w
+
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        mv_slug = (filters.get("movement") or "all").lower().replace(" ", "_")
+        df = (filters.get("date_from") or "").replace("-", "")
+        dt = (filters.get("date_to") or "").replace("-", "")
+        fname = f"owner-fund-{mv_slug}"
+        if df and dt:
+            fname += f"_{df}-{dt}"
+        fname += ".xlsx"
+
+        return send_file(
+            buf,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=fname,
+        )
+
     @app.route("/portal/driver", methods=["GET", "POST"])
     @_login_required("driver")
     def driver_portal():

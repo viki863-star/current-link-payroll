@@ -476,6 +476,12 @@
                 <div class="dv2-card-header">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2h12v16l-3-2-3 2-3-2-3 2z"/><line x1="7" y1="7" x2="13" y2="7"/><line x1="7" y1="10" x2="13" y2="10"/></svg>
                     {{ employee.full_name }} &mdash; {{ employee.employee_id }} &middot; Advance Statement (Latest)
+                    {% set _dstat = (employee.status or 'Active') %}
+                    <span class="dv2-badge" style="margin-left:auto;
+                        {% if _dstat == 'Active' %}background:#dcfce7;color:#166534;border:1px solid #86efac{% elif _dstat == 'Inactive' %}background:#fef3c7;color:#92400e;border:1px solid #fcd34d{% else %}background:#fee2e2;color:#991b1b;border:1px solid #fecaca{% endif %}">
+                        {{ _dstat }}
+                        {% if _dstat != 'Active' and employee.termination_date %} &middot; {{ employee.termination_date }}{% endif %}
+                    </span>
                     <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Live from salary slips</span>
                 </div>
                 <div class="dv2-card-body">
