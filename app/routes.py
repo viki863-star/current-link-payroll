@@ -6768,6 +6768,30 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
+        # ── 5. Supplier bills (from /supplier/bills) ──
+        try:
+            for r in db.execute(
+                """
+                SELECT sb.bill_no, sb.total_amount, sb.bill_date, sb.description,
+                       s.supplier_name, sb.vehicle_plate
+                FROM supplier_bills sb
+                LEFT JOIN suppliers s ON s.id = sb.supplier_id
+                """
+            ).fetchall():
+                mk = str(r["bill_date"])[:7]
+                _add(mk, "supplier_bills", r["total_amount"])
+                _add_detail(
+                    r["bill_date"],
+                    "Supplier Bill",
+                    r["bill_no"],
+                    r["description"] or "Supplier bill",
+                    r["vehicle_plate"],
+                    r["supplier_name"],
+                    r["total_amount"],
+                )
+        except Exception:
+            pass
+
         # Build sorted rows
         rows = []
         totals = {
@@ -6894,6 +6918,28 @@ def register_routes(app: Flask) -> None:
                     "Supplier invoice",
                     "",
                     r["party_name"],
+                    r["total_amount"],
+                )
+        except Exception:
+            pass
+
+        # ── Supplier bills (from /supplier/bills) ──
+        try:
+            for r in db.execute(
+                """
+                SELECT sb.bill_no, sb.total_amount, sb.bill_date, sb.description,
+                       s.supplier_name, sb.vehicle_plate
+                FROM supplier_bills sb
+                LEFT JOIN suppliers s ON s.id = sb.supplier_id
+                """
+            ).fetchall():
+                _add_detail(
+                    r["bill_date"],
+                    "Supplier Bill",
+                    r["bill_no"],
+                    r["description"] or "Supplier bill",
+                    r["vehicle_plate"],
+                    r["supplier_name"],
                     r["total_amount"],
                 )
         except Exception:
