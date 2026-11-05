@@ -567,7 +567,7 @@
     </div>
     <div class="ap-modal-footer">
       <button type="button" class="btn-sm" onclick="closeModal('apDeletePaymentModal')">Cancel</button>
-      <form method="post" id="apDeletePaymentForm" style="display:inline">
+      <form method="post" id="apDeletePaymentForm" style="display:inline" action="{{ url_for('delete_annual_fee_payment', receipt_no='__RN__') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="party_code" id="apDeletePartyCode">
         <input type="hidden" name="receipt_no" id="apDeleteReceiptNo">
@@ -632,6 +632,10 @@
     document.getElementById('apDeleteReceiptDisplay').textContent = receiptNo;
     document.getElementById('apDeleteReceiptNo').value = receiptNo;
     document.getElementById('apDeletePartyCode').value = '{{ party.party_code }}';
+    // Set form action dynamically with the actual receipt number
+    var form = document.getElementById('apDeletePaymentForm');
+    var baseAction = form.getAttribute('action');
+    form.setAttribute('action', baseAction.replace('__RN__', receiptNo));
     document.getElementById('apDeletePaymentModal').classList.add('is-open');
     return false;
   }
