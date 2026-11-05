@@ -6669,6 +6669,13 @@ def register_routes(app: Flask) -> None:
 
         monthly = {}  # "YYYY-MM" -> dict of category totals
         detail_rows = []  # individual line items for the details table
+        vehicle_totals = {}  # vehicle_no -> total amount
+
+        def _add_vehicle(vehicle_no, amount):
+            if not vehicle_no or str(vehicle_no).strip() == "" or str(vehicle_no) == "-":
+                return
+            vn = str(vehicle_no).strip()
+            vehicle_totals[vn] = vehicle_totals.get(vn, 0.0) + float(amount or 0)
 
         def _add(month_key, category, amount):
             if not month_key or len(month_key) < 7:
@@ -6716,6 +6723,7 @@ def register_routes(app: Flask) -> None:
                     r["supplier_name"],
                     r["total_amount"],
                 )
+                _add_vehicle(r["vehicle_no"], r["total_amount"])
         except Exception:
             pass
 
@@ -6741,6 +6749,7 @@ def register_routes(app: Flask) -> None:
                     r["staff_name"] or r["supplier_name"] or "-",
                     r["amount"],
                 )
+                _add_vehicle(r["vehicle_id"], r["amount"])
         except Exception:
             pass
 
@@ -6789,6 +6798,7 @@ def register_routes(app: Flask) -> None:
                     r["supplier_name"],
                     r["total_amount"],
                 )
+                _add_vehicle(r["vehicle_plate"], r["total_amount"])
         except Exception:
             pass
 
@@ -6815,6 +6825,9 @@ def register_routes(app: Flask) -> None:
         detail_rows.sort(key=lambda x: x["date"], reverse=True)
         detail_grand_total = sum(d["amount"] for d in detail_rows)
 
+        # Top vehicles by expenditure (top 10)
+        top_vehicles = sorted(vehicle_totals.items(), key=lambda x: x[1], reverse=True)[:10]
+
         return render_template(
             "spare_parts_maintenance_report.html",
             rows=rows,
@@ -6823,6 +6836,7 @@ def register_routes(app: Flask) -> None:
             date_to=date_to,
             detail_rows=detail_rows,
             detail_grand_total=detail_grand_total,
+            vehicle_totals=top_vehicles,
         )
 
     @app.get("/reports/spare-parts-maintenance/excel")

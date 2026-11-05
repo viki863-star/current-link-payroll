@@ -33,6 +33,15 @@
   .cat-supp{color:#7b1fa2}
   .cat-total{color:#0f172a}
   @media(max-width:700px){.stat-grid{grid-template-columns:1fr}}
+
+  /* ─── Top Vehicles Chart ─── */
+  .chart-wrap{margin-top:10px}
+  .chart-bars{display:flex;flex-direction:column;gap:8px}
+  .chart-bar{display:flex;align-items:center;gap:10px}
+  .chart-bar-label{width:90px;font-size:0.78rem;font-weight:600;color:#475569;text-align:right}
+  .chart-bar-amt{width:70px;font-size:0.78rem;font-weight:700;color:#1e293b}
+  .chart-bar-fill-bg{width:100%;height:24px;background:#f1f5f9;border-radius:12px;overflow:hidden;position:relative}
+  .chart-bar-fill{border-radius:12px;background:linear-gradient(90deg,#1565c0,#42a5f5);transition:width 0.8s ease}
 </style>
 
 <div class="spm-shell">
@@ -80,6 +89,31 @@
     <div class="stat-card" style="border-left:4px solid #0f172a">
       <span class="stat-label">Grand Total</span>
       <span class="stat-value cat-total">AED {{ "%.2f"|format(totals.grand_total) }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ═══ TOP VEHICLES CHART ═══ #}
+  {% if vehicle_totals %}
+  <div class="spm-card">
+    <h3>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M8.5 10.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/></svg>
+      Top Vehicles by Expenditure
+    </h3>
+    <div class="chart-wrap">
+      <div class="chart-bars">
+        {% set max_amt = vehicle_totals[0][1] if vehicle_totals else 1 %}
+        {% for vname, vamt in vehicle_totals %}
+        {% set pct = (vamt / max_amt * 100) if max_amt > 0 else 0 %}
+        <div class="chart-bar">
+          <div class="chart-bar-label">{{ vname }}</div>
+          <div class="chart-bar-fill-bg" style="flex:1">
+            <div class="chart-bar-fill" style="height:24px;width: {{ pct }}%;background:linear-gradient(90deg,#1565c0,#42a5f5);border-radius:12px"></div>
+          </div>
+          <div class="chart-bar-amt">AED {{ "%.2f"|format(vamt) }}</div>
+        </div>
+        {% endfor %}
+      </div>
     </div>
   </div>
   {% endif %}
