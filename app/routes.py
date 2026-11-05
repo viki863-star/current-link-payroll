@@ -8434,6 +8434,8 @@ def register_routes(app: Flask) -> None:
         right = Alignment(horizontal="right", vertical="center")
         thin = Side(style="thin", color="d8e4f5")
         border = Border(top=thin, left=thin, right=thin, bottom=thin)
+        red_fill = PatternFill("solid", fgColor="f8d7da")
+        red_font = Font(color="721c24", bold=True)
 
         heads = [
             "Date", "Month", "Reference", "Type", "Details",
@@ -8486,6 +8488,13 @@ def register_routes(app: Flask) -> None:
                 tc.font = Font(color="1a7d1a", bold=True)
             elif mv in ("out", "outgoing"):
                 tc.font = Font(color="c62828", bold=True)
+            # Red-highlight Inactive / Terminated driver rows
+            ds = str(row.get("driver_status", "")).strip().lower()
+            if ds in ("inactive", "terminated"):
+                for ci in range(1, len(heads) + 1):
+                    cell = ws.cell(row=row_idx, column=ci)
+                    cell.fill = red_fill
+                    cell.font = red_font
             row_idx += 1
 
         # Totals row
@@ -18152,6 +18161,10 @@ def _owner_fund_view_totals(rows):
 def _owner_fund_statement(db, reverse: bool = True, filters=None):
     filters = filters or {"month": "", "movement": OWNER_FUND_MOVEMENT_OPTIONS[0], "entry_type": ENTRY_TYPE_OPTIONS[0], "search": ""}
     rows = []
+    # Driver status lookup — used to red-highlight Inactive / Terminated drivers in Excel
+    driver_status_map = {}
+    for _d in db.execute("SELECT driver_id, status FROM drivers").fetchall():
+        driver_status_map[_d["driver_id"]] = _d["status"]
     for entry in db.execute(
         """
         SELECT id, source_table, source_id, owner_name, entry_date, amount, received_by, transaction_type, details
@@ -18224,6 +18237,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "outgoing": float(entry["amount"]),
                 "movement": "Outgoing",
                 "entry_type": "Salary to Driver",
+                "driver_status": driver_status_map.get(entry["driver_id"], ""),
             }
         )
     for entry in db.execute(
@@ -18256,6 +18270,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
                 "entry_type": "Salary to Driver",
+                "driver_status": driver_status_map.get(entry["driver_id"], ""),
             }
         )
     for entry in db.execute(
@@ -18294,6 +18309,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
                 "entry_type": "Salary to Driver",
+                "driver_status": driver_status_map.get(entry["driver_id"], ""),
             }
         )
     for entry in db.execute(
