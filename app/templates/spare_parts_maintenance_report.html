@@ -56,6 +56,7 @@
       </div>
       <div class="form-actions">
         <button class="btn btn-primary btn-sm" type="submit">Apply</button>
+        <a href="{{ url_for('spare_parts_maintenance_excel', date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-outline" style="background:#1a7d1a;border-color:#1a7d1a;color:#fff">Download Excel</a>
         <a href="{{ url_for('spare_parts_maintenance_report') }}" class="btn btn-sm btn-outline">Clear</a>
       </div>
     </form>
@@ -71,10 +72,6 @@
     <div class="stat-card" style="border-left:4px solid #1565c0">
       <span class="stat-label">Maintenance Jobs</span>
       <span class="stat-value cat-job">AED {{ "%.2f"|format(totals.maintenance_jobs) }}</span>
-    </div>
-    <div class="stat-card" style="border-left:4px solid #c2410c">
-      <span class="stat-label">Field Staff Advances</span>
-      <span class="stat-value cat-staff">AED {{ "%.2f"|format(totals.field_staff_advances) }}</span>
     </div>
     <div class="stat-card" style="border-left:4px solid #7b1fa2">
       <span class="stat-label">Supplier Bills</span>
@@ -98,7 +95,6 @@
             <th>Month</th>
             <th>Maintenance Papers</th>
             <th>Maintenance Jobs</th>
-            <th>Field Staff Advances</th>
             <th>Supplier Bills</th>
             <th>Grand Total</th>
           </tr>
@@ -109,7 +105,6 @@
             <td class="mono">{{ r.month }}</td>
             <td class="mono cat-maint">AED {{ "%.2f"|format(r.maintenance_papers) }}</td>
             <td class="mono cat-job">AED {{ "%.2f"|format(r.maintenance_jobs) }}</td>
-            <td class="mono cat-staff">AED {{ "%.2f"|format(r.field_staff_advances) }}</td>
             <td class="mono cat-supp">AED {{ "%.2f"|format(r.supplier_bills) }}</td>
             <td class="mono cat-total">AED {{ "%.2f"|format(r.grand_total) }}</td>
           </tr>
@@ -118,7 +113,6 @@
             <td class="mono">Total</td>
             <td class="mono cat-maint">AED {{ "%.2f"|format(totals.maintenance_papers) }}</td>
             <td class="mono cat-job">AED {{ "%.2f"|format(totals.maintenance_jobs) }}</td>
-            <td class="mono cat-staff">AED {{ "%.2f"|format(totals.field_staff_advances) }}</td>
             <td class="mono cat-supp">AED {{ "%.2f"|format(totals.supplier_bills) }}</td>
             <td class="mono cat-total">AED {{ "%.2f"|format(totals.grand_total) }}</td>
           </tr>

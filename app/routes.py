@@ -6679,7 +6679,6 @@ def register_routes(app: Flask) -> None:
                     "month": month_key,
                     "maintenance_papers": 0.0,
                     "maintenance_jobs": 0.0,
-                    "field_staff_advances": 0.0,
                     "supplier_bills": 0.0,
                 },
             )
@@ -6745,30 +6744,6 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
-        # ── 3. Field staff advances ──
-        try:
-            for r in db.execute(
-                """
-                SELECT msa.advance_no, msa.amount, msa.entry_date, msa.reference, msa.notes,
-                       ms.staff_name
-                FROM maintenance_staff_advances msa
-                LEFT JOIN maintenance_staff ms ON ms.staff_code = msa.staff_code
-                """
-            ).fetchall():
-                mk = str(r["entry_date"])[:7]
-                _add(mk, "field_staff_advances", r["amount"])
-                _add_detail(
-                    r["entry_date"],
-                    "Field Staff Advance",
-                    r["advance_no"],
-                    r["reference"] or r["notes"] or "Staff advance",
-                    "",
-                    r["staff_name"],
-                    r["amount"],
-                )
-        except Exception:
-            pass
-
         # ── 4. Supplier bills (submissions) ──
         try:
             for r in db.execute(
@@ -6798,7 +6773,6 @@ def register_routes(app: Flask) -> None:
         totals = {
             "maintenance_papers": 0.0,
             "maintenance_jobs": 0.0,
-            "field_staff_advances": 0.0,
             "supplier_bills": 0.0,
         }
         for mk in sorted(monthly.keys()):
@@ -6806,7 +6780,6 @@ def register_routes(app: Flask) -> None:
             row["grand_total"] = (
                 row["maintenance_papers"]
                 + row["maintenance_jobs"]
-                + row["field_staff_advances"]
                 + row["supplier_bills"]
             )
             for k in totals:
@@ -6826,6 +6799,194 @@ def register_routes(app: Flask) -> None:
             date_to=date_to,
             detail_rows=detail_rows,
             detail_grand_total=detail_grand_total,
+        )
+
+    @app.get("/reports/spare-parts-maintenance/excel")
+    @_login_required("admin")
+    def spare_parts_maintenance_excel():
+        """Export Spare Parts & Maintenance report as Excel."""
+        db = open_db()
+
+        date_from = (request.args.get("date_from") or "").strip()
+        date_to = (request.args.get("date_to") or "").strip()
+
+        def _in_range(val):
+            if not val:
+                return True
+            if date_from and str(val) < date_from:
+                return False
+            if date_to and str(val) > date_to:
+                return False
+            return True
+
+        detail_rows = []
+
+        def _add_detail(date_val, category, ref_no, description, vehicle_no, party_name, amount):
+            if not _in_range(date_val):
+                return
+            detail_rows.append({
+                "date": str(date_val)[:10] if date_val else "",
+                "category": category,
+                "ref_no": ref_no or "-",
+                "description": description or "-",
+                "vehicle_no": vehicle_no or "-",
+                "party_name": party_name or "-",
+                "amount": float(amount or 0),
+            })
+
+        # ── Maintenance papers ──
+        try:
+            for r in db.execute(
+                """
+                SELECT paper_no, total_amount, paper_date, vehicle_no, supplier_name, work_summary
+                FROM maintenance_papers
+                """
+            ).fetchall():
+                _add_detail(
+                    r["paper_date"],
+                    "Maintenance Paper",
+                    r["paper_no"],
+                    r["work_summary"] or "Spare parts / maintenance work",
+                    r["vehicle_no"],
+                    r["supplier_name"],
+                    r["total_amount"],
+                )
+        except Exception:
+            pass
+
+        # ── Maintenance jobs ──
+        try:
+            for r in db.execute(
+                """
+                SELECT mj.id, mj.amount, mj.paper_date, mj.created_at, mj.category, mj.description,
+                       mj.vehicle_id, mj.supplier_name, mj.staff_id, fs.full_name as staff_name
+                FROM maintenance_jobs mj
+                LEFT JOIN field_staff fs ON fs.staff_id = mj.staff_id
+                """
+            ).fetchall():
+                d = r["paper_date"] or r["created_at"]
+                _add_detail(
+                    d,
+                    "Maintenance Job",
+                    f"JOB-{r['id']}",
+                    r["category"] or r["description"] or "Maintenance job",
+                    r["vehicle_id"],
+                    r["staff_name"] or r["supplier_name"] or "-",
+                    r["amount"],
+                )
+        except Exception:
+            pass
+
+        # ── Supplier bills ──
+        try:
+            for r in db.execute(
+                """
+                SELECT sis.submission_no, sis.total_amount, sis.invoice_date,
+                       p.party_name
+                FROM supplier_invoice_submissions sis
+                LEFT JOIN parties p ON p.party_code = sis.party_code
+                """
+            ).fetchall():
+                _add_detail(
+                    r["invoice_date"],
+                    "Supplier Bill",
+                    r["submission_no"],
+                    "Supplier invoice",
+                    "",
+                    r["party_name"],
+                    r["total_amount"],
+                )
+        except Exception:
+            pass
+
+        detail_rows.sort(key=lambda x: x["date"], reverse=True)
+
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Spare Parts Maintenance"
+
+        hf = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+        hfill = PatternFill("solid", fgColor="1a3a5c")
+        center = Alignment(horizontal="center", vertical="center")
+        left = Alignment(horizontal="left", vertical="center")
+        right = Alignment(horizontal="right", vertical="center")
+        thin = Side(style="thin", color="d8e4f5")
+        border = Border(top=thin, left=thin, right=thin, bottom=thin)
+
+        heads = [
+            "Date", "Category", "Reference No", "Description",
+            "Vehicle / Party", "Amount (AED)",
+        ]
+        for ci, h in enumerate(heads, 1):
+            c = ws.cell(row=1, column=ci, value=h)
+            c.font = hf
+            c.fill = hfill
+            c.alignment = center
+            c.border = border
+
+        info = f"Spare Parts & Maintenance Report"
+        if date_from and date_to:
+            info += f" | Period: {date_from} to {date_to}"
+        elif date_from:
+            info += f" | From: {date_from}"
+        elif date_to:
+            info += f" | To: {date_to}"
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(heads))
+        ic = ws.cell(row=2, column=1, value=info)
+        ic.font = Font(name="Calibri", italic=True, size=9, color="6b7280")
+
+        row_idx = 4
+        for d in detail_rows:
+            values = [
+                d["date"],
+                d["category"],
+                d["ref_no"],
+                d["description"],
+                d["vehicle_no"] or d["party_name"],
+                float(d["amount"]),
+            ]
+            for ci, v in enumerate(values, 1):
+                c = ws.cell(row=row_idx, column=ci, value=v)
+                c.border = border
+                c.alignment = left if ci in (1, 2, 3, 4, 5) else right
+                if ci == 6:
+                    c.number_format = '#,##0.00'
+            row_idx += 1
+
+        # Totals row
+        tr = ws.cell(row=row_idx, column=5, value="GRAND TOTAL")
+        tr.font = Font(bold=True)
+        tr.fill = PatternFill("solid", fgColor="f4f6f9")
+        tc = ws.cell(row=row_idx, column=6, value=sum(d["amount"] for d in detail_rows))
+        tc.font = Font(bold=True)
+        tc.fill = PatternFill("solid", fgColor="f4f6f9")
+        tc.border = border
+        tc.number_format = '#,##0.00'
+
+        widths = [14, 20, 20, 40, 30, 16]
+        for ci, w in enumerate(widths, 1):
+            ws.column_dimensions[chr(64 + ci)].width = w
+
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+
+        df = (date_from or "").replace("-", "")
+        dt = (date_to or "").replace("-", "")
+        fname = f"spare-parts-maintenance"
+        if df and dt:
+            fname += f"_{df}-{dt}"
+        fname += ".xlsx"
+
+        return send_file(
+            buf,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name=fname,
         )
 
     @app.get("/cheque-report")
