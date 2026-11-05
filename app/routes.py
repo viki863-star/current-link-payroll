@@ -6668,6 +6668,7 @@ def register_routes(app: Flask) -> None:
             return True
 
         monthly = {}  # "YYYY-MM" -> dict of category totals
+        detail_rows = []  # individual line items for the details table
 
         def _add(month_key, category, amount):
             if not month_key or len(month_key) < 7:
@@ -6684,18 +6685,38 @@ def register_routes(app: Flask) -> None:
             )
             m[category] += float(amount or 0)
 
+        def _add_detail(date_val, category, ref_no, description, vehicle_no, party_name, amount):
+            if not _in_range(date_val):
+                return
+            detail_rows.append({
+                "date": str(date_val)[:10] if date_val else "",
+                "category": category,
+                "ref_no": ref_no or "-",
+                "description": description or "-",
+                "vehicle_no": vehicle_no or "-",
+                "party_name": party_name or "-",
+                "amount": float(amount or 0),
+            })
+
         # ── 1. Maintenance papers (spare parts + maintenance work) ──
         try:
             for r in db.execute(
                 """
-                SELECT total_amount, paper_date, vehicle_no, supplier_name
+                SELECT paper_no, total_amount, paper_date, vehicle_no, supplier_name, work_summary
                 FROM maintenance_papers
                 """
             ).fetchall():
-                if not _in_range(r["paper_date"]):
-                    continue
                 mk = str(r["paper_date"])[:7]
                 _add(mk, "maintenance_papers", r["total_amount"])
+                _add_detail(
+                    r["paper_date"],
+                    "Maintenance Paper",
+                    r["paper_no"],
+                    r["work_summary"] or "Spare parts / maintenance work",
+                    r["vehicle_no"],
+                    r["supplier_name"],
+                    r["total_amount"],
+                )
         except Exception:
             pass
 
@@ -6703,15 +6724,23 @@ def register_routes(app: Flask) -> None:
         try:
             for r in db.execute(
                 """
-                SELECT amount, paper_date, created_at, category
+                SELECT id, amount, paper_date, created_at, category, description,
+                       vehicle_id, supplier_name
                 FROM maintenance_jobs
                 """
             ).fetchall():
                 d = r["paper_date"] or r["created_at"]
-                if not _in_range(d):
-                    continue
                 mk = str(d)[:7]
                 _add(mk, "maintenance_jobs", r["amount"])
+                _add_detail(
+                    d,
+                    "Maintenance Job",
+                    f"JOB-{r['id']}",
+                    r["category"] or r["description"] or "Maintenance job",
+                    r["vehicle_id"],
+                    r["supplier_name"],
+                    r["amount"],
+                )
         except Exception:
             pass
 
@@ -6719,14 +6748,23 @@ def register_routes(app: Flask) -> None:
         try:
             for r in db.execute(
                 """
-                SELECT amount, entry_date
-                FROM maintenance_staff_advances
+                SELECT msa.advance_no, msa.amount, msa.entry_date, msa.reference, msa.notes,
+                       ms.staff_name
+                FROM maintenance_staff_advances msa
+                LEFT JOIN maintenance_staff ms ON ms.staff_code = msa.staff_code
                 """
             ).fetchall():
-                if not _in_range(r["entry_date"]):
-                    continue
                 mk = str(r["entry_date"])[:7]
                 _add(mk, "field_staff_advances", r["amount"])
+                _add_detail(
+                    r["entry_date"],
+                    "Field Staff Advance",
+                    r["advance_no"],
+                    r["reference"] or r["notes"] or "Staff advance",
+                    "",
+                    r["staff_name"],
+                    r["amount"],
+                )
         except Exception:
             pass
 
@@ -6734,14 +6772,23 @@ def register_routes(app: Flask) -> None:
         try:
             for r in db.execute(
                 """
-                SELECT total_amount, invoice_date
-                FROM supplier_invoice_submissions
+                SELECT sis.submission_no, sis.total_amount, sis.invoice_date,
+                       p.party_name
+                FROM supplier_invoice_submissions sis
+                LEFT JOIN parties p ON p.party_code = sis.party_code
                 """
             ).fetchall():
-                if not _in_range(r["invoice_date"]):
-                    continue
                 mk = str(r["invoice_date"])[:7]
                 _add(mk, "supplier_bills", r["total_amount"])
+                _add_detail(
+                    r["invoice_date"],
+                    "Supplier Bill",
+                    r["submission_no"],
+                    "Supplier invoice",
+                    "",
+                    r["party_name"],
+                    r["total_amount"],
+                )
         except Exception:
             pass
 
@@ -6766,12 +6813,18 @@ def register_routes(app: Flask) -> None:
             totals["grand_total"] = totals.get("grand_total", 0.0) + row["grand_total"]
             rows.append(row)
 
+        # Sort detail rows by date descending
+        detail_rows.sort(key=lambda x: x["date"], reverse=True)
+        detail_grand_total = sum(d["amount"] for d in detail_rows)
+
         return render_template(
             "spare_parts_maintenance_report.html",
             rows=rows,
             totals=totals,
             date_from=date_from,
             date_to=date_to,
+            detail_rows=detail_rows,
+            detail_grand_total=detail_grand_total,
         )
 
     @app.get("/cheque-report")
