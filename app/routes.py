@@ -18203,6 +18203,13 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
             out_details = entry["details"] or ""
             if entry.get("vehicle_no"):
                 out_details = f"{out_details} | Vehicle {entry['vehicle_no']}".strip(" |")
+            # Determine entry type based on source table — booked salary
+            # payments show up here (not in the unlinked queries below).
+            st = entry.get("source_table") or ""
+            if st in ("driver_transactions", "salary_payments", "salary_slips"):
+                out_entry_type = "Salary to Driver"
+            else:
+                out_entry_type = "Owner Expense / Money Out (Form)"
             rows.append(
                 {
                     "id": entry["id"],
@@ -18215,7 +18222,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                     "incoming": 0.0,
                     "outgoing": float(entry["amount"]),
                     "movement": "Outgoing",
-                    "entry_type": "Owner Expense / Money Out (Form)",
+                    "entry_type": out_entry_type,
                 }
             )
     for entry in db.execute(
