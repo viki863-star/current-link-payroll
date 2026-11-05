@@ -6724,9 +6724,10 @@ def register_routes(app: Flask) -> None:
         try:
             for r in db.execute(
                 """
-                SELECT id, amount, paper_date, created_at, category, description,
-                       vehicle_id, supplier_name
-                FROM maintenance_jobs
+                SELECT mj.id, mj.amount, mj.paper_date, mj.created_at, mj.category, mj.description,
+                       mj.vehicle_id, mj.supplier_name, mj.staff_id, fs.full_name as staff_name
+                FROM maintenance_jobs mj
+                LEFT JOIN field_staff fs ON fs.staff_id = mj.staff_id
                 """
             ).fetchall():
                 d = r["paper_date"] or r["created_at"]
@@ -6738,7 +6739,7 @@ def register_routes(app: Flask) -> None:
                     f"JOB-{r['id']}",
                     r["category"] or r["description"] or "Maintenance job",
                     r["vehicle_id"],
-                    r["supplier_name"],
+                    r["staff_name"] or r["supplier_name"] or "-",
                     r["amount"],
                 )
         except Exception:
