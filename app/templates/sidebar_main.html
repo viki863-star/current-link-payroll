@@ -103,6 +103,7 @@
                 {"label": "Cheque Report", "endpoint": "cheque_report", "icon": "file-text"},
                 {"label": "Bank Transactions", "endpoint": "bank_transactions", "icon": "book"},
                 {"label": "ATM Report", "endpoint": "atm_report", "icon": "file-text"},
+                {"label": "Spare Parts & Maintenance", "endpoint": "spare_parts_maintenance_report", "icon": "calculator"},
             ] %}
             {% set accounts_endpoints = [] %}
             {% for ch in accounts_children %}{% set _ = accounts_endpoints.append(ch.endpoint) %}{% endfor %}

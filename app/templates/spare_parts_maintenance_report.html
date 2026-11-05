@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Spare Parts & Maintenance Report{% endblock %}
+{% block page_title %}Spare Parts & Maintenance Expense Report{% endblock %}
+
+{% block content %}
+<style>
+  .spm-shell{max-width:1200px;margin:0 auto}
+  .spm-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
+  .spm-card h3{margin:0 0 12px;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:8px}
+  .spm-card h3 .badge{font-size:0.58rem;font-weight:600;padding:2px 8px;border-radius:20px}
+  .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+  .form-row .fg{display:flex;flex-direction:column}
+  .form-row .fg label{font-size:0.68rem;font-weight:600;color:var(--muted);margin-bottom:3px}
+  .form-row .fg input,.form-row .fg select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;background:var(--bg)}
+  .form-actions{display:flex;gap:6px;align-items:flex-end}
+  .form-actions button{padding:7px 18px}
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px}
+  .smart-table{width:100%;border-collapse:collapse;font-size:0.8rem}
+  .smart-table th{background:#f4f6f9;color:var(--muted);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.3px;padding:10px 8px;text-align:right;border-bottom:1px solid var(--line)}
+  .smart-table th:first-child,.smart-table td:first-child{text-align:left}
+  .smart-table td{padding:8px;border-bottom:1px solid var(--line);text-align:right}
+  .smart-table tr:last-child td{border-bottom:none}
+  .smart-table tr.total-row td{background:#f4f6f9;font-weight:700;border-top:2px solid var(--primary)}
+  .mono{font-family:monospace}
+  .badge{font-size:0.58rem;font-weight:600;padding:2px 8px;border-radius:20px}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .stat-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .stat-card .stat-label{font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px}
+  .stat-card .stat-value{font-size:1.25rem;font-weight:700;margin-top:4px}
+  .cat-maint{color:#1a7d1a}
+  .cat-job{color:#1565c0}
+  .cat-staff{color:#c2410c}
+  .cat-supp{color:#7b1fa2}
+  .cat-total{color:#0f172a}
+  @media(max-width:700px){.stat-grid{grid-template-columns:1fr}}
+</style>
+
+<div class="spm-shell">
+  <div class="spm-card">
+    <h3>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M4 2h12v16l-3-2-3 2-3-2-3 2z"/><line x1="7" y1="7" x2="13" y2="7"/><line x1="7" y1="10" x2="13" y2="10"/></svg>
+      Spare Parts &amp; Maintenance — Monthly Expense
+      <span class="badge" style="background:#e6510033;color:#e65100">Vehicle Related</span>
+    </h3>
+    <p style="margin:0 0 12px;font-size:0.82rem;color:var(--muted)">Total monthly expenditure on spare parts, maintenance jobs, field staff advances and supplier bills related to vehicles.</p>
+
+    {# ═══ FILTER ═══ #}
+    <form method="get" class="form-row">
+      <div class="fg">
+        <label>From Date</label>
+        <input type="date" name="date_from" value="{{ date_from or '' }}">
+      </div>
+      <div class="fg">
+        <label>To Date</label>
+        <input type="date" name="date_to" value="{{ date_to or '' }}">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary btn-sm" type="submit">Apply</button>
+        <a href="{{ url_for('spare_parts_maintenance_report') }}" class="btn btn-sm btn-outline">Clear</a>
+      </div>
+    </form>
+  </div>
+
+  {# ═══ SUMMARY CARDS ═══ #}
+  {% if totals %}
+  <div class="stat-grid">
+    <div class="stat-card" style="border-left:4px solid #1a7d1a">
+      <span class="stat-label">Maintenance Papers</span>
+      <span class="stat-value cat-maint">AED {{ "%.2f"|format(totals.maintenance_papers) }}</span>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #1565c0">
+      <span class="stat-label">Maintenance Jobs</span>
+      <span class="stat-value cat-job">AED {{ "%.2f"|format(totals.maintenance_jobs) }}</span>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #c2410c">
+      <span class="stat-label">Field Staff Advances</span>
+      <span class="stat-value cat-staff">AED {{ "%.2f"|format(totals.field_staff_advances) }}</span>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #7b1fa2">
+      <span class="stat-label">Supplier Bills</span>
+      <span class="stat-value cat-supp">AED {{ "%.2f"|format(totals.supplier_bills) }}</span>
+    </div>
+    <div class="stat-card" style="border-left:4px solid #0f172a">
+      <span class="stat-label">Grand Total</span>
+      <span class="stat-value cat-total">AED {{ "%.2f"|format(totals.grand_total) }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ═══ MONTHLY TABLE ═══ #}
+  {% if rows %}
+  <div class="spm-card">
+    <h3>Monthly Breakdown</h3>
+    <div class="table-wrap">
+      <table class="smart-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Maintenance Papers</th>
+            <th>Maintenance Jobs</th>
+            <th>Field Staff Advances</th>
+            <th>Supplier Bills</th>
+            <th>Grand Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td class="mono">{{ r.month }}</td>
+            <td class="mono cat-maint">AED {{ "%.2f"|format(r.maintenance_papers) }}</td>
+            <td class="mono cat-job">AED {{ "%.2f"|format(r.maintenance_jobs) }}</td>
+            <td class="mono cat-staff">AED {{ "%.2f"|format(r.field_staff_advances) }}</td>
+            <td class="mono cat-supp">AED {{ "%.2f"|format(r.supplier_bills) }}</td>
+            <td class="mono cat-total">AED {{ "%.2f"|format(r.grand_total) }}</td>
+          </tr>
+          {% endfor %}
+          <tr class="total-row">
+            <td class="mono">Total</td>
+            <td class="mono cat-maint">AED {{ "%.2f"|format(totals.maintenance_papers) }}</td>
+            <td class="mono cat-job">AED {{ "%.2f"|format(totals.maintenance_jobs) }}</td>
+            <td class="mono cat-staff">AED {{ "%.2f"|format(totals.field_staff_advances) }}</td>
+            <td class="mono cat-supp">AED {{ "%.2f"|format(totals.supplier_bills) }}</td>
+            <td class="mono cat-total">AED {{ "%.2f"|format(totals.grand_total) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="spm-card" style="background:#fff8e1;border-color:#ffe082">
+    <p style="margin:0;font-size:0.85rem;color:#795548">No expense records found for the selected period.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

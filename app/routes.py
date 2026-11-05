@@ -6517,6 +6517,137 @@ def register_routes(app: Flask) -> None:
             recent_loans=_loan_rows(db, limit=6),
         )
 
+    @app.get("/reports/spare-parts-maintenance")
+    @_login_required("admin")
+    def spare_parts_maintenance_report():
+        """Spare Parts & Maintenance monthly expense report.
+
+        Aggregates vehicle-related expenses from maintenance papers,
+        maintenance jobs, field staff advances, and supplier bills,
+        grouped by month.
+        """
+        _touch_admin_workspace("accounts")
+        db = open_db()
+
+        date_from = (request.args.get("date_from") or "").strip()
+        date_to = (request.args.get("date_to") or "").strip()
+
+        def _in_range(val):
+            if not val:
+                return True
+            if date_from and str(val) < date_from:
+                return False
+            if date_to and str(val) > date_to:
+                return False
+            return True
+
+        monthly = {}  # "YYYY-MM" -> dict of category totals
+
+        def _add(month_key, category, amount):
+            if not month_key or len(month_key) < 7:
+                return
+            m = monthly.setdefault(
+                month_key,
+                {
+                    "month": month_key,
+                    "maintenance_papers": 0.0,
+                    "maintenance_jobs": 0.0,
+                    "field_staff_advances": 0.0,
+                    "supplier_bills": 0.0,
+                },
+            )
+            m[category] += float(amount or 0)
+
+        # ── 1. Maintenance papers (spare parts + maintenance work) ──
+        try:
+            for r in db.execute(
+                """
+                SELECT total_amount, paper_date, vehicle_no, supplier_name
+                FROM maintenance_papers
+                """
+            ).fetchall():
+                if not _in_range(r["paper_date"]):
+                    continue
+                mk = str(r["paper_date"])[:7]
+                _add(mk, "maintenance_papers", r["total_amount"])
+        except Exception:
+            pass
+
+        # ── 2. Maintenance jobs ──
+        try:
+            for r in db.execute(
+                """
+                SELECT amount, paper_date, created_at, category
+                FROM maintenance_jobs
+                """
+            ).fetchall():
+                d = r["paper_date"] or r["created_at"]
+                if not _in_range(d):
+                    continue
+                mk = str(d)[:7]
+                _add(mk, "maintenance_jobs", r["amount"])
+        except Exception:
+            pass
+
+        # ── 3. Field staff advances ──
+        try:
+            for r in db.execute(
+                """
+                SELECT amount, entry_date
+                FROM maintenance_staff_advances
+                """
+            ).fetchall():
+                if not _in_range(r["entry_date"]):
+                    continue
+                mk = str(r["entry_date"])[:7]
+                _add(mk, "field_staff_advances", r["amount"])
+        except Exception:
+            pass
+
+        # ── 4. Supplier bills (submissions) ──
+        try:
+            for r in db.execute(
+                """
+                SELECT total_amount, invoice_date
+                FROM supplier_invoice_submissions
+                """
+            ).fetchall():
+                if not _in_range(r["invoice_date"]):
+                    continue
+                mk = str(r["invoice_date"])[:7]
+                _add(mk, "supplier_bills", r["total_amount"])
+        except Exception:
+            pass
+
+        # Build sorted rows
+        rows = []
+        totals = {
+            "maintenance_papers": 0.0,
+            "maintenance_jobs": 0.0,
+            "field_staff_advances": 0.0,
+            "supplier_bills": 0.0,
+        }
+        for mk in sorted(monthly.keys()):
+            row = monthly[mk]
+            row["grand_total"] = (
+                row["maintenance_papers"]
+                + row["maintenance_jobs"]
+                + row["field_staff_advances"]
+                + row["supplier_bills"]
+            )
+            for k in totals:
+                totals[k] += row[k]
+            totals["grand_total"] = totals.get("grand_total", 0.0) + row["grand_total"]
+            rows.append(row)
+
+        return render_template(
+            "spare_parts_maintenance_report.html",
+            rows=rows,
+            totals=totals,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
     @app.get("/cheque-report")
     @_login_required("admin")
     def cheque_report():
