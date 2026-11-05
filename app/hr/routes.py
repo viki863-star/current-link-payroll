@@ -1574,7 +1574,7 @@ def employee_salary_slip(employee_id):
         if selected_salary is not None:
             existing_slip = db.execute(
                 """
-                SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips
+                SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at, payment_date FROM salary_slips
                 WHERE salary_store_id = ? AND driver_id = ?
                 ORDER BY id DESC LIMIT 1
                 """,
@@ -1659,7 +1659,7 @@ def employee_salary_slip(employee_id):
             ).fetchone()
             existing_slip = db.execute(
                 """
-                SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips
+                SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at, payment_date FROM salary_slips
                 WHERE salary_store_id = ? AND driver_id = ?
                 ORDER BY id DESC LIMIT 1
                 """,
@@ -1759,7 +1759,7 @@ def employee_salary_slip(employee_id):
                         # marked paid — the amount simply stays owed to the
                         # driver (instead of falsely showing it was handed over).
                         if values["payment_source"] == "Owner Fund" and values["paid_now"]:
-                            slip_row_check = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
+                            slip_row_check = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at, payment_date FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
                             of_amount = float(salary_after_deduction)
                             # Reuse this month's payment instead of duplicating it:
                             # either the entry already linked to this slip, or an
@@ -1807,7 +1807,7 @@ def employee_salary_slip(employee_id):
                                              f"not handed over, salary stays owed"),
                                 )
 
-                        slip_row = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
+                        slip_row = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at, payment_date FROM salary_slips WHERE id = ?", (slip_id,)).fetchone()
                         driver_display = {"driver_id": eid, "full_name": employee["full_name"],
                                           "basic_salary": employee["basic_salary"] or 0,
                                           "vehicle_no": "", "shift": employee.get("shift", ""),
@@ -1905,7 +1905,7 @@ def employee_salary_slip_delete(employee_id, store_id):
         return redirect(url_for("hr.employee_list"))
     eid = employee["employee_id"]
     slip = db.execute(
-        "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?",
+        "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at, payment_date FROM salary_slips WHERE salary_store_id = ? AND driver_id = ?",
         (store_id, eid),
     ).fetchone()
     if slip is None:
@@ -2136,7 +2136,7 @@ def employee_deduction_statement(employee_id, store_id):
     if not salary_store_row:
         flash("Salary store not found.", "error")
         return redirect(url_for("hr.employee_salary_slip", employee_id=eid))
-    slip = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? ORDER BY id DESC LIMIT 1", (store_id, eid)).fetchone()
+    slip = db.execute("SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at, payment_date FROM salary_slips WHERE salary_store_id = ? AND driver_id = ? ORDER BY id DESC LIMIT 1", (store_id, eid)).fetchone()
     if not slip:
         flash("Salary slip not found. Generate slip first.", "error")
         return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
@@ -2228,7 +2228,7 @@ def employee_kata(employee_id):
         ).fetchone()
 
         slip_row = db.execute(
-            "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at FROM salary_slips WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
+            "SELECT id, driver_id, salary_store_id, salary_month, source_filter, total_deductions, available_advance, remaining_advance, salary_after_deduction, actual_paid_amount, company_balance_due, payment_source, paid_by, net_payable, pdf_path, generated_at, payment_date FROM salary_slips WHERE driver_id = ? AND salary_month = ? ORDER BY id DESC LIMIT 1",
             (eid, selected_month),
         ).fetchone()
 
