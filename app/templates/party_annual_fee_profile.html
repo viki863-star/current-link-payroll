@@ -3,728 +3,585 @@
 {% block page_title %}{{ party.party_name }} — Annual Fee Profile{% endblock %}
 
 {% block content %}
-<div class="profile-shell">
-
 <style>
-.paf-back { display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--muted); text-decoration:none; margin-bottom:18px; transition:all 0.2s; font-weight:500; }
-.paf-back:hover { color:var(--primary); gap:10px; }
+  /* ─── Layout ─── */
+  .af-shell { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
 
-.paf-hero {
-    background:linear-gradient(135deg, var(--primary) 0%, #0d47a1 100%);
-    border-radius:20px; padding:28px 32px 24px; color:#fff;
-    margin-bottom:24px; position:relative; overflow:hidden;
-}
-.paf-hero::before { content:''; position:absolute; top:-60px; right:-40px; width:220px; height:220px; border-radius:50%; background:rgba(255,255,255,0.06); }
-.paf-hero-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; position:relative; z-index:1; }
-.paf-hero-name { font-size:1.5rem; font-weight:800; }
-.paf-hero-actions { display:flex; gap:8px; }
-.paf-hero-btn { padding:8px 16px; border-radius:10px; font-size:0.78rem; font-weight:600; border:1.5px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.12); color:#fff; cursor:pointer; transition:all 0.2s; backdrop-filter:blur(4px); text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
-.paf-hero-btn:hover { background:rgba(255,255,255,0.22); border-color:rgba(255,255,255,0.4); }
-.paf-hero-tags { display:flex; gap:10px; flex-wrap:wrap; position:relative; z-index:1; }
-.paf-hero-tag { display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; padding:5px 12px; border-radius:8px; background:rgba(255,255,255,0.12); backdrop-filter:blur(4px); }
-.paf-hero-tag .lbl { opacity:0.7; }
+  /* ─── Header ─── */
+  .af-header { margin-bottom: 24px; }
+  .af-back { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); text-decoration: none; font-weight: 500; margin-bottom: 10px; transition: all 0.15s; }
+  .af-back:hover { color: var(--primary); gap: 10px; }
+  .af-headline { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+  .af-headline h1 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--ink); letter-spacing: -0.3px; }
+  .af-party-meta { display: flex; gap: 12px; flex-wrap: wrap; color: #64748b; font-size: 0.8rem; }
+  .af-party-meta .lbl { font-weight: 600; color: #94a3b8; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.2px; }
+  .af-party-meta span { color: #0f172a; }
 
-/* Two Main Cards */
-.paf-cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
-@media(max-width:700px) { .paf-cards { grid-template-columns:1fr; } }
-.paf-card { background:var(--surface); border:1px solid var(--line); border-radius:18px; overflow:hidden; transition:all 0.25s; }
-.paf-card:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,0,0,0.06); }
-.paf-card-head { padding:20px 24px 14px; display:flex; align-items:center; gap:12px; }
-.paf-card-icon { width:48px; height:48px; border-radius:14px; display:grid; place-items:center; font-size:1.4rem; flex-shrink:0; }
-.paf-card-icon.visa-bg { background:linear-gradient(135deg, #f3e5f5, #e1bee7); }
-.paf-card-icon.veh-bg { background:linear-gradient(135deg, #e3f2fd, #bbdefb); }
-.paf-card-title { font-size:1rem; font-weight:700; color:var(--ink); }
-.paf-card-sub { font-size:0.68rem; color:var(--muted); margin-top:2px; }
-.paf-card-body { padding:0 24px 18px; }
-.paf-row { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:#f8fafc; border-radius:10px; margin-bottom:6px; }
-.paf-row .lbl { font-size:0.75rem; color:#94a3b8; font-weight:500; }
-.paf-row .val { font-size:0.88rem; font-weight:700; }
-.paf-row .val.c-green { color:#16a34a; }
-.paf-row .val.c-orange { color:#e65100; }
-.paf-row .val.c-blue { color:#1976d2; }
-.paf-progress { margin-top:12px; }
-.paf-progress-header { display:flex; justify-content:space-between; margin-bottom:5px; }
-.paf-progress-label { font-size:0.65rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.3px; }
-.paf-progress-pct { font-size:0.65rem; font-weight:700; }
-.paf-progress-bar { width:100%; height:8px; background:#e2e8f0; border-radius:8px; overflow:hidden; }
-.paf-progress-fill { height:100%; border-radius:8px; transition:width 0.6s cubic-bezier(0.4,0,0.2,1); }
-.paf-card-footer { padding:14px 24px; border-top:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; }
+  /* ─── Stats Strip ─── */
+  .af-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  @media (max-width: 700px) { .af-stats { grid-template-columns: 1fr; } }
+  .af-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 14px; }
+  .af-stat-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.3rem; flex-shrink: 0; }
+  .af-stat-icon.total { background: #eef2f7; color: #1e293b; }
+  .af-stat-icon.paid { background: #f0fdf4; color: #16a34a; }
+  .af-stat-icon.due { background: #fff7ed; color: #e65100; }
+  .af-stat-body { }
+  .af-stat-val { font-size: 1.15rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
+  .af-stat-label { font-size: 0.72rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
+  .af-stat-pct { font-size: 0.7rem; font-weight: 700; margin-top: 2px; }
+  .af-stat-pct.green { color: #16a34a; }
+  .af-stat-pct.orange { color: #e65100; }
 
-/* Quick Actions */
-.paf-quick-actions { display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; }
-.paf-action-btn { display:inline-flex; align-items:center; gap:6px; padding:10px 20px; border-radius:12px; font-size:0.82rem; font-weight:600; border:1.5px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; transition:all 0.2s; }
-.paf-action-btn:hover { border-color:var(--primary); color:var(--primary); transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.06); }
-.paf-action-btn.primary { background:var(--primary); color:#fff; border-color:var(--primary); }
-.paf-action-btn.primary:hover { background:#0d47a1; border-color:#0d47a1; }
-.paf-action-btn.green { background:#16a34a; color:#fff; border-color:#16a34a; }
-.paf-action-btn.green:hover { background:#15803d; border-color:#15803d; }
+  /* ─── Section Header ─── */
+  .af-section { margin-bottom: 20px; }
+  .af-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .af-section h2 { margin: 0; font-size: 0.88rem; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.4px; }
+  .af-actions { display: flex; gap: 8px; }
 
-/* Modal */
-.paf-modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.5); backdrop-filter:blur(4px); z-index:10000; display:none; align-items:center; justify-content:center; }
-.paf-modal-overlay.is-open { display:flex; animation:pafFadeIn 0.2s ease; }
-@keyframes pafFadeIn { from{opacity:0} to{opacity:1} }
-@keyframes pafSlideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-.paf-modal { background:var(--surface); border:1px solid var(--line); border-radius:20px; width:90%; max-width:600px; max-height:90vh; overflow-y:auto; box-shadow:0 24px 80px rgba(0,0,0,0.18); animation:pafSlideUp 0.3s cubic-bezier(0.4,0,0.2,1); }
-.paf-modal-header { padding:22px 28px 16px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; }
-.paf-modal-header h3 { margin:0; font-size:1.1rem; font-weight:700; }
-.paf-modal-close { background:none; border:none; font-size:1.3rem; cursor:pointer; color:var(--muted); padding:4px 8px; border-radius:8px; transition:all 0.2s; }
-.paf-modal-close:hover { background:#f1f5f9; color:var(--ink); }
-.paf-modal-body { padding:20px 28px; }
-.paf-modal-footer { padding:16px 28px 22px; border-top:1px solid #f1f5f9; display:flex; justify-content:flex-end; gap:8px; }
-.paf-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-@media(max-width:500px) { .paf-form-grid { grid-template-columns:1fr; } }
-.paf-form-group { display:flex; flex-direction:column; gap:5px; }
-.paf-form-group.full { grid-column:1/-1; }
-.paf-form-group label { font-size:0.75rem; font-weight:600; color:var(--ink); }
-.paf-form-group label .required { color:#c62828; }
-.paf-form-group input, .paf-form-group select, .paf-form-group textarea { padding:10px 14px; border:1.5px solid var(--line); border-radius:10px; font-size:0.85rem; font-family:inherit; transition:border-color 0.2s; background:var(--surface); color:var(--ink); }
-.paf-form-group input:focus, .paf-form-group select:focus, .paf-form-group textarea:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(25,118,210,0.1); }
+  /* ─── Cards Grid ─── */
+  .af-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .af-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .af-card-head { display: flex; align-items: center; justify-content: space-between; }
+  .af-card-title { font-size: 0.85rem; font-weight: 700; color: var(--ink); margin: 0; }
+  .af-card-sub { font-size: 0.68rem; color: #64748b; margin: 0; font-weight: 500; }
+  .af-card-body { display: flex; flex-direction: column; gap: 8px; }
+  .af-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+  .af-row:last-child { border-bottom: none; }
+  .af-row .lbl { color: #64748b; font-weight: 500; font-size: 0.78rem; }
+  .af-row .val { font-weight: 700; font-size: 0.88rem; }
+  .af-row .val.paid { color: #16a34a; }
+  .af-row .val.due { color: #e65100; }
+  .af-row .val.total { color: #1e293b; }
+  .af-progress { margin-top: 6px; height: 6px; background: #f1f5f9; border-radius: 6px; overflow: hidden; font-size: 0; }
+  .af-progress-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+  .af-progress-fill.paid { background: linear-gradient(90deg, #16a34a, #4ade80); }
+  .af-progress-fill.due { background: linear-gradient(90deg, #e65100, #fb923c); }
 
-/* Transaction Table */
-.paf-table-card { background:var(--surface); border:1px solid var(--line); border-radius:18px; overflow:hidden; margin-bottom:24px; }
-.paf-table-head { padding:18px 24px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; }
-.paf-table-head h3 { margin:0; font-size:1rem; font-weight:700; }
-.paf-table-head .count { font-size:0.72rem; color:var(--muted); }
+  /* ─── SOA Table ─── */
+  .af-table-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .af-table-head { background: #f8fafc; border-bottom: 1px solid var(--line); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .af-table-head h3 { margin: 0; font-size: 0.88rem; font-weight: 700; color: var(--ink); }
+  .af-table-head .count { font-size: 0.72rem; color: #64748b; }
+  table.af-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  table.af-table th { text-align: left; padding: 12px 16px; font-size: 0.68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 2px solid #f1f5f9; white-space: nowrap; }
+  table.af-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  table.af-table tr:last-child td { border-bottom: none; }
+  table.af-table tr:hover td { background: #f8fafc; }
+  .af-mono { font-family: 'SF Mono', Consolas, monospace; font-size: 0.78rem; }
+  .af-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 600; padding: 3px 10px; border-radius: 6px; letter-spacing: 0.3px; }
+  .af-amt-dr { color: #1976d2; font-weight: 700; }
+  .af-amt-cr { color: #16a34a; font-weight: 700; }
+  .af-bal-zero { color: #16a34a; font-weight: 700; }
+  .af-bal-pos { color: #e65100; font-weight: 700; }
+  .af-total-row { background: #f0f7ff; font-weight: 700; }
+  .af-total-row td { border-top: 2px solid var(--line); color: #1e293b; }
 
-/* SOA Card — Customer style */
-.paf-soa-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:24px; }
-.paf-soa-header { background:var(--primary); color:#fff; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; }
-.paf-soa-header h2 { margin:0; font-size:1rem; font-weight:700; letter-spacing:0.5px; }
-.paf-soa-btn {
-    display:inline-flex; align-items:center; gap:4px;
-    background:rgba(255,255,255,0.25); color:#fff; border:none; border-radius:6px;
-    padding:6px 14px; font-size:0.78rem; font-weight:600; text-decoration:none; cursor:pointer; transition:all 0.2s;
-}
-.paf-soa-btn:hover { background:rgba(255,255,255,0.4); }
-.paf-soa-btn-ghost { background:rgba(255,255,255,0.15); }
-.paf-soa-btn-ghost:hover { background:rgba(255,255,255,0.3); }
-.paf-soa-meta { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:18px 24px; background:#f8fafc; border-bottom:1px solid var(--line); }
-.paf-soa-meta-item label { font-size:0.65rem; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:1px; letter-spacing:0.3px; }
-.paf-soa-meta-item span { font-size:0.95rem; font-weight:600; }
-.paf-soa-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); }
-.paf-soa-summary > div { background:var(--surface); padding:16px; text-align:center; }
-.paf-soa-summary .lbl { font-size:0.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
-.paf-soa-summary .val { font-size:1.2rem; font-weight:800; margin-top:4px; }
-.paf-soa-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
-.paf-soa-table th { padding:10px 12px; background:#f0f2f5; font-size:0.68rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; }
-.paf-soa-table td { padding:10px 12px; border-bottom:1px solid #eef2f6; }
-.paf-soa-table tr:last-child td { border-bottom:none; }
-.paf-soa-type-badge { display:inline-block; font-size:0.68rem; font-weight:600; padding:3px 10px; border-radius:4px; letter-spacing:0.3px; }
-.paf-soa-total-row { background:var(--primary); color:#fff; font-weight:700; font-size:0.9rem; }
-.paf-soa-total-row td { padding:12px; }
+  /* ─── Empty State ─── */
+  .af-empty { text-align: center; padding: 48px 24px; color: #64748b; }
+  .af-empty .icon { font-size: 3rem; margin-bottom: 10px; opacity: 0.5; }
+  .af-empty p { margin: 0 0 8px; font-size: 0.85rem; color: #0f172a; font-weight: 500; }
+  .af-empty small { font-size: 0.75rem; color: #94a3b8; }
 
-/* SOA Table */
-.soa-table { width:100%; border-collapse:collapse; }
-.soa-table th { padding:12px 16px; font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:var(--muted); text-align:left; background:#f8fafc; border-bottom:2px solid #e2e8f0; }
-.soa-table td { padding:12px 16px; font-size:0.82rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
-.soa-table tr:hover td { background:#f8fafc; }
-.soa-table .mono { font-family:'SF Mono',Consolas,monospace; font-size:0.78rem; }
-.soa-table .amt-pos { color:#16a34a; font-weight:700; }
-.soa-table .amt-neg { color:#1976d2; font-weight:700; }
-.soa-table .bal-zero { color:#16a34a; font-weight:700; }
-.soa-table .bal-pos { color:#e65100; font-weight:700; }
-.soa-table .type-visa { background:#f3e5f5; color:#7b1fa2; }
-.soa-table .type-vehicle { background:#e3f2fd; color:#1565c0; }
-.soa-table .type-other { background:#eceff1; color:#546e7a; }
-.soa-table .type-payment { background:#e8f5e9; color:#2e7d32; }
-.soa-table tr.border-top td { border-top:2px solid #e2e8f0; }
+  /* ─── Action Buttons ─── */
+  .btn-sm { padding: 6px 14px; font-size: 0.78rem; font-weight: 600; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-sm:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-sm.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-sm.primary:hover { background: #0d47a1; border-color: #0d47a1; }
+  .btn-sm.green { background: #16a34a; color: #fff; border-color: #16a34a; }
+  .btn-sm.green:hover { background: #15803d; border-color: #15803d; }
+  .btn-sm.outline { border-color: var(--line); }
+  .btn-sm.outline:hover { border-color: #c62828; color: #c62828; }
 
-/* Summary Strip — 3 Cards + Donut Chart */
-.soa-summary {
-    display:grid; grid-template-columns:1fr auto; gap:0;
-    margin-bottom:24px; background:var(--surface); border:1px solid var(--line);
-    border-radius:20px; overflow:hidden;
-}
-@media(max-width:700px) { .soa-summary { grid-template-columns:1fr; } }
-.soa-stats {
-    display:grid; grid-template-columns:repeat(3,1fr); gap:0;
-}
-@media(max-width:500px) { .soa-stats { grid-template-columns:1fr; } }
-.soa-stat {
-    padding:24px 20px; position:relative;
-    transition:all 0.25s;
-}
-.soa-stat:not(:last-child)::after {
-    content:''; position:absolute; right:0; top:20%; height:60%; width:1px; background:#e2e8f0;
-}
-@media(max-width:500px) { .soa-stat:not(:last-child)::after { display:none; } .soa-stat:not(:last-child) { border-bottom:1px solid #f1f5f9; } }
-.soa-stat:hover { background:#fafbfc; }
-.soa-stat-icon {
-    width:44px; height:44px; border-radius:14px; display:grid; place-items:center;
-    font-size:1.2rem; margin-bottom:12px;
-}
-.soa-stat.st-total .soa-stat-icon { background:linear-gradient(135deg,#e2e8f0,#cbd5e1); }
-.soa-stat.st-paid .soa-stat-icon { background:linear-gradient(135deg,#dcfce7,#bbf7d0); }
-.soa-stat.st-due .soa-stat-icon { background:linear-gradient(135deg,#ffedd5,#fed7aa); }
-.soa-stat-lbl { font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:4px; }
-.soa-stat-val { font-size:1.35rem; font-weight:800; line-height:1.3; }
-.soa-stat.st-total .soa-stat-val { color:#0f172a; }
-.soa-stat.st-paid .soa-stat-val { color:#16a34a; }
-.soa-stat.st-due .soa-stat-val { color:#e65100; }
-.soa-stat-sub { font-size:0.68rem; color:var(--muted); margin-top:4px; font-weight:500; }
-.soa-stat-bar { margin-top:10px; height:6px; background:#f1f5f9; border-radius:6px; overflow:hidden; }
-.soa-stat-bar-fill { height:100%; border-radius:6px; transition:width 0.8s cubic-bezier(0.4,0,0.2,1); }
-.soa-stat.st-paid .soa-stat-bar-fill { background:linear-gradient(90deg,#16a34a,#4ade80); }
-.soa-stat.st-due .soa-stat-bar-fill { background:linear-gradient(90deg,#e65100,#fb923c); }
-.soa-stat.st-total .soa-stat-bar-fill { background:linear-gradient(90deg,#334155,#64748b); }
+  /* ─── Modal ─── */
+  .af-modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); z-index: 10000; display: none; align-items: center; justify-content: center; }
+  .af-modal-overlay.is-open { display: flex; animation: afFadeIn 0.2s ease; }
+  @keyframes afFadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes afSlideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+  .af-modal { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; width: 92%; max-width: 520px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18); animation: afSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .af-modal-header { padding: 18px 24px 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+  .af-modal-header h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
+  .af-modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #94a3b8; padding: 4px 8px; border-radius: 6px; transition: all 0.15s; }
+  .af-modal-close:hover { background: #f1f5f9; color: var(--ink); }
+  .af-modal-body { padding: 16px 24px 20px; }
+  .af-modal-footer { padding: 12px 24px 18px; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 8px; }
+  .af-form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .af-form-group label { font-size: 0.75rem; font-weight: 600; color: var(--ink); }
+  .af-form-group label .req { color: #c62828; font-size: 0.7rem; }
+  .af-form-group input, .af-form-group select, .af-form-group textarea { padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: var(--surface); color: var(--ink); transition: border-color 0.2s; }
+  .af-form-group input:focus, .af-form-group select:focus, .af-form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1); }
+  .af-form-group.full { grid-column: 1 / -1; }
+  .af-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 500px) { .af-form-grid { grid-template-columns: 1fr; } }
 
-/* Donut Chart */
-.soa-chart {
-    display:flex; align-items:center; justify-content:center; padding:24px 28px;
-    min-width:180px;
-}
-.soa-donut { position:relative; width:140px; height:140px; }
-.soa-donut svg { transform:rotate(-90deg); }
-.soa-donut-center {
-    position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-}
-.soa-donut-pct { font-size:1.6rem; font-weight:800; color:#0f172a; line-height:1; }
-.soa-donut-lbl { font-size:0.58rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.3px; margin-top:2px; }
+  /* ─── Fee Type Badge Colors ─── */
+  .af-tb-visa { background: #f3e5f5; color: #7b1fa2; }
+  .af-tb-vehicle { background: #e3f2fd; color: #1565c0; }
+  .af-tb-mulkia { background: #fff3e0; color: #e65100; }
+  .af-tb-fine { background: #ffebee; color: #c62828; }
+  .af-tb-insurance { background: #e8f5e9; color: #2e7d32; }
+  .af-tb-other { background: #eceff1; color: #546e7a; }
+  .af-tb-payment { background: #f0fdf4; color: #16a34a; }
 </style>
 
-<!-- ═══ HERO HEADER ═══ -->
-<div class="paf-hero">
-    <div class="paf-hero-top">
-        <div class="paf-hero-name">{{ party.party_name }}</div>
-        <div class="paf-hero-actions">
-            <button class="paf-hero-btn" onclick="document.getElementById('addFeeModal').classList.add('is-open')">➕ Add Fee</button>
-            <button class="paf-hero-btn" onclick="document.getElementById('addTransModal').classList.add('is-open')">📝 General Transaction</button>
-            <button class="paf-hero-btn" onclick="document.getElementById('payModal').classList.add('is-open')">💳 Record Payment</button>
-            <a href="{{ url_for('annual_fees') }}" class="paf-hero-btn">← Back</a>
-        </div>
-    </div>
-    <div class="paf-hero-tags">
-        <span class="paf-hero-tag"><span class="lbl">Code:</span> {{ party.party_code }}</span>
-        {% if party.contact_person %}<span class="paf-hero-tag"><span class="lbl">Contact:</span> {{ party.contact_person }}</span>{% endif %}
-        {% if party.phone_number %}<span class="paf-hero-tag"><span class="lbl">Phone:</span> {{ party.phone_number }}</span>{% endif %}
-        {% if party.email %}<span class="paf-hero-tag"><span class="lbl">Email:</span> {{ party.email }}</span>{% endif %}
-        {% if party.trn_no %}<span class="paf-hero-tag"><span class="lbl">TRN:</span> {{ party.trn_no }}</span>{% endif %}
-    </div>
-</div>
+<div class="af-shell">
 
-<!-- ═══ SUMMARY STRIP ═══ -->
-{% set paid_pct = ((overall.received / overall.annual * 100)|round|int) if overall.annual > 0 else 0 %}
-{% set due_pct = 100 - paid_pct %}
-<div class="soa-summary">
-    <div class="soa-stats">
-        <div class="soa-stat st-total">
-            <div class="soa-stat-icon">💰</div>
-            <div class="soa-stat-lbl">Total Fees</div>
-            <div class="soa-stat-val">AED {{ "%.2f"|format(overall.annual) }}</div>
-            <div class="soa-stat-sub">{{ overall.entries }} total entries</div>
-        </div>
-        <div class="soa-stat st-paid">
-            <div class="soa-stat-icon">✅</div>
-            <div class="soa-stat-lbl">Paid</div>
-            <div class="soa-stat-val">AED {{ "%.2f"|format(overall.received) }}</div>
-            <div class="soa-stat-sub">{{ paid_pct }}% collected</div>
-            <div class="soa-stat-bar"><div class="soa-stat-bar-fill" style="width:{{ paid_pct }}%"></div></div>
-        </div>
-        <div class="soa-stat st-due">
-            <div class="soa-stat-icon">⏳</div>
-            <div class="soa-stat-lbl">Outstanding</div>
-            <div class="soa-stat-val">AED {{ "%.2f"|format(overall.balance) }}</div>
-            <div class="soa-stat-sub">{{ overall.due }} {{ 'items' if overall.due != 1 else 'item' }} due</div>
-            <div class="soa-stat-bar"><div class="soa-stat-bar-fill" style="width:{{ due_pct }}%"></div></div>
-        </div>
+  <!-- ─── Header ─── -->
+  <div class="af-header">
+    <a href="{{ url_for('annual_fees') }}" class="af-back">← Back to Annual Fees</a>
+    <div class="af-headline">
+      <h1>{{ party.party_name }}</h1>
+      <div class="af-party-meta">
+        <span><span class="lbl">Code</span> {{ party.party_code }}</span>
+        {% if party.contact_person %}<span><span class="lbl">Contact</span> {{ party.contact_person }}</span>{% endif %}
+        {% if party.phone_number %}<span><span class="lbl">Phone</span> {{ party.phone_number }}</span>{% endif %}
+        {% if party.email %}<span><span class="lbl">Email</span> {{ party.email }}</span>{% endif %}
+        {% if party.trn_no %}<span><span class="lbl">TRN</span> {{ party.trn_no }}</span>{% endif %}
+      </div>
     </div>
-    <div class="soa-chart">
-        <div class="soa-donut">
-            <svg viewBox="0 0 140 140" width="140" height="140">
-                <circle cx="70" cy="70" r="56" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                <circle cx="70" cy="70" r="56" fill="none" stroke="#16a34a" stroke-width="14"
-                    stroke-dasharray="{{ (paid_pct / 100 * 351.86)|round(1) }} {{ (351.86 - paid_pct / 100 * 351.86)|round(1) }}"
-                    stroke-linecap="round"/>
-                <circle cx="70" cy="70" r="56" fill="none" stroke="#e65100" stroke-width="14"
-                    stroke-dasharray="{{ (due_pct / 100 * 351.86)|round(1) }} {{ (351.86 - due_pct / 100 * 351.86)|round(1) }}"
-                    stroke-dashoffset="-{{ (paid_pct / 100 * 351.86)|round(1) }}"
-                    stroke-linecap="round"/>
-            </svg>
-            <div class="soa-donut-center">
-                <div class="soa-donut-pct">{{ paid_pct }}%</div>
-                <div class="soa-donut-lbl">Collected</div>
-            </div>
-        </div>
-    </div>
-</div>
+  </div>
 
-<!-- ═══ TWO MAIN CARDS ═══ -->
-<div class="paf-cards">
-    <!-- Visa Card -->
-    {% set vs = type_summary.get('Visa', {'annual': 0, 'received': 0, 'balance': 0, 'entries': 0, 'due': 0}) %}
-    <div class="paf-card">
-        <div class="paf-card-head">
-            <div class="paf-card-icon visa-bg">🪪</div>
-            <div>
-                <div class="paf-card-title">Visa Fee</div>
-                <div class="paf-card-sub">{{ vs.entries }} {{ 'entries' if vs.entries != 1 else 'entry' }} · {{ vs.due }} due</div>
+  <!-- ─── Stats Strip ─── -->
+  {% set paid_pct = ((overall.received / overall.annual * 100)|round|int) if overall.annual > 0 else 0 %}
+  <div class="af-stats">
+    <div class="af-stat">
+      <div class="af-stat-icon total">💰</div>
+      <div>
+        <div class="af-stat-val">AED {{ "%.2f"|format(overall.annual) }}</div>
+        <div class="af-stat-label">Total Annual Fees</div>
+        <div class="af-stat-pct">{{ overall.entries }} entry{{ 's' if overall.entries != 1 else '' }}</div>
+      </div>
+    </div>
+    <div class="af-stat">
+      <div class="af-stat-icon paid">✅</div>
+      <div>
+        <div class="af-stat-val paid">AED {{ "%.2f"|format(overall.received) }}</div>
+        <div class="af-stat-label">Paid</div>
+        <div class="af-stat-pct green">{{ paid_pct }}% collected</div>
+      </div>
+    </div>
+    <div class="af-stat">
+      <div class="af-stat-icon due">⏳</div>
+      <div>
+        <div class="af-stat-val due">AED {{ "%.2f"|format(overall.balance) }}</div>
+        <div class="af-stat-label">Outstanding</div>
+        <div class="af-stat-pct orange">{{ overall.due }} item{{ 's' if overall.due != 1 else '' }} due</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Fee Type Cards ─── -->
+  <div class="af-section">
+    <div class="af-section-head">
+      <h2>Fee Breakdown</h2>
+      <button class="btn-sm primary" onclick="document.getElementById('addFeeModal').classList.add('is-open')">+ Add Fee</button>
+    </div>
+    <div class="af-cards">
+      {% set vs = type_summary.get('Visa', {'annual': 0, 'received': 0, 'balance': 0, 'entries': 0, 'due': 0}) %}
+      {% set pct = ((vs.received / vs.annual * 100)|round|int) if vs.annual > 0 else 0 %}
+      <div class="af-card" style="border-left: 3px solid #7b1fa2;">
+        <div class="af-card-head">
+          <div class="af-stat-icon" style="width:36px;height:36px;background:#f3e5f5;color:#7b1fa2;font-size:1.1rem">🪪</div>
+          <div style="text-align:right">
+            <div class="af-card-title">Visa Fee</div>
+            <div class="af-card-sub">{{ vs.entries }} entry{{ 's' if vs.entries != 1 else '' }} · {{ vs.due }} due</div>
+          </div>
+        </div>
+        <div class="af-card-body">
+          <div class="af-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(vs.annual) }}</span></div>
+          <div class="af-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(vs.received) }}</span></div>
+          <div class="af-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(vs.balance) }}</span></div>
+          <div class="af-progress"><div class="af-progress-fill paid" style="width:{{ pct }}%"></div></div>
+        </div>
+      </div>
+
+      {% set vs2 = type_summary.get('Vehicle', {'annual': 0, 'received': 0, 'balance': 0, 'entries': 0, 'due': 0}) %}
+      {% set pct2 = ((vs2.received / vs2.annual * 100)|round|int) if vs2.annual > 0 else 0 %}
+      <div class="af-card" style="border-left: 3px solid #1565c0;">
+        <div class="af-card-head">
+          <div class="af-stat-icon" style="width:36px;height:36px;background:#e3f2fd;color:#1565c0;font-size:1.1rem">🚛</div>
+          <div style="text-align:right">
+            <div class="af-card-title">Vehicle Fee</div>
+            <div class="af-card-sub">{{ vs2.entries }} entry{{ 's' if vs2.entries != 1 else '' }} · {{ vs2.due }} due</div>
+          </div>
+        </div>
+        <div class="af-card-body">
+          <div class="af-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(vs2.annual) }}</span></div>
+          <div class="af-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(vs2.received) }}</span></div>
+          <div class="af-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(vs2.balance) }}</span></div>
+          <div class="af-progress"><div class="af-progress-fill paid" style="width:{{ pct2 }}%"></div></div>
+        </div>
+      </div>
+
+      {% for ft, v in type_summary.items() %}
+        {% if ft not in ('Visa', 'Vehicle') and v.entries > 0 %}
+        {% set pct3 = ((v.received / v.annual * 100)|round|int) if v.annual > 0 else 0 %}
+        <div class="af-card">
+          <div class="af-card-head">
+            <div class="af-stat-icon" style="width:36px;height:36px;background:#eceff1;color:#546e7a;font-size:1.1rem">📄</div>
+            <div style="text-align:right">
+              <div class="af-card-title">{{ ft }}</div>
+              <div class="af-card-sub">{{ v.entries }} entry{{ 's' if v.entries != 1 else '' }} · {{ v.due }} due</div>
             </div>
+          </div>
+          <div class="af-card-body">
+            <div class="af-row"><span class="lbl">Annual</span><span class="val total">AED {{ "%.2f"|format(v.annual) }}</span></div>
+            <div class="af-row"><span class="lbl">Paid</span><span class="val paid">AED {{ "%.2f"|format(v.received) }}</span></div>
+            <div class="af-row"><span class="lbl">Due</span><span class="val due">AED {{ "%.2f"|format(v.balance) }}</span></div>
+            <div class="af-progress"><div class="af-progress-fill paid" style="width:{{ pct3 }}%"></div></div>
+          </div>
         </div>
-        <div class="paf-card-body">
-            <div class="paf-row"><span class="lbl">Total Annual</span><span class="val c-blue">AED {{ "%.2f"|format(vs.annual) }}</span></div>
-            <div class="paf-row"><span class="lbl">Received</span><span class="val c-green">AED {{ "%.2f"|format(vs.received) }}</span></div>
-            <div class="paf-row"><span class="lbl">Outstanding</span><span class="val {% if vs.balance > 0 %}c-orange{% else %}c-green{% endif %}">AED {{ "%.2f"|format(vs.balance) }}</span></div>
-            {% if vs.annual > 0 %}
-            {% set pct = ((vs.received / vs.annual * 100)|round|int) %}
-            <div class="paf-progress">
-                <div class="paf-progress-header">
-                    <span class="paf-progress-label">Collection</span>
-                    <span class="paf-progress-pct" style="color:{% if pct >= 100 %}#16a34a{% elif pct >= 50 %}#1976d2{% else %}#e65100{% endif %}">{{ pct }}%</span>
-                </div>
-                <div class="paf-progress-bar">
-                    <div class="paf-progress-fill" style="width:{{ pct }}%;background:linear-gradient(90deg,#7b1fa2,#ba68c8)"></div>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        <div class="paf-card-footer">
-            <button class="btn btn-xs btn-primary" onclick="openAddFeeModal('Visa')">+ Add Visa Fee</button>
-        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ─── Statement of Account ─── -->
+  <div class="af-section">
+    <div class="af-section-head">
+      <h2>Statement of Account</h2>
+      <div class="af-actions">
+        <a href="{{ url_for('annual_fee_soa_pdf', party_code=party.party_code) }}" class="btn-sm primary" target="_blank">📄 Download PDF</a>
+        <button class="btn-sm green" onclick="document.getElementById('payModal').classList.add('is-open')">💳 Record Payment</button>
+        <button class="btn-sm" onclick="document.getElementById('addTransModal').classList.add('is-open')">📝 Add Transaction</button>
+      </div>
     </div>
 
-    <!-- Vehicle Card -->
-    {% set vs2 = type_summary.get('Vehicle', {'annual': 0, 'received': 0, 'balance': 0, 'entries': 0, 'due': 0}) %}
-    <div class="paf-card">
-        <div class="paf-card-head">
-            <div class="paf-card-icon veh-bg">🚛</div>
-            <div>
-                <div class="paf-card-title">Vehicle Fee</div>
-                <div class="paf-card-sub">{{ vs2.entries }} {{ 'entries' if vs2.entries != 1 else 'entry' }} · {{ vs2.due }} due</div>
-            </div>
-        </div>
-        <div class="paf-card-body">
-            <div class="paf-row"><span class="lbl">Total Annual</span><span class="val c-blue">AED {{ "%.2f"|format(vs2.annual) }}</span></div>
-            <div class="paf-row"><span class="lbl">Received</span><span class="val c-green">AED {{ "%.2f"|format(vs2.received) }}</span></div>
-            <div class="paf-row"><span class="lbl">Outstanding</span><span class="val {% if vs2.balance > 0 %}c-orange{% else %}c-green{% endif %}">AED {{ "%.2f"|format(vs2.balance) }}</span></div>
-            {% if vs2.annual > 0 %}
-            {% set pct2 = ((vs2.received / vs2.annual * 100)|round|int) %}
-            <div class="paf-progress">
-                <div class="paf-progress-header">
-                    <span class="paf-progress-label">Collection</span>
-                    <span class="paf-progress-pct" style="color:{% if pct2 >= 100 %}#16a34a{% elif pct2 >= 50 %}#1976d2{% else %}#e65100{% endif %}">{{ pct2 }}%</span>
-                </div>
-                <div class="paf-progress-bar">
-                    <div class="paf-progress-fill" style="width:{{ pct2 }}%;background:linear-gradient(90deg,#1976d2,#42a5f5)"></div>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        <div class="paf-card-footer">
-            <button class="btn btn-xs btn-primary" onclick="openAddFeeModal('Vehicle')">+ Add Vehicle Fee</button>
-        </div>
-    </div>
-</div>
-
-<!-- ═══ STATEMENT OF ACCOUNT ═══ -->
-<div class="paf-soa-card">
-    <div class="paf-soa-header">
-        <h2>STATEMENT OF ACCOUNT</h2>
-        <div style="display:flex;gap:8px">
-            <a href="{{ url_for('annual_fee_soa_pdf', party_code=party.party_code) }}" class="paf-soa-btn" target="_blank">📄 Download PDF</a>
-            <a href="{{ url_for('annual_fees') }}" class="paf-soa-btn paf-soa-btn-ghost">← Back</a>
-        </div>
-    </div>
-    <div class="paf-soa-meta">
-        <div>
-            <div class="paf-soa-meta-item">
-                <label>Party</label>
-                <span>{{ party.party_name }}</span>
-            </div>
-            {% if party.contact_person %}
-            <div class="paf-soa-meta-item" style="margin-top:4px">
-                <label>Contact</label>
-                <span style="font-size:0.85rem;font-weight:400;color:var(--muted)">{{ party.contact_person }}</span>
-            </div>
-            {% endif %}
-        </div>
-        <div style="text-align:right">
-            {% if party.trn_no %}
-            <div class="paf-soa-meta-item">
-                <label>TRN</label>
-                <span class="mono">{{ party.trn_no }}</span>
-            </div>
-            {% endif %}
-            {% if party.phone_number %}
-            <div class="paf-soa-meta-item" style="margin-top:4px">
-                <label>Phone</label>
-                <span style="font-size:0.85rem;font-weight:400">{{ party.phone_number }}</span>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    <div class="paf-soa-summary">
-        <div>
-            <div class="lbl">Total Fees</div>
-            <div class="val" style="color:var(--ink)">AED {{ "%.0f"|format(overall.annual) }}</div>
-        </div>
-        <div>
-            <div class="lbl">Total Paid</div>
-            <div class="val" style="color:#16a34a">AED {{ "%.0f"|format(overall.received) }}</div>
-        </div>
-        <div>
-            <div class="lbl">Outstanding</div>
-            <div class="val" style="color:{% if overall.balance > 0 %}#e65100{% else %}#16a34a{% endif %}">AED {{ "%.0f"|format(overall.balance) }}</div>
-        </div>
-        <div>
-            <div class="lbl">Entries</div>
-            <div class="val" style="color:var(--primary)">{{ overall.entries }}</div>
-        </div>
-    </div>
     {% if soa_rows %}
-    <div style="overflow-x:auto">
-        <table class="paf-soa-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th style="min-width:220px">Description</th>
-                    <th style="max-width:90px">Ref</th>
-                    <th style="text-align:right">Debit</th>
-                    <th style="text-align:right">Credit</th>
-                    <th style="text-align:right">Balance</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% set running = namespace(bal=0) %}
-                {% set total_dr = namespace(v=0) %}
-                {% set total_cr = namespace(v=0) %}
-                {% for row in soa_rows %}
-                {% if row.soa_type == 'fee' %}
-                {% set running.bal = running.bal + row.amount %}
-                {% set total_dr.v = total_dr.v + row.amount %}
-                <tr>
-                    <td class="mono">{{ row.date }}</td>
-                    <td>
-                        {% set type_badge_colors = {
-                            'Visa': '#f3e5f5,#7b1fa2',
-                            'Vehicle': '#e3f2fd,#1565c0',
-                            'Mulkia': '#fff3e0,#e65100',
-                            'Fine': '#ffebee,#c62828',
-                            'Insurance': '#e8f5e9,#2e7d32',
-                            'Other': '#eceff1,#546e7a'
-                        } %}
-                        {% set tc = type_badge_colors.get(row.fee_type, '#eceff1,#546e7a').split(',') %}
-                        <span class="paf-soa-type-badge" style="background:{{ tc[0] }};color:{{ tc[1] }}">{{ row.fee_type }}</span>
-                    </td>
-                    <td>{{ row.description or '—' }}</td>
-                    <td class="mono" style="font-weight:600">{{ row.ref_no }}</td>
-                    <td class="mono" style="text-align:right;font-weight:600;color:#1976d2">{{ "%.2f"|format(row.amount) }}</td>
-                    <td class="mono" style="text-align:right;color:#94a3b8">—</td>
-                    <td class="mono" style="text-align:right;font-weight:600;color:{% if running.bal > 0.009 %}#e65100{% else %}#16a34a{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
-                    <td style="white-space:nowrap">
-                        <button class="btn btn-xs btn-outline" title="Edit" onclick="editFeeEntry('{{ row.ref_no }}','{{ row.fee_type }}','{{ row.description or '' }}','{{ row.vehicle_no or '' }}','{{ row.date }}','{{ row.amount }}','{{ row.notes or '' }}')">✏️</button>
-                        <form method="post" action="{{ url_for('delete_annual_fee', fee_no=row.ref_no) }}" style="display:inline" onsubmit="return confirm('Delete {{ row.ref_no }}?');">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-xs btn-outline" title="Delete" style="color:#c62828;border-color:#c62828">🗑️</button>
-                        </form>
-                    </td>
-                </tr>
-                {% elif row.soa_type == 'payment' %}
-                {% set running.bal = running.bal - row.amount %}
-                {% set total_cr.v = total_cr.v + row.amount %}
-                <tr>
-                    <td class="mono">{{ row.date }}</td>
-                    <td><span class="paf-soa-type-badge" style="background:#e8f5e9;color:#2e7d32">💰 Payment</span></td>
-                    <td>{{ row.description or 'Payment received' }}</td>
-                    <td class="mono" style="font-weight:600">{{ row.ref_no }}</td>
-                    <td class="mono" style="text-align:right;color:#94a3b8">—</td>
-                    <td class="mono" style="text-align:right;font-weight:600;color:#16a34a">{{ "%.2f"|format(row.amount) }}</td>
-                    <td class="mono" style="text-align:right;font-weight:600;color:{% if running.bal > 0.009 %}#e65100{% else %}#16a34a{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
-                    <td>
-                        {% if row.receipt_url %}
-                        <a href="{{ row.receipt_url }}" class="btn btn-xs btn-outline" title="Download Receipt" target="_blank">📄</a>
-                        {% endif %}
-                    </td>
-                </tr>
+    <div class="af-table-card">
+      <div class="af-table-head">
+        <h3>Transaction History</h3>
+        <span class="count">{{ soa_rows|length }} entr{{ 'y' if soa_rows|length == 1 else 'ies' }}</span>
+      </div>
+      <table class="af-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th style="min-width:200px">Description</th>
+            <th style="max-width:100px">Ref No</th>
+            <th style="text-align:right">Debit (AED)</th>
+            <th style="text-align:right">Credit (AED)</th>
+            <th style="text-align:right">Balance (AED)</th>
+            <th style="max-width:120px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set running = namespace(bal=0) %}
+          {% for row in soa_rows %}
+          {% if row.soa_type == 'fee' %}
+            {% set running.bal = running.bal + row.amount %}
+            <tr>
+              <td class="af-mono">{{ row.date }}</td>
+              <td><span class="af-badge af-tb-{{ row.fee_type|lower|replace(' ', '') }}">{{ row.fee_type }}</span></td>
+              <td>{{ row.description or '—' }}</td>
+              <td class="af-mono" style="font-weight:600">{{ row.ref_no }}</td>
+              <td class="af-amt-dr" style="text-align:right">{{ "%.2f"|format(row.amount) }}</td>
+              <td class="af-mono" style="text-align:right;color:#94a3b8">—</td>
+              <td style="text-align:right" class="{% if running.bal > 0.009 %}af-bal-pos{% else %}af-bal-zero{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
+              <td style="white-space:nowrap;font-size:0.75rem">
+                <button class="btn-sm" style="padding:4px 10px;color:#c62828" onclick="editFeeEntry('{{ row.ref_no }}','{{ row.fee_type }}','{{ row.description or '' }}','{{ row.vehicle_no or '' }}','{{ row.date }}','{{ row.amount }}','{{ row.notes or '' }}')">Edit</button>
+                <form method="post" action="{{ url_for('delete_annual_fee', fee_no=row.ref_no) }}" style="display:inline" onsubmit="return confirm('Delete {{ row.ref_no }}?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-sm" style="padding:4px 10px;color:#c62828;border-color:#c62828">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% elif row.soa_type == 'payment' %}
+            {% set running.bal = running.bal - row.amount %}
+            <tr>
+              <td class="af-mono">{{ row.date }}</td>
+              <td><span class="af-badge af-tb-payment">💰 Payment</span></td>
+              <td>{{ row.description or 'Payment received' }}</td>
+              <td class="af-mono" style="font-weight:600">{{ row.ref_no }}</td>
+              <td class="af-mono" style="text-align:right;color:#94a3b8">—</td>
+              <td class="af-amt-cr" style="text-align:right">{{ "%.2f"|format(row.amount) }}</td>
+              <td style="text-align:right" class="{% if running.bal > 0.009 %}af-bal-pos{% else %}af-bal-zero{% endif %}">{{ "%.2f"|format(running.bal) }}</td>
+              <td style="white-space:nowrap;font-size:0.75rem">
+                {% if row.receipt_url %}
+                <a href="{{ row.receipt_url }}" class="btn-sm" style="padding:4px 10px" target="_blank">Receipt</a>
                 {% endif %}
-                {% endfor %}
-                <tr class="paf-soa-total-row">
-                    <td colspan="4">Closing Balance</td>
-                    <td class="mono" style="text-align:right;color:#fff;font-weight:700">{{ "%.2f"|format(total_dr.v) }}</td>
-                    <td class="mono" style="text-align:right;color:#fff;font-weight:700">{{ "%.2f"|format(total_cr.v) }}</td>
-                    <td class="mono" style="text-align:right;color:#fff;font-weight:800">{{ "0.00" if overall.balance <= 0 else "%.2f"|format(overall.balance) }}</td>
-                    <td></td>
-                </tr>
-            </tbody>
-        </table>
+              </td>
+            </tr>
+          {% endif %}
+          {% endfor %}
+          <tr class="af-total-row">
+            <td colspan="3">Closing Balance</td>
+            <td></td>
+            <td style="text-align:right"></td>
+            <td style="text-align:right"></td>
+            <td style="text-align:right" class="af-bal-pos">{{ "%.2f"|format(overall.balance) }}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     {% else %}
-    <div style="padding:40px 24px;text-align:center;color:var(--muted);font-size:0.85rem;">
-        <div style="font-size:2.5rem;margin-bottom:8px;opacity:0.4;">📋</div>
-        No transactions yet.<br>
-        <span style="font-size:0.78rem;">Add a fee entry or record a payment to start tracking.</span>
+    <div class="af-empty">
+      <div class="icon">📋</div>
+      <p>No transactions yet</p>
+      <small>Add a fee entry or record a payment to start tracking.</small>
     </div>
     {% endif %}
+  </div>
+
 </div>
 
-<!-- ═══ ADD VISA/VEHICLE FEE MODAL ═══ -->
-<div class="paf-modal-overlay" id="addFeeModal">
-    <div class="paf-modal">
-        <div class="paf-modal-header">
-            <h3 id="addFeeModalTitle">➕ Add Fee Entry</h3>
-            <button class="paf-modal-close" onclick="document.getElementById('addFeeModal').classList.remove('is-open')">✕</button>
-        </div>
-        <form method="post" action="{{ url_for('add_party_annual_fee', party_code=party.party_code) }}">
-        <div class="paf-modal-body">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="paf-form-grid">
-                <div class="paf-form-group">
-                    <label>Fee Type <span class="required">*</span></label>
-                    <select name="fee_type" id="addFeeType" required>
-                        {% for item in fee_type_options %}
-                        <option value="{{ item }}">{{ item }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="paf-form-group">
-                    <label>Due Date <span class="required">*</span></label>
-                    <input type="date" name="due_date" required>
-                </div>
-                <div class="paf-form-group">
-                    <label>Annual Amount <span class="required">*</span></label>
-                    <input type="number" step="0.01" name="annual_amount" placeholder="0.00" required>
-                </div>
-                <div class="paf-form-group" id="addVehicleNoGroup">
-                    <label>Vehicle No</label>
-                    <input type="text" name="vehicle_no" placeholder="e.g. ABC-1234">
-                </div>
-                <div class="paf-form-group full">
-                    <label>Description</label>
-                    <input type="text" name="description" placeholder="e.g. Visa renewal 2025">
-                </div>
-                <div class="paf-form-group full">
-                    <label>Notes</label>
-                    <textarea name="notes" rows="2" placeholder="Any notes..."></textarea>
-                </div>
-            </div>
-        </div>
-        <div class="paf-modal-footer">
-            <button type="button" class="btn btn-outline" onclick="document.getElementById('addFeeModal').classList.remove('is-open')">Cancel</button>
-            <button type="submit" class="btn btn-primary">💾 Save Entry</button>
-        </div>
-        </form>
+<!-- ─── Add Fee Modal ─── -->
+<div class="af-modal-overlay" id="addFeeModal">
+  <div class="af-modal">
+    <div class="af-modal-header">
+      <h3 id="afAddFeeTitle">➕ Add Fee Entry</h3>
+      <button class="af-modal-close" onclick="document.getElementById('addFeeModal').classList.remove('is-open')">✕</button>
     </div>
-</div>
-
-<!-- ═══ EDIT FEE MODAL ═══ -->
-<div class="paf-modal-overlay" id="editFeeModal">
-    <div class="paf-modal">
-        <div class="paf-modal-header">
-            <h3>✏️ Edit Fee Entry</h3>
-            <button class="paf-modal-close" onclick="document.getElementById('editFeeModal').classList.remove('is-open')">✕</button>
+    <form method="post" action="{{ url_for('add_party_annual_fee', party_code=party.party_code) }}">
+    <div class="af-modal-body">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="af-form-grid">
+        <div class="af-form-group">
+          <label>Fee Type <span class="req">*</span></label>
+          <select name="fee_type" id="afFeeType" required>
+            {% for item in fee_type_options %}
+            <option value="{{ item }}">{{ item }}</option>
+            {% endfor %}
+          </select>
         </div>
-        <form method="post" id="editFeeForm">
-        <div class="paf-modal-body">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="paf-form-grid">
-                <div class="paf-form-group">
-                    <label>Fee No</label>
-                    <input type="text" id="editFeeNoDisplay" readonly style="background:#f1f5f9;color:var(--muted)">
-                </div>
-                <div class="paf-form-group">
-                    <label>Fee Type <span class="required">*</span></label>
-                    <select name="fee_type" id="editFeeType" required>
-                        {% for item in fee_type_options %}
-                        <option value="{{ item }}">{{ item }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="paf-form-group">
-                    <label>Due Date <span class="required">*</span></label>
-                    <input type="date" name="due_date" id="editDueDate" required>
-                </div>
-                <div class="paf-form-group">
-                    <label>Annual Amount <span class="required">*</span></label>
-                    <input type="number" step="0.01" name="annual_amount" id="editAnnualAmount" placeholder="0.00" required>
-                </div>
-                <div class="paf-form-group" id="editVehicleNoGroup">
-                    <label>Vehicle No</label>
-                    <input type="text" name="vehicle_no" id="editVehicleNo" placeholder="e.g. ABC-1234">
-                </div>
-                <div class="paf-form-group full">
-                    <label>Description</label>
-                    <input type="text" name="description" id="editDescription">
-                </div>
-                <div class="paf-form-group full">
-                    <label>Notes</label>
-                    <textarea name="notes" id="editNotes" rows="2"></textarea>
-                </div>
-            </div>
+        <div class="af-form-group">
+          <label>Due Date <span class="req">*</span></label>
+          <input type="date" name="due_date" required>
         </div>
-        <div class="paf-modal-footer">
-            <button type="button" class="btn btn-outline" onclick="document.getElementById('editFeeModal').classList.remove('is-open')">Cancel</button>
-            <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+        <div class="af-form-group">
+          <label>Annual Amount (AED) <span class="req">*</span></label>
+          <input type="number" step="0.01" name="annual_amount" placeholder="0.00" required>
         </div>
-        </form>
+        <div class="af-form-group" id="afVehicleNoGroup">
+          <label>Vehicle No</label>
+          <input type="text" name="vehicle_no" placeholder="e.g. ABC-1234">
+        </div>
+        <div class="af-form-group full">
+          <label>Description</label>
+          <input type="text" name="description" placeholder="e.g. Visa renewal 2025">
+        </div>
+        <div class="af-form-group full">
+          <label>Notes</label>
+          <textarea name="notes" rows="2" placeholder="Any notes..."></textarea>
+        </div>
+      </div>
     </div>
-</div>
-
-<!-- ═══ GENERAL TRANSACTION MODAL ═══ -->
-<div class="paf-modal-overlay" id="addTransModal">
-    <div class="paf-modal">
-        <div class="paf-modal-header">
-            <h3>📝 General Transaction (Mulkia / Fine / Insurance / Other)</h3>
-            <button class="paf-modal-close" onclick="document.getElementById('addTransModal').classList.remove('is-open')">✕</button>
-        </div>
-        <form method="post" action="{{ url_for('add_party_annual_fee', party_code=party.party_code) }}">
-        <div class="paf-modal-body">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="paf-form-grid">
-                <div class="paf-form-group">
-                    <label>Transaction Type <span class="required">*</span></label>
-                    <select name="fee_type" required>
-                        <option value="Mulkia">🇦🇪 Mulkia</option>
-                        <option value="Fine">🚨 Fine</option>
-                        <option value="Insurance">🛡️ Insurance</option>
-                        <option value="Other">📦 Other</option>
-                    </select>
-                </div>
-                <div class="paf-form-group">
-                    <label>Date <span class="required">*</span></label>
-                    <input type="date" name="due_date" required>
-                </div>
-                <div class="paf-form-group">
-                    <label>Amount <span class="required">*</span></label>
-                    <input type="number" step="0.01" name="annual_amount" placeholder="0.00" required>
-                </div>
-                <div class="paf-form-group full">
-                    <label>Details / Description <span class="required">*</span></label>
-                    <input type="text" name="description" placeholder="e.g. Mulkia renewal for ABC-1234" required>
-                </div>
-                <div class="paf-form-group full">
-                    <label>Notes</label>
-                    <textarea name="notes" rows="2" placeholder="Any notes..."></textarea>
-                </div>
-            </div>
-        </div>
-        <div class="paf-modal-footer">
-            <button type="button" class="btn btn-outline" onclick="document.getElementById('addTransModal').classList.remove('is-open')">Cancel</button>
-            <button type="submit" class="btn btn-primary">💾 Save Transaction</button>
-        </div>
-        </form>
+    <div class="af-modal-footer">
+      <button type="button" class="btn-sm" onclick="document.getElementById('addFeeModal').classList.remove('is-open')">Cancel</button>
+      <button type="submit" class="btn-sm primary">Save Entry</button>
     </div>
+    </form>
+  </div>
 </div>
 
-<!-- ═══ RECORD PAYMENT MODAL ═══ -->
-<div class="paf-modal-overlay" id="payModal">
-    <div class="paf-modal">
-        <div class="paf-modal-header">
-            <h3>💳 Record Payment</h3>
-            <button class="paf-modal-close" onclick="document.getElementById('payModal').classList.remove('is-open')">✕</button>
-        </div>
-        <form method="post" action="{{ url_for('record_annual_fee_payment', party_code=party.party_code) }}">
-        <div class="paf-modal-body">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <p style="font-size:0.78rem;color:var(--muted);margin:0 0 14px 0;background:#f0f7ff;padding:10px 14px;border-radius:10px;border-left:3px solid var(--primary)">
-                💡 Enter the amount received. It will be applied to the oldest outstanding fees first.
-            </p>
-            <div class="paf-form-grid">
-                <div class="paf-form-group">
-                    <label>Payment Amount <span class="required">*</span></label>
-                    <input type="number" step="0.01" name="amount" placeholder="0.00" required>
-                </div>
-                <div class="paf-form-group">
-                    <label>Payment Date <span class="required">*</span></label>
-                    <input type="date" name="payment_date" required>
-                </div>
-                <div class="paf-form-group">
-                    <label>Payment Method</label>
-                    <select name="payment_method">
-                        <option value="Cash">Cash</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Cheque">Cheque</option>
-                        <option value="Card">Card</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="paf-form-group">
-                    <label>Reference</label>
-                    <input type="text" name="reference" placeholder="e.g. Cheque no, transfer ref">
-                </div>
-                <div class="paf-form-group full">
-                    <label>Notes</label>
-                    <textarea name="notes" rows="2" placeholder="Payment notes..."></textarea>
-                </div>
-            </div>
-            {% if overall.balance <= 0.009 %}
-            <div style="margin-top:12px;padding:12px 16px;background:#e8f5e9;border-radius:10px;color:#2e7d32;font-size:0.82rem;font-weight:600;">
-                ✅ All fees fully paid. No outstanding balance.
-            </div>
-            {% endif %}
-        </div>
-        <div class="paf-modal-footer">
-            <button type="button" class="btn btn-outline" onclick="document.getElementById('payModal').classList.remove('is-open')">Cancel</button>
-            <button type="submit" class="btn btn-primary">💰 Record Payment</button>
-        </div>
-        </form>
+<!-- ─── Edit Fee Modal ─── -->
+<div class="af-modal-overlay" id="editFeeModal">
+  <div class="af-modal">
+    <div class="af-modal-header">
+      <h3>✏️ Edit Fee Entry</h3>
+      <button class="af-modal-close" onclick="document.getElementById('editFeeModal').classList.remove('is-open')">✕</button>
     </div>
+    <form method="post" id="afEditFeeForm">
+    <div class="af-modal-body">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="af-form-grid">
+        <div class="af-form-group">
+          <label>Fee No</label>
+          <input type="text" id="afEditFeeNoDisplay" readonly style="background:#f1f5f9;color:#64748b">
+        </div>
+        <div class="af-form-group">
+          <label>Fee Type <span class="req">*</span></label>
+          <select name="fee_type" id="afEditFeeType" required>
+            {% for item in fee_type_options %}
+            <option value="{{ item }}">{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="af-form-group">
+          <label>Due Date <span class="req">*</span></label>
+          <input type="date" name="due_date" id="afEditDueDate" required>
+        </div>
+        <div class="af-form-group">
+          <label>Annual Amount (AED) <span class="req">*</span></label>
+          <input type="number" step="0.01" name="annual_amount" id="afEditAnnualAmount" placeholder="0.00" required>
+        </div>
+        <div class="af-form-group" id="afEditVehicleNoGroup">
+          <label>Vehicle No</label>
+          <input type="text" name="vehicle_no" id="afEditVehicleNo" placeholder="e.g. ABC-1234">
+        </div>
+        <div class="af-form-group full">
+          <label>Description</label>
+          <input type="text" name="description" id="afEditDescription">
+        </div>
+        <div class="af-form-group full">
+          <label>Notes</label>
+          <textarea name="notes" id="afEditNotes" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="af-modal-footer">
+      <button type="button" class="btn-sm" onclick="document.getElementById('editFeeModal').classList.remove('is-open')">Cancel</button>
+      <button type="submit" class="btn-sm primary">Save Changes</button>
+    </div>
+    </form>
+  </div>
 </div>
 
+<!-- ─── Add Transaction (General) Modal ─── -->
+<div class="af-modal-overlay" id="addTransModal">
+  <div class="af-modal">
+    <div class="af-modal-header">
+      <h3>📝 Add Transaction</h3>
+      <button class="af-modal-close" onclick="document.getElementById('addTransModal').classList.remove('is-open')">✕</button>
+    </div>
+    <form method="post" action="{{ url_for('add_party_annual_fee', party_code=party.party_code) }}">
+    <div class="af-modal-body">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="af-form-grid">
+        <div class="af-form-group">
+          <label>Transaction Type <span class="req">*</span></label>
+          <select name="fee_type" required>
+            <option value="Mulkia">🇦🇪 Mulkia</option>
+            <option value="Fine">🚨 Fine</option>
+            <option value="Insurance">🛡️ Insurance</option>
+            <option value="Other">📦 Other</option>
+          </select>
+        </div>
+        <div class="af-form-group">
+          <label>Date <span class="req">*</span></label>
+          <input type="date" name="due_date" required>
+        </div>
+        <div class="af-form-group">
+          <label>Amount (AED) <span class="req">*</span></label>
+          <input type="number" step="0.01" name="annual_amount" placeholder="0.00" required>
+        </div>
+        <div class="af-form-group full">
+          <label>Description <span class="req">*</span></label>
+          <input type="text" name="description" placeholder="e.g. Mulkia renewal for ABC-1234" required>
+        </div>
+        <div class="af-form-group full">
+          <label>Notes</label>
+          <textarea name="notes" rows="2" placeholder="Any notes..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="af-modal-footer">
+      <button type="button" class="btn-sm" onclick="document.getElementById('addTransModal').classList.remove('is-open')">Cancel</button>
+      <button type="submit" class="btn-sm primary">Save Transaction</button>
+    </div>
+    </form>
+  </div>
+</div>
+
+<!-- ─── Record Payment Modal ─── -->
+<div class="af-modal-overlay" id="payModal">
+  <div class="af-modal">
+    <div class="af-modal-header">
+      <h3>💳 Record Payment</h3>
+      <button class="af-modal-close" onclick="document.getElementById('payModal').classList.remove('is-open')">✕</button>
+    </div>
+    <form method="post" action="{{ url_for('record_annual_fee_payment', party_code=party.party_code) }}">
+    <div class="af-modal-body">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <p style="font-size:0.78rem;color:#64748b;margin:0 0 14px 0;background:#f0f7ff;padding:10px 14px;border-radius:8px;border-left:3px solid var(--primary)">
+        💡 Enter the amount received. It will be applied to the oldest outstanding fees first.
+      </p>
+      <div class="af-form-grid">
+        <div class="af-form-group">
+          <label>Payment Amount (AED) <span class="req">*</span></label>
+          <input type="number" step="0.01" name="amount" placeholder="0.00" required>
+        </div>
+        <div class="af-form-group">
+          <label>Payment Date <span class="req">*</span></label>
+          <input type="date" name="payment_date" required>
+        </div>
+        <div class="af-form-group">
+          <label>Payment Method</label>
+          <select name="payment_method">
+            <option value="Cash">Cash</option>
+            <option value="Bank Transfer">Bank Transfer</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Card">Card</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="af-form-group">
+          <label>Reference</label>
+          <input type="text" name="reference" placeholder="e.g. Cheque no, transfer ref">
+        </div>
+        <div class="af-form-group full">
+          <label>Notes</label>
+          <textarea name="notes" rows="2" placeholder="Payment notes..."></textarea>
+        </div>
+      </div>
+      {% if overall.balance <= 0.009 %}
+      <div style="margin-top:12px;padding:12px 16px;background:#f0fdf4;border-radius:8px;color:#16a34a;font-size:0.82rem;font-weight:600;">
+        ✅ All fees fully paid. No outstanding balance.
+      </div>
+      {% endif %}
+    </div>
+    <div class="af-modal-footer">
+      <button type="button" class="btn-sm" onclick="document.getElementById('payModal').classList.remove('is-open')">Cancel</button>
+      <button type="submit" class="btn-sm primary">Record Payment</button>
+    </div>
+    </form>
+  </div>
 </div>
 
 <script>
-/* ─── Open Add Fee Modal with pre-selected type ─── */
-function openAddFeeModal(type) {
+  /* Pre-select fee type in Add Fee modal */
+  function openAddFeeModal(type) {
     var modal = document.getElementById('addFeeModal');
-    var feeTypeSelect = document.getElementById('addFeeType');
-    var title = document.getElementById('addFeeModalTitle');
-    if (title) title.textContent = '+ Add ' + type + ' Fee';
-    if (feeTypeSelect) {
-        for (var i = 0; i < feeTypeSelect.options.length; i++) {
-            if (feeTypeSelect.options[i].value === type) {
-                feeTypeSelect.selectedIndex = i;
-                break;
-            }
-        }
+    var sel = document.getElementById('afFeeType');
+    var title = document.getElementById('afAddFeeTitle');
+    if (title) title.textContent = '➕ Add ' + type + ' Fee';
+    if (sel) {
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value === type) { sel.selectedIndex = i; break; }
+      }
     }
-    toggleAddVehicleNo();
+    toggleVehicleNo();
     modal.classList.add('is-open');
-}
+  }
 
-/* ─── Vehicle No visibility ─── */
-var addFeeType = document.getElementById('addFeeType');
-var addVehicleNoGroup = document.getElementById('addVehicleNoGroup');
-if (addFeeType && addVehicleNoGroup) {
-    function toggleAddVehicleNo() {
-        addVehicleNoGroup.style.display = addFeeType.value === 'Vehicle' ? '' : 'none';
-    }
-    addFeeType.addEventListener('change', toggleAddVehicleNo);
-    toggleAddVehicleNo();
-}
+  var selFee = document.getElementById('afFeeType');
+  var vehGrp = document.getElementById('afVehicleNoGroup');
+  if (selFee && vehGrp) {
+    function toggleVehicleNo() { vehGrp.style.display = selFee.value === 'Vehicle' ? '' : 'none'; }
+    selFee.addEventListener('change', toggleVehicleNo);
+    toggleVehicleNo();
+  }
 
-/* ─── Edit Fee Entry ─── */
-function editFeeEntry(feeNo, feeType, desc, vehicleNo, dueDate, amount, notes) {
-    document.getElementById('editFeeForm').action = '{{ url_for("edit_party_annual_fee", party_code=party.party_code, fee_no="__PF__") }}'.replace('__PF__', feeNo);
-    document.getElementById('editFeeNoDisplay').value = feeNo;
-    var s = document.getElementById('editFeeType');
+  /* Edit fee entry */
+  function editFeeEntry(feeNo, feeType, desc, vehicleNo, dueDate, amount, notes) {
+    document.getElementById('afEditFeeForm').action = '{{ url_for("edit_party_annual_fee", party_code=party.party_code, fee_no="__PF__") }}'.replace('__PF__', feeNo);
+    document.getElementById('afEditFeeNoDisplay').value = feeNo;
+    var s = document.getElementById('afEditFeeType');
     for (var i = 0; i < s.options.length; i++) { if (s.options[i].value === feeType) { s.selectedIndex = i; break; } }
-    document.getElementById('editDueDate').value = dueDate;
-    document.getElementById('editAnnualAmount').value = amount;
-    document.getElementById('editVehicleNo').value = vehicleNo;
-    document.getElementById('editDescription').value = desc;
-    document.getElementById('editNotes').value = notes;
+    document.getElementById('afEditDueDate').value = dueDate;
+    document.getElementById('afEditAnnualAmount').value = amount;
+    document.getElementById('afEditVehicleNo').value = vehicleNo;
+    document.getElementById('afEditDescription').value = desc;
+    document.getElementById('afEditNotes').value = notes;
     toggleEditVehicleNo();
     document.getElementById('editFeeModal').classList.add('is-open');
-}
+  }
 
-/* ─── Edit modal vehicle toggle ─── */
-var editFeeType = document.getElementById('editFeeType');
-var editVehicleNoGroup = document.getElementById('editVehicleNoGroup');
-if (editFeeType && editVehicleNoGroup) {
-    function toggleEditVehicleNo() { editVehicleNoGroup.style.display = editFeeType.value === 'Vehicle' ? '' : 'none'; }
-    editFeeType.addEventListener('change', toggleEditVehicleNo);
+  var selEdit = document.getElementById('afEditFeeType');
+  var vehEditGrp = document.getElementById('afEditVehicleNoGroup');
+  if (selEdit && vehEditGrp) {
+    function toggleEditVehicleNo() { vehEditGrp.style.display = selEdit.value === 'Vehicle' ? '' : 'none'; }
+    selEdit.addEventListener('change', toggleEditVehicleNo);
     toggleEditVehicleNo();
-}
+  }
 
-/* ─── Modal: overlay click close ─── */
-document.querySelectorAll('.paf-modal-overlay').forEach(function(ov) {
+  /* Close modal on overlay click */
+  document.querySelectorAll('.af-modal-overlay').forEach(function(ov) {
     ov.addEventListener('click', function(e) { if (e.target === ov) ov.classList.remove('is-open'); });
-});
-/* ─── Modal: Escape key close ─── */
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') document.querySelectorAll('.paf-modal-overlay.is-open').forEach(function(m) { m.classList.remove('is-open'); });
-});
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') document.querySelectorAll('.af-modal-overlay.is-open').forEach(function(m) { m.classList.remove('is-open'); });
+  });
 </script>
 {% endblock %}
