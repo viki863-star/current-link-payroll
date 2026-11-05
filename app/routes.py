@@ -96,6 +96,13 @@ SUPPLIER_CASH_KATA_TYPE_OPTIONS = [
 LOAN_TYPE_OPTIONS = ["Given", "Recovered", "Earning"]
 FEE_TYPE_OPTIONS = ["Visa", "Vehicle", "Mulkia", "Fine", "Insurance", "Other"]
 OWNER_FUND_MOVEMENT_OPTIONS = ["All", "Incoming", "Outgoing"]
+ENTRY_TYPE_OPTIONS = [
+    "All",
+    "Owner Deposit (Money In)",
+    "Owner Expense / Money Out (Form)",
+    "Salary to Driver",
+    "Other / Field Staff / Supplier",
+]
 SUPPLIER_RATE_BASIS_OPTIONS = ["Hours", "Days", "Trips", "Monthly", "Fixed"]
 SUPPLIER_VOUCHER_STATUS_OPTIONS = ["Open", "Partially Paid", "Paid"]
 SUPPLIER_SHIFT_MODE_OPTIONS = ["Single Shift", "Double Shift"]
@@ -8268,6 +8275,7 @@ def register_routes(app: Flask) -> None:
                 "owner_fund_pdf",
                 month=filters["month"],
                 movement=filters["movement"],
+                entry_type=filters["entry_type"],
                 search=filters["search"],
                 date_from=filters["date_from"],
                 date_to=filters["date_to"],
@@ -8303,6 +8311,7 @@ def register_routes(app: Flask) -> None:
                 pdf_files=pdf_files,
                 filters=filters,
                 movement_options=OWNER_FUND_MOVEMENT_OPTIONS,
+                entry_type_options=ENTRY_TYPE_OPTIONS,
                 pdf_url=pdf_url,
                 sup_deposits=sup_deposits, sup_withdrawals=sup_withdrawals, sup_net=sup_net,
                 sup_payments=sup_payments, sup_expenses=sup_expenses, sup_loans=sup_loans,
@@ -18120,12 +18129,15 @@ def _owner_fund_filter_values(request):
     filters = {
         "month": _normalize_month(month_value) if month_value else "",
         "movement": request.args.get("movement", "").strip() or request.form.get("movement", "").strip() or OWNER_FUND_MOVEMENT_OPTIONS[0],
+        "entry_type": request.args.get("entry_type", "").strip() or request.form.get("entry_type", "").strip() or ENTRY_TYPE_OPTIONS[0],
         "search": request.args.get("search", "").strip() or request.form.get("search", "").strip(),
         "date_from": request.args.get("date_from", "").strip() or request.form.get("date_from", "").strip(),
         "date_to": request.args.get("date_to", "").strip() or request.form.get("date_to", "").strip(),
     }
     if filters["movement"] not in OWNER_FUND_MOVEMENT_OPTIONS:
         filters["movement"] = OWNER_FUND_MOVEMENT_OPTIONS[0]
+    if filters["entry_type"] not in ENTRY_TYPE_OPTIONS:
+        filters["entry_type"] = ENTRY_TYPE_OPTIONS[0]
     return filters
 
 
@@ -18138,7 +18150,7 @@ def _owner_fund_view_totals(rows):
 
 
 def _owner_fund_statement(db, reverse: bool = True, filters=None):
-    filters = filters or {"month": "", "movement": OWNER_FUND_MOVEMENT_OPTIONS[0], "search": ""}
+    filters = filters or {"month": "", "movement": OWNER_FUND_MOVEMENT_OPTIONS[0], "entry_type": ENTRY_TYPE_OPTIONS[0], "search": ""}
     rows = []
     for entry in db.execute(
         """
@@ -18161,6 +18173,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                     "incoming": float(entry["amount"]),
                     "outgoing": 0.0,
                     "movement": "Incoming",
+                    "entry_type": "Owner Deposit (Money In)",
                 }
             )
         else:  # OUT
@@ -18176,6 +18189,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                     "incoming": 0.0,
                     "outgoing": float(entry["amount"]),
                     "movement": "Outgoing",
+                    "entry_type": "Owner Expense / Money Out (Form)",
                 }
             )
     for entry in db.execute(
@@ -18209,6 +18223,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"]),
                 "movement": "Outgoing",
+                "entry_type": "Salary to Driver",
             }
         )
     for entry in db.execute(
@@ -18240,6 +18255,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
+                "entry_type": "Salary to Driver",
             }
         )
     for entry in db.execute(
@@ -18277,6 +18293,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"] or 0.0),
                 "movement": "Outgoing",
+                "entry_type": "Salary to Driver",
             }
         )
     for entry in db.execute(
@@ -18313,6 +18330,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"]),
                 "movement": "Outgoing",
+                "entry_type": "Other / Field Staff / Supplier",
             }
         )
     for entry in db.execute(
@@ -18335,6 +18353,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "incoming": 0.0,
                 "outgoing": float(entry["amount"]),
                 "movement": "Outgoing",
+                "entry_type": "Other / Field Staff / Supplier",
             }
         )
     rows.sort(key=lambda item: (item["entry_date"].isoformat() if hasattr(item["entry_date"], "isoformat") else str(item["entry_date"]), item["movement"], item["reference"]))
@@ -18358,6 +18377,9 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         if month_filter and str(row["entry_date"])[:7] != month_filter:
             continue
         if movement_filter != OWNER_FUND_MOVEMENT_OPTIONS[0] and row["movement"] != movement_filter:
+            continue
+        entry_type_filter = filters.get("entry_type") or ENTRY_TYPE_OPTIONS[0]
+        if entry_type_filter != ENTRY_TYPE_OPTIONS[0] and row.get("entry_type") != entry_type_filter:
             continue
         if search_text:
             haystack = " ".join(

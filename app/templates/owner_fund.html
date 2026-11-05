@@ -63,6 +63,14 @@
         </select>
       </div>
       <div class="fg">
+        <label>Entry Type</label>
+        <select name="entry_type">
+          {% for item in entry_type_options %}
+            <option value="{{ item }}" {% if filters.entry_type == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
         <label>Search</label>
         <input type="search" name="search" value="{{ filters.search }}" placeholder="Owner, driver, details...">
       </div>
