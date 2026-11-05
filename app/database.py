@@ -298,6 +298,7 @@ CREATE TABLE IF NOT EXISTS parties (
     trade_license_no TEXT,
     address TEXT,
     notes TEXT,
+    vehicle_no TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -1226,6 +1227,7 @@ CREATE TABLE IF NOT EXISTS parties (
     trade_license_no TEXT,
     address TEXT,
     notes TEXT,
+    vehicle_no TEXT,
     status TEXT NOT NULL DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -1948,6 +1950,9 @@ REQUIRED_COLUMNS = {
         "photo_data": "TEXT",
         "photo_content_type": "TEXT",
         "termination_date": "TEXT",
+    },
+    "parties": {
+        "vehicle_no": "TEXT",
     },
     "driver_transactions": {
         "given_by": "TEXT",

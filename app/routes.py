@@ -5009,7 +5009,7 @@ def register_routes(app: Flask) -> None:
         _touch_admin_workspace("accounts")
         db = open_db()
         party_code = party_code.strip().upper()
-        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address FROM parties WHERE party_code = ?", (party_code,)).fetchone()
+        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address, vehicle_no FROM parties WHERE party_code = ?", (party_code,)).fetchone()
         if party is None:
             flash("Party not found.", "error")
             return redirect(url_for("annual_fees"))
@@ -5097,13 +5097,14 @@ def register_routes(app: Flask) -> None:
             phone_number = (request.form.get("phone_number") or "").strip()
             email = (request.form.get("email") or "").strip()
             trn_no = (request.form.get("trn_no") or "").strip()
+            vehicle_no = (request.form.get("vehicle_no") or "").strip()
             party_kind = (request.form.get("party_kind") or "Individual").strip() or "Individual"
 
             # Create new party
             party_code = _next_reference_code(db, "parties", "party_code", "PTY")
             db.execute(
-                "INSERT INTO parties (party_code, party_name, party_kind, party_roles, status, contact_person, phone_number, email, trn_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (party_code, party_name, party_kind, "Customer", "Active", contact_person, phone_number, email, trn_no),
+                "INSERT INTO parties (party_code, party_name, party_kind, party_roles, status, contact_person, phone_number, email, trn_no, vehicle_no) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (party_code, party_name, party_kind, "Customer", "Active", contact_person, phone_number, email, trn_no, vehicle_no),
             )
 
             _audit_log(db, "annual_fee_party_registered", entity_type="party", entity_id=party_code, details=party_name)
@@ -5293,7 +5294,7 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("annual_fee_party_profile", party_code=party_code))
 
         fee_row = db.execute("SELECT * FROM annual_fee_entries WHERE fee_no = ?", (payment["fee_no"],)).fetchone()
-        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address FROM parties WHERE party_code = ?", (party_code,)).fetchone()
+        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address, vehicle_no FROM parties WHERE party_code = ?", (party_code,)).fetchone()
         company_profile = _company_profile_row(db)
 
         # Get all fees and payments for pending breakdown
@@ -5328,7 +5329,7 @@ def register_routes(app: Flask) -> None:
         _ensure_annual_fee_payments_table(db)
         party_code = party_code.strip().upper()
 
-        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address FROM parties WHERE party_code = ?", (party_code,)).fetchone()
+        party = db.execute("SELECT party_code, party_name, party_kind, party_roles, contact_person, phone_number, email, trn_no, address, vehicle_no FROM parties WHERE party_code = ?", (party_code,)).fetchone()
         if party is None:
             flash("Party not found.", "error")
             return redirect(url_for("annual_fees"))

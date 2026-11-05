@@ -132,6 +132,7 @@
       <h1>{{ party.party_name }}</h1>
       <div class="af-party-meta">
         <span><span class="lbl">Code</span> {{ party.party_code }}</span>
+        {% if party.vehicle_no %}<span><span class="lbl">Vehicle</span> {{ party.vehicle_no }}</span>{% endif %}
         {% if party.contact_person %}<span><span class="lbl">Contact</span> {{ party.contact_person }}</span>{% endif %}
         {% if party.phone_number %}<span><span class="lbl">Phone</span> {{ party.phone_number }}</span>{% endif %}
         {% if party.email %}<span><span class="lbl">Email</span> {{ party.email }}</span>{% endif %}
