@@ -4141,6 +4141,31 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
         ORDER BY paper_date DESC, mj.id DESC
     """, job_params).fetchall()
 
+    # ── Supplier Bills ──
+    bill_where = ""
+    bill_params = []
+    if from_filter:
+        bill_where += " AND sb.bill_date >= ?"
+        bill_params.append(from_filter)
+    if to_filter:
+        bill_where += " AND sb.bill_date <= ?"
+        bill_params.append(to_filter)
+    bills = db.execute(f"""
+        SELECT sb.bill_date AS invoice_date,
+               sb.bill_no AS paper_no,
+               s.supplier_name,
+               sb.net_amount AS net_sale,
+               sb.vat_amount AS vat_amount,
+               sb.total_amount,
+               'Supplier Bill' AS source_type,
+               sb.bill_no AS record_id,
+               sb.supplier_id
+        FROM supplier_bills sb
+        JOIN suppliers s ON s.id = sb.supplier_id
+        WHERE 1=1 {bill_where}
+        ORDER BY sb.bill_date DESC, sb.id DESC
+    """, bill_params).fetchall()
+
     def to_dict(row):
         return {
             "invoice_date": row["invoice_date"],
@@ -4154,7 +4179,7 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
             "supplier_id": row["supplier_id"],
         }
 
-    rows = [to_dict(r) for r in list(invoices) + list(papers) + list(jobs)]
+    rows = [to_dict(r) for r in list(invoices) + list(papers) + list(jobs) + list(bills)]
     rows.sort(key=lambda r: (r["invoice_date"] or "", r["invoice_no"] or ""), reverse=True)
 
     from collections import Counter

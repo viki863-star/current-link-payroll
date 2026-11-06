@@ -97,8 +97,10 @@
                         <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#e8f0fe;color:#1c568b;font-size:.7rem;font-weight:700;">INVOICE</span>
                         {% elif inv.source_type == 'Paper' %}
                         <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#fef3c7;color:#92400e;font-size:.7rem;font-weight:700;">PAPER</span>
-                        {% else %}
+                        {% elif inv.source_type == 'Job' %}
                         <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#ecfdf5;color:#047857;font-size:.7rem;font-weight:700;">JOB</span>
+                        {% elif inv.source_type == 'Supplier Bill' %}
+                        <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#fff0f6;color:#831843;font-size:.7rem;font-weight:700;">SUPPLIER BILL</span>
                         {% endif %}
                     </td>
                     <td class="pr-inv-no" style="padding:10px 14px;white-space:nowrap;font-weight:600;">{{ inv.invoice_no or '—' }}</td>
@@ -123,7 +125,15 @@
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             Edit
                         </a>
-                        {% elif inv.source_type == 'Invoice' and inv.supplier_id and inv.record_id %}
+                        {% elif inv.source_type == 'Supplier Bill' and inv.supplier_id and inv.record_id %}
+                        <a href="/supplier/bills/{{ inv.record_id }}/edit"
+                           style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:#fff0f6;color:#831843;font-size:.75rem;font-weight:700;text-decoration:none;border:1px solid #e5b8d1;transition:background .15s;"
+                           title="Edit Bill #{{ inv.record_id }}"
+                           onmouseover="this.style.background='#fdeef7'" onmouseout="this.style.background='#fff0f6'">
+                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2 2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                             Edit
+                         </a>
+                         {% elif inv.source_type == 'Invoice' and inv.supplier_id and inv.record_id %}
                         <a href="/supplier/{{ inv.supplier_id }}/invoices/{{ inv.record_id }}/edit"
                            style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:#f0fdf4;color:#047857;font-size:.75rem;font-weight:700;text-decoration:none;border:1px solid #a7f3d0;transition:background .15s;"
                            title="Edit Invoice #{{ inv.record_id }}"
