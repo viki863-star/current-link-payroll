@@ -206,10 +206,13 @@ def register_routes(app: Flask) -> None:
         # Never dump a field-staff login attempt on the admin login page;
         # send failed technician POSTs straight back to their own form.
         if request.endpoint == "technician_login" or session.get("role") == "technician" or session.get("technician_code"):
-            flash("Your session has expired. Please log in again.", "error")
+            flash("Session expired. Please log in again.", "error")
             return redirect(url_for("technician_login"))
-        flash("Your session has expired. Please log in again.", "error")
-        return redirect(url_for("login"))
+        # Redirect back to the referring page so the user doesn't lose
+        # their place when a CSRF token expires mid-form (e.g. salary slip form).
+        referrer = request.referrer or url_for("index")
+        flash("Session expired. Please try again.", "error")
+        return redirect(referrer)
 
     @app.after_request
     def set_security_headers(response):

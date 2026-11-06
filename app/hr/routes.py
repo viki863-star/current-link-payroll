@@ -1827,7 +1827,13 @@ def employee_salary_slip(employee_id):
 
                         generated_dir = current_app.config["GENERATED_DIR"]
                         slip_output_dir = str(Path(generated_dir) / "salary_slips")
-                        _ap = float(salary_after_deduction) if values["paid_now"] else 0.0
+                        # Use manually entered amount if provided, otherwise use paid_now checkbox
+                        if values["actual_paid_amount"].strip():
+                            _ap = float(values["actual_paid_amount"])
+                        elif values["paid_now"]:
+                            _ap = float(salary_after_deduction)
+                        else:
+                            _ap = 0.0
                         pdf_path = generate_salary_slip_pdf(
                             driver_display,
                             selected_salary,
