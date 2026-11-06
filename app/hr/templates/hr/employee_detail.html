@@ -468,516 +468,755 @@
         {# ════════════════════════════════════════════ #}
         {# TAB 3: RUN SALARY / SALARY SLIP              #}
         {# ════════════════════════════════════════════ #}
-        {% elif active_tab == 'salary_slip' %}
-        <div class="tab-pane">
+{% elif active_tab == 'salary_slip' %}
+<div class="tab-pane sr">
+<style>
+.sr{--ink:#0b1830;--slate:#43556f;--muted:#7a8ca6;--line:#e7edf7;--line2:#f1f5fb;--blue:#1c568b;--navy:#0f2a54;--green:#16a34a;--amber:#d97706;--red:#dc2626;--surface:#fff;display:flex;flex-direction:column;gap:16px;font-family:Inter,'Segoe UI',system-ui,sans-serif;color:var(--ink)}
+.sr *{box-sizing:border-box}
+.sr h2,.sr h3{margin:0}
+.sr a{color:inherit}
 
-            {# ═══ 1. DRIVER STATEMENT — WHAT THE DRIVER OWES / IS OWED ═══ #}
-            <div class="dv2-card" style="margin-bottom:1.2rem;border-top:3px solid var(--primary)">
-                <div class="dv2-card-header">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2h12v16l-3-2-3 2-3-2-3 2z"/><line x1="7" y1="7" x2="13" y2="7"/><line x1="7" y1="10" x2="13" y2="10"/></svg>
-                    {{ employee.full_name }} &mdash; {{ employee.employee_id }} &middot; Advance Statement (Latest)
-                    {% set _dstat = (employee.status or 'Active') %}
-                    <span class="dv2-badge" style="margin-left:auto;
-                        {% if _dstat == 'Active' %}background:#dcfce7;color:#166534;border:1px solid #86efac{% elif _dstat == 'Inactive' %}background:#fef3c7;color:#92400e;border:1px solid #fcd34d{% else %}background:#fee2e2;color:#991b1b;border:1px solid #fecaca{% endif %}">
-                        {{ _dstat }}
-                        {% if _dstat != 'Active' and employee.termination_date %} &middot; {{ employee.termination_date }}{% endif %}
-                    </span>
-                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Live from salary slips</span>
-                </div>
-                <div class="dv2-card-body">
-                    {% set pending_months = slip_ledger|rejectattr('slip_count')|selectattr('salary','gt',0)|list %}
-                    {% set pending_total = pending_months|map(attribute='salary')|sum %}
-                    <div class="dv2-stat-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px">
-                        <div class="dv2-stat-card is-total" style="border-left:4px solid #1565c0">
-                            <span class="dv2-stat-label">Salary / Month</span>
-                            <span class="dv2-stat-value" style="color:#0d47a1">AED {{ "%.2f"|format(slip_hero_salary) }}</span>
-                        </div>
-                        <div class="dv2-stat-card is-total" style="border-left:4px solid #2e7d32">
-                            <span class="dv2-stat-label">Advance Issued</span>
-                            <span class="dv2-stat-value" style="color:#1b5e20">AED {{ "%.2f"|format(slip_truth.total_given) }}</span>
-                        </div>
-                        <div class="dv2-stat-card is-deducted" style="border-left:4px solid #e65100">
-                            <span class="dv2-stat-label">Recovered From Salary</span>
-                            <span class="dv2-stat-value" style="color:#e65100">-AED {{ "%.2f"|format(slip_truth.total_deducted) }}</span>
-                        </div>
-                        <div class="dv2-stat-card is-remaining" style="border-left:4px solid {% if slip_truth.outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %}">
-                            <span class="dv2-stat-label">Advance Balance</span>
-                            <span class="dv2-stat-value" style="color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#1b5e20{% endif %};font-size:1.35rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</span>
-                        </div>
-                        <div class="dv2-stat-card" style="border-left:4px solid #1d4ed8">
-                            <span class="dv2-stat-label">Salary Not Generated</span>
-                            <span class="dv2-stat-value" style="color:#1d4ed8">AED {{ "%.2f"|format(pending_total) }}</span>
-                            <div style="font-size:.7rem;color:#1d4ed8;margin-top:2px">{% if pending_months %}{{ pending_months|map(attribute='salary_month')|join(', ') }} — not yet generated{% else %}All months generated{% endif %}</div>
-                        </div>
-                    </div>
-                    <p style="margin:12px 0 0;font-size:.86rem;color:var(--muted);line-height:1.6">
-                        Advance issued <strong style="color:#1b5e20">AED {{ "%.2f"|format(slip_truth.total_given) }}</strong> &rarr;
-                        recovered <strong style="color:#e65100">AED {{ "%.2f"|format(slip_truth.total_deducted) }}</strong> from salary &rarr;
-                        <strong style="color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#1b5e20{% endif %}">AED {{ "%.2f"|format(slip_truth.outstanding) }}</strong> still open.
-                        {% if slip_truth.outstanding > 0 %}The open balance is recovered automatically from each month's salary.{% else %}The advance has been fully recovered.{% endif %}
-                    </p>
-                </div>
-            </div>
+.sr-top{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:flex-end;gap:22px;flex-wrap:wrap;padding:22px 26px 20px;border-radius:18px;color:#fff;background:linear-gradient(115deg,#071a33,#0f2a54 45%,#1c568b 85%,#2a7fbf);box-shadow:0 24px 52px -32px rgba(9,29,58,.9)}
+.sr-top::after{content:"";position:absolute;right:-70px;top:-90px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%);pointer-events:none}
+.sr-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.26);color:#dbeafe;font-size:.6rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;padding:5px 11px;border-radius:999px}
+.sr-top h2{margin-top:9px;font-size:1.42rem;font-weight:800;letter-spacing:-.6px}
+.sr-top p{margin:6px 0 0;font-size:.8rem;color:rgba(255,255,255,.74);max-width:420px;line-height:1.5}
+.sr-mini{display:grid;grid-template-columns:repeat(4,minmax(118px,1fr));gap:10px;position:relative;z-index:1}
+.sr-mini div{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:9px 12px;min-width:118px}
+.sr-mini span{display:block;font-size:.56rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:rgba(255,255,255,.66)}
+.sr-mini b{display:block;font-size:1.02rem;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
 
-            {# ═══ HOW TO RUN — 3 STEPS ═══ #}
-            <div style="display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;margin-bottom:1.2rem">
-                <div style="flex:1;min-width:210px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px">
-                    <div style="font-size:.7rem;font-weight:800;color:#1d4ed8">STEP 1</div>
-                    <div style="font-size:.8rem;color:#1e3a5f">Select a <strong>month</strong> from the table on the left (start with the earliest).</div>
-                </div>
-                <div style="flex:1;min-width:210px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px">
-                    <div style="font-size:.7rem;font-weight:800;color:#15803d">STEP 2</div>
-                    <div style="font-size:.8rem;color:#14532d">Press <strong>Fill Max</strong> — the recoverable advance is filled in automatically.</div>
-                </div>
-                <div style="flex:1;min-width:210px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px">
-                    <div style="font-size:.7rem;font-weight:800;color:#c2410c">STEP 3</div>
-                    <div style="font-size:.8rem;color:#7c2d12">Press <strong>Generate</strong> — confirm the figures under "Advance Balance (After)" first.</div>
-                </div>
-            </div>
+.sr-steps{list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0;padding:0}
+.sr-steps li{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 14px;box-shadow:0 1px 3px rgba(15,35,70,.05)}
+.sr-steps i{flex:0 0 26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:.76rem;font-weight:800;background:#eef3fa;color:var(--muted);border:1px solid var(--line)}
+.sr-steps div{min-width:0}
+.sr-steps strong{display:block;font-size:.8rem;font-weight:800;color:var(--slate)}
+.sr-steps span{display:block;font-size:.68rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-steps li.is-on{border-color:#bcd4ee;background:#f7fbff;box-shadow:0 6px 18px -12px rgba(28,86,139,.7)}
+.sr-steps li.is-on i{background:linear-gradient(135deg,#1c568b,#2a7fbf);color:#fff;border-color:transparent}
+.sr-steps li.is-on strong{color:var(--navy)}
+.sr-steps li.is-done i{background:#dcfce7;color:#166534;border-color:#bbf7d0}
 
-            <div class="dv2-grid dv2-grid-2">
-                <div>
-                    <div class="dv2-card" style="margin-top:0">
-                        <div class="dv2-card-header">Select Salary Month</div>
-                        <div class="dv2-table-wrap">
-                            <table class="dv2-table">
-                                <thead>
-                                    <tr>
-                                        <th>Month</th>
-                                        <th>Net Salary</th>
-                                        <th class="dv2-actions" style="width:50px">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for s in slip_salary_rows %}
-                                    <tr onclick="window.location='{{ url_for('hr.employee_salary_slip', employee_id=employee.employee_id, salary_store_id=s.id) }}'" style="cursor:pointer">
-                                        <td data-label="Month" class="dv2-mono">{{ s.salary_month }}</td>
-                                        <td data-label="Net" class="dv2-mono dv2-amount">AED {{ "%.0f"|format(s.net_salary or 0) }}</td>
-                                        <td data-label="" class="dv2-actions">{% if s.id in slip_store_ids %}<span style="color:var(--green);font-weight:700">&#10004;</span>{% endif %}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+.sr-grid{display:grid;grid-template-columns:266px minmax(0,1fr);gap:16px;align-items:start}
+.sr-rail{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,35,70,.05)}
+.sr-rail-head{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;background:#f7fafd;border-bottom:1px solid var(--line);font-size:.66rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--slate)}
+.sr-rail-head b{background:var(--navy);color:#fff;font-size:.66rem;letter-spacing:.06em;padding:2px 8px;border-radius:999px}
+.sr-rail-list{max-height:560px;overflow:auto;padding:8px}
+.sr-m{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:11px;text-decoration:none;border:1px solid transparent;transition:.16s}
+.sr-m+.sr-m{margin-top:3px}
+.sr-m:hover{background:#f5f9fd;border-color:var(--line)}
+.sr-m.is-on{background:linear-gradient(135deg,#0f2a54,#1c568b);border-color:transparent;box-shadow:0 10px 22px -14px rgba(15,42,84,.9)}
+.sr-m-dot{flex:0 0 9px;height:9px;border-radius:50%;background:#cbd5e1;border:2px solid #cbd5e1}
+.sr-m-dot.done{background:#22c55e;border-color:#bbf7d0}
+.sr-m-body{flex:1;min-width:0}
+.sr-m-body b{display:block;font-size:.8rem;font-weight:700;color:var(--slate);font-variant-numeric:tabular-nums}
+.sr-m-body small{display:block;font-size:.66rem;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.sr-m-flag{font-size:.55rem;font-weight:800;letter-spacing:.08em;padding:3px 7px;border-radius:999px;background:#fee2e2;color:#991b1b}
+.sr-m-flag.done{background:#dcfce7;color:#166534}
+.sr-m.is-on .sr-m-body b,.sr-m.is-on .sr-m-body small{color:#fff}
+.sr-m.is-on .sr-m-body small{color:rgba(255,255,255,.72)}
+.sr-m.is-on .sr-m-flag{background:rgba(255,255,255,.18);color:#fff}
+.sr-m.is-on .sr-m-dot{border-color:rgba(255,255,255,.5)}
+.sr-rail-empty{padding:26px 16px;text-align:center;font-size:.78rem;color:var(--muted);line-height:1.6}
 
-                <div>
-                    <div class="dv2-card">
-                        <div class="dv2-card-header">
-                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>
-                            Generate Salary Slip
-                        </div>
-                        <div class="dv2-card-body">
-                            {% if slip_selected_salary %}
-                            <form method="POST" class="dv2-form">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="salary_store_id" value="{{ slip_selected_salary.id }}">
-                                <input type="hidden" name="paid_now_submitted" value="1">
-                                <div class="dv2-form-row">
-                                    <div class="dv2-form-group">
-                                        <label class="dv2-form-label">Deduct Advance (AED)</label>
-                                        <div style="display:flex;gap:8px">
-                                            <input type="number" name="deduction_amount" value="{{ slip_values.deduction_amount or '0' }}" class="dv2-input" step="0.01" min="0" max="{{ slip_available_advance }}" id="deductionAmount" oninput="updatePreview()" style="flex:1;min-width:0">
-                                            <button type="button" class="dv2-btn dv2-btn-outline" onclick="fillMax()" title="Jo kam ho — salary ya advance available — wo bhar do">&#8635; Fill Max</button>
-                                        </div>
-                                        <div style="font-size:.7rem;color:var(--muted);margin-top:4px">Max is salary &amp; advance dono me se jo kam ho.</div>
-                                    </div>
-                                    <div class="dv2-form-group">
-                                        <label class="dv2-form-label">Advance Available</label>
-                                        <input type="text" class="dv2-input" value="AED {{ '%.2f'|format(slip_available_advance) }}" readonly>
-                                    </div>
-                                </div>
+.sr-run{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(15,35,70,.05);overflow:hidden}
+.sr-run-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;background:#f7fafd;border-bottom:1px solid var(--line)}
+.sr-run-head h3{font-size:.95rem;font-weight:800;color:var(--navy);letter-spacing:-.2px}
+.sr-run-head p{margin:3px 0 0;font-size:.72rem;color:var(--muted)}
+.sr-tag{display:inline-flex;align-items:center;gap:6px;font-size:.6rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border-radius:999px;background:#eef3fa;color:var(--blue);border:1px solid #d6e4f4}
+.sr-tag.ok{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+.sr-form{padding:16px 18px 18px}
+.sr-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:#fbfcfe}
+.sr-row label{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--slate);white-space:nowrap}
+.sr-amount{display:flex;align-items:center;gap:8px;margin-left:auto}
+.sr-amount span{font-size:.72rem;color:var(--muted);font-weight:700}
+.sr-amount input{width:150px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:1.02rem;font-weight:800;color:var(--navy);background:#fff;font-variant-numeric:tabular-nums;text-align:right}
+.sr-amount input:focus{outline:none;border-color:#2a7fbf;box-shadow:0 0 0 3px rgba(42,127,191,.18)}
+.sr-fill{padding:8px 13px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;font-size:.72rem;font-weight:800;color:var(--blue);cursor:pointer;transition:.15s;white-space:nowrap}
+.sr-fill:hover{background:#eef6fd;border-color:#2a7fbf}
+.sr-fill:active{transform:translateY(1px)}
 
-                                <script>
-                                function fillMax() {
-                                    var net = parseFloat('{{ slip_selected_salary.net_salary or 0 }}') || 0;
-                                    var avail = parseFloat('{{ slip_available_advance or 0 }}') || 0;
-                                    var m = Math.min(net, avail);
-                                    if (m < 0) m = 0;
-                                    document.getElementById('deductionAmount').value = m.toFixed(2);
-                                    updatePreview();
-                                }
-                                </script>
+.sr-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:14px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+.sr-flow div{padding:13px 14px;border-right:1px solid var(--line);min-width:0}
+.sr-flow div:last-child{border-right:none}
+.sr-flow span{display:block;font-size:.58rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sr-flow b{display:block;font-size:1.12rem;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums;letter-spacing:-.4px;color:var(--navy)}
+.sr-flow .f-minus b{color:var(--amber)}
+.sr-flow .f-pay{background:linear-gradient(160deg,#f3f9f4,#eaf6ee)}
+.sr-flow .f-pay b{color:#166534}
+.sr-flow .f-bal{background:#fff7f7}
+.sr-flow .f-bal b{color:var(--red)}
+.sr-flow .f-bal.is-clear b{color:#166534}
+.sr-flow em{display:block;font-style:normal;font-size:.64rem;color:var(--muted);margin-top:4px}
+.sr-line{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:9px;font-size:.72rem;color:var(--muted)}
+.sr-line strong{color:var(--navy);font-variant-numeric:tabular-nums}
+.sr-line .to{color:var(--red);font-weight:800}
 
-                                <script>
-                                function updatePaidHint() {
-                                    var el = document.getElementById('paidHintText');
-                                    if (!el) return;
-                                    var deduction = parseFloat(document.getElementById('deductionAmount').value || 0);
-                                    var netSalary = parseFloat('{{ slip_selected_salary.net_salary or 0 }}');
-                                    var payable = Math.max(netSalary - deduction, 0);
-                                    var paid = document.getElementById('paidNow').checked;
-                                    if (paid) {
-                                        el.innerHTML = 'AED ' + payable.toFixed(2) + ' handed to the driver in cash today &rarr; an Owner Fund OUT entry will be recorded.';
-                                        el.style.color = '#047857';
-                                    } else {
-                                        el.innerHTML = 'Untick if the cash was <b>not</b> handed over &rarr; AED ' + payable.toFixed(2) + ' stays recorded as outstanding salary.';
-                                        el.style.color = '#b45309';
-                                    }
-                                }
-                                function updatePreview() {
-                                    var deduction = parseFloat(document.getElementById('deductionAmount').value || 0);
-                                    var netSalary = parseFloat('{{ slip_selected_salary.net_salary or 0 }}');
-                                    var available = parseFloat('{{ slip_available_advance or 0 }}');
-                                    var payable = netSalary - deduction;
-                                    var afterBalance = Math.max(available - deduction, 0);
-                                    document.getElementById('previewDeduction').textContent = '-AED ' + deduction.toFixed(2);
-                                    document.getElementById('previewPayable').textContent = 'AED ' + payable.toFixed(2);
-                                    document.getElementById('previewAfter').textContent = 'AED ' + afterBalance.toFixed(2);
-                                    document.getElementById('lineBefore').textContent = 'AED ' + available.toFixed(2);
-                                    document.getElementById('lineAfter').textContent = 'AED ' + afterBalance.toFixed(2);
-                                    updatePaidHint();
-                                }
-                                updatePaidHint();
-                                </script>
+.sr-pay{display:flex;gap:11px;align-items:flex-start;padding:13px 14px;margin-top:14px;border-radius:13px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer}
+.sr-pay input{margin-top:2px;width:16px;height:16px;accent-color:#0f766e}
+.sr-pay strong{display:block;font-size:.82rem;color:#0f172a}
+.sr-pay span{display:block;font-size:.74rem;color:#64748b;line-height:1.55;margin-top:3px}
+.sr-pay:has(input:checked){border-color:#0f766e;background:#f0fdfa}
 
-                                {% if slip_existing_slip %}
-                                <div class="dv2-alert dv2-alert-info">
-                                    <strong>Slip already exists.</strong> Save to regenerate.
-                                    <span style="font-size:.75rem;color:var(--muted);margin-left:8px">Saved: {{ slip_existing_slip.payment_date or slip_existing_slip.generated_at }}</span>
-                                    {% if slip_existing_slip.pdf_path %}
-                                    <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="dv2-btn dv2-btn-outline dv2-btn-sm" style="margin-left:auto">View PDF</a>
-                                    {% endif %}
-                                </div>
-                                {% endif %}
+.sr-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.sr-fields .full{grid-column:1/-1}
+.sr-fields label{display:block;font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--slate);margin-bottom:5px}
+.sr-fields select,.sr-fields input,.sr-fields textarea{width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:10px;font-size:.85rem;color:#0f172a;background:#fff;font-family:inherit}
+.sr-fields textarea{resize:vertical;min-height:56px}
+.sr-fields select:focus,.sr-fields input:focus,.sr-fields textarea:focus{outline:none;border-color:#2a7fbf;box-shadow:0 0 0 3px rgba(42,127,191,.18)}
 
-                                {% if slip_selected_salary.net_salary and slip_selected_salary.net_salary > 0 %}
-                                {% set deduction = (slip_values.deduction_amount or '0')|float %}
-                                {% set payable = (slip_selected_salary.net_salary or 0)|float - deduction %}
-                                {% set _after = (slip_available_advance|float) - deduction %}
-                                {% set after_balance = _after if _after > 0 else 0 %}
-                                <div class="dv2-preview">
-                                    <div class="dv2-preview-title">After This Slip &mdash; What Changes</div>
-                                    <div class="dv2-preview-grid">
-                                        <div class="dv2-preview-item"><span class="dv2-preview-label">Net Salary</span><span class="dv2-preview-value">AED {{ "%.2f"|format(slip_selected_salary.net_salary) }}</span></div>
-                                        <div class="dv2-preview-item"><span class="dv2-preview-label">Deduction</span><span class="dv2-preview-value" id="previewDeduction">-AED {{ "%.2f"|format(deduction) }}</span></div>
-                                        <div class="dv2-preview-item is-highlight">
-                                            <span class="dv2-preview-label">Net Payable to Driver</span>
-                                            <span class="dv2-preview-value" id="previewPayable">AED {{ "%.2f"|format(payable) }}</span>
-                                        </div>
-                                        <div class="dv2-preview-item" style="background:rgba(198,40,40,.08)">
-                                            <span class="dv2-preview-label">Advance Balance (After)</span>
-                                            <span class="dv2-preview-value" id="previewAfter" style="color:#c62828">AED {{ "%.2f"|format(after_balance) }}</span>
-                                        </div>
-                                    </div>
-                                    <div style="margin-top:10px;font-size:.82rem;color:var(--muted);text-align:center">
-                                        Advance balance
-                                        <strong id="lineBefore">AED {{ "%.2f"|format(slip_available_advance|float) }}</strong>
-                                        &rarr;
-                                        <strong id="lineAfter" style="color:#c62828">AED {{ "%.2f"|format(after_balance) }}</strong>
-                                        (after deduction)
-                                    </div>
-                                </div>
-                                {% endif %}
+.sr-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.sr-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px 18px;border-radius:11px;font-size:.84rem;font-weight:800;text-decoration:none;border:1px solid transparent;cursor:pointer;font-family:inherit;transition:.16s}
+.sr-btn:active{transform:translateY(1px)}
+.sr-btn-main{background:linear-gradient(135deg,#0f2a54,#1c568b);color:#fff;box-shadow:0 12px 26px -14px rgba(15,42,84,.95);flex:1;min-width:200px}
+.sr-btn-main:hover{filter:brightness(1.08)}
+.sr-btn-ghost{background:#fff;color:var(--blue);border-color:#cbd5e1}
+.sr-btn-ghost:hover{background:#f4f9fd;border-color:#2a7fbf}
+.sr-btn-danger{background:#fff;color:#b91c1c;border-color:#f3c1c1}
+.sr-btn-danger:hover{background:#fef2f2}
+.sr-notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;font-size:.8rem;line-height:1.6;margin-bottom:14px}
+.sr-notice.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.sr-notice.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+.sr-empty{padding:44px 24px;text-align:center}
+.sr-empty h4{margin:0;font-size:.98rem;font-weight:800;color:var(--navy)}
+.sr-empty p{margin:8px auto 0;max-width:380px;font-size:.82rem;color:var(--muted);line-height:1.65}
+.sr-empty code{background:#f1f5f9;padding:2px 7px;border-radius:6px;font-size:.76rem;color:var(--slate)}
 
-                                <label for="paidNow" style="display:flex;gap:9px;align-items:flex-start;padding:11px 13px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;margin:4px 0 14px;cursor:pointer">
-                                    <input type="checkbox" name="paid_now" id="paidNow" {% if slip_values.paid_now %}checked{% endif %} onchange="updatePaidHint()" style="margin-top:3px;width:15px;height:15px;accent-color:#0f766e">
-                                    <span style="font-size:.8rem;line-height:1.55">
-                                        <strong style="color:#0f172a">Cash handed over in the office &mdash; payment made today</strong><br>
-                                        <span id="paidHintText" style="color:#64748b"></span>
-                                    </span>
-                                </label>
+.sr-panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(15,35,70,.05);overflow:hidden}
+.sr-panel-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:13px 18px;background:#f7fafd;border-bottom:1px solid var(--line)}
+.sr-panel-head h3{font-size:.92rem;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:9px}
+.sr-panel-head h3 svg{width:17px;height:17px;stroke:#1c568b;fill:none;stroke-width:1.8}
+.sr-seg{display:inline-flex;background:#eef3fa;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.sr-seg button{border:none;background:transparent;padding:7px 14px;border-radius:8px;font-size:.74rem;font-weight:800;color:var(--muted);cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap}
+.sr-seg button.is-on{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(15,35,70,.14)}
+.sr-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.sr-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.sr-table th{background:#f7fafd;color:var(--slate);font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);white-space:nowrap}
+.sr-table th.r,.sr-table td.r{text-align:right}
+.sr-table td{padding:10px 13px;border-bottom:1px solid var(--line2);color:var(--slate);vertical-align:middle}
+.sr-table tbody tr:last-child td{border-bottom:none}
+.sr-table tbody tr{transition:.12s}
+.sr-table tbody tr[data-open]{cursor:pointer}
+.sr-table tbody tr[data-open]:hover{background:#f5f9fd}
+.sr-table tr.is-latest{background:#eff6ff}
+.sr-table tr.is-latest:hover{background:#e3eefe}
+.sr-mono{font-variant-numeric:tabular-nums;font-family:'SF Mono',Consolas,monospace;font-size:.78rem}
+.sr-table .strong{font-weight:800;color:var(--navy)}
+.pos{color:#16a34a;font-weight:700}
+.neg{color:#dc2626;font-weight:700}
+.warn{color:#d97706;font-weight:700}
+.sr-ok{display:inline-flex;align-items:center;gap:5px;font-size:.68rem;font-weight:800;color:#166534;background:#dcfce7;padding:3px 9px;border-radius:999px}
+.sr-no{display:inline-flex;align-items:center;gap:5px;font-size:.68rem;font-weight:800;color:#991b1b;background:#fee2e1;padding:3px 9px;border-radius:999px}
+.sr-table tfoot td{background:#f7fafd;border-top:2px solid var(--line);border-bottom:none;font-weight:800;color:var(--navy)}
+.sr-chiplet{display:inline-block;font-size:.62rem;font-weight:800;letter-spacing:.06em;padding:3px 8px;border-radius:999px;background:#eef3fa;color:var(--blue)}
+.sr-chiplet.ok{background:#dcfce7;color:#166534}
+.sr-chiplet.no{background:#fee2e1;color:#991b1b}
+.sr-chiplet.part{background:#ffedd5;color:#9a3412}
+.sr-empty-row td{padding:30px 14px;text-align:center;color:var(--muted);font-size:.82rem}
+.sr-note{font-size:.7rem;color:var(--muted);padding:10px 18px 14px;border-top:1px dashed var(--line);line-height:1.6}
 
-                                <div class="dv2-form-row">
-                                    <div class="dv2-form-group">
-                                        <label class="dv2-form-label">Payment Source</label>
-                                        <select name="payment_source" class="dv2-select">
-                                            {% for src in ['Owner Fund','Owner Direct','Current Link','Office','Cash','Bank','Other'] %}
-                                            <option value="{{ src }}" {% if slip_values.payment_source == src %}selected{% endif %}>{{ src }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                    <div class="dv2-form-group">
-                                        <label class="dv2-form-label">Payment Date</label>
-                                        <input type="date" name="payment_date" value="{{ slip_values.payment_date or slip_existing_slip.payment_date if slip_existing_slip else '' }}" class="dv2-input">
-                                    </div>
-                                    <div class="dv2-form-group">
-                                        <label class="dv2-form-label">Paid By</label>
-                                        <input type="text" name="paid_by" value="{{ slip_values.paid_by or '' }}" class="dv2-input" placeholder="Person name">
-                                    </div>
-                                </div>
-                                <div class="dv2-form-group">
-                                    <label class="dv2-form-label">Notes</label>
-                                    <textarea name="payment_notes" class="dv2-textarea" rows="2">{{ slip_values.payment_notes or '' }}</textarea>
-                                </div>
-                                <button type="submit" class="dv2-btn dv2-btn-primary dv2-btn-block">
-                                    {% if slip_existing_slip %}Regenerate{% else %}Generate{% endif %} Salary Slip
-                                </button>
-                            </form>
+@media (max-width:1080px){
+  .sr-grid{grid-template-columns:1fr}
+  .sr-rail-list{max-height:250px}
+  .sr-flow{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sr-flow div:nth-child(2){border-right:none}
+  .sr-flow div:nth-child(1),.sr-flow div:nth-child(2){border-bottom:1px solid var(--line)}
+}
+@media (max-width:760px){
+  .sr-top{padding:18px}
+  .sr-mini{grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .sr-steps{grid-template-columns:1fr}
+  .sr-fields{grid-template-columns:1fr}
+  .sr-amount{margin-left:0;width:100%}
+  .sr-amount input{flex:1;width:auto}
+  .sr-btn-main{min-width:100%}
+  .sr-seg{width:100%}
+  .sr-seg button{flex:1}
+  .sr-table th,.sr-table td{padding:9px 10px}
+  .sr-top h2{font-size:1.2rem}
+}
+</style>
 
-                            {% if slip_existing_slip and slip_existing_slip.pdf_path %}
-                            <div class="dv2-slip-actions">
-                                <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="dv2-btn dv2-btn-primary">&#128196; View / Print Salary Slip</a>
-                                <a href="{{ url_for('hr.employee_deduction_statement', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="dv2-btn dv2-btn-outline">Download Deduction Statement</a>
-                                <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="dv2-btn dv2-btn-danger">&#128465; Delete</a>
-                            </div>
-                            {% endif %}
+{# ── HERO ── #}
+<div class="sr-top">
+  <div>
+    <span class="sr-chip">&#9654; Salary Run</span>
+    <h2>Run Salary Slip</h2>
+    <p>Pick a month, recover advance, generate the slip. Everything for this run lives on one screen.</p>
+  </div>
+  <div class="sr-mini">
+    <div><span>Salary / Month</span><b>AED {{ "%.0f"|format(slip_hero_salary or 0) }}</b></div>
+    <div><span>Advance Out</span><b>AED {{ "%.0f"|format(slip_truth.outstanding or 0) }}</b></div>
+    <div><span>Recovered</span><b>AED {{ "%.0f"|format(slip_truth.total_deducted or 0) }}</b></div>
+    <div><span>Months Left</span><b>{{ slip_ledger|rejectattr('slip_count')|selectattr('salary','gt',0)|list|length }}</b></div>
+  </div>
+</div>
 
-                            {% else %}
-                            <div class="dv2-empty" style="padding:30px;text-align:center;color:var(--muted)">
-                                <p>Select a salary month from the left panel to generate the slip.</p>
-                                <p style="font-size:0.75rem">Make sure you have stored salary first via <strong>Store Salary</strong> tab.</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
+{# ── STEPS ── #}
+{% set pending_months = slip_ledger|rejectattr('slip_count')|selectattr('salary','gt',0)|list %}
+<ol class="sr-steps">
+  <li class="{{ 'is-done' if slip_selected_salary else 'is-on' }}"><i>{{ '✓' if slip_selected_salary else '1' }}</i><div><strong>Pick month</strong><span>{{ slip_salary_rows|length }} salary months stored</span></div></li>
+  <li class="{{ 'is-on' if slip_selected_salary else '' }}"><i>2</i><div><strong>Set deduction</strong><span>AED {{ "%.2f"|format(slip_available_advance or 0) }} advance open</span></div></li>
+  <li><i>3</i><div><strong>Generate</strong><span>Create, print &amp; pay</span></div></li>
+</ol>
 
-            {# ═══ 3. RUNNING HISAB — MONTH BY MONTH ═══ #}
-            <div class="dv2-card" style="margin-top:1.2rem">
-                <div class="dv2-card-header">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg>
-                    Running Ledger &mdash; Month by Month
-                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">Balance = Issued &minus; Returned &minus; Recovered</span>
-                </div>
-                <div class="dv2-table-wrap">
-                    <table class="dv2-table">
-                        <thead>
-                            <tr>
-                                <th>Month</th>
-                                <th style="text-align:right">Salary</th>
-                                <th style="text-align:right">Advance Given (+)</th>
-                                <th style="text-align:right">Returned (&minus;)</th>
-                                <th style="text-align:right">Deducted (&minus;)</th>
-                                <th style="text-align:right">Paid</th>
-                                <th>Slip</th>
-                                <th style="text-align:right">Balance After</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for r in slip_ledger %}
-                            <tr {% if r.store_id %}onclick="window.location='{{ url_for('hr.employee_salary_slip', employee_id=employee.employee_id, salary_store_id=r.store_id) }}'" title="Click to open {{ r.salary_month }} slip"{% endif %} style="{% if r.store_id %}cursor:pointer{% endif %}{% if loop.first %};background:#eff6ff{% endif %}">
-                                <td data-label="Month" class="dv2-mono" style="font-weight:{% if loop.first %}800{% else %}500{% endif %}">{{ r.salary_month }}{% if loop.first %} &larr; latest{% endif %}</td>
-                                <td data-label="Salary" class="dv2-mono" style="text-align:right">{% if r.salary > 0 %}AED {{ "%.0f"|format(r.salary) }}{% else %}&mdash;{% endif %}</td>
-                                <td data-label="Given" class="dv2-mono" style="text-align:right;color:#2e7d32">{% if r.given > 0 %}+AED {{ "%.0f"|format(r.given) }}{% else %}&mdash;{% endif %}</td>
-                                <td data-label="Returned" class="dv2-mono" style="text-align:right;color:#047857">{% if r.returned > 0 %}-AED {{ "%.0f"|format(r.returned) }}{% else %}&mdash;{% endif %}</td>
-                                <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#e65100">{% if r.deducted > 0 %}-AED {{ "%.0f"|format(r.deducted) }}{% else %}&mdash;{% endif %}</td>
-                                <td data-label="Paid" class="dv2-mono" style="text-align:right">{% if r.paid > 0 %}AED {{ "%.0f"|format(r.paid) }}{% else %}&mdash;{% endif %}</td>
-                                <td data-label="Slip">{% if r.slip_count > 0 %}<span style="color:var(--green);font-weight:700">&#10004;</span>{% else %}<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700">RUN</span>{% endif %}</td>
-                                <td data-label="Balance After" class="dv2-mono" style="text-align:right;font-weight:800;color:{% if r.balance_after > 0 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(r.balance_after) }}</td>
-                            </tr>
-                            {% else %}
-                            <tr class="dv2-empty"><td colspan="8">No hisab yet.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                        {% if slip_ledger %}
-                        <tfoot>
-                            <tr style="background:#f8fafc">
-                                <td colspan="7" style="text-align:right;font-weight:800;border-top:2px solid var(--border)">CURRENT BALANCE (AS OF TODAY)</td>
-                                <td style="text-align:right;font-weight:800;border-top:2px solid var(--border);color:{% if slip_truth.outstanding > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:.95rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</td>
-                            </tr>
-                        </tfoot>
-                        {% endif %}
-                    </table>
-                </div>
-            </div>
+{# ── MONTH RAIL + RUN PANEL ── #}
+<div class="sr-grid">
+  <aside class="sr-rail">
+    <div class="sr-rail-head">Salary Months <b>{{ slip_salary_rows|length }}</b></div>
+    <div class="sr-rail-list">
+      {% for s in slip_salary_rows %}
+      <a class="sr-m {{ 'is-on' if slip_selected_salary and s.id == slip_selected_salary.id }}" href="{{ url_for('hr.employee_salary_slip', employee_id=employee.employee_id, salary_store_id=s.id) }}">
+        <span class="sr-m-dot {{ 'done' if s.id in slip_store_ids else '' }}"></span>
+        <span class="sr-m-body">
+          <b>{{ s.salary_month }}</b>
+          <small>AED {{ "%.0f"|format(s.net_salary or 0) }}</small>
+        </span>
+        {% if s.id in slip_store_ids %}<span class="sr-m-flag done">SLIP</span>{% else %}<span class="sr-m-flag">RUN</span>{% endif %}
+      </a>
+      {% else %}
+      <div class="sr-rail-empty">No salary months yet.<br>Store salary first from the <strong>Store Salary</strong> tab.</div>
+      {% endfor %}
+    </div>
+  </aside>
 
-            {# ═══ 4. ADVANCE-WISE BREAKDOWN ═══ #}
-            <div class="dv2-card" style="margin-top:1.2rem">
-                <div class="dv2-card-header">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="16" height="12" rx="2"/><path d="M2 10h16"/></svg>
-                    Advance-wise Breakdown
-                    <span class="dv2-badge dv2-badge-dept" style="margin-left:auto">{{ slip_truth.rows|length }} advances &middot; FIFO order</span>
-                </div>
-                <div class="dv2-table-wrap">
-                    <table class="dv2-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Advance Details</th>
-                                <th style="text-align:right">Given</th>
-                                <th style="text-align:right">Deducted</th>
-                                <th style="text-align:right">Remaining</th>
-                                <th>Status</th>
-                                <th>Cleared In</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for a in slip_truth.rows %}
-                            <tr>
-                                <td data-label="Date" class="dv2-mono" style="font-size:.78rem">{{ (a.entry_date or '')[:10] }}</td>
-                                <td data-label="Details" style="max-width:230px;white-space:normal;font-size:.78rem">{{ a.details or a.source or '-' }}</td>
-                                <td data-label="Given" class="dv2-mono" style="text-align:right;font-weight:600;{% if a.is_return %}color:#047857{% endif %}">{{ '−' if a.is_return else '' }} AED {{ "%.2f"|format(a.amount) }}</td>
-                                <td data-label="Deducted" class="dv2-mono" style="text-align:right;color:#e65100">AED {{ "%.2f"|format(a.deducted) }}</td>
-                                <td data-label="Remaining" class="dv2-mono" style="text-align:right;font-weight:700;color:{% if a.remaining > 0.01 %}#c62828{% else %}#2e7d32{% endif %}">AED {{ "%.2f"|format(a.remaining) }}</td>
-                                <td data-label="Status">
-                                    {% if a.status == 'cleared' %}<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">CLEARED</span>
-                                    {% elif a.status == 'returned' %}<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">RETURNED</span>
-                                    {% elif a.status == 'partial' %}<span style="background:#ffedd5;color:#9a3412;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">PARTIAL</span>
-                                    {% else %}<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700">OUTSTANDING</span>{% endif %}
-                                </td>
-                                <td data-label="Cleared In" style="font-size:.72rem;color:var(--muted)">{% if a.deducted_in %}{{ a.deducted_in|join(', ') }}{% else %}&mdash;{% endif %}</td>
-                            </tr>
-                            {% else %}
-                            <tr class="dv2-empty"><td colspan="7">No advances recorded.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+  <div class="sr-run">
+    {% if slip_selected_salary %}
+    {% set deduction = (slip_values.deduction_amount or '0')|float %}
+    {% set payable = (slip_selected_salary.net_salary or 0)|float - deduction %}
+    {% set _after = (slip_available_advance|float) - deduction %}
+    {% set after_balance = _after if _after > 0 else 0 %}
+    <div class="sr-run-head">
+      <div>
+        <h3>{{ slip_selected_salary.salary_month }}</h3>
+        <p>Net salary AED {{ "%.2f"|format(slip_selected_salary.net_salary) }} &middot; store #{{ slip_selected_salary.id }}</p>
+      </div>
+      {% if slip_existing_slip %}<span class="sr-tag ok">&#10003; Slip generated</span>{% else %}<span class="sr-tag">Not generated</span>{% endif %}
+    </div>
+
+    {% if slip_existing_slip %}
+    <div style="padding:14px 18px 0">
+      <div class="sr-notice info">
+        <span>&#128196;</span>
+        <div>A slip already exists for this month (payment: {{ slip_existing_slip.payment_source or '—' }}{% if slip_existing_slip.payment_date %} on {{ slip_existing_slip.payment_date }}{% endif %}). Submitting again will <strong>regenerate</strong> it.</div>
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="POST" class="sr-form">
+      <div class="sr-row">
+        <label for="deductionAmount">Advance deduction</label>
+        <div class="sr-amount">
+          <span>AED</span>
+          <input type="number" name="deduction" id="deductionAmount" value="{{ deduction }}" min="0" step="0.01" oninput="updatePreview()">
+          <button type="button" class="sr-fill" onclick="fillMax()">Fill Max</button>
         </div>
+      </div>
 
-        {# ════════════════════════════════════════════ #}
-        {# TAB 4: KATA                                  #}
-        {# ════════════════════════════════════════════ #}
-        {% elif active_tab == 'kata' %}
-        <div class="tab-pane">
-            {# ═══ STATEMENT OF ACCOUNT — LIVE POSITION ═══ #}
-            <style>
-            .soa-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;background:#0f2740;color:#fff;border-radius:14px;padding:18px 22px;box-shadow:0 8px 20px rgba(15,39,64,.18)}
-            .soa-head h2{margin:0;font-size:1.02rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
-            .soa-head .soa-sub{margin:7px 0 0;font-size:.8rem;color:#c8d7e6}
-            .soa-meta{text-align:right;font-size:.74rem;color:#c8d7e6;line-height:1.9}
-            .soa-meta a{color:#93c5fd;font-weight:700;text-decoration:none}
-            .soa-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.55);color:#86efac;font-size:.63rem;font-weight:800;letter-spacing:.1em;padding:4px 10px;border-radius:999px;text-transform:uppercase}
-            .soa-chip .dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.25)}
-            .soa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:16px 0}
-            .soa-tile{background:#fff;border:1px solid #e5e7eb;border-top:3px solid #0f2740;border-radius:12px;padding:15px 17px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
-            .soa-tile.t-blue{border-top-color:#1d4ed8}.soa-tile.t-red{border-top-color:#dc2626}.soa-tile.t-green{border-top-color:#059669}
-            .soa-label{font-size:.63rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#64748b}
-            .soa-value{font-size:1.72rem;font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:7px;line-height:1.1}
-            .soa-note{font-size:.71rem;color:#64748b;margin-top:7px;line-height:1.5}
-            .soa-panel{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:17px 19px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
-            .soa-panel h3{margin:0 0 12px;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:#0f2740;font-weight:800}
-            .soa-bar{height:10px;border-radius:999px;background:#eef2f7;overflow:hidden;border:1px solid #e5e7eb}
-            .soa-bar>span{display:block;height:100%;background:#059669;border-radius:999px}
-            .soa-legend{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:11px}
-            .soa-legend div{font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;color:#64748b;font-weight:700}
-            .soa-legend b{display:block;font-size:1.05rem;letter-spacing:normal;text-transform:none;color:#0f172a;font-variant-numeric:tabular-nums;margin-top:4px}
-            .soa-months{display:flex;flex-wrap:wrap;gap:8px}
-            .soa-m{display:flex;align-items:center;gap:9px;border:1px solid #e5e7eb;background:#f8fafc;border-radius:10px;padding:8px 12px;font-size:.77rem}
-            .soa-m .mono{font-variant-numeric:tabular-nums;font-weight:700;color:#0f172a}
-            .soa-pill{font-size:.6rem;font-weight:800;letter-spacing:.08em;padding:3px 8px;border-radius:999px;text-transform:uppercase}
-            .soa-pill.ok{background:#dcfce7;color:#166534}.soa-pill.no{background:#fee2e2;color:#991b1b}
-            .soa-settle{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;padding:14px 16px;font-size:.8rem;color:#334155;line-height:1.75}
-            .soa-foot{font-size:.68rem;color:#94a3b8;text-align:right;margin-top:10px}
-            .soa-pill.warn{background:#fef3c7;color:#92400e}
-            .soa-plain{background:#0b1f33;color:#e8eef6;border-radius:14px;padding:19px 21px;margin-top:16px;box-shadow:0 10px 24px rgba(11,31,51,.22)}
-            .soa-plain-title{font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:#7dd3fc;font-weight:800;margin-bottom:14px}
-            .soa-plain-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
-            .soa-plain-list li{display:flex;align-items:flex-start;gap:12px}
-            .soa-plain-list .n{flex:0 0 24px;height:24px;border-radius:50%;background:rgba(255,255,255,.12);color:#93c5fd;font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:2px}
-            .soa-plain-list .t{flex:1;font-size:.87rem;line-height:1.5;color:#cbd5e1}
-            .soa-plain-list .t small{display:block;font-size:.72rem;color:#94a3b8;margin-top:3px;line-height:1.5}
-            .soa-plain-list .v{font-size:1.14rem;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;color:#fff}
-            .soa-plain-list li.l2 .v{color:#fca5a5}
-            .soa-plain-list li.l3 .v{color:#93c5fd}
-            .soa-net{margin-top:16px;padding-top:14px;border-top:1px dashed rgba(255,255,255,.22);display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
-            .soa-net span{font-size:.8rem;color:#cbd5e1;line-height:1.5}
-            .soa-net b{font-size:1.55rem;font-variant-numeric:tabular-nums;color:#4ade80}
-            </style>
+      <div class="sr-flow">
+        <div><span>Net Salary</span><b id="flowNet">AED {{ "%.2f"|format(slip_selected_salary.net_salary) }}</b><em>before deduction</em></div>
+        <div class="f-minus"><span>Deduction</span><b id="previewDeduction">&minus;AED {{ "%.2f"|format(deduction) }}</b><em>recovered now</em></div>
+        <div class="f-pay"><span>Payable to Driver</span><b id="previewPayable">AED {{ "%.2f"|format(payable) }}</b><em>cash in hand</em></div>
+        <div class="f-bal {{ 'is-clear' if after_balance <= 0.01 }}"><span>Advance After</span><b id="previewAfter">AED {{ "%.2f"|format(after_balance) }}</b><em>remaining balance</em></div>
+      </div>
 
-            <div class="soa-head">
-                <div>
-                    <h2>Statement of Account</h2>
-                    <p class="soa-sub">{{ soa.driver_name }} &middot; {{ soa.driver_id }} &middot; {{ soa.designation }} &middot; Statement date {{ soa.statement_date }}</p>
-                </div>
-                <div class="soa-meta">
-                    <span class="soa-chip"><span class="dot"></span>Live balance</span>
-                    {% if kata_pdf_url %}
-                    <div><a href="{{ kata_pdf_url }}" download>&#8681; Download PDF</a></div>
-                    {% endif %}
-                </div>
-            </div>
+      <div class="sr-line">
+        <span>Advance balance <strong id="lineBefore">AED {{ "%.2f"|format(slip_available_advance|float) }}</strong></span>
+        <span>&rarr;</span>
+        <span>after deduction <strong class="{{ 'to' if after_balance > 0.01 else '' }}" id="lineAfter">AED {{ "%.2f"|format(after_balance) }}</strong></span>
+        <span style="margin-left:auto">Open advances: <strong>{{ slip_truth.rows|selectattr('remaining','gt',0.01)|list|length }}</strong></span>
+      </div>
 
-            {# ═══ SEEDHI BAAT — driver ko samajh aane wali 3 line ═══ #}
-            <div class="soa-plain">
-                <div class="soa-plain-title">Account Summary</div>
-                <ol class="soa-plain-list">
-                    <li>
-                        <span class="n">1</span>
-                        <span class="t">Total advance issued<small>Cash and transfers provided to the driver to date.</small></span>
-                        <b class="v">AED {{ "%.2f"|format(soa.given) }}</b>
-                    </li>
-                    <li class="l2">
-                        <span class="n">2</span>
-                        <span class="t">Recovered from salary<small>{% if (soa.returned or 0) > 0.01 %}Cash returned in person: AED {{ "%.2f"|format(soa.returned) }}. {% endif %}Advance balance still open: AED {{ "%.2f"|format(soa.balance) }}.</small></span>
-                        <b class="v">AED {{ "%.2f"|format(soa.recovered) }}</b>
-                    </li>
-                    <li class="l3">
-                        <span class="n">3</span>
-                        <span class="t">Salary outstanding (not yet paid)<small>{% if soa.pending_count %}{{ soa.pending_labels }} not yet generated.{% endif %}{% if soa.unpaid_count %} {{ soa.unpaid_labels }} issued, cash not yet handed over.{% endif %}</small></span>
-                        <b class="v">AED {{ "%.2f"|format(soa.salary_owed) }}</b>
-                    </li>
-                </ol>
-                <div class="soa-net">
-                    <span>{% if soa.company_owes %}Net payable to the driver after<br>full advance recovery{% else %}Net receivable from the driver after<br>advance adjustment{% endif %}</span>
-                    <b>AED {{ "%.2f"|format(soa.net_to_driver|abs) }}</b>
-                </div>
-            </div>
+      <label class="sr-pay" for="paidNow">
+        <input type="checkbox" name="paid_now" id="paidNow" {% if slip_values.paid_now %}checked{% endif %} onchange="updatePaidHint()">
+        <span>
+          <strong>Cash handed over in the office &mdash; payment made today</strong>
+          <span id="paidHintText"></span>
+        </span>
+      </label>
 
-            <div class="soa-grid">
-                <div class="soa-tile t-blue">
-                    <div class="soa-label">Salary Outstanding</div>
-                    <div class="soa-value">AED {{ "%.2f"|format(soa.salary_owed) }}</div>
-                    <div class="soa-note">
-                        {% if soa.pending_count %}<strong>{{ soa.pending_labels }}</strong> not yet generated (AED {{ "%.2f"|format(soa.pending_total) }}).{% endif %}
-                        {% if soa.unpaid_count %} <strong>{{ soa.unpaid_labels }}</strong> issued, cash not yet handed over (AED {{ "%.2f"|format(soa.unpaid_total) }}).{% endif %}
-                        {% if not soa.pending_count and not soa.unpaid_count %}All months have been settled in full.{% endif %}
-                    </div>
-                </div>
-                <div class="soa-tile t-red">
-                    <div class="soa-label">Advance Balance (Outstanding)</div>
-                    <div class="soa-value" style="color:{% if soa.balance > 0.01 %}#b91c1c{% else %}#047857{% endif %}">AED {{ "%.2f"|format(soa.balance) }}</div>
-                    <div class="soa-note">{{ "%.1f"|format(soa.recovery_pct) }}% recovered &middot; AED {{ "%.2f"|format(soa.recovered) }} from salary{% if (soa.returned or 0) > 0.01 %} + AED {{ "%.2f"|format(soa.returned) }} returned in cash{% endif %} of AED {{ "%.2f"|format(soa.given) }} set off.</div>
-                </div>
-                <div class="soa-tile {% if soa.company_owes %}t-green{% else %}t-red{% endif %}">
-                    <div class="soa-label">Net {% if soa.company_owes %}Payable to Driver{% else %}Payable by Driver{% endif %}</div>
-                    <div class="soa-value" style="color:{% if soa.company_owes %}#047857{% else %}#b91c1c{% endif %}">AED {{ "%.2f"|format(soa.net_to_driver|abs) }}</div>
-                    <div class="soa-note">Salary outstanding AED {{ "%.2f"|format(soa.salary_owed) }} − advance balance AED {{ "%.2f"|format(soa.balance) }}.</div>
-                </div>
-            </div>
-
-            <div class="soa-panel">
-                <h3>Advance Account</h3>
-                <div class="soa-bar"><span style="width:{{ [soa.recovery_pct, 100]|min }}%"></span></div>
-                <div class="soa-legend">
-                    <div>Advance Given<b>AED {{ "%.2f"|format(soa.given) }}</b></div>
-                    {% if (soa.returned or 0) > 0.01 %}
-                    <div style="text-align:center">Returned in Cash<b style="color:#047857">AED {{ "%.2f"|format(soa.returned) }}</b></div>
-                    {% endif %}
-                    <div style="text-align:center">Recovered<b style="color:#047857">AED {{ "%.2f"|format(soa.recovered) }}</b></div>
-                    <div style="text-align:right">Balance<b style="color:{% if soa.balance > 0.01 %}#b91c1c{% else %}#047857{% endif %}">AED {{ "%.2f"|format(soa.balance) }}</b></div>
-                </div>
-            </div>
-
-            <div class="soa-panel">
-                <h3>Salary Status</h3>
-                <div class="soa-months">
-                    {% for m in soa.months %}
-                    <div class="soa-m">
-                        <span class="mono">{{ m.month }}</span>
-                        <span class="mono">AED {{ "%.0f"|format(m.net) }}</span>
-                        {% if m.issued %}
-                            {% if m.unpaid > 0.01 %}<span class="soa-pill warn">Issued &middot; AED {{ "%.0f"|format(m.unpaid) }} due</span>{% else %}<span class="soa-pill ok">Issued</span>{% endif %}
-                        {% else %}<span class="soa-pill no">Not Generated</span>{% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="soa-settle">
-                <strong>Settled:</strong> {{ soa.settled_label }} ({{ soa.settled_count }} month) &mdash; AED {{ "%.2f"|format(soa.recovered) }} recovered from salary{% if (soa.returned or 0) > 0.01 %}, AED {{ "%.2f"|format(soa.returned) }} returned in cash{% endif %}.<br>
-                {% if soa.pending_count %}<strong>Not yet generated:</strong> {{ soa.pending_labels }} &mdash; AED {{ "%.2f"|format(soa.pending_total) }} salary pending.{% endif %}
-                {% if soa.unpaid_count %} <strong>Cash not yet paid:</strong> {{ soa.unpaid_labels }} &mdash; AED {{ "%.2f"|format(soa.unpaid_total) }} slip issued, payment outstanding.{% endif %}
-                <br><strong>Net position:</strong> {% if soa.company_owes %}The company owes the driver AED {{ "%.2f"|format(soa.net_to_driver) }}.{% else %}The driver owes the company AED {{ "%.2f"|format(soa.net_to_driver|abs) }}.{% endif %}
-            </div>
-
-            <div class="soa-foot">Live statement &mdash; historical entries are collapsed; current balances only. Generated {{ soa.statement_date }}.</div>
-
-            {# ═══ DOWNLOAD ═══ #}
-            {% if kata_pdf_url %}
-            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:1.2rem">
-                <a href="{{ kata_pdf_url }}" class="dv2-btn dv2-btn-primary" download style="display:inline-flex;align-items:center;gap:6px">
-                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/><path d="M12 10v6"/><path d="M9 13l3 3 3-3"/></svg>
-                    Download Statement (PDF)
-                </a>
-            </div>
-            {% endif %}
+      <div class="sr-fields">
+        <div>
+          <label for="paySource">Payment source</label>
+          <select name="payment_source" id="paySource">
+            {% for src in ['Owner Fund','Owner Direct','Current Link','Office','Cash','Bank','Other'] %}
+            <option value="{{ src }}" {% if slip_values.payment_source == src %}selected{% endif %}>{{ src }}</option>
+            {% endfor %}
+          </select>
         </div>
+        <div>
+          <label for="payDate">Payment date</label>
+          <input type="date" name="payment_date" id="payDate" value="{{ slip_values.payment_date or (slip_existing_slip.payment_date if slip_existing_slip else '') }}">
+        </div>
+        <div>
+          <label for="payBy">Paid by</label>
+          <input type="text" name="paid_by" id="payBy" value="{{ slip_values.paid_by or '' }}" placeholder="Person name">
+        </div>
+        <div class="full">
+          <label for="payNotes">Notes</label>
+          <textarea name="payment_notes" id="payNotes" rows="2" placeholder="Optional note for this run">{{ slip_values.payment_notes or '' }}</textarea>
+        </div>
+      </div>
 
+      <div class="sr-actions">
+        <button type="submit" class="sr-btn sr-btn-main">
+          {% if slip_existing_slip %}Regenerate{% else %}Generate{% endif %} Salary Slip &mdash; AED {{ "%.2f"|format(payable) }}
+        </button>
+        {% if slip_existing_slip and slip_existing_slip.pdf_path %}
+        <a href="{{ url_for('generated_file', filename=slip_existing_slip.pdf_path) }}" target="_blank" class="sr-btn sr-btn-ghost">&#128196; View / Print</a>
+        <a href="{{ url_for('hr.employee_deduction_statement', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" target="_blank" class="sr-btn sr-btn-ghost">Deduction Statement</a>
+        <a href="{{ url_for('hr.employee_salary_slip_delete', employee_id=employee.employee_id, store_id=slip_selected_salary.id) }}" class="sr-btn sr-btn-danger" onclick="return confirm('Delete this salary slip? This cannot be undone.')">&#128465; Delete</a>
+        {% endif %}
+      </div>
+    </form>
+    {% else %}
+    <div class="sr-empty">
+      <h4>Select a salary month to run</h4>
+      <p>Click any month on the left rail to set deduction and generate its slip. If no months appear, store salary first via <code>Store Salary</code>.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── MONEY TRAIL: LEDGER / ADVANCES ── #}
+<section class="sr-panel">
+  <div class="sr-panel-head">
+    <h3><svg viewBox="0 0 20 20"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-7"/></svg> Money Trail</h3>
+    <div class="sr-seg">
+      <button type="button" class="is-on" id="segLedger" onclick="srView('ledger')">Running Ledger</button>
+      <button type="button" id="segAdv" onclick="srView('adv')">Advance Breakdown</button>
+    </div>
+  </div>
+
+  <div id="viewLedger">
+    <div class="sr-table-wrap">
+      <table class="sr-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th class="r">Salary</th>
+            <th class="r">Advance (+)</th>
+            <th class="r">Returned (&minus;)</th>
+            <th class="r">Deducted (&minus;)</th>
+            <th class="r">Paid</th>
+            <th>Slip</th>
+            <th class="r">Balance After</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in slip_ledger %}
+          <tr class="{{ 'is-latest' if loop.first }}" {% if r.store_id %}data-open="{{ url_for('hr.employee_salary_slip', employee_id=employee.employee_id, salary_store_id=r.store_id) }}" title="Open {{ r.salary_month }} slip"{% endif %}>
+            <td class="strong sr-mono">{{ r.salary_month }}{% if loop.first %} <span class="sr-chiplet">latest</span>{% endif %}</td>
+            <td class="r sr-mono">{% if r.salary > 0 %}{{ "%.0f"|format(r.salary) }}{% else %}&mdash;{% endif %}</td>
+            <td class="r sr-mono pos">{% if r.given > 0 %}+{{ "%.0f"|format(r.given) }}{% else %}&mdash;{% endif %}</td>
+            <td class="r sr-mono pos">{% if r.returned > 0 %}&minus;{{ "%.0f"|format(r.returned) }}{% else %}&mdash;{% endif %}</td>
+            <td class="r sr-mono warn">{% if r.deducted > 0 %}&minus;{{ "%.0f"|format(r.deducted) }}{% else %}&mdash;{% endif %}</td>
+            <td class="r sr-mono">{% if r.paid > 0 %}{{ "%.0f"|format(r.paid) }}{% else %}&mdash;{% endif %}</td>
+            <td>{% if r.slip_count > 0 %}<span class="sr-ok">&#10004; Slip</span>{% else %}<span class="sr-no">RUN</span>{% endif %}</td>
+            <td class="r sr-mono strong" style="color:{% if r.balance_after > 0 %}#dc2626{% else %}#16a34a{% endif %}">{{ "%.2f"|format(r.balance_after) }}</td>
+          </tr>
+          {% else %}
+          <tr class="sr-empty-row"><td colspan="8">No hisab yet.</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if slip_ledger %}
+        <tfoot>
+          <tr>
+            <td colspan="7" class="r">Current balance (as of today)</td>
+            <td class="r sr-mono" style="color:{% if slip_truth.outstanding > 0 %}#dc2626{% else %}#16a34a{% endif %};font-size:.9rem">AED {{ "%.2f"|format(slip_truth.outstanding) }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+    <div class="sr-note">Balance = Issued &minus; Returned &minus; Recovered. Click any row to open that month&rsquo;s slip.</div>
+  </div>
+
+  <div id="viewAdv" style="display:none">
+    <div class="sr-table-wrap">
+      <table class="sr-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Advance Details</th>
+            <th class="r">Given</th>
+            <th class="r">Deducted</th>
+            <th class="r">Remaining</th>
+            <th>Status</th>
+            <th>Cleared In</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in slip_truth.rows %}
+          <tr>
+            <td class="sr-mono">{{ (a.entry_date or '')[:10] }}</td>
+            <td style="max-width:240px;white-space:normal">{{ a.details or a.source or '-' }}</td>
+            <td class="r sr-mono {{ 'pos' if a.is_return else 'strong' }}">{{ '−' if a.is_return else '' }} {{ "%.2f"|format(a.amount) }}</td>
+            <td class="r sr-mono warn">{{ "%.2f"|format(a.deducted) }}</td>
+            <td class="r sr-mono strong" style="color:{% if a.remaining > 0.01 %}#dc2626{% else %}#16a34a{% endif %}">{{ "%.2f"|format(a.remaining) }}</td>
+            <td>
+              {% if a.status == 'cleared' %}<span class="sr-chiplet ok">CLEARED</span>
+              {% elif a.status == 'returned' %}<span class="sr-chiplet">RETURNED</span>
+              {% elif a.status == 'partial' %}<span class="sr-chiplet part">PARTIAL</span>
+              {% else %}<span class="sr-chiplet no">OUTSTANDING</span>{% endif %}
+            </td>
+            <td style="font-size:.72rem;color:var(--muted)">{% if a.deducted_in %}{{ a.deducted_in|join(', ') }}{% else %}&mdash;{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr class="sr-empty-row"><td colspan="7">No advances recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if slip_truth.rows %}
+        <tfoot>
+          <tr>
+            <td colspan="4" class="r">Advance still outstanding</td>
+            <td class="r sr-mono" style="color:{% if slip_truth.outstanding > 0 %}#dc2626{% else %}#16a34a{% endif %};font-size:.9rem">{{ "%.2f"|format(slip_truth.outstanding) }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+    <div class="sr-note">{{ slip_truth.rows|length }} advances &middot; FIFO recovery order &middot; total issued AED {{ "%.2f"|format(slip_truth.total_given or 0) }}, recovered AED {{ "%.2f"|format(slip_truth.total_deducted or 0) }}.</div>
+  </div>
+</section>
+
+<script>
+function srView(which){
+  var l=document.getElementById('viewLedger'), a=document.getElementById('viewAdv');
+  var bl=document.getElementById('segLedger'), ba=document.getElementById('segAdv');
+  var isL = which==='ledger';
+  if(l) l.style.display = isL ? '' : 'none';
+  if(a) a.style.display = isL ? 'none' : '';
+  if(bl) bl.classList.toggle('is-on', isL);
+  if(ba) ba.classList.toggle('is-on', !isL);
+}
+function fillMax(){
+  var el=document.getElementById('deductionAmount');
+  if(el){ el.value = el.getAttribute('data-max') || el.value; updatePreview(); }
+}
+function updatePreview(){
+  var el=document.getElementById('deductionAmount'); if(!el) return;
+  var max=parseFloat(el.getAttribute('data-max')||'0')||0;
+  var v=parseFloat(el.value)||0; if(v>max) v=max;
+  var net=parseFloat(el.getAttribute('data-net')||'0')||0;
+  var d=Math.max(0, Math.min(v, max));
+  var payable=Math.max(0, net-d), after=Math.max(0, max-d);
+  var f=function(x){return 'AED '+x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var pd=document.getElementById('previewDeduction'); if(pd) pd.textContent='-'+f(d);
+  var pp=document.getElementById('previewPayable'); if(pp) pp.textContent=f(payable);
+  var pa=document.getElementById('previewAfter'); if(pa){ pa.textContent=f(after); pa.parentElement.classList.toggle('is-clear', after<=0.01); }
+  var lb=document.getElementById('lineBefore'); if(lb) lb.textContent=f(max);
+  var la=document.getElementById('lineAfter'); if(la){ la.textContent=f(after); la.classList.toggle('to', after>0.01); }
+  var btn=document.querySelector('.sr-btn-main'); if(btn){
+    var tag=btn.textContent.indexOf('Regenerate')>=0?'Regenerate':'Generate';
+    btn.textContent=tag+' Salary Slip — '+f(payable);
+  }
+  var hn=document.getElementById('paidHintText');
+  var pn=document.getElementById('paidNow');
+  if(hn&&pn) hn.textContent = pn.checked ? ('Full AED '+payable.toFixed(2)+' paid today; advance balance becomes AED '+after.toFixed(2)+'.') : 'Tick only if cash was physically handed over today.';
+}
+function updatePaidHint(){ updatePreview(); }
+document.addEventListener('DOMContentLoaded', function(){
+  var el=document.getElementById('deductionAmount');
+  if(el){
+    el.setAttribute('data-max', el.getAttribute('data-max') || '{{ "%.2f"|format(slip_available_advance|float) }}');
+    el.setAttribute('data-net', el.getAttribute('data-net') || '{{ "%.2f"|format(slip_selected_salary.net_salary) if slip_selected_salary else 0 }}');
+    updatePreview();
+  }
+  document.querySelectorAll('.sr-table tr[data-open]').forEach(function(tr){
+    tr.addEventListener('click', function(){ window.location = tr.getAttribute('data-open'); });
+  });
+});
+</script>
+</div>
+
+{# ════════════════════════════════════════════ #}
+{# TAB: KATA / STATEMENT OF ACCOUNT            #}
+{# ════════════════════════════════════════════ #}
+{% elif active_tab == 'kata' %}
+<div class="tab-pane kta">
+<style>
+.kta{--ink:#0b1830;--slate:#43556f;--muted:#7a8ca6;--line:#e7edf7;--line2:#f1f5fb;--blue:#1c568b;--navy:#0f2a54;--kg:#16a34a;--kr:#dc2626;--surface:#fff;display:flex;flex-direction:column;gap:16px;font-family:Inter,'Segoe UI',system-ui,sans-serif;color:var(--ink)}
+.kta *{box-sizing:border-box}
+.kta h2,.kta h3{margin:0}
+
+.kta-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 20px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(15,35,70,.05)}
+.kta-id{display:flex;align-items:center;gap:13px;min-width:0}
+.kta-av{flex:0 0 44px;height:44px;border-radius:13px;background:linear-gradient(135deg,#0f2a54,#2a7fbf);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.95rem;letter-spacing:.5px;box-shadow:0 8px 18px -12px rgba(15,42,84,.9)}
+.kta-id h2{font-size:1.02rem;font-weight:800;color:var(--navy);letter-spacing:-.3px}
+.kta-id p{margin:4px 0 0;font-size:.74rem;color:var(--muted);line-height:1.5}
+.kta-head-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.kta-live{display:inline-flex;align-items:center;gap:7px;background:#dcfce7;border:1px solid #bbf7d0;color:#166534;font-size:.6rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;padding:6px 11px;border-radius:999px}
+.kta-live i{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.28);animation:ktaPulse 1.9s infinite}
+@keyframes ktaPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.kta-pdf{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#0f2a54,#1c568b);color:#fff;text-decoration:none;font-size:.78rem;font-weight:800;padding:10px 16px;border-radius:11px;box-shadow:0 12px 26px -16px rgba(15,42,84,.95)}
+.kta-pdf:hover{filter:brightness(1.1)}
+.kta-pdf svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2}
+
+.kta-hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:0;overflow:hidden;border-radius:18px;color:#fff;background:linear-gradient(115deg,#071a33,#0f2a54 50%,#1c568b 95%);box-shadow:0 26px 56px -34px rgba(9,29,58,.95);position:relative}
+.kta-hero::after{content:"";position:absolute;left:-60px;bottom:-90px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.13),transparent 65%);pointer-events:none}
+.kta-net{padding:24px 26px;position:relative;z-index:1}
+.kta-net .lbl{font-size:.6rem;font-weight:800;letter-spacing:.17em;text-transform:uppercase;color:rgba(255,255,255,.66)}
+.kta-net .amt{font-size:2.5rem;font-weight:800;letter-spacing:-1.5px;margin-top:9px;font-variant-numeric:tabular-nums;line-height:1.05}
+.kta-net .amt.pos{color:#4ade80}
+.kta-net .amt.neg{color:#fca5a5}
+.kta-net .who{margin-top:9px;font-size:.85rem;color:rgba(255,255,255,.8);line-height:1.55}
+.kta-net .who b{color:#fff}
+.kta-side{background:rgba(255,255,255,.07);border-left:1px solid rgba(255,255,255,.16);padding:18px 22px;display:flex;flex-direction:column;justify-content:center;gap:13px;position:relative;z-index:1}
+.kta-stat{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.kta-stat .k{font-size:.62rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.66)}
+.kta-stat .v{font-size:1.14rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.4px;white-space:nowrap}
+.kta-stat .v.kr{color:#fca5a5}
+.kta-stat .v.kg{color:#4ade80}
+.kta-stat .v.white{color:#fff}
+.kta-stat+.kta-stat{padding-top:12px;border-top:1px dashed rgba(255,255,255,.2)}
+
+.kta-grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.kta-card{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:15px 17px;box-shadow:0 1px 3px rgba(15,35,70,.05);border-top:3px solid var(--navy)}
+.kta-card.c-blue{border-top-color:#1d4ed8}.kta-card.c-kr{border-top-color:#dc2626}.kta-card.c-kg{border-top-color:#059669}
+.kta-card .k{font-size:.6rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.kta-card .v{font-size:1.5rem;font-weight:800;margin-top:7px;font-variant-numeric:tabular-nums;letter-spacing:-.6px;color:var(--navy)}
+.kta-card .v.kr{color:#b91c1c}.kta-card .v.kg{color:#047857}
+.kta-card .n{font-size:.72rem;color:var(--muted);margin-top:7px;line-height:1.55}
+
+.kta-panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 3px rgba(15,35,70,.05);overflow:hidden}
+.kta-panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:13px 18px;background:#f7fafd;border-bottom:1px solid var(--line)}
+.kta-panel-head h3{font-size:.9rem;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:9px}
+.kta-panel-head h3 svg{width:16px;height:16px;stroke:#1c568b;fill:none;stroke-width:1.8}
+.kta-panel-head .hint{font-size:.7rem;color:var(--muted)}
+.kta-body{padding:16px 18px}
+
+.kta-bar{height:14px;border-radius:999px;background:#eef2f7;border:1px solid var(--line);overflow:hidden;display:flex}
+.kta-bar .rec{background:linear-gradient(90deg,#059669,#34d399)}
+.kta-bar .ret{background:linear-gradient(90deg,#0ea5e9,#38bdf8)}
+.kta-legend{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:13px}
+.kta-legend div{font-size:.6rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);min-width:110px}
+.kta-legend div:nth-child(2),.kta-legend div:nth-child(3){text-align:center}
+.kta-legend div:last-child{text-align:right}
+.kta-legend b{display:block;font-size:1.02rem;letter-spacing:-.3px;text-transform:none;color:var(--navy);font-variant-numeric:tabular-nums;margin-top:5px}
+.kta-legend b.kg{color:#047857}.kta-legend b.kr{color:#b91c1c}
+
+.kta-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.kta-table th{background:#f7fafd;color:var(--slate);font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+.kta-table th.r,.kta-table td.r{text-align:right}
+.kta-table td{padding:11px 14px;border-bottom:1px solid var(--line2);color:var(--slate);vertical-align:middle}
+.kta-table tbody tr:last-child td{border-bottom:none}
+.kta-table .mono{font-variant-numeric:tabular-nums;font-family:'SF Mono',Consolas,monospace;font-weight:700;color:var(--navy)}
+.kta-table tfoot td{background:#f7fafd;border-top:2px solid var(--line);border-bottom:none;font-weight:800;color:var(--navy)}
+.kta-pill{display:inline-flex;align-items:center;gap:6px;font-size:.66rem;font-weight:800;letter-spacing:.05em;padding:4px 10px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
+.kta-pill.ok{background:#dcfce7;color:#166534}
+.kta-pill.no{background:#fee2e1;color:#991b1b}
+.kta-pill.warn{background:#fef3c7;color:#92400e}
+
+.kta-notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.kta-note{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:15px 17px;box-shadow:0 1px 3px rgba(15,35,70,.05)}
+.kta-note h4{margin:0;font-size:.62rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--slate);display:flex;align-items:center;gap:7px}
+.kta-note h4 i{width:8px;height:8px;border-radius:50%;background:#cbd5e1;font-style:normal}
+.kta-note.hi h4 i{background:#22c55e}
+.kta-note.mid h4 i{background:#f59e0b}
+.kta-note.low h4 i{background:#ef4444}
+.kta-note p{margin:9px 0 0;font-size:.8rem;line-height:1.65;color:var(--slate)}
+.kta-note p b{color:var(--navy);font-variant-numeric:tabular-nums}
+.kta-note .big{display:block;font-size:1.18rem;font-weight:800;color:var(--navy);margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+.kta-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:.7rem;color:var(--muted);padding:0 4px 4px;line-height:1.6}
+
+@media (max-width:960px){
+  .kta-hero{grid-template-columns:1fr}
+  .kta-side{border-left:none;border-top:1px solid rgba(255,255,255,.16)}
+  .kta-grid3,.kta-notes{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .kta-net .amt{font-size:2rem}
+  .kta-head{padding:14px}
+  .kta-legend div{min-width:44%;text-align:left!important}
+  .kta-table th,.kta-table td{padding:9px 10px;font-size:.76rem}
+}
+</style>
+
+{# ── STATEMENT HEADER ── #}
+<div class="kta-head">
+  <div class="kta-id">
+    <div class="kta-av">{{ (employee.full_name or '??')[:2]|upper }}</div>
+    <div>
+      <h2>Statement of Account</h2>
+      <p><strong>{{ soa.driver_name }}</strong> &middot; {{ soa.driver_id }} &middot; {{ soa.designation }} &middot; Statement date {{ soa.statement_date }}</p>
+    </div>
+  </div>
+  <div class="kta-head-actions">
+    <span class="kta-live"><i></i> Live balance</span>
+    {% if kata_pdf_url %}
+    <a class="kta-pdf" href="{{ kata_pdf_url }}" download>
+      <svg viewBox="0 0 20 20"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/><path d="M10 10v6"/><path d="m7.5 12.5 2.5 3 2.5-3"/></svg>
+      Download PDF
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{# ── HERO: NET POSITION + SUPPORTING FIGURES ── #}
+<div class="kta-hero">
+  <div class="kta-net">
+    <div class="lbl">Net Position</div>
+    <div class="amt {{ 'pos' if soa.company_owes else 'neg' }}">AED {{ "%.2f"|format(soa.net_to_driver|abs) }}</div>
+    <div class="who">
+      {% if soa.company_owes %}
+      The company <b>owes the driver</b> &mdash; salary outstanding exceeds the open advance balance.
+      {% else %}
+      The driver <b>owes the company</b> &mdash; open advance balance exceeds salary outstanding.
+      {% endif %}
+    </div>
+  </div>
+  <div class="kta-side">
+    <div class="kta-stat">
+      <span class="k">Salary outstanding</span>
+      <span class="v white">AED {{ "%.2f"|format(soa.salary_owed) }}</span>
+    </div>
+    <div class="kta-stat">
+      <span class="k">Advance balance</span>
+      <span class="v {{ 'kr' if soa.balance > 0.01 else 'kg' }}">AED {{ "%.2f"|format(soa.balance) }}</span>
+    </div>
+    <div class="kta-stat">
+      <span class="k">Advance issued</span>
+      <span class="v white">AED {{ "%.2f"|format(soa.given) }}</span>
+    </div>
+  </div>
+</div>
+
+{# ── THREE NUMBERS ── #}
+<div class="kta-grid3">
+  <div class="kta-card c-blue">
+    <div class="k">Salary Outstanding</div>
+    <div class="v">AED {{ "%.2f"|format(soa.salary_owed) }}</div>
+    <div class="n">
+      {% if soa.pending_count %}<strong>{{ soa.pending_labels }}</strong> not yet generated (AED {{ "%.2f"|format(soa.pending_total) }}).{% endif %}
+      {% if soa.unpaid_count %} <strong>{{ soa.unpaid_labels }}</strong> issued, cash not handed over (AED {{ "%.2f"|format(soa.unpaid_total) }}).{% endif %}
+      {% if not soa.pending_count and not soa.unpaid_count %}All months settled in full.{% endif %}
+    </div>
+  </div>
+  <div class="kta-card c-kr">
+    <div class="k">Advance Balance</div>
+    <div class="v {{ 'kr' if soa.balance > 0.01 else 'kg' }}">AED {{ "%.2f"|format(soa.balance) }}</div>
+    <div class="n">{{ "%.1f"|format(soa.recovery_pct) }}% recovered &middot; AED {{ "%.2f"|format(soa.recovered) }} from salary{% if (soa.returned or 0) > 0.01 %} + AED {{ "%.2f"|format(soa.returned) }} returned in cash{% endif %} of AED {{ "%.2f"|format(soa.given) }}.</div>
+  </div>
+  <div class="kta-card c-kg">
+    <div class="k">Net {% if soa.company_owes %}Payable to Driver{% else %}Payable by Driver{% endif %}</div>
+    <div class="v {{ 'kg' if soa.company_owes else 'kr' }}">AED {{ "%.2f"|format(soa.net_to_driver|abs) }}</div>
+    <div class="n">Salary outstanding AED {{ "%.2f"|format(soa.salary_owed) }} &minus; advance balance AED {{ "%.2f"|format(soa.balance) }}.</div>
+  </div>
+</div>
+
+{# ── ADVANCE RECOVERY ── #}
+<div class="kta-panel">
+  <div class="kta-panel-head">
+    <h3><svg viewBox="0 0 20 20"><rect x="2" y="5" width="16" height="12" rx="2"/><path d="M2 10h16"/></svg> Advance Recovery</h3>
+    <span class="hint">{{ "%.1f"|format(soa.recovery_pct) }}% recovered</span>
+  </div>
+  <div class="kta-body">
+    <div class="kta-bar">
+      <span class="rec" style="width:{{ [soa.recovery_pct, 100]|min }}%"></span>
+      {% if (soa.returned or 0) > 0.01 %}<span class="ret" style="width:{{ [(soa.returned / soa.given * 100) if soa.given else 0, 100]|min }}%"></span>{% endif %}
+    </div>
+    <div class="kta-legend">
+      <div>Advance Given<b>AED {{ "%.2f"|format(soa.given) }}</b></div>
+      {% if (soa.returned or 0) > 0.01 %}
+      <div>Returned in Cash<b>AED {{ "%.2f"|format(soa.returned) }}</b></div>
+      {% endif %}
+      <div>Recovered<b class="kg">AED {{ "%.2f"|format(soa.recovered) }}</b></div>
+      <div>Balance<b class="{{ 'kr' if soa.balance > 0.01 else 'kg' }}">AED {{ "%.2f"|format(soa.balance) }}</b></div>
+    </div>
+  </div>
+</div>
+
+{# ── SALARY STATUS TABLE ── #}
+{% set issued_n = soa.months|selectattr('issued')|list|length %}
+<div class="kta-panel">
+  <div class="kta-panel-head">
+    <h3><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="14" rx="2"/><path d="M3 9h14M8 2v4M12 2v4"/></svg> Salary Status</h3>
+    <span class="hint">{{ soa.months|length }} months &middot; {{ issued_n }} slips issued</span>
+  </div>
+  <div class="kta-table-wrap" style="overflow-x:auto">
+    <table class="kta-table">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th class="r">Net Salary</th>
+          <th>Status</th>
+          <th class="r">Amount Due</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in soa.months %}
+        <tr>
+          <td class="mono">{{ m.month }}</td>
+          <td class="r mono">AED {{ "%.0f"|format(m.net) }}</td>
+          <td>
+            {% if m.issued %}
+              {% if m.unpaid > 0.01 %}<span class="kta-pill warn">Issued &middot; cash due</span>{% else %}<span class="kta-pill ok">Settled</span>{% endif %}
+            {% else %}<span class="kta-pill no">Not generated</span>{% endif %}
+          </td>
+          <td class="r mono" style="color:{% if m.unpaid > 0.01 %}#b91c1c{% else %}#94a3b8{% endif %}">
+            {% if m.unpaid > 0.01 %}AED {{ "%.0f"|format(m.unpaid) }}{% else %}&mdash;{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="padding:28px;text-align:center;color:var(--muted)">No salary months yet.</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Total</td>
+          <td class="r mono">AED {{ "%.0f"|format(soa.months|map(attribute='net')|sum) }}</td>
+          <td>{{ issued_n }} / {{ soa.months|length }} issued</td>
+          <td class="r mono" style="color:{% if soa.unpaid_total > 0.01 %}#b91c1c{% else %}#16a34a{% endif %}">
+            {% if soa.unpaid_total > 0.01 %}AED {{ "%.0f"|format(soa.unpaid_total) }}{% else %}AED 0{% endif %}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+{# ── NOTES ── #}
+<div class="kta-notes">
+  <div class="kta-note hi">
+    <h4><i></i> Advance Settled</h4>
+    <p>{{ soa.settled_label }} <b>({{ soa.settled_count }} month{{ 's' if soa.settled_count != 1 }})</b><span class="big">AED {{ "%.2f"|format(soa.recovered) }}</span>recovered from salary{% if (soa.returned or 0) > 0.01 %}, plus AED {{ "%.2f"|format(soa.returned) }} returned in cash{% endif %}.</p>
+  </div>
+  {% if soa.pending_count %}
+  <div class="kta-note mid">
+    <h4><i></i> Not Yet Generated</h4>
+    <p>{{ soa.pending_labels }}<span class="big">AED {{ "%.2f"|format(soa.pending_total) }}</span>salary still pending generation.</p>
+  </div>
+  {% else %}
+  <div class="kta-note hi">
+    <h4><i></i> Not Yet Generated</h4>
+    <p>All salary months have been generated.<span class="big">AED 0.00</span>nothing pending.</p>
+  </div>
+  {% endif %}
+  {% if soa.unpaid_count %}
+  <div class="kta-note low">
+    <h4><i></i> Cash Not Yet Paid</h4>
+    <p>{{ soa.unpaid_labels }}<span class="big">AED {{ "%.2f"|format(soa.unpaid_total) }}</span>slip issued, cash not handed over.</p>
+  </div>
+  {% else %}
+  <div class="kta-note hi">
+    <h4><i></i> Cash Not Yet Paid</h4>
+    <p>Every generated slip has been paid.<span class="big">AED 0.00</span>no cash outstanding.</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="kta-foot">
+  <span>Live statement &mdash; historical entries collapsed, current balances only. Generated {{ soa.statement_date }}.</span>
+  {% if kata_pdf_url %}
+  <a class="kta-pdf" href="{{ kata_pdf_url }}" download>
+    <svg viewBox="0 0 20 20"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/><path d="M10 10v6"/><path d="m7.5 12.5 2.5 3 2.5-3"/></svg>
+    Download Statement (PDF)
+  </a>
+  {% endif %}
+</div>
+</div>
         {% elif active_tab == 'ids' %}
         <div class="tab-pane">
             <style>
