@@ -409,7 +409,7 @@
   <div class="sd-actions">
     <button class="sd-action-btn" onclick="window.print()">🖨️ Print View</button>
     <button class="sd-action-btn green" onclick="window.location='{{ url_for('hr.salary_dashboard_excel', month=sel_month, status=selected_status) }}'">📥 Excel</button>
-    <a class="sd-action-btn" href="{{ url_for('hr.employee_salary_dashboard', month=sel_month, status=selected_status) }}">👥 Employee View</a>
+    <a class="sd-action-btn" href="{{ url_for('hr.salary_dashboard', month=sel_month, status=selected_status) }}">👥 Employee View</a>
   </div>
 
   <!-- ─── Toolbar ─── -->
