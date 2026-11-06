@@ -2952,6 +2952,8 @@ def salary_dashboard():
 
     total_salary_v = 0.0
     unpaid_balance_v = 0.0
+    paid_amount_v = 0.0
+    pending_amount_v = 0.0
     active_count = 0
     paid_count_v = 0
     unpaid_count_v = 0
@@ -2967,11 +2969,15 @@ def salary_dashboard():
             total_salary_v += amt
             if st == "Paid":
                 paid_count_v += 1
+                paid_amount_v += amt
             elif st == "Unpaid":
                 unpaid_count_v += 1
                 unpaid_balance_v += amt
             elif st == "Pending":
                 pending_count_v += 1
+                pending_amount_v += amt
+
+    collection_rate = round((paid_amount_v / total_salary_v * 100) if total_salary_v > 0 else 0, 0)
 
     return render_template(
         "hr/employee_salary_dashboard.html",
@@ -2981,6 +2987,9 @@ def salary_dashboard():
         sel_month=sel_month_raw or (available_months[0] if available_months else ""),
         total_salary_v=round(total_salary_v, 0),
         unpaid_balance_v=round(unpaid_balance_v, 0),
+        paid_amount_v=round(paid_amount_v, 0),
+        pending_amount_v=round(pending_amount_v, 0),
+        collection_rate=collection_rate,
         active_count=active_count,
         paid_count_v=paid_count_v,
         unpaid_count_v=unpaid_count_v,
