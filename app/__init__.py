@@ -163,7 +163,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.getenv("SESSION_COOKIE_SECURE", "true").strip().lower() == "true",
-        WTF_CSRF_TIME_LIMIT=3600,
+        WTF_CSRF_TIME_LIMIT=28800,
         PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
         PREFERRED_URL_SCHEME="https",
         MAIL_SERVER=os.getenv("MAIL_SERVER", "").strip(),
