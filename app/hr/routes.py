@@ -2936,12 +2936,56 @@ def salary_dashboard():
     sf = request.args.get("status", "active")
     sel_month_raw = request.args.get("month", "")
     emp_list, available_months = _salary_dashboard_data(status_filter=sf)
+
+    # Compute totals for the selected month
+    sel_month = sel_month_raw or (available_months[0] if available_months else "")
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    if sel_month:
+        try:
+            m_num = int(sel_month.split("-")[1])
+            m_year = sel_month.split("-")[0]
+            sel_month_label = f"{month_names[m_num-1]} {m_year}"
+        except Exception:
+            sel_month_label = sel_month
+    else:
+        sel_month_label = "All Months"
+
+    total_salary_v = 0.0
+    unpaid_balance_v = 0.0
+    active_count = 0
+    paid_count_v = 0
+    unpaid_count_v = 0
+    pending_count_v = 0
+
+    for e in emp_list:
+        emp_is_active = (e.get("emp_status") or "").lower() == "active"
+        if emp_is_active:
+            active_count += 1
+        amt = float(e.get("amounts", {}).get(sel_month, 0) or 0)
+        st = e.get("statuses", {}).get(sel_month, "No Record")
+        if amt > 0:
+            total_salary_v += amt
+            if st == "Paid":
+                paid_count_v += 1
+            elif st == "Unpaid":
+                unpaid_count_v += 1
+                unpaid_balance_v += amt
+            elif st == "Pending":
+                pending_count_v += 1
+
     return render_template(
         "hr/employee_salary_dashboard.html",
         employees=emp_list,
         months=_format_month_options(available_months),
         selected_status=sf,
         sel_month=sel_month_raw or (available_months[0] if available_months else ""),
+        total_salary_v=round(total_salary_v, 0),
+        unpaid_balance_v=round(unpaid_balance_v, 0),
+        active_count=active_count,
+        paid_count_v=paid_count_v,
+        unpaid_count_v=unpaid_count_v,
+        pending_count_v=pending_count_v,
+        sel_month_label=sel_month_label,
     )
 
 
