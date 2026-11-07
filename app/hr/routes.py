@@ -1732,7 +1732,7 @@ def employee_salary_slip(employee_id):
                                     salary_after_deduction, actual_paid_amount,
                                     company_balance_due, payment_source, paid_by, net_payable, pdf_path,
                                     payment_date
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 """,
                                 (eid, selected_salary["id"], selected_salary["salary_month"], "",
                                  deduction_amount, available_advance, remaining_advance,
