@@ -688,6 +688,13 @@ def vehicle_driver_map():
         else:
             where.append("v.status = 'Active'")
 
+        # Linked vehicles (jaise trailer head ke saath) apni alag row
+        # nahi banate — registry ki tarah yahan bhi hide.
+        where.append(
+            "v.plate_no NOT IN (SELECT linked_plate_no FROM vehicles "
+            "WHERE linked_plate_no IS NOT NULL AND linked_plate_no != '')"
+        )
+
         rows = db.execute(
             f"""SELECT v.plate_no, v.vehicle_type, v.model, v.status AS vehicle_status,
                        v.vehicle_category, v.ownership_type,
