@@ -12,10 +12,8 @@
     .vd-no { display:inline-flex; align-items:center; gap:6px; background:#fee2e2; color:#991b1b; border:1px solid #fecaca; font-size:.74rem; font-weight:800; padding:4px 10px; border-radius:999px; white-space:nowrap }
     .vd-sub { font-size:.7rem; color:var(--muted); margin-top:3px; font-family:'SF Mono',Consolas,monospace }
     .vd-legacy { display:inline-block; background:#fef3c7; color:#92400e; font-size:.6rem; font-weight:800; letter-spacing:.06em; padding:1px 6px; border-radius:999px; margin-left:5px; vertical-align:middle }
-    .vd-warn { display:inline-block; background:#fef3c7; color:#92400e; font-size:.62rem; font-weight:800; padding:2px 8px; border-radius:999px; margin-top:4px }
     .kpi-mini.vd-kpi-yes strong { color:#16a34a }
     .kpi-mini.vd-kpi-no strong { color:#dc2626 }
-    .kpi-mini.vd-kpi-warn strong { color:#d97706 }
 </style>
 <div class="list-shell">
     <div class="filter-bar">
@@ -50,9 +48,6 @@
         <span class="kpi-mini">Vehicles: <strong>{{ total }}</strong></span>
         <a href="{{ url_for('fleet.vehicle_driver_map', assign='assigned', q=q, status=status_filter) }}" class="kpi-mini vd-kpi-yes {% if assign_filter == 'assigned' %}active{% endif %}">With Driver: <strong>{{ assigned }}</strong></a>
         <a href="{{ url_for('fleet.vehicle_driver_map', assign='unassigned', q=q, status=status_filter) }}" class="kpi-mini vd-kpi-no {% if assign_filter == 'unassigned' %}active{% endif %}">No Driver: <strong>{{ unassigned }}</strong></a>
-        {% if inactive_drivers %}
-        <span class="kpi-mini vd-kpi-warn">Inactive driver assigned: <strong>{{ inactive_drivers }}</strong></span>
-        {% endif %}
     </div>
 
     <div class="table-wrap">
@@ -85,9 +80,6 @@
                                 <strong>{{ v.driver_name or v.driver_id }}</strong>
                                 {% if v.source == 'legacy' %}<span class="vd-legacy">LEGACY</span>{% endif %}
                                 <div class="vd-sub">{{ v.driver_id }}</div>
-                                {% if (v.driver_status or '') != 'Active' %}
-                                <span class="vd-warn">Driver {{ v.driver_status or 'unknown' }}</span>
-                                {% endif %}
                             </div>
                         </div>
                         {% else %}

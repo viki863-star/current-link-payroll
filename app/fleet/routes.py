@@ -764,6 +764,19 @@ def vehicle_driver_map():
                             "source": "legacy",
                         }
                     )
+            # Sirf ACTIVE driver hi asigned count hota hai —
+            # Terminated/Inactive driver = "No Driver Assigned".
+            if item["driver_id"] and (item["driver_status"] or "") != "Active":
+                item.update(
+                    {
+                        "driver_id": None,
+                        "driver_name": None,
+                        "driver_phone": None,
+                        "driver_status": None,
+                        "assigned_from": None,
+                        "source": None,
+                    }
+                )
             vehicles.append(item)
 
         # Bina driver wale vehicles upar — foran nazar aayein.
@@ -772,9 +785,6 @@ def vehicle_driver_map():
         total = len(vehicles)
         assigned = sum(1 for v in vehicles if v["driver_id"])
         unassigned = total - assigned
-        inactive_drivers = sum(
-            1 for v in vehicles if v["driver_id"] and (v["driver_status"] or "") != "Active"
-        )
 
         if assign_filter == "assigned":
             vehicles = [v for v in vehicles if v["driver_id"]]
@@ -787,7 +797,6 @@ def vehicle_driver_map():
             total=total,
             assigned=assigned,
             unassigned=unassigned,
-            inactive_drivers=inactive_drivers,
             q=q,
             assign_filter=assign_filter,
             status_filter=status_filter,
