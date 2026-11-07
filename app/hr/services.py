@@ -162,8 +162,20 @@ def employee_search_filter(query, status_filter, department_filter, employee_typ
     params = []
 
     if query:
+        # Vehicle search sirf wahi jo fleet vehicle-driver map dikhata hai:
+        # - is_current = 1 assignment jo us vehicle ki SABSE NAYI current row hai
+        # - employee ka status Active ho
+        # - legacy drivers.vehicle_no sirf tab jab driver Active ho, us vehicle par
+        #   koi current assignment na ho, aur employee ki khud koi current row na ho
         conditions.append(
-            "(e.employee_id LIKE ? OR e.full_name LIKE ? OR e.phone_number LIKE ? OR e.department LIKE ? OR e.designation LIKE ? OR EXISTS (SELECT 1 FROM vehicle_assignments va2 JOIN vehicles v2 ON v2.plate_no = va2.vehicle_id WHERE va2.driver_id = e.employee_id AND v2.plate_no LIKE ?) OR EXISTS (SELECT 1 FROM drivers d2 WHERE d2.driver_id = e.employee_id AND d2.vehicle_no LIKE ?))"
+            "(e.employee_id LIKE ? OR e.full_name LIKE ? OR e.phone_number LIKE ? OR e.department LIKE ? OR e.designation LIKE ? "
+            "OR EXISTS (SELECT 1 FROM vehicle_assignments va2 JOIN vehicles v2 ON v2.plate_no = va2.vehicle_id "
+            "WHERE va2.driver_id = e.employee_id AND va2.is_current = 1 AND e.status = 'Active' AND v2.plate_no LIKE ? "
+            "AND va2.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax WHERE vax.vehicle_id = va2.vehicle_id AND vax.is_current = 1)) "
+            "OR EXISTS (SELECT 1 FROM drivers d2 WHERE d2.driver_id = e.employee_id AND d2.status = 'Active' "
+            "AND d2.vehicle_no IS NOT NULL AND d2.vehicle_no != '' AND d2.vehicle_no != '0' AND d2.vehicle_no LIKE ? "
+            "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3 WHERE v3.vehicle_id = d2.vehicle_no AND v3.is_current = 1) "
+            "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4 WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)))"
         )
         like_q = f"%{query}%"
         params.extend([like_q, like_q, like_q, like_q, like_q, like_q, like_q])

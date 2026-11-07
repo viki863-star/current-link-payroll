@@ -1646,6 +1646,11 @@ def vehicle_add():
         db.commit()
 
         if driver_id:
+            # Driver sirf ek vehicle par current rahe — purani vehicle chhod do
+            db.execute(
+                "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+                (date.today().isoformat(), driver_id),
+            )
             db.execute(
                 "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?,?,?,1)",
                 (plate_no, driver_id, date.today().isoformat()),
@@ -2593,6 +2598,11 @@ def vehicle_assign_driver(plate_no):
     db.execute(
         "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1 AND vehicle_id != ?",
         (assigned_from, driver_id, plate_no),
+    )
+    # Ek vehicle par sirf ek current driver — baaki drivers ki current rows band
+    db.execute(
+        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE vehicle_id = ? AND is_current = 1 AND driver_id != ?",
+        (assigned_from, plate_no, driver_id),
     )
     # Check if this driver is already assigned to this vehicle
     existing = db.execute(

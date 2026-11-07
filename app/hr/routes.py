@@ -478,9 +478,19 @@ def employee_list():
                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
-                    WHERE va.driver_id = e.employee_id
+                    WHERE va.driver_id = e.employee_id AND va.is_current = 1
+                      AND e.status = 'Active'
+                      AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax
+                                   WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1)
                     ORDER BY va.id DESC LIMIT 1),
-                   (SELECT d.vehicle_no FROM drivers d WHERE d.driver_id = e.employee_id LIMIT 1)
+                   (SELECT d.vehicle_no FROM drivers d
+                    WHERE d.driver_id = e.employee_id AND d.status = 'Active'
+                      AND d.vehicle_no IS NOT NULL AND d.vehicle_no != '' AND d.vehicle_no != '0'
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3
+                                      WHERE v3.vehicle_id = d.vehicle_no AND v3.is_current = 1)
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
+                                      WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
+                    LIMIT 1)
                ) AS plate_no
         FROM employees e
         {where_sql}
@@ -630,6 +640,11 @@ def employee_new():
                 db.execute(
                     "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
                     (date.today().isoformat(), values["employee_id"]),
+                )
+                # Ek vehicle par sirf ek current driver — baaki drivers ki rows band
+                db.execute(
+                    "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE vehicle_id = ? AND is_current = 1 AND driver_id <> ?",
+                    (date.today().isoformat(), values["vehicle_id"], values["employee_id"]),
                 )
                 db.execute(
                     "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
@@ -1219,24 +1234,29 @@ def employee_transactions(employee_id):
 
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
 
-    # Fetch current vehicle directly (same logic as edit page)
+    # Fetch current vehicle directly (same logic as employee list / fleet driver map)
     current_vehicle = None
     if employee.get("employee_type") in ("Driver", "Crane Operator"):
         veh_row = db.execute(
             "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
             "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
-            "WHERE va.driver_id = ? AND va.is_current = 1 LIMIT 1",
-            (eid,),
+            "WHERE va.driver_id = ? AND va.is_current = 1 AND ? = 'Active' "
+            "AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax "
+            "            WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1) "
+            "LIMIT 1",
+            (eid, employee.get("status") or ""),
         ).fetchone()
         if not veh_row:
-            veh_row = db.execute(
-                "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
-                "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
-                "WHERE va.driver_id = ? ORDER BY va.id DESC LIMIT 1",
+            legacy = db.execute(
+                "SELECT vehicle_no FROM drivers WHERE driver_id = ? AND status = 'Active' "
+                "AND vehicle_no IS NOT NULL AND vehicle_no != '' AND vehicle_no != '0' "
+                "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3 "
+                "                WHERE v3.vehicle_id = drivers.vehicle_no AND v3.is_current = 1) "
+                "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4 "
+                "                WHERE v4.driver_id = drivers.driver_id AND v4.is_current = 1) "
+                "LIMIT 1",
                 (eid,),
             ).fetchone()
-        if not veh_row:
-            legacy = db.execute("SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (eid,)).fetchone()
             if legacy and legacy["vehicle_no"]:
                 veh_row = db.execute("SELECT plate_no AS vehicle_id, NULL AS assigned_from, plate_no, vehicle_type, model FROM vehicles WHERE plate_no = ? LIMIT 1", (legacy["vehicle_no"],)).fetchone()
                 if not veh_row:
@@ -2365,10 +2385,27 @@ def employee_edit(employee_id):
         vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
     except Exception:
         vehicles = []
-    assigned = db.execute("SELECT vehicle_id FROM vehicle_assignments WHERE driver_id = ? AND is_current = 1 LIMIT 1", (employee_id,)).fetchone()
+    assigned = db.execute(
+        "SELECT va.vehicle_id FROM vehicle_assignments va "
+        "WHERE va.driver_id = ? AND va.is_current = 1 "
+        "AND (SELECT e.status FROM employees e WHERE e.employee_id = va.driver_id) = 'Active' "
+        "AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax "
+        "            WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1) "
+        "LIMIT 1",
+        (employee_id,),
+    ).fetchone()
     assigned_vehicle = assigned["vehicle_id"] if assigned else ""
     if not assigned_vehicle:
-        legacy = db.execute("SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (employee_id,)).fetchone()
+        legacy = db.execute(
+            "SELECT vehicle_no FROM drivers WHERE driver_id = ? AND status = 'Active' "
+            "AND vehicle_no IS NOT NULL AND vehicle_no != '' AND vehicle_no != '0' "
+            "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3 "
+            "                WHERE v3.vehicle_id = drivers.vehicle_no AND v3.is_current = 1) "
+            "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4 "
+            "                WHERE v4.driver_id = drivers.driver_id AND v4.is_current = 1) "
+            "LIMIT 1",
+            (employee_id,),
+        ).fetchone()
         if legacy and legacy["vehicle_no"]:
             assigned_vehicle = legacy["vehicle_no"]
 
@@ -2465,6 +2502,11 @@ def employee_edit(employee_id):
                         "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
                         (date.today().isoformat(), employee_id),
                     )
+                    # Ek vehicle par sirf ek current driver — baaki drivers ki rows band
+                    db.execute(
+                        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE vehicle_id = ? AND is_current = 1 AND driver_id <> ?",
+                        (date.today().isoformat(), values["vehicle_id"], employee_id),
+                    )
                     existing = db.execute(
                         "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
                         (values["vehicle_id"], employee_id),
@@ -2481,6 +2523,14 @@ def employee_edit(employee_id):
                         (date.today().isoformat(), employee_id),
                     )
                     db.execute("UPDATE drivers SET vehicle_no = '' WHERE driver_id = ?", (employee_id,))
+            else:
+                # Driver/Crane Operator nahi — vehicle links hatana zaroori taake
+                # employee list/search aur fleet driver map ka data barabar rahe.
+                db.execute(
+                    "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
+                    (date.today().isoformat(), employee_id),
+                )
+                db.execute("UPDATE drivers SET vehicle_no = '' WHERE driver_id = ?", (employee_id,))
 
             if values.get("employee_type") == "Field Staff":
                 _sync_employee_to_field_staff(db, employee_id, values["full_name"], values["phone_number"], values["status"])
@@ -2645,9 +2695,19 @@ def employee_list_excel():
                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
-                    WHERE va.driver_id = e.employee_id
+                    WHERE va.driver_id = e.employee_id AND va.is_current = 1
+                      AND e.status = 'Active'
+                      AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax
+                                   WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1)
                     ORDER BY va.id DESC LIMIT 1),
-                   (SELECT d.vehicle_no FROM drivers d WHERE d.driver_id = e.employee_id LIMIT 1)
+                   (SELECT d.vehicle_no FROM drivers d
+                    WHERE d.driver_id = e.employee_id AND d.status = 'Active'
+                      AND d.vehicle_no IS NOT NULL AND d.vehicle_no != '' AND d.vehicle_no != '0'
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3
+                                      WHERE v3.vehicle_id = d.vehicle_no AND v3.is_current = 1)
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
+                                      WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
+                    LIMIT 1)
                ) AS plate_no
         FROM employees e
         {where_sql}
@@ -2736,9 +2796,19 @@ def employee_list_pdf():
                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
-                    WHERE va.driver_id = e.employee_id
+                    WHERE va.driver_id = e.employee_id AND va.is_current = 1
+                      AND e.status = 'Active'
+                      AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax
+                                   WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1)
                     ORDER BY va.id DESC LIMIT 1),
-                   (SELECT d.vehicle_no FROM drivers d WHERE d.driver_id = e.employee_id LIMIT 1)
+                   (SELECT d.vehicle_no FROM drivers d
+                    WHERE d.driver_id = e.employee_id AND d.status = 'Active'
+                      AND d.vehicle_no IS NOT NULL AND d.vehicle_no != '' AND d.vehicle_no != '0'
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3
+                                      WHERE v3.vehicle_id = d.vehicle_no AND v3.is_current = 1)
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
+                                      WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
+                    LIMIT 1)
                ) AS plate_no
         FROM employees e
         {where_sql}
@@ -3249,13 +3319,25 @@ def _company_name(db):
 
 def _current_vehicle(db, employee_id):
     row = db.execute(
-        "SELECT vehicle_id FROM vehicle_assignments WHERE is_current = 1 AND driver_id = ?",
+        "SELECT va.vehicle_id FROM vehicle_assignments va "
+        "WHERE va.is_current = 1 AND va.driver_id = ? "
+        "AND (SELECT e.status FROM employees e WHERE e.employee_id = va.driver_id) = 'Active' "
+        "AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax "
+        "            WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1) "
+        "LIMIT 1",
         (employee_id,),
     ).fetchone()
     if row and row["vehicle_id"]:
         return {"vehicle_id": row["vehicle_id"]}
     legacy = db.execute(
-        "SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (employee_id,)
+        "SELECT vehicle_no FROM drivers WHERE driver_id = ? AND status = 'Active' "
+        "AND vehicle_no IS NOT NULL AND vehicle_no != '' AND vehicle_no != '0' "
+        "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3 "
+        "                WHERE v3.vehicle_id = drivers.vehicle_no AND v3.is_current = 1) "
+        "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4 "
+        "                WHERE v4.driver_id = drivers.driver_id AND v4.is_current = 1) "
+        "LIMIT 1",
+        (employee_id,),
     ).fetchone()
     if legacy and legacy["vehicle_no"]:
         return {"vehicle_id": legacy["vehicle_no"]}
