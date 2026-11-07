@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Vehicle ↔ Driver Map — Current Link ERP{% endblock %}
+{% block body_class %}list-body{% endblock %}
+{% block page_title %}Vehicle ↔ Driver Map{% endblock %}
+
+{% block content %}
+<style>
+    .filter-bar-top { display:flex !important; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap }
+    .filter-bar-title { display:flex; align-items:center; gap:8px; font-weight:700; color:var(--ink); font-size:0.95rem }
+    .vd-cell { display:flex; align-items:flex-start; gap:7px }
+    .vd-yes { flex:0 0 18px; height:18px; margin-top:2px; border-radius:50%; background:#dcfce7; color:#166534; font-size:.7rem; font-weight:900; display:flex; align-items:center; justify-content:center; line-height:1 }
+    .vd-no { display:inline-flex; align-items:center; gap:6px; background:#fee2e2; color:#991b1b; border:1px solid #fecaca; font-size:.74rem; font-weight:800; padding:4px 10px; border-radius:999px; white-space:nowrap }
+    .vd-sub { font-size:.7rem; color:var(--muted); margin-top:3px; font-family:'SF Mono',Consolas,monospace }
+    .vd-legacy { display:inline-block; background:#fef3c7; color:#92400e; font-size:.6rem; font-weight:800; letter-spacing:.06em; padding:1px 6px; border-radius:999px; margin-left:5px; vertical-align:middle }
+    .vd-warn { display:inline-block; background:#fef3c7; color:#92400e; font-size:.62rem; font-weight:800; padding:2px 8px; border-radius:999px; margin-top:4px }
+    .kpi-mini.vd-kpi-yes strong { color:#16a34a }
+    .kpi-mini.vd-kpi-no strong { color:#dc2626 }
+    .kpi-mini.vd-kpi-warn strong { color:#d97706 }
+</style>
+<div class="list-shell">
+    <div class="filter-bar">
+        <div class="filter-bar-top">
+            <div class="filter-bar-title">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="7" cy="6.5" r="3"/><path d="M1.5 16.5v-1A3.5 3.5 0 0 1 5 12h4a3.5 3.5 0 0 1 3.5 3.5v1"/><path d="M14 8h2.2a1.8 1.8 0 0 1 1.6 1l1.2 2.4a1.4 1.4 0 0 1-.1 1.6l-.9 1.3a1.6 1.6 0 0 1-1.3.7H14"/></svg>
+                Vehicles &amp; Drivers
+            </div>
+            <div style="display:flex;gap:8px">
+                <a href="{{ url_for('fleet.vehicle_list') }}" class="btn btn-outline btn-sm">Vehicle Registry</a>
+                <a href="{{ url_for('fleet.fleet_dashboard') }}" class="btn btn-outline btn-sm">Fleet Dashboard</a>
+            </div>
+        </div>
+        <form method="GET" class="filter-bar-form">
+            <input type="text" name="q" value="{{ q }}" placeholder="Search plate, driver name, emp id..." class="search-input">
+            <select name="assign" class="filter-select">
+                <option value="">All Vehicles</option>
+                <option value="assigned" {% if assign_filter == 'assigned' %}selected{% endif %}>With Driver</option>
+                <option value="unassigned" {% if assign_filter == 'unassigned' %}selected{% endif %}>No Driver</option>
+            </select>
+            <select name="status" class="filter-select">
+                <option value="Active" {% if status_filter == 'Active' or not status_filter %}selected{% endif %}>Active</option>
+                <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive</option>
+                <option value="All" {% if status_filter == 'All' %}selected{% endif %}>All Status</option>
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Search</button>
+            <a href="{{ url_for('fleet.vehicle_driver_map') }}" class="btn btn-outline btn-sm">Clear</a>
+        </form>
+    </div>
+
+    <div class="kpi-mini-row">
+        <span class="kpi-mini">Vehicles: <strong>{{ total }}</strong></span>
+        <a href="{{ url_for('fleet.vehicle_driver_map', assign='assigned', q=q, status=status_filter) }}" class="kpi-mini vd-kpi-yes {% if assign_filter == 'assigned' %}active{% endif %}">With Driver: <strong>{{ assigned }}</strong></a>
+        <a href="{{ url_for('fleet.vehicle_driver_map', assign='unassigned', q=q, status=status_filter) }}" class="kpi-mini vd-kpi-no {% if assign_filter == 'unassigned' %}active{% endif %}">No Driver: <strong>{{ unassigned }}</strong></a>
+        {% if inactive_drivers %}
+        <span class="kpi-mini vd-kpi-warn">Inactive driver assigned: <strong>{{ inactive_drivers }}</strong></span>
+        {% endif %}
+    </div>
+
+    <div class="table-wrap">
+        <table class="smart-table">
+            <thead>
+                <tr>
+                    <th>Vehicle</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Current Driver</th>
+                    <th>Phone</th>
+                    <th>Assigned Since</th>
+                    <th class="th-actions"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in vehicles %}
+                <tr class="emp-row" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
+                    <td class="mono" style="font-weight:600;font-size:0.9rem">
+                        {{ v.plate_no }}
+                        {% if v.model %}<div style="font-weight:400;color:var(--muted);font-size:0.72rem">{{ v.model }}</div>{% endif %}
+                    </td>
+                    <td><span class="badge badge-type">{{ v.vehicle_type or '-' }}</span></td>
+                    <td><span class="status-badge {{ (v.vehicle_status or '')|lower }}">{{ v.vehicle_status or '-' }}</span></td>
+                    <td>
+                        {% if v.driver_id %}
+                        <div class="vd-cell">
+                            <span class="vd-yes">&#10003;</span>
+                            <div>
+                                <strong>{{ v.driver_name or v.driver_id }}</strong>
+                                {% if v.source == 'legacy' %}<span class="vd-legacy">LEGACY</span>{% endif %}
+                                <div class="vd-sub">{{ v.driver_id }}</div>
+                                {% if (v.driver_status or '') != 'Active' %}
+                                <span class="vd-warn">Driver {{ v.driver_status or 'unknown' }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="vd-no">No Driver Assigned</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono" style="font-size:0.8rem">{{ v.driver_phone or '—' }}</td>
+                    <td style="font-size:0.82rem">{{ (v.assigned_from or '—')[:10] }}</td>
+                    <td class="action-cell">
+                        <a href="{{ vehicle_url(v.plate_no) }}" class="btn btn-sm btn-primary">Profile</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty-state">No vehicles found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

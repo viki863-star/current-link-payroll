@@ -21,6 +21,7 @@
                 Vehicles
             </div>
             <div style="display:flex;gap:8px">
+                <a href="{{ url_for('fleet.vehicle_driver_map') }}" class="btn btn-outline btn-sm">👤 Drivers Map</a>
                 <a href="{{ url_for('fleet.ghadeer_cards') }}" class="btn btn-outline btn-sm">💧 Ghadeer Cards</a>
                 <a href="{{ url_for('fleet.vehicle_list_excel') }}?q={{ q }}&type={{ type_filter }}&ownership={{ ownership_filter }}&status={{ status_filter }}" class="btn btn-outline btn-sm">
                     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6l-4-4z"/><path d="M14 2v4h4"/></svg>

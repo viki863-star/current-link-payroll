@@ -656,6 +656,142 @@ def vehicle_list():
 
 
 # ═══════════════════════════════════════════════════════════════════
+# VEHICLE ↔ DRIVER MAP — har vehicle ka current driver ya "No Driver"
+# ═══════════════════════════════════════════════════════════════════
+
+@fleet_bp.route("/fleet/vehicle-drivers")
+@_login_required("admin")
+def vehicle_driver_map():
+    try:
+        _touch_admin_workspace("fleet")
+        ensure_fleet_tables()
+        db = open_db()
+
+        q = request.args.get("q", "").strip()
+        assign_filter = request.args.get("assign", "").strip()
+        status_filter = request.args.get("status", "").strip()
+
+        where = ["1=1"]
+        params = []
+        if q:
+            like = f"%{q}%"
+            where.append(
+                "(v.plate_no LIKE ? OR v.vehicle_type LIKE ? OR v.model LIKE ? "
+                "OR e.full_name LIKE ? OR va.driver_id LIKE ?)"
+            )
+            params.extend([like, like, like, like, like])
+        if status_filter == "All":
+            pass
+        elif status_filter:
+            where.append("v.status = ?")
+            params.append(status_filter)
+        else:
+            where.append("v.status = 'Active'")
+
+        rows = db.execute(
+            f"""SELECT v.plate_no, v.vehicle_type, v.model, v.status AS vehicle_status,
+                       v.vehicle_category, v.ownership_type,
+                       va.driver_id, va.assigned_from,
+                       e.full_name AS driver_name, e.phone_number AS driver_phone,
+                       e.status AS driver_status
+                FROM vehicles v
+                LEFT JOIN (
+                    SELECT vehicle_id, driver_id, assigned_from FROM (
+                        SELECT vehicle_id, driver_id, assigned_from,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY vehicle_id
+                                   ORDER BY assigned_from DESC, id DESC
+                               ) AS rn
+                        FROM vehicle_assignments
+                        WHERE is_current = 1
+                    ) ranked WHERE rn = 1
+                ) va ON va.vehicle_id = v.plate_no
+                LEFT JOIN employees e ON e.employee_id = va.driver_id
+                WHERE {' AND '.join(where)}
+                ORDER BY v.plate_no""",
+            params,
+        ).fetchall()
+
+        # Legacy fallback: purani drivers.vehicle_no entries jinke paas
+        # koi current vehicle_assignments row nahi (aur wo kisi aur
+        # vehicle par officially assigned bhi nahi hain).
+        legacy = {}
+        try:
+            for d in db.execute(
+                """SELECT driver_id, full_name, phone_number, status, vehicle_no
+                   FROM drivers
+                   WHERE status = 'Active'
+                     AND vehicle_no IS NOT NULL AND vehicle_no != ''
+                     AND driver_id NOT IN (
+                         SELECT driver_id FROM vehicle_assignments WHERE is_current = 1
+                     )"""
+            ).fetchall():
+                legacy.setdefault(d["vehicle_no"], d)
+        except Exception:
+            legacy = {}
+
+        vehicles = []
+        for r in rows:
+            item = {
+                "plate_no": r["plate_no"],
+                "vehicle_type": r["vehicle_type"],
+                "model": r["model"],
+                "vehicle_status": r["vehicle_status"],
+                "driver_id": r["driver_id"],
+                "driver_name": r["driver_name"],
+                "driver_phone": r["driver_phone"],
+                "driver_status": r["driver_status"],
+                "assigned_from": r["assigned_from"],
+                "source": "assignment",
+            }
+            if not item["driver_id"]:
+                d = legacy.get(r["plate_no"])
+                if d:
+                    item.update(
+                        {
+                            "driver_id": d["driver_id"],
+                            "driver_name": d["full_name"],
+                            "driver_phone": d["phone_number"],
+                            "driver_status": d["status"],
+                            "assigned_from": None,
+                            "source": "legacy",
+                        }
+                    )
+            vehicles.append(item)
+
+        # Bina driver wale vehicles upar — foran nazar aayein.
+        vehicles.sort(key=lambda x: (1 if x["driver_id"] else 0, x["plate_no"]))
+
+        total = len(vehicles)
+        assigned = sum(1 for v in vehicles if v["driver_id"])
+        unassigned = total - assigned
+        inactive_drivers = sum(
+            1 for v in vehicles if v["driver_id"] and (v["driver_status"] or "") != "Active"
+        )
+
+        if assign_filter == "assigned":
+            vehicles = [v for v in vehicles if v["driver_id"]]
+        elif assign_filter == "unassigned":
+            vehicles = [v for v in vehicles if not v["driver_id"]]
+
+        return render_template(
+            "fleet/vehicle_driver_map.html",
+            vehicles=vehicles,
+            total=total,
+            assigned=assigned,
+            unassigned=unassigned,
+            inactive_drivers=inactive_drivers,
+            q=q,
+            assign_filter=assign_filter,
+            status_filter=status_filter,
+        )
+    except Exception as e:
+        current_app.logger.error("Vehicle driver map error: %s", e, exc_info=True)
+        flash("An error occurred loading the vehicle driver map.", "error")
+        return redirect(url_for("fleet.fleet_dashboard"))
+
+
+# ═══════════════════════════════════════════════════════════════════
 # GHADEER CARDS — TAQA Distribution prepaid water-filling cards
 # Recharge = advance payment (credits balance), Fill = water drawn (debits).
 # ═══════════════════════════════════════════════════════════════════
