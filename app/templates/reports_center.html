@@ -117,6 +117,32 @@
 .rp-tag.is-recovered { background:#dcfce7; color:#15803d; }
 .rp-tag.is-due { background:#fef3e2; color:#b45309; }
 
+/* ── Ranked composition panels (top receivables / payables) ── */
+.rp-rk-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.rp-rk-head h3 { margin:0; }
+.rp-rk-total { text-align:right; font-size:1.02rem; font-weight:800; color:var(--rp-ink); font-variant-numeric:tabular-nums; white-space:nowrap; line-height:1.15; }
+.rp-rk-total span { display:block; font-size:.56rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--rp-muted); margin-top:3px; }
+.rp-strip { display:flex; height:16px; border-radius:999px; overflow:hidden; background:#eef2f8; box-shadow:inset 0 1px 3px rgba(15,39,73,.14); }
+.rp-strip-seg { display:block; height:100%; min-width:3px; transition:filter .15s; cursor:default; }
+.rp-strip-seg:hover { filter:brightness(1.15); }
+.rp-strip-rest { background:repeating-linear-gradient(45deg,#d7e1ef,#d7e1ef 5px,#e9eff7 5px,#e9eff7 10px); }
+.rp-strip-cap { font-size:.58rem; color:#8fa3c1; margin:6px 0 12px; }
+.rp-rk-list { display:flex; flex-direction:column; gap:11px; }
+.rp-rk-row { display:grid; grid-template-columns:26px 1fr; gap:10px; align-items:center; }
+.rp-rk-no { display:grid; place-items:center; width:26px; height:26px; border-radius:9px; color:#fff; font-size:.7rem; font-weight:800; box-shadow:0 3px 8px rgba(15,39,73,.2); }
+.rp-rk-main { min-width:0; }
+.rp-rk-line { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.rp-rk-name { font-size:.72rem; font-weight:700; color:var(--rp-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.rp-rk-bal { font-size:.76rem; font-weight:800; color:var(--rp-ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.rp-rk-track { height:7px; background:#eef2f8; border-radius:999px; overflow:hidden; margin-top:5px; box-shadow:inset 0 1px 2px rgba(15,39,73,.1); }
+.rp-rk-fill { display:block; height:100%; border-radius:999px; transform-origin:left; animation:rpRkGrow .9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes rpRkGrow { from { transform:scaleX(0); } }
+.rp-rk-sub { font-size:.6rem; color:var(--rp-muted); margin-top:4px; font-variant-numeric:tabular-nums; }
+.rp-rk-foot { margin-top:13px; padding-top:10px; border-top:1px dashed var(--rp-line); font-size:.64rem; color:var(--rp-muted); display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.rp-rk-foot b { color:var(--rp-ink); font-variant-numeric:tabular-nums; }
+.rp-rk-foot b.rp-neg { color:var(--rp-red); }
+.rp-rk-empty { text-align:center; color:#94a7c4; font-size:.72rem; padding:26px 10px; }
+
 /* ── Footer note ── */
 .rp-foot { font-size:.63rem; color:#8fa3c1; text-align:center; margin:6px 0 2px; line-height:1.6; }
 
@@ -257,21 +283,46 @@
       <div class="rp-chart"><canvas id="rpSales"></canvas></div>
     </div>
     <div class="rp-panel">
-      <h3>Top 5 Receivables</h3>
-      <p class="p-note">Invoiced − paid − credit notes, per customer</p>
-      <div class="rp-tbl-wrap">
-        <table>
-          <thead><tr><th>#</th><th>Customer</th><th class="num">Inv</th><th class="num">Balance</th></tr></thead>
-          <tbody>
-          {% for r in d.top_receivables %}
-            <tr><td>{{ loop.index }}</td><td class="strong">{{ r["customer_name"] }}</td>
-              <td class="num">{{ r["inv_count"] }}</td><td class="num">AED {{ "{:,.2f}".format(r["balance"]) }}</td></tr>
-          {% else %}
-            <tr><td colspan="4" class="empty">No outstanding customer balances ✓</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+      <div class="rp-rk-head">
+        <div>
+          <h3>Top 5 Receivables</h3>
+          <p class="p-note">Invoiced − paid − credit notes, per customer</p>
+        </div>
+        <div class="rp-rk-total">AED {{ "{:,.0f}".format(d.receivable) }}<span>total outstanding</span></div>
       </div>
+      {% if d.top_receivables %}
+      {% set dtot = d.receivable if d.receivable > 0 else 1 %}
+      {% set pal = ['#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'] %}
+      <div class="rp-strip">
+        {% for r in d.top_receivables %}
+        <span class="rp-strip-seg" style="width:{{ '%.2f'|format(r['balance'] / dtot * 100) }}%;background:{{ pal[loop.index0] }}" title="{{ r['customer_name'] }} — AED {{ '{:,.0f}'.format(r['balance']) }} ({{ '%.1f'|format(r['balance'] / dtot * 100) }}%)"></span>
+        {% endfor %}
+        <span class="rp-strip-seg rp-strip-rest" style="width:{{ '%.2f'|format(d.recv_others / dtot * 100) }}%" title="Other customers — AED {{ '{:,.0f}'.format(d.recv_others) }}"></span>
+      </div>
+      <div class="rp-strip-cap">Share of total outstanding · hover a segment for detail</div>
+      <div class="rp-rk-list">
+        {% set tmax = d.top_receivables[0]['balance'] if d.top_receivables[0]['balance'] > 0 else 1 %}
+        {% for r in d.top_receivables %}
+        <div class="rp-rk-row">
+          <span class="rp-rk-no" style="background:{{ pal[loop.index0] }}">{{ loop.index }}</span>
+          <div class="rp-rk-main">
+            <div class="rp-rk-line">
+              <span class="rp-rk-name" title="{{ r['customer_name'] }}">{{ r['customer_name'] }}</span>
+              <span class="rp-rk-bal">AED {{ "{:,.0f}".format(r['balance']) }}</span>
+            </div>
+            <div class="rp-rk-track"><span class="rp-rk-fill" style="width:{{ '%.1f'|format(r['balance'] / tmax * 100) }}%;background:{{ pal[loop.index0] }};animation-delay:{{ '%.2f'|format(loop.index0 * 0.09) }}s"></span></div>
+            <div class="rp-rk-sub">{{ r['inv_count'] }} invoice{{ '' if r['inv_count'] == 1 else 's' }} · {{ '%.1f'|format(r['balance'] / dtot * 100) }}% of outstanding</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="rp-rk-foot">
+        <span>Top 5 = <b>{{ '%.0f'|format(d.recv_top_sum / dtot * 100) }}%</b> of outstanding</span>
+        <span>Others = <b>AED {{ "{:,.0f}".format(d.recv_others) }}</b></span>
+      </div>
+      {% else %}
+      <p class="rp-rk-empty">No outstanding customer balances ✓</p>
+      {% endif %}
     </div>
   </div>
 </section>
@@ -306,21 +357,47 @@
       <div class="rp-chart"><canvas id="rpPurch"></canvas></div>
     </div>
     <div class="rp-panel">
-      <h3>Top 5 Payables</h3>
-      <p class="p-note">Invoices + expenses − payments, per supplier</p>
-      <div class="rp-tbl-wrap">
-        <table>
-          <thead><tr><th>#</th><th>Supplier</th><th class="num">Inv</th><th class="num">Balance</th></tr></thead>
-          <tbody>
-          {% for r in d.top_payables %}
-            <tr><td>{{ loop.index }}</td><td class="strong">{{ r["supplier_name"] }}</td>
-              <td class="num">{{ r["inv_count"] }}</td><td class="num">AED {{ "{:,.2f}".format(r["balance"]) }}</td></tr>
-          {% else %}
-            <tr><td colspan="4" class="empty">No outstanding supplier balances ✓</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+      <div class="rp-rk-head">
+        <div>
+          <h3>Top 5 Payables</h3>
+          <p class="p-note">Invoices + expenses − payments, per supplier</p>
+        </div>
+        <div class="rp-rk-total">AED {{ "{:,.0f}".format(d.supp_pos_total) }}<span>positive balances</span></div>
       </div>
+      {% if d.top_payables %}
+      {% set ptot = d.supp_pos_total if d.supp_pos_total > 0 else 1 %}
+      {% set ppal = ['#b45309', '#d97706', '#f59e0b', '#fbbf24', '#fcd34d'] %}
+      <div class="rp-strip">
+        {% for r in d.top_payables %}
+        <span class="rp-strip-seg" style="width:{{ '%.2f'|format(r['balance'] / ptot * 100) }}%;background:{{ ppal[loop.index0] }}" title="{{ r['supplier_name'] }} — AED {{ '{:,.0f}'.format(r['balance']) }} ({{ '%.1f'|format(r['balance'] / ptot * 100) }}%)"></span>
+        {% endfor %}
+        <span class="rp-strip-seg rp-strip-rest" style="width:{{ '%.2f'|format(d.pay_others / ptot * 100) }}%" title="Other suppliers — AED {{ '{:,.0f}'.format(d.pay_others) }}"></span>
+      </div>
+      <div class="rp-strip-cap">Share of positive supplier balances · hover a segment for detail</div>
+      <div class="rp-rk-list">
+        {% set pmax = d.top_payables[0]['balance'] if d.top_payables[0]['balance'] > 0 else 1 %}
+        {% for r in d.top_payables %}
+        <div class="rp-rk-row">
+          <span class="rp-rk-no" style="background:{{ ppal[loop.index0] }}">{{ loop.index }}</span>
+          <div class="rp-rk-main">
+            <div class="rp-rk-line">
+              <span class="rp-rk-name" title="{{ r['supplier_name'] }}">{{ r['supplier_name'] }}</span>
+              <span class="rp-rk-bal">AED {{ "{:,.0f}".format(r['balance']) }}</span>
+            </div>
+            <div class="rp-rk-track"><span class="rp-rk-fill" style="width:{{ '%.1f'|format(r['balance'] / pmax * 100) }}%;background:{{ ppal[loop.index0] }};animation-delay:{{ '%.2f'|format(loop.index0 * 0.09) }}s"></span></div>
+            <div class="rp-rk-sub">{{ r['inv_count'] }} invoice{{ '' if r['inv_count'] == 1 else 's' }} · {{ '%.1f'|format(r['balance'] / ptot * 100) }}% of positive balances</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="rp-rk-foot">
+        <span>Top 5 = <b>{{ '%.0f'|format(d.pay_top_sum / ptot * 100) }}%</b> of positive balances</span>
+        <span>Others = <b>AED {{ "{:,.0f}".format(d.pay_others) }}</b></span>
+        <span>Net payable = <b class="{{ 'rp-neg' if d.payable < 0 }}">AED {{ "{:,.0f}".format(d.payable) }}</b>{{ ' · over-payments included' if d.payable < 0 }}</span>
+      </div>
+      {% else %}
+      <p class="rp-rk-empty">No outstanding supplier balances ✓</p>
+      {% endif %}
     </div>
   </div>
 </section>

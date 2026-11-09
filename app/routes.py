@@ -18106,6 +18106,8 @@ def _reports_center_data(db):
         "  FROM customers c"
         ") t WHERE balance > 0.009 ORDER BY balance DESC LIMIT 5"
     ).fetchall()
+    out["recv_top_sum"] = round(sum(float(r["balance"]) for r in out["top_receivables"]), 2)
+    out["recv_others"] = round(max(out["receivable"] - out["recv_top_sum"], 0.0), 2)
 
     sales_m = [0.0] * 12
     outvat_m = [0.0] * 12
@@ -18213,6 +18215,17 @@ def _reports_center_data(db):
         "  FROM suppliers s WHERE COALESCE(s.is_deleted,0) = 0"
         ") t WHERE balance > 0.009 ORDER BY balance DESC LIMIT 5"
     ).fetchall()
+    out["pay_top_sum"] = round(sum(float(r["balance"]) for r in out["top_payables"]), 2)
+    out["supp_pos_total"] = round(float(db.execute(
+        "SELECT COALESCE(SUM(balance),0) FROM ("
+        "  SELECT ("
+        "    (SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices i WHERE i.supplier_id = s.id) "
+        "    + (SELECT COALESCE(SUM(amount),0) FROM supplier_expenses e WHERE e.supplier_id = s.id) "
+        "    - (SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records p WHERE p.supplier_id = s.id)"
+        "  ) AS balance FROM suppliers s WHERE COALESCE(s.is_deleted,0) = 0"
+        ") t WHERE balance > 0.009"
+    ).fetchone()[0]), 2)
+    out["pay_others"] = round(max(out["supp_pos_total"] - out["pay_top_sum"], 0.0), 2)
 
     # ── VAT (fiscal year) ────────────────────────────────────────────
     out["output_vat_y"] = out["cust_vat_y"]
