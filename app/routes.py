@@ -1346,7 +1346,7 @@ def register_routes(app: Flask) -> None:
         supplier_trn_map = {}
         for row in supplier_trn_rows:
             if row[0] and not supplier_trn_map.get(row[0]):
-                supplier_trn_map[row[0]] = row[1]
+                supplier_trn_map[row[0]] = str(row[1]) if row[1] is not None else ""
         total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
         spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
         spent_jobs = db.execute("SELECT COALESCE(SUM(COALESCE(staff_amount, amount - tax_amount)),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
@@ -1392,7 +1392,7 @@ def register_routes(app: Flask) -> None:
                 supplier_trn_map = {}
                 for row in supplier_trn_rows:
                     if row[0] and not supplier_trn_map.get(row[0]):
-                        supplier_trn_map[row[0]] = row[1]
+                        supplier_trn_map[row[0]] = str(row[1]) if row[1] is not None else ""
                 total_received = db.execute("SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?", (technician_code,)).fetchone()["t"] or 0
                 spent_papers = db.execute("SELECT COALESCE(SUM(total_amount),0) AS t FROM maintenance_papers WHERE technician_code = ? AND review_status = 'Approved'", (technician_code,)).fetchone()["t"] or 0
                 spent_jobs = db.execute("SELECT COALESCE(SUM(COALESCE(staff_amount, amount - tax_amount)),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'", (technician_code,)).fetchone()["t"] or 0
@@ -6584,67 +6584,7 @@ def register_routes(app: Flask) -> None:
     def reports_center():
         _touch_admin_workspace("accounts")
         db = open_db()
-        months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-        chart_sales = [0.0]*12
-        chart_output_vat = [0.0]*12
-        chart_purchases = [0.0]*12
-        chart_input_vat = [0.0]*12
-        cust_count = 0
-        supp_count = 0
-        recv_total = 0.0
-        pay_total = 0.0
-        open_sales = 0
-        open_purchases = 0
-        cust_inv_count = 0
-        supp_inv_count = 0
-        # Customer data from SQLite payroll.db
-        pdb = _open_payroll_db()
-        if pdb:
-            try:
-                crows = pdb.execute("SELECT CAST(SUBSTR(invoice_date, 6, 2) AS INTEGER) AS mon, amount, vat_amount FROM customer_invoices WHERE deleted_at IS NULL").fetchall()
-                for r in crows:
-                    m = int(r["mon"]) - 1
-                    if 0 <= m < 12:
-                        chart_sales[m] += float(r["amount"] or 0)
-                        chart_output_vat[m] += float(r["vat_amount"] or 0)
-                cust_count = int(pdb.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
-                recv_total = float(pdb.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0])
-                cust_inv_count = int(pdb.execute("SELECT COUNT(*) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0])
-            except Exception:
-                pass
-            pdb.close()
-        # Supplier data from main DB (supplier_invoices table)
-        try:
-            srows = db.execute("SELECT CAST(SUBSTR(invoice_date, 6, 2) AS INTEGER) AS mon, amount, vat_amount FROM supplier_invoices").fetchall()
-            for r in srows:
-                m = int(r["mon"]) - 1
-                if 0 <= m < 12:
-                    chart_purchases[m] += float(r["amount"] or 0)
-                    chart_input_vat[m] += float(r["vat_amount"] or 0)
-            pay_total = float(db.execute("SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices").fetchone()[0])
-            supp_inv_count = int(db.execute("SELECT COUNT(*) FROM supplier_invoices").fetchone()[0])
-        except Exception:
-            pass
-        ssupp = _supplier_summary(db)
-        payroll_chart = {"months": months, "sales": chart_sales, "purchases": chart_purchases, "output_vat": chart_output_vat, "input_vat": chart_input_vat}
-        payroll_summ = {"customer_count": cust_count, "supplier_count": ssupp["supplier_count"], "receivable_total": recv_total, "payable_total": pay_total, "open_sales": open_sales, "open_purchases": open_purchases, "cust_inv_count": cust_inv_count, "supp_inv_count": supp_inv_count}
-        return render_template(
-            "reports_center.html",
-            supplier_summary=_supplier_summary(db),
-            customer_summary=_customer_summary(db),
-            invoice_summary=_invoice_center_summary(db),
-            loan_summary=_loan_summary(db),
-            annual_fee_summary=_annual_fee_summary(db),
-            tax_summary=_tax_summary(db),
-            chart_data=_monthly_chart_data(db),
-            payroll_chart=payroll_chart,
-            payroll_summ=payroll_summ,
-            employee_data=_employee_report_data(db),
-            top_receivables=_party_balance_rows(db, invoice_kind="Sales", limit=5),
-            top_payables=_party_balance_rows(db, invoice_kind="Purchase", limit=5),
-            due_fees=_annual_fee_rows(db, limit=6, due_only=True),
-            recent_loans=_loan_rows(db, limit=6),
-        )
+        return render_template("reports_center.html", d=_reports_center_data(db))
 
     @app.get("/reports/spare-parts-maintenance")
     @_login_required("admin")
@@ -18096,6 +18036,362 @@ def _employee_report_data(db):
     dept_labels = list(dept_counts.keys())
     dept_values = list(dept_counts.values())
     return {"total": total, "active": active, "total_salary": total_salary, "advances": advances, "stored": stored, "months": months, "salary_by_month": salary_by_month, "dept_labels": dept_labels, "dept_values": dept_values}
+
+
+def _reports_center_data(db):
+    """Accounts dashboard — single source of truth for /reports.
+
+    Customer figures come from the SAME tables as the Customer Tax Report
+    (customer_invoices / customer_payments / customer_credit_notes) and the
+    customer profile balance formula.  Supplier figures come from the Supplier
+    Purchase Report sources (supplier_invoices + approved tax maintenance
+    papers/jobs) and the supplier profile balance formula
+    (invoices + expenses - payment_records).  Every card therefore matches
+    the page it links to.
+    """
+    today = date.today()
+    year = today.year
+    ypref = f"{year}-%"
+    cur_month = f"{year}-{today.month:02d}"
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    out = {"months": months, "year": year, "today": today.isoformat(), "cur_month": cur_month}
+
+    # ── Customers / Sales (customer module) ──────────────────────────
+    r = db.execute(
+        "SELECT COUNT(*) AS c, COALESCE(SUM(total_amount),0) AS inv, "
+        "COALESCE(SUM(amount),0) AS net, COALESCE(SUM(vat_amount),0) AS vat "
+        "FROM customer_invoices WHERE deleted_at IS NULL"
+    ).fetchone()
+    out["cust_inv_count"] = int(r["c"])
+    out["cust_invoiced"] = round(float(r["inv"]), 2)
+    out["cust_net"] = round(float(r["net"]), 2)
+    out["cust_vat"] = round(float(r["vat"]), 2)
+
+    ry = db.execute(
+        "SELECT COUNT(*) AS c, COALESCE(SUM(total_amount),0) AS inv, "
+        "COALESCE(SUM(amount),0) AS net, COALESCE(SUM(vat_amount),0) AS vat "
+        "FROM customer_invoices WHERE deleted_at IS NULL AND invoice_date LIKE ?",
+        (ypref,),
+    ).fetchone()
+    out["cust_inv_count_y"] = int(ry["c"])
+    out["cust_invoiced_y"] = round(float(ry["inv"]), 2)
+    out["cust_vat_y"] = round(float(ry["vat"]), 2)
+
+    out["cust_paid"] = round(float(db.execute("SELECT COALESCE(SUM(amount),0) FROM customer_payments").fetchone()[0]), 2)
+    out["cust_cn"] = round(float(db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes").fetchone()[0]), 2)
+    out["receivable"] = round(out["cust_invoiced"] - out["cust_paid"] - out["cust_cn"], 2)
+    out["customer_count"] = int(db.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
+
+    open_row = db.execute(
+        "SELECT COUNT(*) AS c, COALESCE(SUM(bal),0) AS amt FROM ("
+        "  SELECT i.id, i.total_amount - COALESCE(p.paid,0) - COALESCE(n.cn,0) AS bal "
+        "  FROM customer_invoices i "
+        "  LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM customer_payments "
+        "             WHERE invoice_id IS NOT NULL GROUP BY invoice_id) p ON p.invoice_id = i.id "
+        "  LEFT JOIN (SELECT invoice_id, SUM(total_amount) AS cn FROM customer_credit_notes "
+        "             WHERE invoice_id IS NOT NULL GROUP BY invoice_id) n ON n.invoice_id = i.id "
+        "  WHERE i.deleted_at IS NULL"
+        ") x WHERE bal > 0.009"
+    ).fetchone()
+    out["cust_open_count"] = int(open_row["c"])
+    out["cust_open_amt"] = round(float(open_row["amt"]), 2)
+
+    out["top_receivables"] = db.execute(
+        "SELECT customer_name, inv_count, balance FROM ("
+        "  SELECT c.customer_name, "
+        "    (SELECT COUNT(*) FROM customer_invoices i WHERE i.customer_id = c.id AND i.deleted_at IS NULL) AS inv_count, "
+        "    (SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices i WHERE i.customer_id = c.id AND i.deleted_at IS NULL) "
+        "    - (SELECT COALESCE(SUM(amount),0) FROM customer_payments p WHERE p.customer_id = c.id) "
+        "    - (SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes n WHERE n.customer_id = c.id) AS balance "
+        "  FROM customers c"
+        ") t WHERE balance > 0.009 ORDER BY balance DESC LIMIT 5"
+    ).fetchall()
+
+    sales_m = [0.0] * 12
+    outvat_m = [0.0] * 12
+    for row in db.execute(
+        "SELECT SUBSTR(invoice_date,6,2) AS m, amount, vat_amount "
+        "FROM customer_invoices WHERE deleted_at IS NULL AND invoice_date LIKE ?",
+        (ypref,),
+    ).fetchall():
+        try:
+            mi = int(row["m"]) - 1
+            if 0 <= mi < 12:
+                sales_m[mi] += float(row["amount"] or 0)
+                outvat_m[mi] += float(row["vat_amount"] or 0)
+        except (ValueError, TypeError):
+            pass
+    out["sales_m"] = [round(v, 2) for v in sales_m]
+    out["outvat_m"] = [round(v, 2) for v in outvat_m]
+
+    # ── Suppliers / Purchases (supplier module + maintenance) ────────
+    def _bucket(rows):
+        net = [0.0] * 12
+        vat = [0.0] * 12
+        for row in rows:
+            try:
+                mi = int(row["m"]) - 1
+                if 0 <= mi < 12:
+                    net[mi] += float(row["net"] or 0)
+                    vat[mi] += float(row["vat"] or 0)
+            except (ValueError, TypeError):
+                pass
+        return net, vat
+
+    inv_rows = db.execute(
+        "SELECT SUBSTR(invoice_date,6,2) AS m, amount AS net, vat_amount AS vat "
+        "FROM supplier_invoices WHERE invoice_date LIKE ?", (ypref,)
+    ).fetchall()
+    paper_rows = db.execute(
+        "SELECT SUBSTR(paper_date,6,2) AS m, subtotal AS net, tax_amount AS vat "
+        "FROM maintenance_papers WHERE review_status = 'Approved' AND tax_mode = 'Tax Invoice' "
+        "AND paper_date LIKE ?", (ypref,)
+    ).fetchall()
+    job_rows = db.execute(
+        "SELECT SUBSTR(COALESCE(NULLIF(paper_date, ''), CAST(created_at AS TEXT)),6,2) AS m, "
+        "(amount - tax_amount) AS net, tax_amount AS vat "
+        "FROM maintenance_jobs WHERE status = 'approved' AND tax_mode = 'Tax Invoice' "
+        "AND COALESCE(NULLIF(paper_date, ''), CAST(created_at AS TEXT)) LIKE ?", (ypref,)
+    ).fetchall()
+    purch_m, inpvat_m = _bucket(list(inv_rows) + list(paper_rows) + list(job_rows))
+    out["purch_m"] = [round(v, 2) for v in purch_m]
+    out["inpvat_m"] = [round(v, 2) for v in inpvat_m]
+
+    def _purch_totals(ypref_val=None):
+        cond_i = " AND invoice_date LIKE ?" if ypref_val else ""
+        cond_p = " AND paper_date LIKE ?" if ypref_val else ""
+        cond_j = " AND COALESCE(NULLIF(paper_date, ''), CAST(created_at AS TEXT)) LIKE ?" if ypref_val else ""
+        p = (ypref_val,) if ypref_val else ()
+        row = db.execute(
+            "SELECT COALESCE(SUM(amount),0) AS net, COALESCE(SUM(vat_amount),0) AS vat, COALESCE(SUM(total_amount),0) AS gross "
+            "FROM supplier_invoices WHERE 1=1" + cond_i,
+            p,
+        ).fetchone()
+        net = float(row["net"]); vat = float(row["vat"]); gross = float(row["gross"])
+        prow = db.execute(
+            "SELECT COALESCE(SUM(subtotal),0) AS net, COALESCE(SUM(tax_amount),0) AS vat, COALESCE(SUM(total_amount),0) AS gross "
+            "FROM maintenance_papers WHERE review_status = 'Approved' AND tax_mode = 'Tax Invoice'" + cond_p,
+            p,
+        ).fetchone()
+        jrow = db.execute(
+            "SELECT COALESCE(SUM(amount - tax_amount),0) AS net, COALESCE(SUM(tax_amount),0) AS vat, COALESCE(SUM(amount),0) AS gross "
+            "FROM maintenance_jobs WHERE status = 'approved' AND tax_mode = 'Tax Invoice'" + cond_j,
+            p,
+        ).fetchone()
+        return {
+            "net": round(net + float(prow["net"]) + float(jrow["net"]), 2),
+            "vat": round(vat + float(prow["vat"]) + float(jrow["vat"]), 2),
+            "gross": round(gross + float(prow["gross"]) + float(jrow["gross"]), 2),
+        }
+
+    out["purch"] = _purch_totals()
+    out["purch_y"] = _purch_totals(ypref)
+
+    sup = db.execute(
+        "SELECT COALESCE(SUM(total_amount),0) AS inv FROM supplier_invoices"
+    ).fetchone()
+    out["supp_inv_total"] = round(float(sup["inv"]), 2)
+    out["supp_exp_total"] = round(float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_expenses").fetchone()[0]), 2)
+    out["supp_paid_total"] = round(float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records").fetchone()[0]), 2)
+    out["payable"] = round(out["supp_inv_total"] + out["supp_exp_total"] - out["supp_paid_total"], 2)
+    out["supplier_count"] = int(db.execute("SELECT COUNT(*) FROM suppliers WHERE COALESCE(is_deleted,0) = 0").fetchone()[0])
+
+    sopen = db.execute(
+        "SELECT COUNT(*) AS c, COALESCE(SUM(total_amount),0) AS amt "
+        "FROM supplier_invoices WHERE LOWER(COALESCE(status,'')) IN ('pending','approved')"
+    ).fetchone()
+    out["supp_open_count"] = int(sopen["c"])
+    out["supp_open_amt"] = round(float(sopen["amt"]), 2)
+
+    out["top_payables"] = db.execute(
+        "SELECT supplier_name, inv_count, balance FROM ("
+        "  SELECT s.supplier_name, "
+        "    (SELECT COUNT(*) FROM supplier_invoices i WHERE i.supplier_id = s.id) AS inv_count, "
+        "    (SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices i WHERE i.supplier_id = s.id) "
+        "    + (SELECT COALESCE(SUM(amount),0) FROM supplier_expenses e WHERE e.supplier_id = s.id) "
+        "    - (SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records p WHERE p.supplier_id = s.id) AS balance "
+        "  FROM suppliers s WHERE COALESCE(s.is_deleted,0) = 0"
+        ") t WHERE balance > 0.009 ORDER BY balance DESC LIMIT 5"
+    ).fetchall()
+
+    # ── VAT (fiscal year) ────────────────────────────────────────────
+    out["output_vat_y"] = out["cust_vat_y"]
+    out["input_vat_y"] = out["purch_y"]["vat"]
+    out["net_vat_y"] = round(out["output_vat_y"] - out["input_vat_y"], 2)
+
+    # ── Payroll ──────────────────────────────────────────────────────
+    emp = db.execute(
+        "SELECT COUNT(*) AS total, "
+        "SUM(CASE WHEN LOWER(status) = 'active' THEN 1 ELSE 0 END) AS active, "
+        "COALESCE(SUM(CASE WHEN LOWER(status) = 'active' THEN basic_salary ELSE 0 END),0) AS active_salary "
+        "FROM employees"
+    ).fetchone()
+    out["emp_total"] = int(emp["total"])
+    out["emp_active"] = int(emp["active"] or 0)
+    out["emp_salary"] = round(float(emp["active_salary"] or 0), 2)
+    out["stored_this_month"] = int(db.execute("SELECT COUNT(*) FROM salary_store WHERE salary_month = ?", (cur_month,)).fetchone()[0] or 0)
+    out["salary_gap"] = max(out["emp_active"] - out["stored_this_month"], 0)
+
+    gross_a = {r["driver_id"]: float(r["g"]) for r in db.execute(
+        "SELECT driver_id, COALESCE(SUM(amount),0) AS g FROM driver_transactions "
+        "WHERE UPPER(COALESCE(txn_type,'')) != 'RETURN' GROUP BY driver_id").fetchall()}
+    ret_a = {r["driver_id"]: float(r["g"]) for r in db.execute(
+        "SELECT driver_id, COALESCE(SUM(amount),0) AS g FROM driver_transactions "
+        "WHERE UPPER(COALESCE(txn_type,'')) = 'RETURN' GROUP BY driver_id").fetchall()}
+    ded_a = {r["driver_id"]: float(r["g"]) for r in db.execute(
+        "SELECT driver_id, COALESCE(SUM(total_deductions),0) AS g FROM salary_slips GROUP BY driver_id").fetchall()}
+    out["advances_out"] = round(sum(
+        max(gross_a.get(d, 0.0) - ret_a.get(d, 0.0) - ded_a.get(d, 0.0), 0.0)
+        for d in set(gross_a) | set(ret_a) | set(ded_a)
+    ), 2)
+
+    sal_m = [0.0] * 12
+    for row in db.execute("SELECT SUBSTR(salary_month,6,2) AS m, net_salary FROM salary_store WHERE salary_month LIKE ?", (ypref,)).fetchall():
+        try:
+            mi = int(row["m"]) - 1
+            if 0 <= mi < 12:
+                sal_m[mi] += float(row["net_salary"] or 0)
+        except (ValueError, TypeError):
+            pass
+    out["salary_m"] = [round(v, 2) for v in sal_m]
+
+    dept_rows = db.execute(
+        "SELECT COALESCE(NULLIF(TRIM(department), ''), 'Other') AS dept, COUNT(*) AS c "
+        "FROM employees WHERE LOWER(status) = 'active' GROUP BY 1 ORDER BY c DESC"
+    ).fetchall()
+    out["dept_labels"] = [r["dept"] for r in dept_rows]
+    out["dept_values"] = [int(r["c"]) for r in dept_rows]
+
+    # ── Loans / annual fees / owner fund ─────────────────────────────
+    loan = db.execute(
+        "SELECT COALESCE(SUM(CASE WHEN loan_type = 'Given' THEN amount ELSE 0 END),0) AS given, "
+        "COALESCE(SUM(CASE WHEN loan_type = 'Recovered' THEN amount ELSE 0 END),0) AS rec "
+        "FROM loan_entries"
+    ).fetchone()
+    out["loan_given"] = round(float(loan["given"]), 2)
+    out["loan_rec"] = round(float(loan["rec"]), 2)
+    out["loan_out"] = round(max(out["loan_given"] - out["loan_rec"], 0.0), 2)
+
+    fee = db.execute(
+        "SELECT COALESCE(SUM(annual_amount),0) AS annual, COALESCE(SUM(received_amount),0) AS recv, "
+        "COALESCE(SUM(balance_amount),0) AS bal, "
+        "SUM(CASE WHEN balance_amount > 0.009 THEN 1 ELSE 0 END) AS due_cnt "
+        "FROM annual_fee_entries"
+    ).fetchone()
+    out["fee_annual"] = round(float(fee["annual"]), 2)
+    out["fee_recv"] = round(float(fee["recv"]), 2)
+    out["fee_bal"] = round(float(fee["bal"]), 2)
+    out["fee_due_cnt"] = int(fee["due_cnt"] or 0)
+
+    out["owner_fund"] = round(float(db.execute(
+        "SELECT COALESCE(SUM(CASE WHEN transaction_type = 'IN' THEN amount ELSE -amount END),0) "
+        "FROM owner_fund_entries").fetchone()[0]), 2)
+
+    # ── Data health checks ───────────────────────────────────────────
+    checks = []
+
+    gap = out["salary_gap"]
+    checks.append({
+        "label": "Salary run coverage",
+        "status": "ok" if gap == 0 else "warn",
+        "value": f"{out['stored_this_month']} / {out['emp_active']} active staff stored for {cur_month}",
+        "detail": "All active employees have a stored salary month" if gap == 0 else f"{gap} active employees missing salary for {cur_month}",
+    })
+
+    od = db.execute(
+        "SELECT COUNT(*) AS c, COALESCE(SUM(balance_amount),0) AS amt FROM annual_fee_entries "
+        "WHERE balance_amount > 0.009 AND due_date IS NOT NULL AND due_date != '' AND due_date < ?",
+        (today.isoformat(),),
+    ).fetchone()
+    overdue_fees = int(od["c"]); overdue_fee_amt = round(float(od["amt"]), 2)
+    checks.append({
+        "label": "Overdue annual fees",
+        "status": "ok" if overdue_fees == 0 else "warn",
+        "value": "None past due" if overdue_fees == 0 else f"{overdue_fees} fees · AED {overdue_fee_amt:,.0f}",
+        "detail": "No fee past its due date" if overdue_fees == 0 else "Fees past due_date with balance — open Annual Fees",
+    })
+
+    cutoff = (today - timedelta(days=60)).isoformat()
+    stale = db.execute(
+        "SELECT COUNT(*) AS c, COALESCE(SUM(bal),0) AS amt FROM ("
+        "  SELECT i.invoice_date, i.total_amount - COALESCE(p.paid,0) - COALESCE(n.cn,0) AS bal "
+        "  FROM customer_invoices i "
+        "  LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM customer_payments "
+        "             WHERE invoice_id IS NOT NULL GROUP BY invoice_id) p ON p.invoice_id = i.id "
+        "  LEFT JOIN (SELECT invoice_id, SUM(total_amount) AS cn FROM customer_credit_notes "
+        "             WHERE invoice_id IS NOT NULL GROUP BY invoice_id) n ON n.invoice_id = i.id "
+        "  WHERE i.deleted_at IS NULL"
+        ") x WHERE bal > 0.009 AND invoice_date < ?",
+        (cutoff,),
+    ).fetchone()
+    stale_cnt = int(stale["c"]); stale_amt = round(float(stale["amt"]), 2)
+    checks.append({
+        "label": "Invoices open over 60 days",
+        "status": "ok" if stale_cnt == 0 else "warn",
+        "value": "None" if stale_cnt == 0 else f"{stale_cnt} invoices · AED {stale_amt:,.0f}",
+        "detail": "All open invoices are within 60 days" if stale_cnt == 0 else "Old receivables — chase collection",
+    })
+
+    dup_c = int(db.execute(
+        "SELECT COUNT(*) FROM (SELECT invoice_no FROM customer_invoices "
+        "WHERE deleted_at IS NULL AND invoice_no IS NOT NULL AND invoice_no != '' "
+        "GROUP BY invoice_no HAVING COUNT(*) > 1) d").fetchone()[0])
+    dup_s = int(db.execute(
+        "SELECT COUNT(*) FROM (SELECT invoice_no FROM supplier_invoices "
+        "WHERE invoice_no IS NOT NULL AND invoice_no != '' "
+        "GROUP BY invoice_no HAVING COUNT(*) > 1) d").fetchone()[0])
+    checks.append({
+        "label": "Duplicate invoice numbers",
+        "status": "ok" if (dup_c + dup_s) == 0 else "warn",
+        "value": "Clean" if (dup_c + dup_s) == 0 else f"{dup_c} customer · {dup_s} supplier",
+        "detail": "No repeated invoice numbers" if (dup_c + dup_s) == 0 else "Same invoice_no used more than once",
+    })
+
+    credits = int(db.execute(
+        "SELECT COUNT(*) FROM ("
+        "  SELECT c.id, "
+        "    (SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices i WHERE i.customer_id = c.id AND i.deleted_at IS NULL) AS inv, "
+        "    (SELECT COALESCE(SUM(amount),0) FROM customer_payments p WHERE p.customer_id = c.id) AS pay, "
+        "    (SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes n WHERE n.customer_id = c.id) AS cn "
+        "  FROM customers c"
+        ") t WHERE pay + cn - inv > 0.009").fetchone()[0])
+    checks.append({
+        "label": "Customer credit balances",
+        "status": "ok" if credits == 0 else "warn",
+        "value": "None" if credits == 0 else f"{credits} customers paid more than invoiced",
+        "detail": "No customer is in credit" if credits == 0 else "Credit on account — verify payments / credit notes",
+    })
+
+    sneg = int(db.execute(
+        "SELECT COUNT(*) FROM ("
+        "  SELECT s.id, "
+        "    (SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices i WHERE i.supplier_id = s.id) AS inv, "
+        "    (SELECT COALESCE(SUM(amount),0) FROM supplier_expenses e WHERE e.supplier_id = s.id) AS exp, "
+        "    (SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records p WHERE p.supplier_id = s.id) AS paid "
+        "  FROM suppliers s"
+        ") t WHERE paid + 0.009 > inv + exp").fetchone()[0])
+    checks.append({
+        "label": "Supplier over-payments",
+        "status": "ok" if sneg == 0 else "warn",
+        "value": "None" if sneg == 0 else f"{sneg} suppliers paid above ledger",
+        "detail": "No supplier paid more than invoices + expenses" if sneg == 0 else "Paid exceeds supplier ledger — verify records",
+    })
+
+    zvat = int(db.execute(
+        "SELECT COUNT(*) FROM customer_invoices WHERE deleted_at IS NULL AND invoice_date LIKE ? "
+        "AND COALESCE(vat_amount,0) = 0 AND amount > 0", (ypref,)).fetchone()[0])
+    checks.append({
+        "label": f"Invoices with zero VAT ({year})",
+        "status": "ok" if zvat == 0 else "info",
+        "value": "None" if zvat == 0 else f"{zvat} invoices",
+        "detail": "All invoices carry VAT" if zvat == 0 else "Zero-rated / out-of-scope — confirm intended",
+    })
+
+    out["checks"] = checks
+    out["checks_warn"] = sum(1 for c in checks if c["status"] == "warn")
+    out["due_fees"] = _annual_fee_rows(db, limit=6, due_only=True)
+    out["recent_loans"] = _loan_rows(db, limit=6)
+    return out
 
 
 def _party_balance_rows(db, invoice_kind: str, limit: int = 8):

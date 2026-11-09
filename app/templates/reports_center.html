@@ -1,215 +1,471 @@
 {% extends "base.html" %}
-{% block title %}Accounts Dashboard{% endblock %}
-{% block page_title %}Accounts & Finance{% endblock %}
+{% block title %}Accounts & Finance{% endblock %}
+{% block page_title %}Accounts &amp; Finance{% endblock %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<div class="profile-shell">
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<div class="profile-shell rp">
 <style>
-.section { margin-bottom:32px; }
-.section-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
-.section-header h2 { font-size:1.1rem; font-weight:700; color:#17345e; margin:0; }
-.section-header .badge { font-size:0.6rem; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; padding:3px 10px; border-radius:20px; background:#eef3fa; color:#7b92b6; }
-.stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
-.stat-card { background:#fff; border:1px solid #d8e4f5; border-radius:14px; padding:14px 16px; transition:box-shadow .2s; }
-.stat-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.06); }
-.stat-card .stat-label { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:#7b92b6; }
-.stat-card .stat-value { font-size:1.3rem; font-weight:800; margin-top:4px; color:#17345e; }
-.charts-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.chart-panel { background:#fff; border:1px solid #d8e4f5; border-radius:14px; padding:16px; transition:box-shadow .2s; overflow:hidden; }
-.chart-panel:hover { box-shadow:0 4px 16px rgba(0,0,0,.06); }
-.chart-panel h3 { margin:0 0 10px; font-size:0.8rem; font-weight:600; color:#17345e; }
-.chart-panel canvas { display:block; max-width:100%; max-height:160px; width:100%!important; height:140px!important; }
-@media (max-width:700px){ .charts-row { grid-template-columns:1fr; } }
+.rp { --rp-ink:#0f2749; --rp-muted:#64748b; --rp-line:#dbe4f0; --rp-bg:#f5f8fc;
+      --rp-blue:#2563eb; --rp-blue2:#1d4ed8; --rp-amber:#f59e0b; --rp-violet:#7c3aed;
+      --rp-green:#16a34a; --rp-red:#dc2626; --rp-teal:#0d9488; color:var(--rp-ink); }
+.rp * { box-sizing:border-box; }
+
+/* ── Hero ── */
+.rp-hero { display:flex; justify-content:space-between; align-items:flex-end; gap:18px; flex-wrap:wrap;
+  background:linear-gradient(118deg,#0f2749 0%,#1d3f73 58%,#245c9e 100%); color:#fff;
+  border-radius:18px; padding:26px 28px; margin-bottom:16px; position:relative; overflow:hidden; }
+.rp-hero::after { content:""; position:absolute; right:-70px; top:-90px; width:280px; height:280px;
+  background:radial-gradient(circle,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 70%); pointer-events:none; }
+.rp-kicker { font-size:.64rem; font-weight:700; letter-spacing:2.2px; text-transform:uppercase; color:#9dc2f4; margin-bottom:8px; }
+.rp-title { font-size:1.72rem; font-weight:800; margin:0 0 6px; letter-spacing:-.4px; }
+.rp-sub { margin:0; font-size:.82rem; color:#c9dcf7; max-width:560px; line-height:1.5; }
+.rp-hero-side { display:flex; gap:10px; flex-wrap:wrap; position:relative; z-index:1; }
+.rp-hchip { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22); border-radius:12px;
+  padding:9px 14px; min-width:150px; backdrop-filter:blur(4px); }
+.rp-hchip span { display:block; font-size:.6rem; text-transform:uppercase; letter-spacing:1px; color:#a9c9f5; font-weight:700; }
+.rp-hchip strong { font-size:.86rem; font-weight:700; color:#fff; }
+.rp-hchip.is-warn { background:rgba(245,158,11,.18); border-color:rgba(245,158,11,.55); }
+.rp-hchip.is-warn strong { color:#fde68a; }
+
+/* ── Quick nav ── */
+.rp-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+.rp-nav a { display:inline-flex; align-items:center; gap:6px; font-size:.72rem; font-weight:600;
+  color:#33507a; background:#fff; border:1px solid var(--rp-line); border-radius:999px; padding:7px 14px;
+  text-decoration:none; transition:all .15s; }
+.rp-nav a:hover { border-color:var(--rp-blue); color:var(--rp-blue); box-shadow:0 3px 10px rgba(37,99,235,.12); transform:translateY(-1px); }
+
+/* ── KPI band ── */
+.rp-kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:18px; }
+.rp-kpi { background:#fff; border:1px solid var(--rp-line); border-radius:16px; padding:16px 16px 14px;
+  position:relative; overflow:hidden; text-decoration:none; color:inherit; display:block; transition:all .16s; }
+.rp-kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--kp,var(--rp-blue)); }
+.rp-kpi:hover { transform:translateY(-2px); box-shadow:0 10px 24px rgba(15,39,73,.1); border-color:#c4d4ea; }
+.rp-kpi .k-label { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--rp-muted); }
+.rp-kpi .k-value { font-size:1.12rem; font-weight:800; color:var(--rp-ink); margin-top:6px; letter-spacing:-.4px; white-space:normal; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+.rp-kpi .k-value small { font-size:.68rem; font-weight:700; color:var(--rp-muted); letter-spacing:0; }
+.rp-kpi .k-sub { font-size:.66rem; color:var(--rp-muted); margin-top:5px; line-height:1.35; }
+.rp-kpi .k-arrow { position:absolute; right:12px; top:14px; font-size:.8rem; color:#9fb3d1; }
+.rp-kpi:hover .k-arrow { color:var(--rp-blue); }
+
+/* ── Panels ── */
+.rp-panel { background:#fff; border:1px solid var(--rp-line); border-radius:16px; padding:18px; }
+.rp-panel h3 { margin:0 0 4px; font-size:.82rem; font-weight:800; color:var(--rp-ink); }
+.rp-panel .p-note { font-size:.66rem; color:var(--rp-muted); margin:0 0 12px; }
+
+/* ── Health checks ── */
+.rp-health { margin-bottom:18px; }
+.rp-health-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.rp-health-head h2 { font-size:.95rem; font-weight:800; margin:0; color:var(--rp-ink); display:flex; align-items:center; gap:9px; }
+.rp-health-head h2::before { content:""; width:5px; height:18px; background:var(--rp-teal); border-radius:3px; }
+.rp-health-head .rp-pill { font-size:.62rem; font-weight:700; padding:4px 11px; border-radius:999px; text-transform:uppercase; letter-spacing:.6px; }
+.rp-pill.is-ok { background:#e7f7ee; color:#15803d; }
+.rp-pill.is-warn { background:#fef3e2; color:#b45309; }
+.rp-checks { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; }
+.rp-check { display:flex; gap:11px; align-items:flex-start; background:var(--rp-bg); border:1px solid #e6edf7;
+  border-radius:13px; padding:12px 14px; border-left-width:4px; }
+.rp-check .c-dot { width:9px; height:9px; border-radius:50%; margin-top:5px; flex:none; }
+.rp-check.is-ok { border-left-color:var(--rp-green); } .rp-check.is-ok .c-dot { background:var(--rp-green); }
+.rp-check.is-warn { border-left-color:var(--rp-amber); background:#fffaf2; border-color:#fdeccf; }
+.rp-check.is-warn .c-dot { background:var(--rp-amber); box-shadow:0 0 0 4px rgba(245,158,11,.16); }
+.rp-check.is-info { border-left-color:var(--rp-blue); } .rp-check.is-info .c-dot { background:var(--rp-blue); }
+.rp-check .c-label { font-size:.7rem; font-weight:800; color:var(--rp-ink); }
+.rp-check .c-value { font-size:.72rem; font-weight:700; color:#33507a; margin-top:2px; }
+.rp-check .c-detail { font-size:.62rem; color:var(--rp-muted); margin-top:2px; line-height:1.35; }
+
+/* ── Sections ── */
+.rp-sec { margin-bottom:20px; background:#fff; border:1px solid var(--rp-line); border-radius:18px; padding:20px; }
+.rp-sec-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+.rp-sec-head h2 { font-size:1.02rem; font-weight:800; margin:0; color:var(--rp-ink); display:flex; align-items:center; gap:10px; }
+.rp-sec-head h2::before { content:""; width:5px; height:20px; border-radius:3px; background:var(--ac,var(--rp-blue)); }
+.rp-sec-head p { margin:3px 0 0; font-size:.68rem; color:var(--rp-muted); }
+.rp-ghost { font-size:.68rem; font-weight:700; color:#33507a; background:var(--rp-bg); border:1px solid var(--rp-line);
+  padding:7px 13px; border-radius:999px; text-decoration:none; transition:all .15s; white-space:nowrap; }
+.rp-ghost:hover { background:var(--rp-blue); border-color:var(--rp-blue); color:#fff; }
+
+/* ── Cards rows ── */
+.rp-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+.rp-card { background:var(--rp-bg); border:1px solid #e6edf7; border-radius:13px; padding:13px 15px; }
+.rp-card .c-l { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--rp-muted); }
+.rp-card .c-v { font-size:1.12rem; font-weight:800; color:var(--rp-ink); margin-top:4px; letter-spacing:-.3px; }
+.rp-card .c-s { font-size:.63rem; color:var(--rp-muted); margin-top:3px; }
+.rp-card.c-blue { border-left:3px solid var(--rp-blue); }
+.rp-card.c-amber { border-left:3px solid var(--rp-amber); }
+.rp-card.c-green { border-left:3px solid var(--rp-green); }
+.rp-card.c-red { border-left:3px solid var(--rp-red); }
+.rp-card.c-violet { border-left:3px solid var(--rp-violet); }
+.rp-card.c-teal { border-left:3px solid var(--rp-teal); }
+.rp-card.c-ink { border-left:3px solid var(--rp-ink); }
+
+/* ── Split (chart + table) ── */
+.rp-split { display:grid; grid-template-columns:1.35fr 1fr; gap:12px; }
+.rp-chart { position:relative; height:238px; }
+
+/* ── Tables ── */
+.rp-tbl-wrap { overflow-x:auto; }
+.rp table { width:100%; border-collapse:collapse; font-size:.72rem; }
+.rp table th { text-align:left; font-size:.58rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px;
+  color:var(--rp-muted); padding:8px 10px; border-bottom:2px solid var(--rp-line); white-space:nowrap; }
+.rp table td { padding:9px 10px; border-bottom:1px solid #eef2f8; color:#243b5e; white-space:nowrap; }
+.rp table tr:last-child td { border-bottom:none; }
+.rp table tr:hover td { background:#f7fafd; }
+.rp table td.num, .rp table th.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; }
+.rp table td.strong { font-weight:800; color:var(--rp-ink); }
+.rp .empty { text-align:center; color:#94a7c4; font-size:.72rem; padding:26px 10px !important; }
+.rp-tag { display:inline-block; font-size:.6rem; font-weight:800; padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.4px; }
+.rp-tag.is-given { background:#fee2e2; color:#b91c1c; }
+.rp-tag.is-recovered { background:#dcfce7; color:#15803d; }
+.rp-tag.is-due { background:#fef3e2; color:#b45309; }
+
+/* ── Footer note ── */
+.rp-foot { font-size:.63rem; color:#8fa3c1; text-align:center; margin:6px 0 2px; line-height:1.6; }
+
+/* ── Two-up ── */
+.rp-duo { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
+
+/* ── Responsive ── */
+@media (max-width:1240px){ .rp-kpis { grid-template-columns:repeat(3,1fr); } }
+@media (max-width:980px){
+  .rp-split, .rp-duo { grid-template-columns:1fr; }
+  .rp-cards { grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:640px){
+  .rp-kpis { grid-template-columns:repeat(2,1fr); }
+  .rp-hero { padding:20px 18px; }
+  .rp-title { font-size:1.4rem; }
+  .rp-sec { padding:15px; }
+  .rp-nav a { font-size:.66rem; padding:6px 11px; }
+}
+@media (max-width:430px){ .rp-kpis { grid-template-columns:1fr; } .rp-cards { grid-template-columns:1fr; } }
 </style>
 
-<div class="stats-row" style="margin-bottom:20px">
-    <div class="stat-card" style="text-align:center;border-left:3px solid #255f99">
-        <div class="stat-label">Receivable</div>
-        <div class="stat-value" style="color:#255f99">AED {{ "%.0f"|format(payroll_summ.receivable_total) }}</div>
+<!-- ══════ HERO ══════ -->
+<header class="rp-hero">
+  <div class="rp-hero-main">
+    <div class="rp-kicker">Finance · FY{{ d.year }}</div>
+    <h1 class="rp-title">Accounts &amp; Finance</h1>
+    <p class="rp-sub">Receivables, payables, VAT and payroll in one place — every figure below is computed from the same source tables as the report pages it links to.</p>
+  </div>
+  <div class="rp-hero-side">
+    <div class="rp-hchip"><span>Data as of</span><strong>{{ d.today }}</strong></div>
+    <div class="rp-hchip {{ 'is-warn' if d.checks_warn else '' }}"><span>Health checks</span>
+      <strong>{{ 'All clear' if not d.checks_warn else (d.checks_warn ~ ' need attention') }}</strong></div>
+  </div>
+</header>
+
+<nav class="rp-nav">
+  <a href="{{ url_for('customer.customer_tax_report') }}">Customer Tax Report</a>
+  <a href="{{ url_for('supplier.supplier_purchase_report') }}">Supplier Purchase Report</a>
+  <a href="{{ url_for('spare_parts_maintenance_report') }}">Spare Parts</a>
+  <a href="{{ url_for('owner_fund') }}">Owner Fund</a>
+  <a href="{{ url_for('loans_center') }}">Loans</a>
+  <a href="{{ url_for('annual_fees') }}">Annual Fees</a>
+  <a href="{{ url_for('cheque_report') }}">Cheques</a>
+  <a href="{{ url_for('bank_transactions') }}">Bank</a>
+  <a href="{{ url_for('atm_report') }}">ATM</a>
+</nav>
+
+<!-- ══════ KPI BAND ══════ -->
+<section class="rp-kpis">
+  <a class="rp-kpi" style="--kp:var(--rp-blue)" href="{{ url_for('customer.customer_dashboard') }}">
+    <span class="k-arrow">↗</span>
+    <div class="k-label">Receivable</div>
+    <div class="k-value">AED {{ "{:,.0f}".format(d.receivable) }}</div>
+    <div class="k-sub">{{ d.cust_open_count }} open invoice{{ '' if d.cust_open_count == 1 else 's' }} · {{ d.customer_count }} customers</div>
+  </a>
+  <a class="rp-kpi" style="--kp:var(--rp-amber)" href="{{ url_for('supplier.supplier_dashboard') }}">
+    <span class="k-arrow">↗</span>
+    <div class="k-label">Payable</div>
+    <div class="k-value">AED {{ "{:,.0f}".format(d.payable) }}</div>
+    <div class="k-sub">{{ d.supp_open_count }} open invoice{{ '' if d.supp_open_count == 1 else 's' }} · {{ d.supplier_count }} suppliers</div>
+  </a>
+  <a class="rp-kpi" style="--kp:{{ 'var(--rp-green)' if d.net_vat_y >= 0 else 'var(--rp-red)' }}" href="{{ url_for('customer.customer_tax_report') }}">
+    <span class="k-arrow">↗</span>
+    <div class="k-label">Net VAT · FY{{ d.year }}</div>
+    <div class="k-value">AED {{ "{:,.0f}".format(d.net_vat_y) }}</div>
+    <div class="k-sub">Output {{ "{:,.0f}".format(d.output_vat_y) }} − Input {{ "{:,.0f}".format(d.input_vat_y) }}</div>
+  </a>
+  <a class="rp-kpi" style="--kp:var(--rp-red)" href="{{ url_for('loans_center') }}">
+    <span class="k-arrow">↗</span>
+    <div class="k-label">Loans Outstanding</div>
+    <div class="k-value">AED {{ "{:,.0f}".format(d.loan_out) }}</div>
+    <div class="k-sub">Given {{ "{:,.0f}".format(d.loan_given) }} · Recovered {{ "{:,.0f}".format(d.loan_rec) }}</div>
+  </a>
+  <a class="rp-kpi" style="--kp:var(--rp-violet)" href="{{ url_for('annual_fees') }}">
+    <span class="k-arrow">↗</span>
+    <div class="k-label">Annual Fees Due</div>
+    <div class="k-value">{{ d.fee_due_cnt }} <small>fees</small></div>
+    <div class="k-sub">AED {{ "{:,.0f}".format(d.fee_bal) }} balance of {{ "{:,.0f}".format(d.fee_annual) }}</div>
+  </a>
+  <a class="rp-kpi" style="--kp:var(--rp-teal)" href="{{ url_for('owner_fund') }}">
+    <span class="k-arrow">↗</span>
+    <div class="k-label">Owner Fund Balance</div>
+    <div class="k-value">AED {{ "{:,.0f}".format(d.owner_fund) }}</div>
+    <div class="k-sub">Net contributions to date</div>
+  </a>
+</section>
+
+<!-- ══════ DATA HEALTH ══════ -->
+<section class="rp-panel rp-health">
+  <div class="rp-health-head">
+    <h2>Data Health Checks</h2>
+    <span class="rp-pill {{ 'is-warn' if d.checks_warn else 'is-ok' }}">
+      {{ 'All clear' if not d.checks_warn else (d.checks_warn ~ ' warning' ~ ('s' if d.checks_warn != 1 else '')) }}
+    </span>
+  </div>
+  <div class="rp-checks">
+    {% for c in d.checks %}
+    <div class="rp-check is-{{ c.status }}">
+      <span class="c-dot"></span>
+      <div>
+        <div class="c-label">{{ c.label }}</div>
+        <div class="c-value">{{ c.value }}</div>
+        <div class="c-detail">{{ c.detail }}</div>
+      </div>
     </div>
-    <div class="stat-card" style="text-align:center;border-left:3px solid #e65100">
-        <div class="stat-label">Payable</div>
-        <div class="stat-value" style="color:#e65100">AED {{ "%.0f"|format(payroll_summ.payable_total) }}</div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ══════ SALES ══════ -->
+<section class="rp-sec" style="--ac:var(--rp-blue)">
+  <div class="rp-sec-head">
+    <div>
+      <h2>Sales &amp; Receivable</h2>
+      <p>Customer invoices, payments and credit notes — same data as the Customer Tax Report</p>
     </div>
-    <div class="stat-card" style="text-align:center;border-left:3px solid #c62828">
-        <div class="stat-label">Loans O/S</div>
-        <div class="stat-value" style="color:#c62828">AED {{ "%.0f"|format(loan_summary.outstanding) }}</div>
+    <a class="rp-ghost" href="{{ url_for('customer.customer_tax_report') }}">Customer Tax Report →</a>
+  </div>
+  <div class="rp-cards">
+    <div class="rp-card c-blue"><div class="c-l">Total Invoiced</div>
+      <div class="c-v">AED {{ "{:,.0f}".format(d.cust_invoiced) }}</div>
+      <div class="c-s">{{ d.cust_inv_count }} invoices · all time</div></div>
+    <div class="rp-card c-green"><div class="c-l">Received</div>
+      <div class="c-v">AED {{ "{:,.0f}".format(d.cust_paid) }}</div>
+      <div class="c-s">Credit notes: AED {{ "{:,.0f}".format(d.cust_cn) }}</div></div>
+    <div class="rp-card c-red"><div class="c-l">Open Invoices</div>
+      <div class="c-v">{{ d.cust_open_count }}</div>
+      <div class="c-s">AED {{ "{:,.0f}".format(d.cust_open_amt) }} outstanding</div></div>
+    <div class="rp-card c-ink"><div class="c-l">Customers</div>
+      <div class="c-v">{{ d.customer_count }}</div>
+      <div class="c-s">{{ d.cust_inv_count_y }} invoices in FY{{ d.year }}</div></div>
+  </div>
+  <div class="rp-split">
+    <div class="rp-panel">
+      <h3>Net Sales &amp; Output VAT · FY{{ d.year }}</h3>
+      <p class="p-note">Monthly, customer_invoices · AED</p>
+      <div class="rp-chart"><canvas id="rpSales"></canvas></div>
     </div>
-    <div class="stat-card" style="text-align:center;border-left:3px solid #7b1fa2">
-        <div class="stat-label">Annual Fees Due</div>
-        <div class="stat-value" style="color:#7b1fa2">{{ annual_fee_summary.due_count }}</div>
+    <div class="rp-panel">
+      <h3>Top 5 Receivables</h3>
+      <p class="p-note">Invoiced − paid − credit notes, per customer</p>
+      <div class="rp-tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Customer</th><th class="num">Inv</th><th class="num">Balance</th></tr></thead>
+          <tbody>
+          {% for r in d.top_receivables %}
+            <tr><td>{{ loop.index }}</td><td class="strong">{{ r["customer_name"] }}</td>
+              <td class="num">{{ r["inv_count"] }}</td><td class="num">AED {{ "{:,.2f}".format(r["balance"]) }}</td></tr>
+          {% else %}
+            <tr><td colspan="4" class="empty">No outstanding customer balances ✓</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
+</section>
+
+<!-- ══════ PURCHASES ══════ -->
+<section class="rp-sec" style="--ac:var(--rp-amber)">
+  <div class="rp-sec-head">
+    <div>
+      <h2>Purchases &amp; Payable</h2>
+      <p>Supplier invoices, expenses, payments + approved tax maintenance — same data as the Supplier Purchase Report</p>
+    </div>
+    <a class="rp-ghost" href="{{ url_for('supplier.supplier_purchase_report') }}">Supplier Purchase Report →</a>
+  </div>
+  <div class="rp-cards">
+    <div class="rp-card c-amber"><div class="c-l">Total Purchases</div>
+      <div class="c-v">AED {{ "{:,.0f}".format(d.purch.gross) }}</div>
+      <div class="c-s">Net {{ "{:,.0f}".format(d.purch.net) }} + VAT {{ "{:,.0f}".format(d.purch.vat) }} · incl. maintenance</div></div>
+    <div class="rp-card c-green"><div class="c-l">Paid to Suppliers</div>
+      <div class="c-v">AED {{ "{:,.0f}".format(d.supp_paid_total) }}</div>
+      <div class="c-s">Ledger payments + expenses {{ "{:,.0f}".format(d.supp_exp_total) }}</div></div>
+    <div class="rp-card c-red"><div class="c-l">Open Invoices</div>
+      <div class="c-v">{{ d.supp_open_count }}</div>
+      <div class="c-s">AED {{ "{:,.0f}".format(d.supp_open_amt) }} outstanding</div></div>
+    <div class="rp-card c-ink"><div class="c-l">Suppliers</div>
+      <div class="c-v">{{ d.supplier_count }}</div>
+      <div class="c-s">Active supplier accounts</div></div>
+  </div>
+  <div class="rp-split">
+    <div class="rp-panel">
+      <h3>Purchases &amp; Input VAT · FY{{ d.year }}</h3>
+      <p class="p-note">Monthly, supplier invoices + approved maintenance · AED</p>
+      <div class="rp-chart"><canvas id="rpPurch"></canvas></div>
+    </div>
+    <div class="rp-panel">
+      <h3>Top 5 Payables</h3>
+      <p class="p-note">Invoices + expenses − payments, per supplier</p>
+      <div class="rp-tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Supplier</th><th class="num">Inv</th><th class="num">Balance</th></tr></thead>
+          <tbody>
+          {% for r in d.top_payables %}
+            <tr><td>{{ loop.index }}</td><td class="strong">{{ r["supplier_name"] }}</td>
+              <td class="num">{{ r["inv_count"] }}</td><td class="num">AED {{ "{:,.2f}".format(r["balance"]) }}</td></tr>
+          {% else %}
+            <tr><td colspan="4" class="empty">No outstanding supplier balances ✓</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ PAYROLL ══════ -->
+<section class="rp-sec" style="--ac:var(--rp-violet)">
+  <div class="rp-sec-head">
+    <div>
+      <h2>Payroll &amp; HR</h2>
+      <p>Active staff, salary cost, outstanding advances and monthly run coverage</p>
+    </div>
+    <a class="rp-ghost" href="{{ url_for('hr.employee_list') }}">Employees →</a>
+  </div>
+  <div class="rp-cards">
+    <div class="rp-card c-violet"><div class="c-l">Active Staff</div>
+      <div class="c-v">{{ d.emp_active }} <small style="font-size:.7rem;font-weight:700;color:var(--rp-muted)">/ {{ d.emp_total }}</small></div>
+      <div class="c-s">Total employees on record</div></div>
+    <div class="rp-card c-blue"><div class="c-l">Active Salary Cost</div>
+      <div class="c-v">AED {{ "{:,.0f}".format(d.emp_salary) }}</div>
+      <div class="c-s">Sum of active basic salaries</div></div>
+    <div class="rp-card c-red"><div class="c-l">Advances Outstanding</div>
+      <div class="c-v">AED {{ "{:,.0f}".format(d.advances_out) }}</div>
+      <div class="c-s">Issued − returned − deducted from slips</div></div>
+    <div class="rp-card {{ 'c-teal' if not d.salary_gap else 'c-amber' }}"><div class="c-l">Salary Run · {{ d.cur_month }}</div>
+      <div class="c-v">{{ d.stored_this_month }}</div>
+      <div class="c-s">{{ 'All active staff stored ✓' if not d.salary_gap else (d.salary_gap ~ ' active staff missing') }}</div></div>
+  </div>
+  <div class="rp-split">
+    <div class="rp-panel">
+      <h3>Salary Cost · FY{{ d.year }}</h3>
+      <p class="p-note">Stored salary months · AED net</p>
+      <div class="rp-chart"><canvas id="rpSalary"></canvas></div>
+    </div>
+    <div class="rp-panel">
+      <h3>Departments</h3>
+      <p class="p-note">Active employees only</p>
+      <div class="rp-chart"><canvas id="rpDept"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ LOANS + FEES ══════ -->
+<div class="rp-duo">
+  <section class="rp-panel">
+    <div class="rp-health-head" style="margin-bottom:10px">
+      <h2 style="font-size:.88rem">Recent Loan Entries</h2>
+      <a class="rp-ghost" href="{{ url_for('loans_center') }}">All loans →</a>
+    </div>
+    <div class="rp-tbl-wrap">
+      <table>
+        <thead><tr><th>Loan No</th><th>Party</th><th>Type</th><th>Date</th><th class="num">Amount</th></tr></thead>
+        <tbody>
+        {% for r in d.recent_loans %}
+          <tr><td class="strong">{{ r["loan_no"] }}</td><td>{{ r["party_name"] or r["party_code"] or "—" }}</td>
+            <td><span class="rp-tag is-{{ 'given' if r["loan_type"] == 'Given' else 'recovered' }}">{{ r["loan_type"] }}</span></td>
+            <td>{{ r["entry_date"] }}</td><td class="num">AED {{ "{:,.0f}".format(r["amount"]) }}</td></tr>
+        {% else %}
+          <tr><td colspan="5" class="empty">No loan entries yet</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="rp-panel">
+    <div class="rp-health-head" style="margin-bottom:10px">
+      <h2 style="font-size:.88rem">Annual Fees Due</h2>
+      <a class="rp-ghost" href="{{ url_for('annual_fees') }}">All fees →</a>
+    </div>
+    <div class="rp-tbl-wrap">
+      <table>
+        <thead><tr><th>Fee No</th><th>Party</th><th>Due Date</th><th class="num">Balance</th></tr></thead>
+        <tbody>
+        {% for r in d.due_fees %}
+          <tr><td class="strong">{{ r["fee_no"] }}</td><td>{{ r["party_name"] or r["party_code"] or "—" }}</td>
+            <td>{{ r["due_date"] or "—" }}</td><td class="num">AED {{ "{:,.2f}".format(r["balance_amount"]) }}</td></tr>
+        {% else %}
+          <tr><td colspan="4" class="empty">No pending annual fees ✓</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 
-<div class="section">
-    <div class="section-header">
-        <span style="width:4px;height:18px;background:#255f99;border-radius:2px;display:inline-block"></span>
-        <h2>Customer Report</h2>
-        <span class="badge">Sales &amp; VAT</span>
-    </div>
-    <div class="stats-row">
-        <div class="stat-card"><div class="stat-label">Receivable</div><div class="stat-value">AED {{ "%.0f"|format(payroll_summ.receivable_total) }}</div></div>
-        <div class="stat-card"><div class="stat-label">Open Invoices</div><div class="stat-value">{{ payroll_summ.open_sales }}</div></div>
-        <div class="stat-card"><div class="stat-label">Customers</div><div class="stat-value">{{ payroll_summ.customer_count }}</div></div>
-        <div class="stat-card"><div class="stat-label">Total Invoices</div><div class="stat-value">{{ payroll_summ.cust_inv_count }}</div></div>
-    </div>
-    <div class="charts-row">
-        <div class="chart-panel"><h3>Monthly NET Sales + VAT</h3><canvas id="custMain" height="160"></canvas></div>
-        <div class="chart-panel"><h3>Sales vs VAT Trend</h3><canvas id="custTrend" height="160"></canvas></div>
-    </div>
-</div>
-
-<div class="section">
-    <div class="section-header">
-        <span style="width:4px;height:18px;background:#f7931e;border-radius:2px;display:inline-block"></span>
-        <h2>Supplier Report</h2>
-        <span class="badge">Purchases &amp; VAT</span>
-    </div>
-    <div class="stats-row">
-        <div class="stat-card"><div class="stat-label">Payable</div><div class="stat-value">AED {{ "%.0f"|format(payroll_summ.payable_total) }}</div></div>
-        <div class="stat-card"><div class="stat-label">Open Invoices</div><div class="stat-value">{{ payroll_summ.open_purchases }}</div></div>
-        <div class="stat-card"><div class="stat-label">Suppliers</div><div class="stat-value">{{ payroll_summ.supplier_count }}</div></div>
-        <div class="stat-card"><div class="stat-label">Total Invoices</div><div class="stat-value">{{ payroll_summ.supp_inv_count }}</div></div>
-    </div>
-    <div class="charts-row">
-        <div class="chart-panel"><h3>Monthly NET Purchases + VAT</h3><canvas id="suppMain" height="160"></canvas></div>
-        <div class="chart-panel"><h3>Purchases vs VAT Trend</h3><canvas id="suppTrend" height="160"></canvas></div>
-    </div>
-</div>
-
-<div class="section">
-    <div class="section-header">
-        <span style="width:4px;height:18px;background:#7b1fa2;border-radius:2px;display:inline-block"></span>
-        <h2>Employee Report</h2>
-        <span class="badge">Payroll &amp; HR</span>
-    </div>
-    <div class="stats-row">
-        <div class="stat-card"><div class="stat-label">Total Employees</div><div class="stat-value">{{ employee_data.total }} <span style="font-size:0.7rem;font-weight:600;color:#2CB15C;">({{ employee_data.active }} Active)</span></div></div>
-        <div class="stat-card"><div class="stat-label">Monthly Salary</div><div class="stat-value">AED {{ "%.0f"|format(employee_data.total_salary) }}</div></div>
-        <div class="stat-card"><div class="stat-label">Advances O/S</div><div class="stat-value" style="color:#c62828">AED {{ "%.0f"|format(employee_data.advances) }}</div></div>
-        <div class="stat-card"><div class="stat-label">Stored This Month</div><div class="stat-value">{{ employee_data.stored }}</div></div>
-    </div>
-    <div class="charts-row">
-        <div class="chart-panel"><h3>Monthly Salary Trend</h3><canvas id="empMain" height="160"></canvas></div>
-        <div class="chart-panel"><h3>Department Breakdown</h3><canvas id="empDept" height="160"></canvas></div>
-    </div>
-</div>
+<p class="rp-foot">
+  Sources: customer_invoices / customer_payments / customer_credit_notes · supplier_invoices / supplier_expenses / supplier_payment_records + approved maintenance · salary_store / salary_slips / driver_transactions · loan_entries / annual_fee_entries / owner_fund_entries
+</p>
 
 </div>
 
 <script>
-const m = {{ payroll_chart.months|tojson }};
-const s = {{ payroll_chart.sales|tojson }};
-const sv = {{ payroll_chart.output_vat|tojson }};
-const p = {{ payroll_chart.purchases|tojson }};
-const pv = {{ payroll_chart.input_vat|tojson }};
-const es = {{ employee_data.salary_by_month|tojson }};
-const dl = {{ employee_data.dept_labels|tojson }};
-const dv = {{ employee_data.dept_values|tojson }};
+const mm = {{ d.months|tojson }};
+function money(v){ return 'AED ' + Number(v).toLocaleString(); }
+function ch(id, cfg){
+  const el = document.getElementById(id);
+  if(!el) return;
+  cfg.options = cfg.options || {};
+  cfg.options.maintainAspectRatio = false;
+  cfg.options.responsive = true;
+  new Chart(el, cfg);
+}
+const grid = { color:'rgba(15,39,73,.07)' };
+const tick = { font:{ size:10 }, callback:v => Number(v).toLocaleString() };
+const leg = { position:'bottom', labels:{ boxWidth:10, padding:12, font:{ size:10 } } };
+function tt(unit){ return { callbacks:{ label:c => c.dataset.label + ': ' + (unit === 'AED' ? money(c.parsed.y ?? c.parsed) : c.parsed) } }; }
 
-function ch(id, cfg){ const c = document.getElementById(id); if(c){ cfg.options.maintainAspectRatio=false; new Chart(c, cfg); } }
-
-ch('custMain', {
-    type:'bar', data:{
-        labels:m,
-        datasets:[
-            { label:'NET Sales', data:s, backgroundColor:'#255f99', borderRadius:4, order:2 },
-            { label:'Output VAT', data:sv, backgroundColor:'#c62828', borderRadius:4, order:2 }
-        ]
-    },
-    options:{
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:10, font:{size:10} } } },
-        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
-    }
+ch('rpSales', {
+  type:'bar',
+  data:{ labels:mm, datasets:[
+    { label:'Net Sales', data:{{ d.sales_m|tojson }}, backgroundColor:'#2563eb', borderRadius:5, maxBarThickness:22 },
+    { label:'Output VAT', data:{{ d.outvat_m|tojson }}, backgroundColor:'#93b4f8', borderRadius:5, maxBarThickness:22 }
+  ]},
+  options:{ plugins:{ legend:leg, tooltip:tt('AED') },
+    scales:{ x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } }, y:{ beginAtZero:true, grid:grid, ticks:tick } } }
 });
 
-ch('custTrend', {
-    type:'line', data:{
-        labels:m,
-        datasets:[
-            { label:'NET Sales', data:s, borderColor:'#255f99', backgroundColor:function(ctx){
-                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
-                g.addColorStop(0,'rgba(37,95,153,0.3)'); g.addColorStop(1,'rgba(37,95,153,0)'); return g;
-            }, fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#255f99', borderWidth:2 },
-            { label:'Output VAT', data:sv, borderColor:'#c62828', backgroundColor:function(ctx){
-                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
-                g.addColorStop(0,'rgba(198,40,40,0.25)'); g.addColorStop(1,'rgba(198,40,40,0)'); return g;
-            }, fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#c62828', borderWidth:2 }
-        ]
-    },
-    options:{
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:10, font:{size:10} } } },
-        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
-    }
+ch('rpPurch', {
+  type:'bar',
+  data:{ labels:mm, datasets:[
+    { label:'Net Purchases', data:{{ d.purch_m|tojson }}, backgroundColor:'#f59e0b', borderRadius:5, maxBarThickness:22 },
+    { label:'Input VAT', data:{{ d.inpvat_m|tojson }}, backgroundColor:'#fcd9a0', borderRadius:5, maxBarThickness:22 }
+  ]},
+  options:{ plugins:{ legend:leg, tooltip:tt('AED') },
+    scales:{ x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } }, y:{ beginAtZero:true, grid:grid, ticks:tick } } }
 });
 
-ch('suppMain', {
-    type:'bar', data:{
-        labels:m,
-        datasets:[
-            { label:'NET Purchases', data:p, backgroundColor:'#f7931e', borderRadius:4, order:2 },
-            { label:'Input VAT', data:pv, backgroundColor:'#2CB15C', borderRadius:4, order:2 }
-        ]
-    },
-    options:{
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:10, font:{size:10} } } },
-        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
-    }
+ch('rpSalary', {
+  type:'line',
+  data:{ labels:mm, datasets:[
+    { label:'Salary Cost', data:{{ d.salary_m|tojson }}, borderColor:'#7c3aed', borderWidth:2.5, tension:.38,
+      pointRadius:4, pointBackgroundColor:'#7c3aed', fill:true,
+      backgroundColor:c => { const g = c.chart.ctx.createLinearGradient(0,0,0,220);
+        g.addColorStop(0,'rgba(124,58,237,.28)'); g.addColorStop(1,'rgba(124,58,237,0)'); return g; } }
+  ]},
+  options:{ plugins:{ legend:{ display:false }, tooltip:tt('AED') },
+    scales:{ x:{ grid:{ display:false }, ticks:{ font:{ size:10 } } }, y:{ beginAtZero:true, grid:grid, ticks:tick } } }
 });
 
-ch('suppTrend', {
-    type:'line', data:{
-        labels:m,
-        datasets:[
-            { label:'NET Purchases', data:p, borderColor:'#f7931e', backgroundColor:function(ctx){
-                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
-                g.addColorStop(0,'rgba(247,147,30,0.3)'); g.addColorStop(1,'rgba(247,147,30,0)'); return g;
-            }, fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#f7931e', borderWidth:2 },
-            { label:'Input VAT', data:pv, borderColor:'#2CB15C', backgroundColor:function(ctx){
-                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
-                g.addColorStop(0,'rgba(44,177,92,0.25)'); g.addColorStop(1,'rgba(44,177,92,0)'); return g;
-            }, fill:true, tension:0.4, pointRadius:3, pointBackgroundColor:'#2CB15C', borderWidth:2 }
-        ]
-    },
-    options:{
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:10, font:{size:10} } } },
-        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
-    }
-});
-
-ch('empMain', {
-    type:'line', data:{
-        labels:m,
-        datasets:[{
-            label:'Salary Cost', data:es, borderColor:'#7b1fa2',
-            backgroundColor:function(ctx){
-                const g = ctx.chart.ctx.createLinearGradient(0,0,0,200);
-                g.addColorStop(0,'rgba(123,31,162,0.3)'); g.addColorStop(1,'rgba(123,31,162,0)'); return g;
-            }, fill:true, tension:0.4, pointRadius:4, pointBackgroundColor:'#7b1fa2', borderWidth:2
-        }]
-    },
-    options:{
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ display:false } },
-        scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'AED '+v.toLocaleString() } } }
-    }
-});
-
-ch('empDept', {
-    type:'doughnut', data:{
-        labels:dl,
-        datasets:[{ data:dv, backgroundColor:['#255f99','#f7931e','#7b1fa2','#c62828','#2CB15C','#e65100','#0288d1','#17345e'] }]
-    },
-    options:{
-        responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ position:'bottom', labels:{ boxWidth:10, padding:8, font:{size:10} } } },
-        cutout:'60%'
-    }
+ch('rpDept', {
+  type:'doughnut',
+  data:{ labels:{{ d.dept_labels|tojson }}, datasets:[{ data:{{ d.dept_values|tojson }},
+    backgroundColor:['#2563eb','#f59e0b','#7c3aed','#0d9488','#dc2626','#16a34a','#0284c7','#0f2749','#e11d48','#65a30d'],
+    borderColor:'#fff', borderWidth:2 }]},
+  options:{ cutout:'62%', plugins:{ legend:leg } }
 });
 </script>
 {% endblock %}
