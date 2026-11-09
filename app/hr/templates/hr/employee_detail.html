@@ -704,11 +704,14 @@
     {% endif %}
 
     <form method="POST" class="sr-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="salary_store_id" value="{{ slip_selected_salary.id }}">
+      <input type="hidden" name="paid_now_submitted" value="1">
       <div class="sr-row">
         <label for="deductionAmount">Advance deduction</label>
         <div class="sr-amount">
           <span>AED</span>
-          <input type="number" name="deduction" id="deductionAmount" value="{{ deduction }}" min="0" step="0.01" oninput="updatePreview()">
+          <input type="number" name="deduction_amount" id="deductionAmount" value="{{ deduction }}" min="0" max="{{ '%.2f'|format(slip_available_advance|float) }}" step="0.01" oninput="updatePreview()">
           <button type="button" class="sr-fill" onclick="fillMax()">Fill Max</button>
         </div>
       </div>

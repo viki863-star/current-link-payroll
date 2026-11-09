@@ -210,7 +210,7 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("technician_login"))
         # Redirect back to the referring page so the user doesn't lose
         # their place when a CSRF token expires mid-form (e.g. salary slip form).
-        referrer = request.referrer or url_for("index")
+        referrer = request.referrer or url_for("login")
         flash("Session expired. Please try again.", "error")
         return redirect(referrer)
 
