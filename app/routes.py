@@ -10383,9 +10383,16 @@ def register_routes(app: Flask) -> None:
 
         photo_name = driver["photo_name"] or ""
         if photo_name:
-            photo_path = Path(app.config["GENERATED_DIR"]) / photo_name
-            if photo_path.exists():
-                return send_file(photo_path, mimetype=driver["photo_content_type"] or None)
+            gen = Path(app.config["GENERATED_DIR"])
+            base = Path(photo_name).name
+            for photo_path in (
+                gen / photo_name,
+                gen / "drivers" / photo_name,
+                gen / "drivers" / "employee_photos" / base,
+                gen / "employee_photos" / base,
+            ):
+                if photo_path.exists():
+                    return send_file(photo_path, mimetype=driver["photo_content_type"] or None)
         abort(404)
 
     @app.get("/generated/<path:filename>")
@@ -20866,9 +20873,17 @@ def _driver_photo_url(app: Flask, driver) -> str | None:
     photo_name = driver["photo_name"] if driver and driver["photo_name"] else ""
     if not photo_name:
         return None
-    photo_path = Path(app.config["GENERATED_DIR"]) / photo_name
-    if photo_path.exists():
-        return url_for("generated_file", filename=photo_name)
+    gen = Path(app.config["GENERATED_DIR"])
+    base = Path(photo_name).name
+    for photo_path in (
+        gen / photo_name,
+        gen / "drivers" / photo_name,
+        gen / "drivers" / "employee_photos" / base,
+        gen / "employee_photos" / base,
+    ):
+        if photo_path.exists():
+            rel = photo_path.relative_to(gen).as_posix()
+            return url_for("generated_file", filename=rel)
     return None
 
 

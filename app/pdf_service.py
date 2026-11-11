@@ -3159,13 +3159,21 @@ def _draw_driver_photo(pdf: canvas.Canvas, driver, generated_dir: str, x: float,
 
     raw = driver.get("photo_name") or _dl.get("photo_name") or ""
     if raw:
-        photo_path = Path(generated_dir) / raw
-        if photo_path.exists():
-            try:
-                pdf.drawImage(_fit_image_reader(photo_path.read_bytes(), 640), x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
-                return True
-            except Exception:
-                pass
+        gen = Path(generated_dir)
+        base = Path(raw).name
+        candidates = [
+            gen / raw,
+            gen / "drivers" / raw,
+            gen / "drivers" / "employee_photos" / base,
+            gen / "employee_photos" / base,
+        ]
+        for photo_path in candidates:
+            if photo_path.exists():
+                try:
+                    pdf.drawImage(_fit_image_reader(photo_path.read_bytes(), 640), x, y, width=w, height=h, preserveAspectRatio=True, mask="auto")
+                    return True
+                except Exception:
+                    continue
     return False
 
 
