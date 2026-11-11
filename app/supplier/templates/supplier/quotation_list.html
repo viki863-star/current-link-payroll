@@ -21,7 +21,7 @@
                     <tr>
                         <td class="mono" style="font-weight:600">{{ q.quotation_no }}</td>
                         <td class="mono">{{ q.quotation_date }}</td>
-                        <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ "%.0f"|format(q.amount) }}</td>
+                        <td class="mono" style="font-weight:600;color:var(--primary)">AED {{ q.amount|money }}</td>
                         <td style="font-size:0.78rem;max-width:140px;white-space:normal">{{ q.description or '—' }}</td>
                         <td>
                             <a href="{{ url_for('supplier.supplier_quotation_pdf', sup_id=s.id, q_id=q.id) }}" class="btn btn-xs btn-outline" style="margin-right:4px">PDF</a>

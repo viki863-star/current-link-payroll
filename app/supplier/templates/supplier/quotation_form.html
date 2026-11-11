@@ -91,11 +91,19 @@ Contact Person: Mr. Nasrullah<br>
 </style>
 
 <script>
+function fmtAmt(n) {
+    n = Math.round(n * 1e6) / 1e6;
+    var s = n.toFixed(6).replace(/0+$/, '');
+    if (s.indexOf('.') === -1) s += '.00';
+    else { var d = s.split('.')[1]; if (d.length < 2) s += '0'.repeat(2 - d.length); }
+    return s;
+}
+
 function calcRow(el) {
     var row = el.closest('tr');
     var qty = parseFloat(row.querySelector('.item-qty').value) || 0;
     var rate = parseFloat(row.querySelector('.item-rate').value) || 0;
-    row.querySelector('.item-amount').value = (qty * rate).toFixed(2);
+    row.querySelector('.item-amount').value = fmtAmt(qty * rate);
     calcTotal();
 }
 
@@ -104,7 +112,7 @@ function calcTotal() {
     document.querySelectorAll('.item-amount').forEach(function(el) {
         total += parseFloat(el.value) || 0;
     });
-    document.getElementById('totalAmount').textContent = total.toFixed(2);
+    document.getElementById('totalAmount').textContent = fmtAmt(total);
 }
 
 function addRow(data) {

@@ -145,7 +145,7 @@
           <label>
             <input type="checkbox" name="expense_ids" value="{{ exp.id }}" class="pay-check" data-amount="{{ exp.amount }}"
               {{ 'checked' if pay and pay.expense_ids and exp.id|string in pay.expense_ids.split(',') else '' }}>
-            <span style="flex:1">{{ exp.description or exp.category }} — AED {{ "%.2f"|format(exp.amount) }}</span>
+            <span style="flex:1">{{ exp.description or exp.category }} — AED {{ exp.amount|money }}</span>
           </label>
           {% else %}
           <div class="empty-state" style="padding:16px 0;font-size:0.82rem;text-align:center;color:var(--muted)">No unpaid earnings/expenses.</div>

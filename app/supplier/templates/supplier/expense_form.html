@@ -69,7 +69,7 @@
       <div id="efFixed" style="display:{{ 'none' if ef_type not in ('fixed','monthly') else '' }}">
         <div class="ef-row">
           <label>Amount *</label>
-          <input type="number" name="amount" step="0.01" min="0" class="form-control" placeholder="0.00" value="{{ exp.amount if ef_type in ('fixed','monthly') and exp else '' }}">
+          <input type="number" name="amount" step="any" min="0" class="form-control" placeholder="0.00" value="{{ exp.amount if ef_type in ('fixed','monthly') and exp else '' }}">
         </div>
       </div>
 
@@ -77,14 +77,14 @@
         <div class="ef-grid-2">
           <div class="ef-row">
             <label id="qtyLbl">{{ 'Hours' if ef_type == 'hour' else 'Trip Count' }}</label>
-            <input type="number" name="quantity" step="0.01" min="0" class="form-control" id="qtyInput" oninput="calcEFTotal()" placeholder="0" value="{{ exp.quantity if exp and exp.quantity != None else '' }}">
+            <input type="number" name="quantity" step="any" min="0" class="form-control" id="qtyInput" oninput="calcEFTotal()" placeholder="0" value="{{ exp.quantity if exp and exp.quantity != None else '' }}">
           </div>
           <div class="ef-row">
             <label id="rateLbl">{{ 'Rate per Hour' if ef_type == 'hour' else 'Rate per Trip' }}</label>
-            <input type="number" name="rate" step="0.01" min="0" class="form-control" id="rateInput" oninput="calcEFTotal()" placeholder="0.00" value="{{ exp.rate if exp else '' }}">
+            <input type="number" name="rate" step="any" min="0" class="form-control" id="rateInput" oninput="calcEFTotal()" placeholder="0.00" value="{{ exp.rate if exp else '' }}">
           </div>
         </div>
-        <div class="ef-total">Total: AED <span id="efTotalDisplay">{{ "%.2f"|format(exp.amount|float) if ef_type not in ('fixed','monthly') and exp else '0.00' }}</span></div>
+        <div class="ef-total">Total: AED <span id="efTotalDisplay">{{ (exp.amount|money) if ef_type not in ('fixed','monthly') and exp else '0.00' }}</span></div>
       </div>
 
       <div class="ef-row">
@@ -145,10 +145,17 @@ function toggleType(el) {
   else if (t === 'hour') { document.getElementById('qtyLbl').textContent = 'Hours'; document.getElementById('rateLbl').textContent = 'Rate per Hour'; }
   calcEFTotal();
 }
+function fmtAmt(n) {
+  n = Math.round(n * 1e6) / 1e6;
+  var s = n.toFixed(6).replace(/0+$/, '');
+  if (s.indexOf('.') === -1) s += '.00';
+  else { var d = s.split('.')[1]; if (d.length < 2) s += '0'.repeat(2 - d.length); }
+  return s;
+}
 function calcEFTotal() {
   var q = parseFloat(document.getElementById('qtyInput').value) || 0;
   var r = parseFloat(document.getElementById('rateInput').value) || 0;
-  document.getElementById('efTotalDisplay').textContent = (q * r).toFixed(2);
+  document.getElementById('efTotalDisplay').textContent = fmtAmt(q * r);
 }
 {% if ef_type not in ('fixed','monthly') %}
 calcEFTotal();

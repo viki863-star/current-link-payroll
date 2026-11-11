@@ -48,6 +48,25 @@ def _schema_db():
     return DatabaseAdapter(conn, backend)
 
 
+def _fmt_money(v):
+    """Format an amount keeping up to 6 decimals — no 2-dp rounding (0.077 stays 0.077)."""
+    try:
+        n = round(float(v or 0), 6)
+    except (TypeError, ValueError):
+        return "0.00"
+    neg = n < 0
+    n = abs(n)
+    frac = f"{n:.6f}".split(".", 1)[1].rstrip("0")
+    if len(frac) < 2:
+        frac = (frac + "00")[:2]
+    return ("-" if neg else "") + f"{int(n):,}" + "." + frac
+
+
+@supplier_bp.app_template_filter("money")
+def _money_filter(v):
+    return _fmt_money(v)
+
+
 # ── Emirates ID (supplier) ────────────────────────────────
 # Stored base64 on the suppliers row and rendered inline on the payment voucher.
 EID_IMAGE_MIMES = ("image/jpeg", "image/jpg", "image/png", "image/webp")
@@ -1950,14 +1969,14 @@ def supplier_lpo_add(sup_id):
             qty = float(qtys[i]) if qtys[i] else 1
             basis = basis_types[i] if i < len(basis_types) else "trip"
             rate = float(rates[i]) if i < len(rates) and rates[i] else 0
-            amt = round(qty * rate, 2)
+            amt = round(qty * rate, 6)
             total_amount += amt
             db.execute(
                 "INSERT INTO supplier_lpo_items (lpo_id, description, qty, basis_type, day_rate, amount, sort_order) VALUES (?,?,?,?,?,?,?)",
                 (lpo_id, desc, qty, basis, rate, amt, i),
             )
 
-        db.execute("UPDATE supplier_lpos SET amount=? WHERE id=?", (round(total_amount, 2), lpo_id))
+        db.execute("UPDATE supplier_lpos SET amount=? WHERE id=?", (round(total_amount, 6), lpo_id))
         db.commit()
 
         flash("LPO added.", "success")
@@ -2025,7 +2044,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
             qty = float(qtys[i]) if qtys[i] else 1
             basis = basis_types[i] if i < len(basis_types) else "trip"
             rate = float(rates[i]) if i < len(rates) and rates[i] else 0
-            amt = round(qty * rate, 2)
+            amt = round(qty * rate, 6)
             total_amount += amt
             db.execute(
                 "INSERT INTO supplier_lpo_items (lpo_id, description, qty, basis_type, day_rate, amount, sort_order) VALUES (?,?,?,?,?,?,?)",
@@ -2033,7 +2052,7 @@ def supplier_lpo_edit(sup_id, lpo_id):
             )
 
         db.execute("UPDATE supplier_lpos SET lpo_no=?, lpo_date=?, lpo_type=?, quotation_id=?, amount=?, description=?, notes=?, payment_terms=? WHERE id=?",
-                   (lpo_no, lpo_date, lpo_type, qid, round(total_amount, 2), description, notes, payment_terms, lpo_id))
+                   (lpo_no, lpo_date, lpo_type, qid, round(total_amount, 6), description, notes, payment_terms, lpo_id))
         if att_data is not None:
             db.execute("UPDATE supplier_lpos SET attachment_name=?, attachment_data=?, attachment_type=? WHERE id=?",
                        (att_name, att_data, att_type, lpo_id))
@@ -2343,15 +2362,15 @@ def supplier_lpo_pdf(sup_id, lpo_id):
             Paragraph(it["description"], c9),
             Paragraph(str(it["qty"]), b9),
             Paragraph(basis_labels.get(it["basis_type"], it["basis_type"]), ParagraphStyle("cx", fontSize=8, leading=10, spaceAfter=0, alignment=TA_CENTER)),
-            Paragraph(f"{it['day_rate'] or 0:,.2f}", c9r),
-            Paragraph(f"{it['amount'] or 0:,.2f}", ParagraphStyle("crb", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_RIGHT)),
+            Paragraph(_fmt_money(it["day_rate"]), c9r),
+            Paragraph("<b>" + _fmt_money(it["amount"]) + "</b>", ParagraphStyle("crb", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_RIGHT)),
         ])
 
     i_rows.append([
         Paragraph("", c9),
         Paragraph("<b>TOTAL</b>", ParagraphStyle("ttl", fontSize=10, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=13, textColor=DARK)),
         Paragraph("", c9), Paragraph("", c9), Paragraph("", c9),
-        Paragraph(f"<b>{total_amt:,.2f}</b>",
+        Paragraph(f"<b>{_fmt_money(total_amt)}</b>",
                    ParagraphStyle("ttv", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14)),
     ])
 
@@ -2376,7 +2395,7 @@ def supplier_lpo_pdf(sup_id, lpo_id):
 
     summary_data = [
         [Paragraph("Total Amount (AED)", ParagraphStyle("tsl", fontSize=8, textColor=MUTED, leading=10, spaceAfter=0)),
-         Paragraph(f"<b>{total_amt:,.2f}</b>",
+         Paragraph(f"<b>{_fmt_money(total_amt)}</b>",
                    ParagraphStyle("tsv", fontSize=14, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=17))],
         [Paragraph("Amount in Words", ParagraphStyle("awl", fontSize=8, textColor=MUTED, leading=10, spaceAfter=0)),
          Paragraph(f"<b>{num_to_words(total_amt)}</b>",
@@ -2641,14 +2660,14 @@ def supplier_quotation_add(sup_id):
             qty = float(qtys[i]) if qtys[i] else 1
             basis = basis_types[i] if i < len(basis_types) else "trip"
             rate = float(rates[i]) if i < len(rates) and rates[i] else 0
-            amt = round(qty * rate, 2)
+            amt = round(qty * rate, 6)
             total_amount += amt
             db.execute(
                 "INSERT INTO supplier_quotation_items (quotation_id, description, qty, basis_type, day_rate, amount, sort_order) VALUES (?,?,?,?,?,?,?)",
                 (q_id, desc, qty, basis, rate, amt, i),
             )
 
-        db.execute("UPDATE supplier_quotations SET amount=? WHERE id=?", (total_amount, q_id))
+        db.execute("UPDATE supplier_quotations SET amount=? WHERE id=?", (round(total_amount, 6), q_id))
         db.commit()
 
         flash("Quotation added.", "success")
@@ -2797,13 +2816,13 @@ def supplier_quotation_pdf(sup_id, q_id):
             Paragraph(str(idx+1), s_cell_b), Paragraph(it["description"], s_cell),
             Paragraph(str(it["qty"]), s_cell_b),
             Paragraph(basis_labels.get(it["basis_type"], it["basis_type"]), s_cell),
-            Paragraph(f"{it['day_rate'] or 0:,.2f}", s_cell_r),
-            Paragraph(f"{it['amount'] or 0:,.2f}", ParagraphStyle("cr3", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_RIGHT)),
+            Paragraph(_fmt_money(it["day_rate"]), s_cell_r),
+            Paragraph("<b>" + _fmt_money(it["amount"]) + "</b>", ParagraphStyle("cr3", fontSize=8, fontName="Helvetica-Bold", leading=10, spaceAfter=0, alignment=TA_RIGHT)),
         ])
     i_rows.append([
         Paragraph("", s_cell), Paragraph("<b>TOTAL</b>", ParagraphStyle("tl", fontSize=10, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=13)),
         Paragraph("", s_cell), Paragraph("", s_cell), Paragraph("", s_cell),
-        Paragraph(f"<b>{total_amt:,.2f}</b>", ParagraphStyle("tv", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14)),
+        Paragraph(f"<b>{_fmt_money(total_amt)}</b>", ParagraphStyle("tv", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14)),
     ])
     i_tbl = Table(i_rows, colWidths=[None]*6, repeatRows=1)
     i_tbl.setStyle(TableStyle([
@@ -2824,18 +2843,18 @@ def supplier_quotation_pdf(sup_id, q_id):
     # ── SUB TOTAL / VAT / TOTAL ──
     sub_total = total_amt
     vat_pct = 5
-    vat_amt = round(sub_total * vat_pct / 100, 2)
-    grand_total = round(sub_total + vat_amt, 2)
+    vat_amt = round(sub_total * vat_pct / 100, 6)
+    grand_total = round(sub_total + vat_amt, 6)
 
     s_sm = ParagraphStyle("sm", fontSize=9, alignment=TA_RIGHT, leading=12)
     s_sm_b = ParagraphStyle("smb", fontSize=9, fontName="Helvetica-Bold", alignment=TA_RIGHT, leading=12)
     s_sm_l = ParagraphStyle("sml", fontSize=9, textColor=MUTED, alignment=TA_RIGHT, leading=12)
 
     totals_rows = [
-        [Paragraph("Sub Total", s_sm_l), Paragraph(f"AED {sub_total:,.2f}", s_sm)],
-        [Paragraph(f"VAT @ {vat_pct}%", s_sm_l), Paragraph(f"AED {vat_amt:,.2f}", s_sm)],
+        [Paragraph("Sub Total", s_sm_l), Paragraph(f"AED {_fmt_money(sub_total)}", s_sm)],
+        [Paragraph(f"VAT @ {vat_pct}%", s_sm_l), Paragraph(f"AED {_fmt_money(vat_amt)}", s_sm)],
         [Paragraph("", s_sm), Paragraph("", s_sm)],
-        [Paragraph("<b>Total</b>", s_sm_b), Paragraph(f"<b>AED {grand_total:,.2f}</b>", ParagraphStyle("tv2", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14))],
+        [Paragraph("<b>Total</b>", s_sm_b), Paragraph(f"<b>AED {_fmt_money(grand_total)}</b>", ParagraphStyle("tv2", fontSize=11, fontName="Helvetica-Bold", alignment=TA_RIGHT, textColor=NAVY, leading=14))],
     ]
     totals_tbl = Table(totals_rows, colWidths=[None, 4*cm])
     totals_tbl.setStyle(TableStyle([
@@ -2989,14 +3008,14 @@ def supplier_expense_add(sup_id):
                 return render_template("supplier/expense_form.html", s=s, exp={})
             qty_f = float(qty)
             rate_f = float(rate)
-            amount = round(qty_f * rate_f, 2)
+            amount = round(qty_f * rate_f, 6)
         elif earning_type == "hour":
             if not qty or not rate:
                 flash("Hours and rate are required.", "error")
                 return render_template("supplier/expense_form.html", s=s, exp={})
             qty_f = float(qty)
             rate_f = float(rate)
-            amount = round(qty_f * rate_f, 2)
+            amount = round(qty_f * rate_f, 6)
         else:
             amount = request.form.get("amount", "").strip()
             qty_f = None
@@ -3073,7 +3092,7 @@ def supplier_expense_edit(sup_id, exp_id):
         if earning_type in ("trip", "hour"):
             qty_f = float(qty) if qty else 0
             rate_f = float(rate) if rate else 0
-            amount = round(qty_f * rate_f, 2)
+            amount = round(qty_f * rate_f, 6)
         else:
             amount = float(request.form.get("amount", 0))
             qty_f = None

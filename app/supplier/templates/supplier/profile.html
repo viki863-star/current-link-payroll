@@ -242,7 +242,7 @@
   {% set is_inv = e.earning_type == 'invoice' %}
   {% set lbl = 'Invoice' if is_inv else (e.earning_type|title if e.earning_type else 'Fixed') %}
   {% set detail = e.description or e.category %}
-  {% if e.quantity and e.rate and not is_inv %}{% set detail = detail ~ ' (' ~ e.quantity ~ ' × ' ~ ("%.0f"|format(e.rate)) ~ ')' %}{% endif %}
+  {% if e.quantity and e.rate and not is_inv %}{% set detail = detail ~ ' (' ~ e.quantity ~ ' × ' ~ (e.rate|money) ~ ')' %}{% endif %}
   {% set _ = all_earnings.append({
     'date': e.expense_date, 'ref': lbl, 'type': lbl,
     'detail': detail, 'vehicle': e.vehicle_no or '-',
@@ -261,7 +261,7 @@
   <div class="section-header">
     <h3>{% if earn_month %}Earnings — {{ earn_month }}{% else %}All Earnings{% endif %}</h3>
     {% if all_earnings %}
-    <span class="section-total">Total: AED {{ "%.0f"|format(all_earnings|sum(attribute='amount')) }}</span>
+    <span class="section-total">Total: AED {{ (all_earnings|sum(attribute='amount'))|money }}</span>
     {% endif %}
   </div>
   {% if all_earnings %}
@@ -274,7 +274,7 @@
           <td class="mono">{{ r.date }}</td>
           <td><span class="status-badge {{ 'approved' if r.type == 'Invoice' else 'active' }}">{{ r.type }}</span></td>
           <td style="font-size:0.82rem">{{ r.detail }}</td>
-          <td class="r mono" style="font-weight:700">{{ "%.0f"|format(r.amount) }}</td>
+          <td class="r mono" style="font-weight:700">{{ r.amount|money }}</td>
           <td><span class="status-badge {{ 'active' if r.status == 'approved' or r.status == 'paid' else 'pending' }}" style="font-size:0.6rem">{{ r.status }}</span></td>
           <td>
             <div style="display:flex;gap:4px">
@@ -393,7 +393,7 @@
           <td class="mono" style="font-weight:700">{{ lpo.lpo_no }}</td>
           <td class="mono">{{ lpo.lpo_date }}</td>
           <td><span class="badge badge-type">{{ LPO_TYPE_LABELS.get(lpo.lpo_type, lpo.lpo_type) }}</span></td>
-          <td class="r mono" style="font-weight:700">{{ "%.0f"|format(lpo.amount) }}</td>
+          <td class="r mono" style="font-weight:700">{{ lpo.amount|money }}</td>
           <td class="c mono">{{ lpo.inv_count or 0 }}</td>
           <td><span class="status-badge {% if lpo.status == 'closed' %}active{% else %}pending{% endif %}">{{ lpo.status }}</span></td>
           <td>
