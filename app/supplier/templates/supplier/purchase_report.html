@@ -4,192 +4,490 @@
 {% block page_title %}Supplier Purchase Report{% endblock %}
 
 {% block content %}
-<div class="db-shell">
-    <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between;margin-bottom:22px;">
-        <div>
-            <div style="font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#7b92b6;">Accounts</div>
-            <h1 style="margin:8px 0 10px;font-size:36px;line-height:1;color:#17345e;">Supplier Purchase Report</h1>
+<style>
+  /* ═══════════════════════════════════════════════════════════════
+     SUPPLIER PURCHASE REPORT — PROFESSIONAL REDESIGN (.pr scoped)
+     ═══════════════════════════════════════════════════════════════ */
+  :root {
+    --pr-ink: #0f2a54;
+    --pr-slate: #475569;
+    --pr-muted: #7b92b6;
+    --pr-line: #d8e4f5;
+    --pr-bg: #f4f7fc;
+    --pr-blue: #1c568b;
+    --pr-orange: #f7931e;
+    --pr-green: #16a34a;
+    --pr-navy: #0f2a54;
+  }
+  .pr-shell { max-width: 1400px; margin: 0 auto; padding: 4px 20px 34px; font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+
+  /* ─── Hero ─── */
+  .pr-hero {
+    position: relative; overflow: hidden;
+    background: linear-gradient(130deg, #0f2a54 0%, #164a86 55%, #1c568b 100%);
+    border-radius: 20px; padding: 26px 30px 24px; color: #fff;
+    box-shadow: 0 24px 48px -26px rgba(15, 42, 84, .55);
+    display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .pr-hero::before {
+    content: ""; position: absolute; top: -70px; right: -40px; width: 300px; height: 300px;
+    border-radius: 50%; background: rgba(255,255,255,.06); pointer-events: none;
+  }
+  .pr-hero::after {
+    content: ""; position: absolute; bottom: -90px; left: 30%; width: 220px; height: 220px;
+    border-radius: 50%; background: rgba(255,255,255,.04); pointer-events: none;
+  }
+  .pr-hero-left, .pr-hero-right { position: relative; z-index: 1; }
+  .pr-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(247,147,30,.16); border: 1px solid rgba(247,147,30,.45);
+    color: #ffd9a3; font-size: .64rem; font-weight: 800; letter-spacing: .18em;
+    text-transform: uppercase; padding: 5px 12px; border-radius: 999px;
+  }
+  .pr-hero h1 { margin: 12px 0 7px; font-size: 1.95rem; font-weight: 800; letter-spacing: -.4px; }
+  .pr-hero-sub { margin: 0; font-size: .84rem; color: rgba(255,255,255,.75); line-height: 1.6; }
+  .pr-hero-sub b { color: #fff; font-weight: 700; }
+
+  .pr-filterbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .pr-fld { display: flex; flex-direction: column; gap: 5px; }
+  .pr-fld label { font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.65); }
+  .pr-fld input[type="date"] {
+    background: rgba(255,255,255,.96); border: 1px solid rgba(255,255,255,.35);
+    color: var(--pr-ink); border-radius: 10px; padding: 8px 11px; font-size: .82rem; font-weight: 600;
+    min-width: 150px; outline: none;
+  }
+  .pr-fld input[type="date"]:focus { box-shadow: 0 0 0 3px rgba(247,147,30,.35); }
+  .pr-btn {
+    display: inline-flex; align-items: center; gap: 7px; border: 0; cursor: pointer;
+    border-radius: 10px; padding: 9px 16px; font-size: .8rem; font-weight: 700;
+    text-decoration: none; transition: transform .15s, filter .15s, background .15s;
+    font-family: inherit;
+  }
+  .pr-btn:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  .pr-btn-apply { background: var(--pr-orange); color: #fff; }
+  .pr-btn-ghost { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.3); }
+  .pr-btn-xls { background: #217346; color: #fff; }
+  .pr-btn-pdf { background: #c62828; color: #fff; }
+  .pr-hero-exports { display: flex; gap: 9px; margin-top: 13px; flex-wrap: wrap; }
+
+  /* ─── Quick period chips ─── */
+  .pr-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .pr-qchip {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    background: #fff; border: 1px solid var(--pr-line); color: var(--pr-slate);
+    font-size: .76rem; font-weight: 700; padding: 7px 14px; border-radius: 999px;
+    transition: all .15s;
+  }
+  .pr-qchip:hover { border-color: var(--pr-blue); color: var(--pr-blue); background: #f0f6ff; }
+  .pr-qchip.is-on { background: var(--pr-navy); border-color: var(--pr-navy); color: #fff; box-shadow: 0 8px 18px -10px rgba(15,42,84,.6); }
+
+  /* ─── KPIs ─── */
+  .pr-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .pr-kpi {
+    background: #fff; border: 1px solid var(--pr-line); border-radius: 16px; padding: 17px 18px 15px;
+    position: relative; overflow: hidden; box-shadow: 0 2px 6px rgba(15,42,84,.04);
+  }
+  .pr-kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--kc, var(--pr-blue)); }
+  .pr-kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .pr-kpi-label { font-size: .64rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--pr-muted); }
+  .pr-kpi-ico {
+    width: 34px; height: 34px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--kc-bg, #e8f0fe); font-size: .95rem;
+  }
+  .pr-kpi-val { margin-top: 9px; font-size: 1.42rem; font-weight: 800; color: var(--pr-ink); letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
+  .pr-kpi-sub { margin-top: 4px; font-size: .71rem; color: var(--pr-muted); font-weight: 600; }
+  .pr-kpi-sub b { color: var(--kc, var(--pr-blue)); font-weight: 800; }
+
+  /* ─── Insights ─── */
+  .pr-insights { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+  @media (max-width: 980px) { .pr-insights { grid-template-columns: 1fr; } }
+  .pr-panel { background: #fff; border: 1px solid var(--pr-line); border-radius: 16px; padding: 18px 20px 16px; box-shadow: 0 2px 6px rgba(15,42,84,.04); }
+  .pr-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .pr-panel-head h3 { margin: 0; font-size: .92rem; font-weight: 800; color: var(--pr-ink); letter-spacing: -.2px; }
+  .pr-panel-tag { font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--pr-muted); background: var(--pr-bg); border: 1px solid var(--pr-line); padding: 4px 10px; border-radius: 999px; }
+
+  .pr-stack { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: #eef3fa; margin-bottom: 14px; }
+  .pr-stack span { height: 100%; min-width: 2px; transition: filter .2s; }
+  .pr-stack span:hover { filter: brightness(1.12); }
+
+  .pr-trow { display: flex; align-items: center; gap: 11px; padding: 8px 0; border-top: 1px dashed #e6edf7; }
+  .pr-trow:first-of-type { border-top: 0; }
+  .pr-tdot { width: 11px; height: 11px; border-radius: 4px; flex: 0 0 auto; }
+  .pr-tname { font-size: .8rem; font-weight: 700; color: var(--pr-ink); }
+  .pr-tcount { font-size: .68rem; color: var(--pr-muted); font-weight: 600; margin-left: 2px; }
+  .pr-tamts { margin-left: auto; text-align: right; }
+  .pr-tamts b { display: block; font-size: .82rem; font-weight: 800; color: var(--pr-ink); font-variant-numeric: tabular-nums; }
+  .pr-tamts small { font-size: .67rem; color: var(--pr-muted); font-weight: 700; }
+
+  .pr-srow { position: relative; display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 11px; overflow: hidden; }
+  .pr-srow + .pr-srow { margin-top: 3px; }
+  .pr-srow-bg { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, rgba(28,86,139,.12), rgba(28,86,139,.03)); border-radius: 11px; z-index: 0; transform-origin: left center; }
+  .pr-srank {
+    position: relative; z-index: 1; width: 24px; height: 24px; border-radius: 8px; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: .68rem; font-weight: 800; background: #eef3fa; color: var(--pr-blue);
+  }
+  .pr-srank.top { background: linear-gradient(135deg, #f7931e, #e65100); color: #fff; box-shadow: 0 6px 14px -8px rgba(230,81,0,.8); }
+  .pr-sname { position: relative; z-index: 1; font-size: .79rem; font-weight: 700; color: var(--pr-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+  .pr-sname small { display: block; font-size: .65rem; color: var(--pr-muted); font-weight: 600; }
+  .pr-samt { position: relative; z-index: 1; font-size: .8rem; font-weight: 800; color: var(--pr-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* ─── Toolbar ─── */
+  .pr-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .pr-search { position: relative; flex: 1; min-width: 240px; max-width: 430px; }
+  .pr-search svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+  .pr-search input {
+    width: 100%; box-sizing: border-box; padding: 10px 14px 10px 40px;
+    border: 1.5px solid var(--pr-line); border-radius: 12px; font-size: .84rem;
+    outline: none; background: #fff; color: var(--pr-ink); font-weight: 600; transition: border .18s, box-shadow .18s;
+  }
+  .pr-search input::placeholder { color: #9db2cf; font-weight: 500; }
+  .pr-search input:focus { border-color: var(--pr-orange); box-shadow: 0 0 0 3px rgba(247,147,30,.16); }
+  .pr-count { font-size: .76rem; font-weight: 700; color: var(--pr-slate); background: #fff; border: 1px solid var(--pr-line); padding: 7px 13px; border-radius: 999px; }
+  .pr-count b { color: var(--pr-ink); }
+  .pr-clear {
+    display: none; border: 0; cursor: pointer; background: #eef3fa; color: var(--pr-blue);
+    font-size: .74rem; font-weight: 700; padding: 8px 13px; border-radius: 999px; font-family: inherit;
+  }
+  .pr-clear:hover { background: #e0eaf8; }
+  .pr-duplegend { margin-left: auto; font-size: .72rem; font-weight: 600; color: var(--pr-muted); display: inline-flex; align-items: center; gap: 7px; }
+  .pr-duplegend i { width: 14px; height: 14px; border-radius: 4px; background: #fff3cd; border: 1px solid #ffe69a; display: inline-block; }
+
+  /* ─── Table ─── */
+  .pr-card { background: #fff; border: 1px solid var(--pr-line); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 14px rgba(15,42,84,.05); }
+  .pr-twrap { overflow: auto; max-height: 68vh; }
+  .pr-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .81rem; min-width: 940px; }
+  .pr-table thead th {
+    position: sticky; top: 0; z-index: 3;
+    background: #0f2a54; color: #cfe0f5; text-align: left;
+    font-size: .63rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    padding: 13px 14px; white-space: nowrap; box-shadow: inset 0 -1px 0 rgba(255,255,255,.08);
+  }
+  .pr-table thead th.num { text-align: right; }
+  .pr-table tbody td { padding: 11px 14px; border-bottom: 1px solid #eef3fa; color: var(--pr-ink); vertical-align: middle; }
+  .pr-table tbody tr { transition: background .12s; }
+  .pr-table tbody tr:hover { background: #f7faff; }
+  .pr-date { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--pr-slate); font-size: .78rem; }
+  .pr-badge {
+    display: inline-block; padding: 3px 9px; border-radius: 7px;
+    font-size: .64rem; font-weight: 800; letter-spacing: .06em; white-space: nowrap;
+  }
+  .pr-inono { font-family: 'SF Mono', Consolas, monospace; font-weight: 700; font-size: .78rem; white-space: nowrap; }
+  .pr-dup {
+    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 5px;
+    background: #f59e0b; color: #fff; font-size: .56rem; font-weight: 800; letter-spacing: .08em; vertical-align: 1px;
+  }
+  .pr-sup { font-weight: 600; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pr-amt { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .pr-amt.net { color: var(--pr-slate); }
+  .pr-amt.vat { color: var(--pr-orange); font-weight: 700; }
+  .pr-amt.gross { color: var(--pr-ink); font-weight: 800; }
+  .pr-act { text-align: center; white-space: nowrap; }
+  .pr-a {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 8px;
+    font-size: .73rem; font-weight: 700; text-decoration: none; border: 1px solid transparent; transition: filter .15s;
+  }
+  .pr-a:hover { filter: brightness(.94); }
+  .pr-a.job { background: #f0f6ff; color: #255f99; border-color: #c8daf5; }
+  .pr-a.paper { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  .pr-a.bill { background: #fff0f6; color: #831843; border-color: #e5b8d1; }
+  .pr-a.invoice { background: #f0fdf4; color: #047857; border-color: #a7f3d0; }
+  .pr-none { color: #cbd5e1; font-size: .78rem; }
+
+  .pr-table tr.dup td { background: #fff9e6; }
+  .pr-table tr.dup:hover td { background: #fff3cd; }
+
+  .pr-table tfoot td {
+    position: sticky; bottom: 0; z-index: 2;
+    background: #f5f8fe; border-top: 2px solid #d8e4f5; border-bottom: 0;
+    padding: 13px 14px; font-weight: 800; color: var(--pr-ink); font-size: .82rem;
+  }
+  .pr-table tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pr-table tfoot td .v { color: var(--pr-orange); }
+
+  .pr-empty { padding: 52px 20px; text-align: center; }
+  .pr-empty .ico { font-size: 2.4rem; opacity: .55; }
+  .pr-empty h4 { margin: 12px 0 5px; font-size: .95rem; color: var(--pr-ink); }
+  .pr-empty p { margin: 0; font-size: .8rem; color: var(--pr-muted); }
+
+  .pr-foot { margin-top: 12px; font-size: .71rem; color: var(--pr-muted); display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; }
+</style>
+
+<div class="pr-shell">
+
+  {# ═══ HERO ═══ #}
+  <div class="pr-hero">
+    <div class="pr-hero-left">
+      <span class="pr-chip">&#9654; Accounts &middot; Purchases</span>
+      <h1>Supplier Purchase Report</h1>
+      <p class="pr-hero-sub">
+        Net, VAT &amp; gross purchases across Invoice, Paper, Job and Supplier Bill sources.
+        {% if from_filter or to_filter %}
+          Period <b>{{ from_filter or 'Start' }}</b> &rarr; <b>{{ to_filter or 'End' }}</b> &middot; <b>{{ invoices|length }}</b> record{{ '' if invoices|length == 1 else 's' }}
+        {% else %}
+          All periods &middot; <b>{{ invoices|length }}</b> record{{ '' if invoices|length == 1 else 's' }}
+        {% endif %}
+      </p>
+      <div class="pr-hero-exports">
+        <a class="pr-btn pr-btn-xls" href="{{ url_for('supplier.supplier_purchase_report_excel', from=from_filter, to=to_filter) }}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+          Export Excel
+        </a>
+        <a class="pr-btn pr-btn-pdf" href="{{ url_for('supplier.supplier_purchase_report_pdf', from=from_filter, to=to_filter) }}">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Export PDF
+        </a>
+      </div>
+    </div>
+    <div class="pr-hero-right">
+      <form method="get" class="pr-filterbar">
+        <div class="pr-fld">
+          <label for="prFrom">From</label>
+          <input type="date" id="prFrom" name="from" value="{{ from_filter }}">
         </div>
-        <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            <label style="font-size:.78rem;font-weight:600">From:
-                <input type="date" name="from" value="{{ from_filter }}" style="padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;margin-left:4px">
-            </label>
-            <label style="font-size:.78rem;font-weight:600">To:
-                <input type="date" name="to" value="{{ to_filter }}" style="padding:6px 10px;border:1px solid #d8e4f5;border-radius:8px;font-size:.82rem;margin-left:4px">
-            </label>
-            <button type="submit" style="padding:7px 16px;border:0;border-radius:8px;background:#f7931e;color:#fff;font-weight:700;cursor:pointer;">Filter</button>
-            {% if from_filter or to_filter %}
-            <a href="{{ url_for('supplier.supplier_purchase_report') }}" style="padding:7px 16px;border:0;border-radius:8px;background:#255f99;color:#fff;font-weight:700;text-decoration:none;">Clear</a>
-            {% endif %}
-        </form>
-        <div style="display:flex;gap:8px">
-            <a href="{{ url_for('supplier.supplier_purchase_report_excel', from=from_filter, to=to_filter) }}"
-               style="padding:7px 16px;border:0;border-radius:8px;background:#217346;color:#fff;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:0.82rem">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                Excel
-            </a>
-            <a href="{{ url_for('supplier.supplier_purchase_report_pdf', from=from_filter, to=to_filter) }}"
-               style="padding:7px 16px;border:0;border-radius:8px;background:#c62828;color:#fff;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:0.82rem">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                PDF
-            </a>
+        <div class="pr-fld">
+          <label for="prTo">To</label>
+          <input type="date" id="prTo" name="to" value="{{ to_filter }}">
         </div>
+        <button type="submit" class="pr-btn pr-btn-apply">&#128269; Apply</button>
+        {% if from_filter or to_filter %}
+        <a class="pr-btn pr-btn-ghost" href="{{ url_for('supplier.supplier_purchase_report') }}">&#10005; Clear</a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  {# ═══ QUICK PERIOD CHIPS ═══ #}
+  <div class="pr-chips">
+    <a class="pr-qchip {{ 'is-on' if not from_filter and not to_filter }}" href="{{ url_for('supplier.supplier_purchase_report') }}">&#8734; All</a>
+    {% for label, c_from, c_to in period_chips %}
+    <a class="pr-qchip {{ 'is-on' if from_filter == c_from and to_filter == c_to }}" href="{{ url_for('supplier.supplier_purchase_report', from=c_from, to=c_to) }}">{{ label }}</a>
+    {% endfor %}
+  </div>
+
+  {# ═══ KPI CARDS ═══ #}
+  {% set vat_pct = ((total_vat / total_net * 100)|round(1)) if total_net > 0 else 0 %}
+  <div class="pr-kpis">
+    <div class="pr-kpi" style="--kc:#1c568b;--kc-bg:#e8f0fe">
+      <div class="pr-kpi-top"><span class="pr-kpi-label">Total NET Purchases</span><span class="pr-kpi-ico">&#128230;</span></div>
+      <div class="pr-kpi-val">AED {{ "{:,.2f}".format(total_net) }}</div>
+      <div class="pr-kpi-sub">Before VAT &middot; {{ invoices|length }} record{{ '' if invoices|length == 1 else 's' }}</div>
+    </div>
+    <div class="pr-kpi" style="--kc:#f7931e;--kc-bg:#fff3e0">
+      <div class="pr-kpi-top"><span class="pr-kpi-label">Total Input VAT</span><span class="pr-kpi-ico">&#128176;</span></div>
+      <div class="pr-kpi-val" style="color:#e65100">AED {{ "{:,.2f}".format(total_vat) }}</div>
+      <div class="pr-kpi-sub"><b>{{ vat_pct }}%</b> of net purchase value</div>
+    </div>
+    <div class="pr-kpi" style="--kc:#16a34a;--kc-bg:#e7f8ee">
+      <div class="pr-kpi-top"><span class="pr-kpi-label">Total GROSS Purchases</span><span class="pr-kpi-ico">&#9989;</span></div>
+      <div class="pr-kpi-val" style="color:#15803d">AED {{ "{:,.2f}".format(total_gross) }}</div>
+      <div class="pr-kpi-sub">Net + VAT payable basis</div>
+    </div>
+    <div class="pr-kpi" style="--kc:#7c3aed;--kc-bg:#f3ecff">
+      <div class="pr-kpi-top"><span class="pr-kpi-label">Records &amp; Suppliers</span><span class="pr-kpi-ico">&#128203;</span></div>
+      <div class="pr-kpi-val">{{ invoices|length }}</div>
+      <div class="pr-kpi-sub"><b>{{ unique_suppliers }}</b> supplier{{ '' if unique_suppliers == 1 else 's' }}{% if dup_count %} &middot; <b style="color:#d97706">{{ dup_count }}</b> duplicate{{ '' if dup_count == 1 else 's' }}{% endif %}</div>
+    </div>
+  </div>
+
+  {# ═══ INSIGHTS ═══ #}
+  {% set sup_max = top_suppliers[0][1].gross if top_suppliers else 0 %}
+  <div class="pr-insights">
+    <div class="pr-panel">
+      <div class="pr-panel-head">
+        <h3>Purchases by Source</h3>
+        <span class="pr-panel-tag">Gross share</span>
+      </div>
+      {% set tstyle = {
+        'Invoice': ('#1c568b', 'INVOICE'),
+        'Paper': ('#f59e0b', 'PAPER'),
+        'Job': ('#16a34a', 'JOB'),
+        'Supplier Bill': ('#db2777', 'SUPPLIER BILL')
+      } %}
+      <div class="pr-stack">
+        {% for name, st in type_rows %}
+        {% set col = (tstyle.get(name, ('#64748b', name|upper)))[0] %}
+        <span style="width:{{ (st.gross / total_gross * 100)|round(2) if total_gross > 0 else 0 }}%;background:{{ col }}" title="{{ name }}: AED {{ "{:,.2f}".format(st.gross) }}"></span>
+        {% endfor %}
+      </div>
+      {% for name, st in type_rows %}
+      {% set col = (tstyle.get(name, ('#64748b', name|upper)))[0] %}
+      <div class="pr-trow">
+        <span class="pr-tdot" style="background:{{ col }}"></span>
+        <span class="pr-tname">{{ name }} <span class="pr-tcount">&times; {{ st.count }}</span></span>
+        <span class="pr-tamts">
+          <b>AED {{ "{:,.2f}".format(st.gross) }}</b>
+          <small>{{ (st.gross / total_gross * 100)|round(1) if total_gross > 0 else 0 }}% &middot; VAT AED {{ "{:,.2f}".format(st.vat) }}</small>
+        </span>
+      </div>
+      {% else %}
+      <p style="margin:6px 0 0;font-size:.8rem;color:var(--pr-muted)">No purchase records in this period.</p>
+      {% endfor %}
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;">
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total NET Purchases</div>
-            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">AED {{ "{:,.2f}".format(total_net) }}</div>
-        </div>
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Input VAT</div>
-            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#f7931e;">AED {{ "{:,.2f}".format(total_vat) }}</div>
-        </div>
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total GROSS Purchases</div>
-            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#2CB15C;">AED {{ "{:,.2f}".format(total_gross) }}</div>
-        </div>
-        <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;padding:18px;">
-            <div style="font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#7b92b6;">Total Records</div>
-            <div style="margin-top:8px;font-size:22px;font-weight:800;color:#17345e;">{{ invoices|length }}</div>
-        </div>
+    <div class="pr-panel">
+      <div class="pr-panel-head">
+        <h3>Top Suppliers by Gross</h3>
+        <span class="pr-panel-tag">Top {{ top_suppliers|length }}</span>
+      </div>
+      {% for name, st in top_suppliers %}
+      <div class="pr-srow">
+        <span class="pr-srow-bg" style="width:{{ (st.gross / sup_max * 100)|round(1) if sup_max > 0 else 0 }}%"></span>
+        <span class="pr-srank {{ 'top' if loop.index <= 3 }}">{{ loop.index }}</span>
+        <span class="pr-sname" title="{{ name }}">{{ name }}<small>{{ st.count }} purchase{{ '' if st.count == 1 else 's' }}</small></span>
+        <span class="pr-samt">AED {{ "{:,.2f}".format(st.gross) }}</span>
+      </div>
+      {% else %}
+      <p style="margin:6px 0 0;font-size:.8rem;color:var(--pr-muted)">No suppliers in this period.</p>
+      {% endfor %}
     </div>
+  </div>
 
-    <!-- Bill / Invoice Number Search -->
-    <div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div style="position:relative;flex:1;min-width:220px;max-width:380px;">
-            <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);pointer-events:none;opacity:.45;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#17345e" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input id="inv-search" type="text" placeholder="Search by Bill / Invoice No…"
-                   style="width:100%;box-sizing:border-box;padding:8px 12px 8px 36px;border:1.5px solid #d8e4f5;border-radius:10px;font-size:.84rem;outline:none;transition:border .2s;"
-                   onfocus="this.style.borderColor='#f7931e'" onblur="this.style.borderColor='#d8e4f5'"
-                   oninput="filterByInvoice(this.value)">
-        </div>
-        <span id="inv-search-count" style="font-size:.78rem;color:#7b92b6;display:none;"></span>
-        <button onclick="document.getElementById('inv-search').value='';filterByInvoice('');"
-                style="display:none;padding:6px 14px;border:0;border-radius:8px;background:#e8f0fe;color:#1c568b;font-weight:700;cursor:pointer;font-size:.78rem;"
-                id="inv-search-clear">✕ Clear</button>
+  {# ═══ TOOLBAR ═══ #}
+  <div class="pr-toolbar">
+    <div class="pr-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7b92b6" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="prSearch" type="text" placeholder="Search invoice no or supplier name…" oninput="prFilter(this.value)">
     </div>
+    <span class="pr-count" id="prCount"><b>{{ invoices|length }}</b> record{{ '' if invoices|length == 1 else 's' }}</span>
+    <button class="pr-clear" id="prClear" onclick="var i=document.getElementById('prSearch');i.value='';prFilter('');">&#10005; Clear</button>
+    {% if dup_count %}
+    <span class="pr-duplegend"><i></i> {{ dup_count }} duplicate row{{ '' if dup_count == 1 else 's' }} highlighted (same invoice no + supplier)</span>
+    {% endif %}
+  </div>
 
-    <div style="background:#fff;border:1px solid #d8e4f5;border-radius:18px;overflow-x:auto;">
-        <style>
-            .pr-row-duplicate { background-color: #fff3cd !important; }
-            .pr-row-duplicate:hover { background-color: #ffc107 !important; }
-        </style>
-        <table id="purchase-table" style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:760px;">
-            <thead>
-                <tr style="background:#f5f8fe;text-align:left">
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">DATE</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">TYPE</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;white-space:nowrap;">REF / INVOICE NO</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;">DETAIL</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">NET Purchase</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">VAT</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:right;white-space:nowrap;">GROSS Purchase</th>
-                    <th style="padding:12px 14px;color:#17345e;font-weight:700;text-align:center;white-space:nowrap;">ACTION</th>
-                </tr>
-            </thead>
-            <tbody id="purchase-tbody">
-                {% for inv in invoices %}
-                <tr class="pr-row{% if inv.is_duplicate %} pr-row-duplicate{% endif %}" style="border-top:1px solid #eef3fa">
-                    <td style="padding:10px 14px;white-space:nowrap;">{{ inv.invoice_date }}</td>
-                    <td style="padding:10px 14px;white-space:nowrap;">
-                        {% if inv.source_type == 'Invoice' %}
-                        <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#e8f0fe;color:#1c568b;font-size:.7rem;font-weight:700;">INVOICE</span>
-                        {% elif inv.source_type == 'Paper' %}
-                        <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#fef3c7;color:#92400e;font-size:.7rem;font-weight:700;">PAPER</span>
-                        {% elif inv.source_type == 'Job' %}
-                        <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#ecfdf5;color:#047857;font-size:.7rem;font-weight:700;">JOB</span>
-                        {% elif inv.source_type == 'Supplier Bill' %}
-                        <span style="display:inline-block;padding:2px 8px;border-radius:6px;background:#fff0f6;color:#831843;font-size:.7rem;font-weight:700;">SUPPLIER BILL</span>
-                        {% endif %}
-                    </td>
-                    <td class="pr-inv-no" style="padding:10px 14px;white-space:nowrap;font-weight:600;">{{ inv.invoice_no or '—' }}</td>
-                    <td style="padding:10px 14px;color:#17345e;">{{ inv.supplier_name }}</td>
-                    <td style="padding:10px 14px;text-align:right;">AED {{ "{:,.2f}".format(inv.net_sale) }}</td>
-                    <td style="padding:10px 14px;text-align:right;color:#f7931e;">AED {{ "{:,.2f}".format(inv.vat_amount) }}</td>
-                    <td style="padding:10px 14px;text-align:right;font-weight:600;">AED {{ "{:,.2f}".format(inv.total_amount) }}</td>
-                    <td style="padding:10px 14px;text-align:center;white-space:nowrap;">
-                        {% if inv.source_type == 'Job' %}
-                        <a href="/fleet/jobs/{{ inv.record_id }}/edit"
-                           style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:#f0f6ff;color:#255f99;font-size:.75rem;font-weight:700;text-decoration:none;border:1px solid #c8daf5;transition:background .15s;"
-                           title="Edit Job #{{ inv.record_id }}"
-                           onmouseover="this.style.background='#d9eaff'" onmouseout="this.style.background='#f0f6ff'">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                            Edit
-                        </a>
-                        {% elif inv.source_type == 'Paper' %}
-                        <a href="/fleet/maintenance?screen=papers&edit_paper={{ inv.record_id }}"
-                           style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:#fffbeb;color:#92400e;font-size:.75rem;font-weight:700;text-decoration:none;border:1px solid #fde68a;transition:background .15s;"
-                           title="Edit Paper {{ inv.record_id }}"
-                           onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#fffbeb'">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                            Edit
-                        </a>
-                        {% elif inv.source_type == 'Supplier Bill' and inv.supplier_id and inv.record_id %}
-                        <a href="/supplier/bills/{{ inv.record_id }}/edit"
-                           style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:#fff0f6;color:#831843;font-size:.75rem;font-weight:700;text-decoration:none;border:1px solid #e5b8d1;transition:background .15s;"
-                           title="Edit Bill #{{ inv.record_id }}"
-                           onmouseover="this.style.background='#fdeef7'" onmouseout="this.style.background='#fff0f6'">
-                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2 2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                             Edit
-                         </a>
-                         {% elif inv.source_type == 'Invoice' and inv.supplier_id and inv.record_id %}
-                        <a href="/supplier/{{ inv.supplier_id }}/invoices/{{ inv.record_id }}/edit"
-                           style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;background:#f0fdf4;color:#047857;font-size:.75rem;font-weight:700;text-decoration:none;border:1px solid #a7f3d0;transition:background .15s;"
-                           title="Edit Invoice #{{ inv.record_id }}"
-                           onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='#f0fdf4'">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                            Edit
-                        </a>
-                        {% else %}
-                        <span style="color:#d1d5db;font-size:.75rem;">—</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="8" style="padding:32px;text-align:center;color:#a0b5cf;">No purchase records found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr style="background:#f5f8fe;font-weight:700">
-                    <td colspan="4" style="padding:12px 14px;color:#17345e;">TOTALS</td>
-                    <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_net) }}</td>
-                    <td style="padding:12px 14px;text-align:right;color:#f7931e;">AED {{ "{:,.2f}".format(total_vat) }}</td>
-                    <td style="padding:12px 14px;text-align:right;">AED {{ "{:,.2f}".format(total_gross) }}</td>
-                    <td></td>
-                </tr>
-            </tfoot>
-        </table>
-        <div id="inv-no-match" style="display:none;padding:32px;text-align:center;color:#a0b5cf;">No records match that bill / invoice number.</div>
+  {# ═══ TABLE ═══ #}
+  <div class="pr-card">
+    <div class="pr-twrap">
+      <table class="pr-table" id="purchase-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Ref / Invoice No</th>
+            <th>Supplier</th>
+            <th class="num">Net Purchase</th>
+            <th class="num">VAT</th>
+            <th class="num">Gross Purchase</th>
+            <th style="text-align:center">Action</th>
+          </tr>
+        </thead>
+        <tbody id="purchase-tbody">
+          {% for inv in invoices %}
+          <tr class="pr-row{% if inv.is_duplicate %} dup{% endif %}"
+              data-inv="{{ (inv.invoice_no or '')|lower }}" data-sup="{{ (inv.supplier_name or '')|lower }}"
+              data-net="{{ inv.net_sale }}" data-vat="{{ inv.vat_amount }}" data-gross="{{ inv.total_amount }}">
+            <td class="pr-date">{{ inv.invoice_date or '—' }}</td>
+            <td>
+              {% set tstyle2 = {
+                'Invoice': ('#e8f0fe', '#1c568b', 'INVOICE'),
+                'Paper': ('#fef3c7', '#92400e', 'PAPER'),
+                'Job': ('#ecfdf5', '#047857', 'JOB'),
+                'Supplier Bill': ('#fff0f6', '#831843', 'SUPPLIER BILL')
+              } %}
+              {% set tb = tstyle2.get(inv.source_type, ('#f1f5f9', '#475569', inv.source_type|upper)) %}
+              <span class="pr-badge" style="background:{{ tb[0] }};color:{{ tb[1] }}">{{ tb[2] }}</span>
+            </td>
+            <td class="pr-inono">{{ inv.invoice_no or '—' }}{% if inv.is_duplicate %}<span class="pr-dup">DUP</span>{% endif %}</td>
+            <td><div class="pr-sup" title="{{ inv.supplier_name }}">{{ inv.supplier_name }}</div></td>
+            <td class="pr-amt net">AED {{ "{:,.2f}".format(inv.net_sale) }}</td>
+            <td class="pr-amt vat">AED {{ "{:,.2f}".format(inv.vat_amount) }}</td>
+            <td class="pr-amt gross">AED {{ "{:,.2f}".format(inv.total_amount) }}</td>
+            <td class="pr-act">
+              {% if inv.source_type == 'Job' %}
+              <a class="pr-a job" href="/fleet/jobs/{{ inv.record_id }}/edit" title="Edit Job #{{ inv.record_id }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </a>
+              {% elif inv.source_type == 'Paper' %}
+              <a class="pr-a paper" href="/fleet/maintenance?screen=papers&edit_paper={{ inv.record_id }}" title="Edit Paper {{ inv.record_id }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </a>
+              {% elif inv.source_type == 'Supplier Bill' and inv.supplier_id and inv.record_id %}
+              <a class="pr-a bill" href="/supplier/bills/{{ inv.record_id }}/edit" title="Edit Bill #{{ inv.record_id }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </a>
+              {% elif inv.source_type == 'Invoice' and inv.supplier_id and inv.record_id %}
+              <a class="pr-a invoice" href="/supplier/{{ inv.supplier_id }}/invoices/{{ inv.record_id }}/edit" title="Edit Invoice #{{ inv.record_id }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Edit
+              </a>
+              {% else %}
+              <span class="pr-none">&mdash;</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8">
+              <div class="pr-empty">
+                <div class="ico">&#129534;</div>
+                <h4>No purchase records found</h4>
+                <p>Adjust the date range or clear the search to see purchases.</p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot id="prFoot">
+          <tr>
+            <td colspan="4">TOTALS <span id="prFootNote" style="font-weight:600;color:#7b92b6;font-size:.72rem;"></span></td>
+            <td class="num" id="prFootNet">AED {{ "{:,.2f}".format(total_net) }}</td>
+            <td class="num"><span class="v" id="prFootVat">AED {{ "{:,.2f}".format(total_vat) }}</span></td>
+            <td class="num" id="prFootGross">AED {{ "{:,.2f}".format(total_gross) }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
+    <div class="pr-empty" id="prNoMatch" style="display:none;">
+      <div class="ico">&#128269;</div>
+      <h4>No records match your search</h4>
+      <p>Try another invoice number or supplier name.</p>
+    </div>
+  </div>
+
+  <div class="pr-foot">
+    <span>Sources: Invoice &middot; Paper &middot; Job &middot; Supplier Bill &nbsp;|&nbsp; VAT shown at document rate</span>
+    <span>{{ invoices|length }} records &middot; generated live from purchase ledger</span>
+  </div>
 </div>
 
 <script>
-function filterByInvoice(q) {
-    q = q.trim().toLowerCase();
-    var rows = document.querySelectorAll('#purchase-tbody .pr-row');
-    var shown = 0;
-    rows.forEach(function(row) {
-        var invNo = (row.querySelector('.pr-inv-no') || {}).textContent || '';
-        var match = !q || invNo.toLowerCase().indexOf(q) !== -1;
-        row.style.display = match ? '' : 'none';
-        if (match) shown++;
-    });
-    var countEl = document.getElementById('inv-search-count');
-    var noMatch = document.getElementById('inv-no-match');
-    var clearBtn = document.getElementById('inv-search-clear');
-    if (q) {
-        countEl.textContent = shown + ' record(s) found';
-        countEl.style.display = '';
-        clearBtn.style.display = '';
-        noMatch.style.display = shown === 0 ? 'block' : 'none';
-    } else {
-        countEl.style.display = 'none';
-        clearBtn.style.display = 'none';
-        noMatch.style.display = 'none';
+function prFilter(q) {
+  q = (q || '').trim().toLowerCase();
+  var rows = document.querySelectorAll('#purchase-tbody .pr-row');
+  var shown = 0, n = 0, v = 0, g = 0;
+  rows.forEach(function (row) {
+    var hay = (row.getAttribute('data-inv') || '') + ' ' + (row.getAttribute('data-sup') || '');
+    var match = !q || hay.indexOf(q) !== -1;
+    row.style.display = match ? '' : 'none';
+    if (match) {
+      shown++;
+      n += parseFloat(row.getAttribute('data-net')) || 0;
+      v += parseFloat(row.getAttribute('data-vat')) || 0;
+      g += parseFloat(row.getAttribute('data-gross')) || 0;
     }
+  });
+  var f = function (x) { return 'AED ' + x.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var cnt = document.getElementById('prCount');
+  var note = document.getElementById('prFootNote');
+  if (q) {
+    cnt.innerHTML = '<b>' + shown + '</b> of ' + rows.length + ' record(s)';
+    note.textContent = '(filtered)';
+  } else {
+    cnt.innerHTML = '<b>' + rows.length + '</b> record' + (rows.length === 1 ? '' : 's');
+    note.textContent = '';
+  }
+  document.getElementById('prFootNet').textContent = f(n);
+  document.getElementById('prFootVat').textContent = f(v);
+  document.getElementById('prFootGross').textContent = f(g);
+  document.getElementById('prClear').style.display = q ? '' : 'none';
+  var hasRows = rows.length > 0;
+  document.getElementById('prNoMatch').style.display = (q && shown === 0) ? '' : 'none';
 }
 </script>
 {% endblock %}

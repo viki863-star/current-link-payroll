@@ -995,6 +995,39 @@ def _next_code(db):
     return f"SUP{next_num:04d}"
 
 
+def _resolve_or_create_supplier(db, ref):
+    """Resolve a supplier from an id (digits) or a free-text name.
+    Creates a new Active supplier when the name is not registered yet.
+    Returns (row, created_name) — row is None when ref is empty, created_name
+    is set only when a new supplier was inserted."""
+    ref = (ref or "").strip()
+    if not ref:
+        return None, None
+    row = None
+    if ref.isdigit():
+        row = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (ref,)).fetchone()
+    if not row:
+        row = db.execute(
+            "SELECT id, supplier_name FROM suppliers WHERE LOWER(supplier_name) = ? AND COALESCE(is_deleted,0) = 0 ORDER BY id LIMIT 1",
+            (ref.lower(),),
+        ).fetchone()
+    if row:
+        return row, None
+    code = _next_code(db)
+    if db.backend == "postgres":
+        rid = db.execute(
+            "INSERT INTO suppliers (supplier_code, supplier_name, supplier_type, status) VALUES (?, ?, 'with_invoice', 'Active') RETURNING id",
+            (code, ref),
+        ).fetchone()[0]
+    else:
+        db.execute(
+            "INSERT INTO suppliers (supplier_code, supplier_name, supplier_type, status) VALUES (?, ?, 'with_invoice', 'Active')",
+            (code, ref),
+        )
+        rid = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return {"id": rid, "supplier_name": ref}, ref
+
+
 @supplier_bp.route("/add", methods=["GET", "POST"])
 def supplier_add():
     _ensure_tables()
@@ -4206,6 +4239,36 @@ def supplier_purchase_report():
 
     rows, total_net, total_vat, total_gross = _supplier_purchase_rows(db, from_filter, to_filter)
     db.close()
+
+    # ── Insights: per source-type + per-supplier aggregates ──
+    type_stats = {}
+    sup_stats = {}
+    for r in rows:
+        ts = type_stats.setdefault(r["source_type"], {"count": 0, "net": 0.0, "vat": 0.0, "gross": 0.0})
+        ts["count"] += 1
+        ts["net"] += r["net_sale"]
+        ts["vat"] += r["vat_amount"]
+        ts["gross"] += r["total_amount"]
+        sname = (r["supplier_name"] or "").strip() or "—"
+        ss = sup_stats.setdefault(sname, {"count": 0, "gross": 0.0})
+        ss["count"] += 1
+        ss["gross"] += r["total_amount"]
+    type_rows = sorted(type_stats.items(), key=lambda kv: kv[1]["gross"], reverse=True)
+    top_suppliers = sorted(sup_stats.items(), key=lambda kv: kv[1]["gross"], reverse=True)[:6]
+    dup_count = sum(1 for r in rows if r.get("is_duplicate"))
+
+    # ── Quick period chips ──
+    _today = date.today()
+    _ms = _today.replace(day=1)
+    _lm_end = _ms - timedelta(days=1)
+    _lm_start = _lm_end.replace(day=1)
+    period_chips = [
+        ("Today", _today.isoformat(), _today.isoformat()),
+        ("This Month", _ms.isoformat(), _today.isoformat()),
+        ("Last Month", _lm_start.isoformat(), _lm_end.isoformat()),
+        ("YTD", _today.replace(month=1, day=1).isoformat(), _today.isoformat()),
+    ]
+
     return render_template(
         "supplier/purchase_report.html",
         invoices=rows,
@@ -4214,6 +4277,11 @@ def supplier_purchase_report():
         total_gross=total_gross,
         from_filter=from_filter,
         to_filter=to_filter,
+        type_rows=type_rows,
+        top_suppliers=top_suppliers,
+        unique_suppliers=len(sup_stats),
+        dup_count=dup_count,
+        period_chips=period_chips,
     )
 
 
@@ -4418,7 +4486,7 @@ def supplier_bill_add():
     _ensure_tables()
     db = _get_db()
     if request.method == "POST":
-        supplier_id = request.form.get("supplier_id", "").strip()
+        supplier_ref = request.form.get("supplier_id", "").strip()
         vehicle_plate = request.form.get("vehicle_plate", "").strip()
         bill_no = request.form.get("bill_no", "").strip()
         bill_date = request.form.get("bill_date", "").strip()
@@ -4426,10 +4494,10 @@ def supplier_bill_add():
         is_tax_bill = request.form.get("is_tax_bill") == "on"
         amount_excl = float(request.form.get("amount", 0) or 0)
         discount = float(request.form.get("discount", 0) or 0)
-        if not supplier_id or not vehicle_plate or not bill_no or not bill_date or amount_excl <= 0:
+        if not supplier_ref or not vehicle_plate or not bill_no or not bill_date or amount_excl <= 0:
             flash("Please fill all required fields.", "error")
             return redirect(url_for("supplier.supplier_bill_add"))
-        supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+        supplier, created_name = _resolve_or_create_supplier(db, supplier_ref)
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("supplier.supplier_bill_add"))
@@ -4476,6 +4544,8 @@ def supplier_bill_add():
         db.execute("UPDATE supplier_bills SET source_expense_id = ? WHERE id = ?", (expense_id, bill_id))
         db.commit()
         flash(f"Bill #{bill_no} added — AED {net_amount}", "success")
+        if created_name:
+            flash(f"New supplier created: {created_name}", "success")
         return redirect(url_for("supplier.supplier_bill_list"))
     suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
     vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
@@ -4491,7 +4561,7 @@ def supplier_bill_edit(bill_id):
         flash("Bill not found.", "error")
         return redirect(url_for("supplier.supplier_bill_list"))
     if request.method == "POST":
-        supplier_id = request.form.get("supplier_id", "").strip()
+        supplier_ref = request.form.get("supplier_id", "").strip()
         vehicle_plate = request.form.get("vehicle_plate", "").strip()
         bill_no = request.form.get("bill_no", "").strip()
         bill_date = request.form.get("bill_date", "").strip()
@@ -4499,10 +4569,10 @@ def supplier_bill_edit(bill_id):
         is_tax_bill = request.form.get("is_tax_bill") == "on"
         amount_excl = float(request.form.get("amount", 0) or 0)
         discount = float(request.form.get("discount", 0) or 0)
-        if not supplier_id or not vehicle_plate or not bill_no or not bill_date or amount_excl <= 0:
+        if not supplier_ref or not vehicle_plate or not bill_no or not bill_date or amount_excl <= 0:
             flash("Please fill all required fields.", "error")
             return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
-        supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+        supplier, created_name = _resolve_or_create_supplier(db, supplier_ref)
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
@@ -4533,10 +4603,14 @@ def supplier_bill_edit(bill_id):
             )
         db.commit()
         flash(f"Bill #{bill_no} updated.", "success")
+        if created_name:
+            flash(f"New supplier created: {created_name}", "success")
         return redirect(url_for("supplier.supplier_bill_list"))
     suppliers = db.execute("SELECT id, supplier_name FROM suppliers WHERE status = 'Active' ORDER BY supplier_name").fetchall()
     vehicles = db.execute("SELECT plate_no FROM vehicles ORDER BY plate_no").fetchall()
-    return render_template("supplier/bill_edit.html", suppliers=suppliers, vehicles=vehicles, bill=bill)
+    cur_sup = db.execute("SELECT supplier_name FROM suppliers WHERE id = ?", (bill["supplier_id"],)).fetchone()
+    return render_template("supplier/bill_edit.html", suppliers=suppliers, vehicles=vehicles, bill=bill,
+                           current_supplier_name=(cur_sup["supplier_name"] if cur_sup else ""))
 
 
 @supplier_bp.route("/bills/batch", methods=["POST"])
@@ -4549,18 +4623,19 @@ def supplier_bills_batch():
         flash("No bill rows found.", "error")
         return redirect(url_for("supplier.supplier_bill_add"))
     count = 0
-    last_supplier_name = ""
+    created_names = []
     for vk in v_keys:
         idx = vk.split("_", 1)[1]
-        supplier_id = request.form.get(f"batch_supplier_{idx}", "").strip()
-        if not supplier_id:
-            supplier_id = request.form.get("batch_supplier", "").strip()
-        if not supplier_id:
+        supplier_ref = request.form.get(f"batch_supplier_{idx}", "").strip()
+        if not supplier_ref:
+            supplier_ref = request.form.get("batch_supplier", "").strip()
+        if not supplier_ref:
             continue
-        supplier = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (supplier_id,)).fetchone()
+        supplier, created_name = _resolve_or_create_supplier(db, supplier_ref)
         if not supplier:
             continue
-        last_supplier_name = supplier["supplier_name"]
+        if created_name:
+            created_names.append(created_name)
         vehicle_plate = request.form.get(f"v_{idx}", "").strip()
         bill_no = request.form.get(f"bn_{idx}", "").strip()
         bill_date = request.form.get(f"bd_{idx}", "").strip()
@@ -4617,6 +4692,8 @@ def supplier_bills_batch():
         flash("No bills were saved. Please check all required fields.", "error")
         return redirect(url_for("supplier.supplier_bill_add"))
     flash(f"{count} bill(s) added successfully.", "success")
+    if created_names:
+        flash("New supplier(s) created: " + ", ".join(sorted(set(created_names))), "success")
     return redirect(url_for("supplier.supplier_bill_list"))
 
 

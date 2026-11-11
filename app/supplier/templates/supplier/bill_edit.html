@@ -10,11 +10,12 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="form-row">
         <label class="form-label">Supplier</label>
-        <select name="supplier_id" class="form-control" required>
-          {% for s in suppliers %}
-          <option value="{{ s.id }}" {{ 'selected' if bill.supplier_id == s.id }}>{{ s.supplier_name }}</option>
-          {% endfor %}
-        </select>
+        <input type="text" name="supplier_id" class="form-control" list="sup-edit-dl" required
+               value="{{ current_supplier_name }}" placeholder="Type or select supplier…" autocomplete="off">
+        <datalist id="sup-edit-dl">
+          {% for s in suppliers %}<option value="{{ s.supplier_name }}">{% endfor %}
+        </datalist>
+        <div style="font-size:0.68rem;color:var(--muted);margin-top:4px">Not registered? Type the name — a new supplier is created automatically.</div>
       </div>
       <div class="form-row">
         <label class="form-label">Vehicle</label>
