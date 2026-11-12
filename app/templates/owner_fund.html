@@ -4,57 +4,223 @@
 
 {% block content %}
 <style>
-.of-shell{max-width:1100px;margin:0 auto}
-.of-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
-.of-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 16px;text-align:center}
-.of-card .lb{font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px}
-.of-card .vl{font-size:1.5rem;font-weight:700;margin-top:6px}
-.form-section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
-.form-section h3{margin:0 0 12px;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:8px}
-.form-section h3 .badge{font-size:0.58rem;font-weight:600;padding:2px 8px;border-radius:20px}
-.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
-.form-row .fg{display:flex;flex-direction:column}
-.form-row .fg label{font-size:0.68rem;font-weight:600;color:var(--muted);margin-bottom:3px}
-.form-row .fg input,.form-row .fg select,.form-row .fg textarea{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;background:var(--bg)}
-.form-row .fg textarea{resize:vertical}
-.form-actions{display:flex;gap:6px;align-items:flex-end}
-.form-actions button{padding:7px 18px}
-.twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-@media(max-width:700px){.twocol{grid-template-columns:1fr}}
+.of { --of-ink:#0f2749; --of-muted:#64748b; --of-line:#dbe4f0; --of-bg:#f5f8fc;
+      --of-blue:#2563eb; --of-green:#16a34a; --of-amber:#d97706; --of-red:#dc2626;
+      --of-teal:#0d9488; color:var(--of-ink); max-width:1180px; margin:0 auto; }
+.of * { box-sizing:border-box; }
+
+/* Hero */
+.of-hero { display:flex; justify-content:space-between; align-items:flex-end; gap:18px; flex-wrap:wrap;
+  background:linear-gradient(118deg,#0f2749 0%,#1d3f73 58%,#245c9e 100%); color:#fff;
+  border-radius:18px; padding:26px 28px; margin-bottom:16px; position:relative; overflow:hidden; }
+.of-hero::after { content:""; position:absolute; right:-70px; top:-90px; width:280px; height:280px;
+  background:radial-gradient(circle,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 70%); pointer-events:none; }
+.of-kicker { font-size:.64rem; font-weight:700; letter-spacing:2.2px; text-transform:uppercase; color:#9dc2f4; margin-bottom:8px; }
+.of-title { font-size:1.72rem; font-weight:800; margin:0 0 6px; letter-spacing:-.4px; }
+.of-sub { margin:0; font-size:.82rem; color:#c9dcf7; max-width:560px; line-height:1.5; }
+.of-hero-side { display:flex; gap:10px; flex-wrap:wrap; position:relative; z-index:1; }
+.of-hchip { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22); border-radius:12px;
+  padding:9px 14px; min-width:150px; backdrop-filter:blur(4px); }
+.of-hchip span { display:block; font-size:.6rem; text-transform:uppercase; letter-spacing:1px; color:#a9c9f5; font-weight:700; }
+.of-hchip strong { font-size:.92rem; font-weight:800; color:#fff; font-variant-numeric:tabular-nums; }
+.of-hchip.is-in strong { color:#86efac; }
+.of-hchip.is-out strong { color:#fdba74; }
+.of-hchip.is-bal strong { color:#93c5fd; }
+
+/* KPI band */
+.of-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.of-kpi { background:#fff; border:1px solid var(--of-line); border-radius:16px; padding:16px;
+  position:relative; overflow:hidden; }
+.of-kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--kp,var(--of-blue)); }
+.of-kpi .k-label { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--of-muted); }
+.of-kpi .k-value { font-size:1.18rem; font-weight:800; color:var(--of-ink); margin-top:6px; letter-spacing:-.4px;
+  font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.of-kpi .k-sub { font-size:.66rem; color:var(--of-muted); margin-top:5px; line-height:1.35; }
+.of-kpi.is-pos .k-value { color:var(--of-green); }
+.of-kpi.is-neg .k-value { color:var(--of-red); }
+
+/* Panels */
+.of-sec { background:#fff; border:1px solid var(--of-line); border-radius:16px; padding:18px; margin-bottom:16px; }
+.of-sec-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.of-sec-head h2 { margin:0; font-size:.95rem; font-weight:800; color:var(--of-ink); display:flex; align-items:center; gap:9px; }
+.of-sec-head h2::before { content:""; width:5px; height:18px; background:var(--ac,var(--of-blue)); border-radius:3px; }
+.of-sec-head p { margin:3px 0 0; font-size:.68rem; color:var(--of-muted); }
+.of-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.of-btn { display:inline-flex; align-items:center; gap:6px; font-size:.72rem; font-weight:700;
+  padding:7px 14px; border-radius:999px; text-decoration:none; transition:all .15s; border:1px solid transparent; cursor:pointer; }
+.of-btn-primary { background:var(--of-blue); color:#fff; border-color:var(--of-blue); }
+.of-btn-primary:hover { background:#1d4ed8; box-shadow:0 4px 12px rgba(37,99,235,.25); transform:translateY(-1px); }
+.of-btn-green { background:#15803d; color:#fff; border-color:#15803d; }
+.of-btn-green:hover { background:#166534; box-shadow:0 4px 12px rgba(22,101,52,.25); transform:translateY(-1px); }
+.of-btn-ghost { background:#fff; color:#33507a; border-color:var(--of-line); }
+.of-btn-ghost:hover { border-color:var(--of-blue); color:var(--of-blue); }
+
+/* Filter form */
+.of-filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; align-items:end; }
+.of-fg { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.of-fg label { font-size:.64rem; font-weight:700; color:var(--of-muted); text-transform:uppercase; letter-spacing:.4px; }
+.of-fg input, .of-fg select, .of-fg textarea {
+  padding:8px 11px; border:1px solid var(--of-line); border-radius:9px; font-size:.8rem;
+  background:var(--of-bg); color:var(--of-ink); width:100%; outline:none; transition:border .15s, box-shadow .15s; }
+.of-fg input:focus, .of-fg select:focus, .of-fg textarea:focus {
+  border-color:var(--of-blue); box-shadow:0 0 0 3px rgba(37,99,235,.12); background:#fff; }
+.of-fg textarea { resize:vertical; min-height:34px; }
+.of-fg-actions { display:flex; gap:6px; flex-wrap:wrap; }
+
+/* Money in/out */
+.of-duo { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.of-form-card { background:#fff; border:1px solid var(--of-line); border-radius:16px; padding:18px; position:relative; overflow:hidden; }
+.of-form-card::before { content:""; position:absolute; left:0; right:0; top:0; height:4px; }
+.of-form-card.is-in::before { background:linear-gradient(90deg,#16a34a,#4ade80); }
+.of-form-card.is-out::before { background:linear-gradient(90deg,#ea580c,#f59e0b); }
+.of-form-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.of-form-head h3 { margin:0; font-size:.9rem; font-weight:800; display:flex; align-items:center; gap:8px; }
+.of-form-card.is-in h3 { color:#15803d; }
+.of-form-card.is-out h3 { color:#c2410c; }
+.of-tag { font-size:.58rem; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:3px 9px; border-radius:999px; }
+.of-tag.in { background:#dcfce7; color:#15803d; }
+.of-tag.out { background:#ffedd5; color:#c2410c; }
+.of-form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; }
+.of-form-grid .full { grid-column:1/-1; }
+.of-form-foot { margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.of-submit-in { background:#15803d; border-color:#15803d; color:#fff; }
+.of-submit-in:hover { background:#166534; }
+.of-submit-out { background:#c2410c; border-color:#c2410c; color:#fff; }
+.of-submit-out:hover { background:#9a3412; }
+.of-hint { font-size:.66rem; color:var(--of-muted); margin-top:8px; }
+
+/* Read-only notice */
+.of-ro { background:#fffbeb; border:1px solid #fde68a; border-radius:14px; padding:16px 18px; margin-bottom:16px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.of-ro p { margin:0; font-size:.82rem; color:#92400e; font-weight:600; }
+
+/* Tables */
+.of-tbl-wrap { overflow-x:auto; border-radius:12px; border:1px solid #eef2f8; }
+.of table { width:100%; border-collapse:collapse; font-size:.74rem; background:#fff; }
+.of table th { text-align:left; font-size:.58rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px;
+  color:var(--of-muted); padding:10px 12px; border-bottom:2px solid var(--of-line); background:#f8fafc; white-space:nowrap; }
+.of table td { padding:10px 12px; border-bottom:1px solid #eef2f8; color:#243b5e; vertical-align:middle; }
+.of table tr:last-child td { border-bottom:none; }
+.of table tr:hover td { background:#f7fafd; }
+.of table td.num, .of table th.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+.of table td.strong { font-weight:800; color:var(--of-ink); }
+.of table td.mono, .of .mono { font-family:'SF Mono',Consolas,monospace; font-size:.72rem; }
+.of .empty { text-align:center; color:#94a7c4; font-size:.74rem; padding:28px 12px !important; }
+
+/* Pill badges */
+.of-pill { display:inline-flex; align-items:center; gap:4px; font-size:.6rem; font-weight:800;
+  padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.of-pill.in { background:#dcfce7; color:#15803d; }
+.of-pill.out { background:#ffedd5; color:#c2410c; }
+.of-pill.deposit { background:#dcfce7; color:#15803d; }
+.of-pill.withdrawal { background:#ffedd5; color:#c2410c; }
+.of-pill.method { background:#f1f5f9; color:#475569; text-transform:none; letter-spacing:0; font-weight:700; }
+
+/* Supplier mini KPIs */
+.of-mini { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
+.of-mini-card { background:var(--of-bg); border:1px solid #e6edf7; border-radius:13px; padding:12px 14px; border-left:3px solid var(--of-blue); }
+.of-mini-card.c-green { border-left-color:var(--of-green); }
+.of-mini-card.c-amber { border-left-color:var(--of-amber); }
+.of-mini-card.c-red { border-left-color:var(--of-red); }
+.of-mini-card.c-teal { border-left-color:var(--of-teal); }
+.of-mini-card .c-l { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:var(--of-muted); }
+.of-mini-card .c-v { font-size:1.05rem; font-weight:800; color:var(--of-ink); margin-top:4px; font-variant-numeric:tabular-nums; }
+
+/* Row actions */
+.of-row-actions { display:flex; gap:4px; justify-content:flex-end; white-space:nowrap; }
+.of-icon-btn { display:inline-grid; place-items:center; width:26px; height:26px; border-radius:7px;
+  border:1px solid var(--of-line); background:#fff; color:#33507a; font-size:.78rem; text-decoration:none;
+  cursor:pointer; transition:all .12s; padding:0; }
+.of-icon-btn:hover { border-color:var(--of-blue); color:var(--of-blue); background:#eff6ff; }
+.of-icon-btn.danger { color:#c2410c; }
+.of-icon-btn.danger:hover { border-color:#fdba74; background:#fff7ed; color:#9a3412; }
+
+/* Balance coloring helpers */
+.of-bal-pos { color:var(--of-green); font-weight:800; }
+.of-bal-neg { color:var(--of-red); font-weight:800; }
+.of-in-amt { color:#15803d; font-weight:700; }
+.of-out-amt { color:#c2410c; font-weight:700; }
+
+/* Responsive */
+@media (max-width:980px){
+  .of-duo { grid-template-columns:1fr; }
+  .of-kpis { grid-template-columns:repeat(2,1fr); }
+  .of-mini { grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:640px){
+  .of-hero { padding:20px 18px; }
+  .of-title { font-size:1.4rem; }
+  .of-sec { padding:14px; }
+  .of-kpis { grid-template-columns:1fr; }
+  .of-mini { grid-template-columns:1fr; }
+}
 </style>
 
-<div class="of-shell">
-  {# ═══ STATS ═══ #}
-  <div class="of-grid">
-    <div class="of-card"><div class="lb">Incoming</div><div class="vl" style="color:var(--green)">AED {{ "%.2f"|format(view_incoming) }}</div></div>
-    <div class="of-card"><div class="lb">Used</div><div class="vl" style="color:#e65100">AED {{ "%.2f"|format(view_outgoing) }}</div></div>
-    <div class="of-card"><div class="lb">Net</div><div class="vl" style="color:var(--primary)">AED {{ "%.2f"|format(view_net) }}</div></div>
-    <div class="of-card"><div class="lb">Closing Balance</div><div class="vl" style="color:#c62828">AED {{ "%.2f"|format(view_closing if statement else balance) }}</div></div>
-  </div>
+<div class="of">
+  {# ═══ HERO ═══ #}
+  <header class="of-hero">
+    <div>
+      <div class="of-kicker">Accounts · Owner Capital</div>
+      <h1 class="of-title">Owner Fund</h1>
+      <p class="of-sub">Track money coming in from owners and money going out for operations — deposits, expenses and running balance in one clean statement.</p>
+    </div>
+    <div class="of-hero-side">
+      <div class="of-hchip is-in"><span>Incoming</span><strong>AED {{ "%.2f"|format(view_incoming) }}</strong></div>
+      <div class="of-hchip is-out"><span>Used</span><strong>AED {{ "%.2f"|format(view_outgoing) }}</strong></div>
+      <div class="of-hchip is-bal"><span>Closing Balance</span><strong>AED {{ "%.2f"|format(view_closing if statement else balance) }}</strong></div>
+    </div>
+  </header>
 
-  {# ═══ FILTER + PDF ═══ #}
-  <div class="form-section">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-      <h3 style="margin:0;font-size:0.88rem;font-weight:700">Filter &amp; Export</h3>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <a href="{{ pdf_url }}" class="btn btn-primary btn-sm">Download PDF</a>
-        <a href="{{ url_for('owner_fund_excel', **filters) }}" class="btn btn-sm btn-outline" style="background:#1a7d1a;border-color:#1a7d1a;color:#fff">Download Excel</a>
+  {# ═══ KPI BAND ═══ #}
+  <section class="of-kpis">
+    <div class="of-kpi is-pos" style="--kp:var(--of-green)">
+      <div class="k-label">Incoming</div>
+      <div class="k-value">AED {{ "%.2f"|format(view_incoming) }}</div>
+      <div class="k-sub">Owner deposits &amp; money received into fund</div>
+    </div>
+    <div class="of-kpi" style="--kp:var(--of-amber)">
+      <div class="k-label">Used</div>
+      <div class="k-value">AED {{ "%.2f"|format(view_outgoing) }}</div>
+      <div class="k-sub">Expenses paid out from owner fund</div>
+    </div>
+    <div class="of-kpi" style="--kp:var(--of-blue)">
+      <div class="k-label">Net</div>
+      <div class="k-value">AED {{ "%.2f"|format(view_net) }}</div>
+      <div class="k-sub">Incoming − Used for selected filters</div>
+    </div>
+    <div class="of-kpi {% if (view_closing if statement else balance) >= 0 %}is-pos{% else %}is-neg{% endif %}" style="--kp:var(--of-teal)">
+      <div class="k-label">Closing Balance</div>
+      <div class="k-value">AED {{ "%.2f"|format(view_closing if statement else balance) }}</div>
+      <div class="k-sub">{% if statement %}Filtered statement closing{% else %}All-time fund balance{% endif %}</div>
+    </div>
+  </section>
+
+  {# ═══ FILTER + EXPORT ═══ #}
+  <section class="of-sec">
+    <div class="of-sec-head">
+      <div>
+        <h2 style="--ac:var(--of-blue)">Filter &amp; Export</h2>
+        <p>Narrow the statement by date, movement or search text — then export PDF or Excel.</p>
+      </div>
+      <div class="of-actions">
+        <a href="{{ pdf_url }}" class="of-btn of-btn-primary">⬇ Download PDF</a>
+        <a href="{{ url_for('owner_fund_excel', **filters) }}" class="of-btn of-btn-green">⬇ Download Excel</a>
       </div>
     </div>
-    <form method="get" class="form-row">
-      <div class="fg">
+    <form method="get" class="of-filters">
+      <div class="of-fg">
         <label>From Date</label>
         <input type="date" name="date_from" value="{{ filters.get('date_from', '') }}">
       </div>
-      <div class="fg">
+      <div class="of-fg">
         <label>To Date</label>
         <input type="date" name="date_to" value="{{ filters.get('date_to', '') }}">
       </div>
-      <div class="fg">
+      <div class="of-fg">
         <label>Month</label>
         <input type="month" name="month" value="{{ filters.month }}">
       </div>
-      <div class="fg">
+      <div class="of-fg">
         <label>Movement</label>
         <select name="movement">
           {% for item in movement_options %}
@@ -62,7 +228,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="fg">
+      <div class="of-fg">
         <label>Entry Type</label>
         <select name="entry_type">
           {% for item in entry_type_options %}
@@ -70,49 +236,51 @@
           {% endfor %}
         </select>
       </div>
-      <div class="fg">
+      <div class="of-fg">
         <label>Search</label>
         <input type="search" name="search" value="{{ filters.search }}" placeholder="Owner, driver, details...">
       </div>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-sm">Apply</button>
-        <a href="{{ url_for('owner_fund') }}" class="btn btn-sm btn-outline">Clear</a>
+      <div class="of-fg of-fg-actions">
+        <button type="submit" class="of-btn of-btn-primary">Apply</button>
+        <a href="{{ url_for('owner_fund') }}" class="of-btn of-btn-ghost">Clear</a>
       </div>
     </form>
-  </div>
+  </section>
 
   {% if can_edit %}
-  {# ═══ TWO-FORM LAYOUT ═══ #}
-  <div class="twocol">
+  {# ═══ MONEY IN / OUT ═══ #}
+  <div class="of-duo">
     {# ── MONEY IN ── #}
-    <div class="form-section" style="border-left:4px solid var(--green)">
-      <h3>
-        <svg viewBox="0 0 20 20" fill="none" stroke="var(--green)" stroke-width="2" width="16" height="16"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M10 6v8M6 10h8"/></svg>
-        Money In
-        <span class="badge" style="background:#22c55e33;color:#16a34a;font-size:0.58rem">Owner Deposit</span>
-      </h3>
+    <div class="of-form-card is-in">
+      <div class="of-form-head">
+        <h3>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M10 6v8M6 10h8"/></svg>
+          Money In
+        </h3>
+        <span class="of-tag in">Owner Deposit</span>
+      </div>
       <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="entry_id" value="{{ values.entry_id if values.transaction_type == 'IN' else '' }}">
         <input type="hidden" name="transaction_type" value="IN">
-        <div class="form-row">
-          <div class="fg">
+        <div class="of-form-grid">
+          <div class="of-fg">
             <label>Owner Name *</label>
             <input type="text" name="owner_name" value="{{ values.owner_name if values.transaction_type == 'IN' else '' }}" required placeholder="e.g. Mr. Nasrullah">
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Date *</label>
             <input type="date" name="entry_date" value="{{ values.entry_date if values.transaction_type == 'IN' else today }}" required>
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Amount (AED) *</label>
             <input type="number" step="0.01" min="0" name="amount" value="{{ values.amount if values.transaction_type == 'IN' else '' }}" required placeholder="0.00">
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Received By</label>
             <input type="text" name="received_by" value="{{ values.received_by if values.transaction_type == 'IN' else '' }}" placeholder="Waqar / Office">
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Method</label>
             <select name="payment_method">
               {% for item in ["Cash", "Bank", "Cheque", "Other"] %}
@@ -120,31 +288,33 @@
               {% endfor %}
             </select>
           </div>
-          <div class="fg" style="grid-column:1/-1">
+          <div class="of-fg full">
             <label>Details / Notes</label>
-            <textarea name="details" rows="1" placeholder="Optional notes">{{ values.details if values.transaction_type == 'IN' else '' }}</textarea>
+            <textarea name="details" rows="2" placeholder="Optional notes">{{ values.details if values.transaction_type == 'IN' else '' }}</textarea>
           </div>
         </div>
-        <div style="margin-top:10px;display:flex;gap:6px">
-          <button class="btn btn-primary btn-sm" type="submit" style="background:var(--green);border-color:var(--green)">Record Money In</button>
-          {% if values.entry_id and values.transaction_type == 'IN' %}<a href="{{ url_for('owner_fund') }}" class="btn btn-sm btn-outline">Cancel</a>{% endif %}
+        <div class="of-form-foot">
+          <button class="of-btn of-submit-in" type="submit">Record Money In</button>
+          {% if values.entry_id and values.transaction_type == 'IN' %}<a href="{{ url_for('owner_fund') }}" class="of-btn of-btn-ghost">Cancel</a>{% endif %}
         </div>
       </form>
     </div>
 
     {# ── MONEY OUT ── #}
-    <div class="form-section" style="border-left:4px solid #e65100">
-      <h3>
-        <svg viewBox="0 0 20 20" fill="none" stroke="#e65100" stroke-width="2" width="16" height="16"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M10 6v8M14 10H6"/></svg>
-        Money Out
-        <span class="badge" style="background:#e6510033;color:#e65100;font-size:0.58rem">Owner Expense</span>
-      </h3>
+    <div class="of-form-card is-out">
+      <div class="of-form-head">
+        <h3>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16z"/><path d="M10 6v8M14 10H6"/></svg>
+          Money Out
+        </h3>
+        <span class="of-tag out">Owner Expense</span>
+      </div>
       <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="entry_id" value="{{ values.entry_id if values.transaction_type == 'OUT' else '' }}">
         <input type="hidden" name="transaction_type" value="OUT">
-        <div class="form-row">
-          <div class="fg">
+        <div class="of-form-grid">
+          <div class="of-fg">
             <label>Category *</label>
             <select name="owner_name" required>
               <option value="">— Select —</option>
@@ -153,23 +323,23 @@
               {% endfor %}
             </select>
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Date *</label>
             <input type="date" name="entry_date" value="{{ values.entry_date if values.transaction_type == 'OUT' else today }}" required>
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Amount (AED) *</label>
             <input type="number" step="0.01" min="0" name="amount" value="{{ values.amount if values.transaction_type == 'OUT' else '' }}" required placeholder="0.00">
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Paid To / Recipient</label>
             <input type="text" name="received_by" value="{{ values.received_by if values.transaction_type == 'OUT' else '' }}" placeholder="Person or company name">
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Vehicle No</label>
             <input type="text" name="vehicle_no" value="{{ values.vehicle_no if values.transaction_type == 'OUT' else '' }}" placeholder="e.g. DXB-1234">
           </div>
-          <div class="fg">
+          <div class="of-fg">
             <label>Payment Method</label>
             <select name="payment_method">
               {% for item in ["Cash", "Bank", "Cheque", "Other"] %}
@@ -177,48 +347,61 @@
               {% endfor %}
             </select>
           </div>
-          <div class="fg" style="grid-column:1/-1">
+          <div class="of-fg full">
             <label>Details / Purpose *</label>
-            <textarea name="details" rows="1" required placeholder="What is this for? e.g. Office chair, gave to Ahmed for delivery">{{ values.details if values.transaction_type == 'OUT' else '' }}</textarea>
+            <textarea name="details" rows="2" required placeholder="What is this for? e.g. Office chair, gave to Ahmed for delivery">{{ values.details if values.transaction_type == 'OUT' else '' }}</textarea>
           </div>
         </div>
-        <div style="margin-top:10px;display:flex;gap:6px">
-          <button class="btn btn-primary btn-sm" type="submit" style="background:#e65100;border-color:#e65100">Record Money Out</button>
-          {% if values.entry_id and values.transaction_type == 'OUT' %}<a href="{{ url_for('owner_fund') }}" class="btn btn-sm btn-outline">Cancel</a>{% endif %}
+        <div class="of-form-foot">
+          <button class="of-btn of-submit-out" type="submit">Record Money Out</button>
+          {% if values.entry_id and values.transaction_type == 'OUT' %}<a href="{{ url_for('owner_fund') }}" class="of-btn of-btn-ghost">Cancel</a>{% endif %}
         </div>
       </form>
     </div>
   </div>
   {% else %}
-  <div class="form-section" style="background:#fff8e1;border-color:#ffe082">
-    <p style="margin:0;font-size:0.85rem;color:#795548">Owner view is read-only. You can view the statement and download PDF.</p>
-    <a href="{{ pdf_url }}" class="btn btn-primary btn-sm" style="margin-top:8px">Open PDF</a>
+  <div class="of-ro">
+    <p>Owner view is read-only. You can view the statement and download PDF.</p>
+    <a href="{{ pdf_url }}" class="of-btn of-btn-primary">Open PDF</a>
   </div>
   {% endif %}
 
   {# ═══ RECENT ENTRIES ═══ #}
   {% if entries %}
-  <div class="form-section">
-    <h3>Recent Entries</h3>
-    <div class="table-wrap">
-      <table class="smart-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Category</th><th>Amount</th><th>Received By / Paid To</th><th>Method</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+  <section class="of-sec">
+    <div class="of-sec-head">
+      <div>
+        <h2 style="--ac:var(--of-teal)">Recent Entries</h2>
+        <p>Last 20 owner fund movements (IN / OUT).</p>
+      </div>
+    </div>
+    <div class="of-tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Type</th><th>Category</th>
+            <th class="num">Amount</th><th>Received By / Paid To</th><th>Method</th>
+            {% if can_edit %}<th class="num">Actions</th>{% endif %}
+          </tr>
+        </thead>
         <tbody>
           {% for item in entries %}
           <tr>
             <td class="mono">{{ item.entry_date }}</td>
-            <td><span class="badge" style="background:{% if item.transaction_type == 'IN' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ item.transaction_type }}</span></td>
-            <td style="font-weight:600">{{ item.owner_name }}</td>
-            <td class="mono" style="font-weight:600">AED {{ "%.2f"|format(item.amount) }}</td>
-            <td>{{ item.received_by or '-' }}</td>
-            <td>{{ item.payment_method or '-' }}</td>
+            <td><span class="of-pill {{ 'in' if item.transaction_type == 'IN' else 'out' }}">{{ item.transaction_type }}</span></td>
+            <td class="strong">{{ item.owner_name }}</td>
+            <td class="num {% if item.transaction_type == 'IN' %}of-in-amt{% else %}of-out-amt{% endif %}">
+              {% if item.transaction_type == 'IN' %}+{% else %}−{% endif %} AED {{ "%.2f"|format(item.amount) }}
+            </td>
+            <td>{{ item.received_by or '—' }}</td>
+            <td>{% if item.payment_method %}<span class="of-pill method">{{ item.payment_method }}</span>{% else %}—{% endif %}</td>
             {% if can_edit %}
-            <td>
-              <div style="display:flex;gap:4px">
-                <a href="{{ url_for('owner_fund', edit=item.id) }}" class="btn btn-xs btn-outline">&#9998;</a>
+            <td class="num">
+              <div class="of-row-actions">
+                <a href="{{ url_for('owner_fund', edit=item.id) }}" class="of-icon-btn" title="Edit">&#9998;</a>
                 <form method="post" action="{{ url_for('delete_owner_fund_entry', entry_id=item.id) }}" onsubmit="return confirm('Delete this entry?');" style="display:inline">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-xs btn-outline" type="submit" style="color:#e65100">&#10005;</button>
+                  <button class="of-icon-btn danger" type="submit" title="Delete">&#10005;</button>
                 </form>
               </div>
             </td>
@@ -228,70 +411,91 @@
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
   {% endif %}
 
   {# ═══ SUPPLIER OWNER FUND ═══ #}
   {% if sup_funds %}
-  <div class="form-section">
-    <h3>Supplier Owner Fund</h3>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">
-      <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Deposits</div>
-        <div style="font-size:1rem;font-weight:700;color:var(--green)">AED {{ "%.0f"|format(sup_deposits) }}</div>
-      </div>
-      <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Withdrawals</div>
-        <div style="font-size:1rem;font-weight:700;color:#e65100">AED {{ "%.0f"|format(sup_withdrawals) }}</div>
-      </div>
-      <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Utilized</div>
-        <div style="font-size:1rem;font-weight:700;color:#c62828">AED {{ "%.0f"|format(sup_used) }}</div>
-      </div>
-      <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:0.6rem;color:var(--muted);text-transform:uppercase">Balance</div>
-        <div style="font-size:1rem;font-weight:700;color:var(--primary)">AED {{ "%.0f"|format(sup_balance) }}</div>
+  <section class="of-sec">
+    <div class="of-sec-head">
+      <div>
+        <h2 style="--ac:#7c3aed">Supplier Owner Fund</h2>
+        <p>Separate ledger for supplier-related owner fund deposits and utilization.</p>
       </div>
     </div>
-    <div class="table-wrap">
-      <table class="smart-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Description</th></tr></thead>
+    <div class="of-mini">
+      <div class="of-mini-card c-green">
+        <div class="c-l">Deposits</div>
+        <div class="c-v">AED {{ "%.0f"|format(sup_deposits) }}</div>
+      </div>
+      <div class="of-mini-card c-amber">
+        <div class="c-l">Withdrawals</div>
+        <div class="c-v">AED {{ "%.0f"|format(sup_withdrawals) }}</div>
+      </div>
+      <div class="of-mini-card c-red">
+        <div class="c-l">Utilized</div>
+        <div class="c-v">AED {{ "%.0f"|format(sup_used) }}</div>
+      </div>
+      <div class="of-mini-card c-teal">
+        <div class="c-l">Balance</div>
+        <div class="c-v">AED {{ "%.0f"|format(sup_balance) }}</div>
+      </div>
+    </div>
+    <div class="of-tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Type</th><th class="num">Amount</th><th>Description</th></tr></thead>
         <tbody>
           {% for f in sup_funds %}
           <tr>
             <td class="mono">{{ f.fund_date }}</td>
-            <td><span class="badge" style="background:{% if f.transaction_type == 'deposit' %}#22c55e33;color:#16a34a{% else %}#e6510033;color:#e65100{% endif %}">{{ f.transaction_type }}</span></td>
-            <td class="mono" style="font-weight:600">AED {{ "%.0f"|format(f.amount) }}</td>
-            <td style="font-size:0.78rem">{{ f.description or '-' }}</td>
+            <td><span class="of-pill {{ 'deposit' if f.transaction_type == 'deposit' else 'withdrawal' }}">{{ f.transaction_type }}</span></td>
+            <td class="num {% if f.transaction_type == 'deposit' %}of-in-amt{% else %}of-out-amt{% endif %}">AED {{ "%.0f"|format(f.amount) }}</td>
+            <td style="font-size:.78rem">{{ f.description or '—' }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
   {% endif %}
 
   {# ═══ FULL STATEMENT ═══ #}
   {% if statement %}
-  <div class="form-section">
-    <h3>Statement of Account (Kata)</h3>
-    <div class="table-wrap">
-      <table class="smart-table">
-        <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Details</th><th>Incoming</th><th>Outgoing</th><th>Balance</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+  <section class="of-sec">
+    <div class="of-sec-head">
+      <div>
+        <h2 style="--ac:var(--of-amber)">Statement of Account (Kata)</h2>
+        <p>Running balance ledger for the current filters. Incoming credits, outgoing debits, closing balance.</p>
+      </div>
+      <div class="of-actions">
+        <a href="{{ pdf_url }}" class="of-btn of-btn-ghost">PDF Statement</a>
+      </div>
+    </div>
+    <div class="of-tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Type</th><th>Reference</th><th>Details</th>
+            <th class="num">Incoming</th><th class="num">Outgoing</th><th class="num">Balance</th>
+            {% if can_edit %}<th class="num"></th>{% endif %}
+          </tr>
+        </thead>
         <tbody>
           {% for item in statement %}
           <tr>
             <td class="mono">{{ item.entry_date }}</td>
             <td>{{ item.movement }}</td>
             <td class="mono">{{ item.reference }}</td>
-            <td style="font-size:0.78rem">{{ item.details }}</td>
-            <td class="mono" style="color:var(--green);font-weight:600">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
-            <td class="mono" style="color:#e65100;font-weight:600">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
-            <td class="mono" style="font-weight:700">AED {{ "%.2f"|format(item.balance) }}</td>
+            <td style="font-size:.76rem">{{ item.details }}</td>
+            <td class="num of-in-amt">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
+            <td class="num of-out-amt">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
+            <td class="num {% if item.balance >= 0 %}of-bal-pos{% else %}of-bal-neg{% endif %}">AED {{ "%.2f"|format(item.balance) }}</td>
             {% if can_edit %}
-            <td style="white-space:nowrap">
+            <td class="num">
               {% if item.id or item.source_url %}
-              <a href="{{ item.source_url or url_for('owner_fund', edit=item.id) }}" class="btn btn-xs btn-outline" title="{{ 'Edit source transaction' if item.source_url else 'Edit this entry' }}">&#9998;</a>
+              <div class="of-row-actions">
+                <a href="{{ item.source_url or url_for('owner_fund', edit=item.id) }}" class="of-icon-btn" title="{{ 'Edit source transaction' if item.source_url else 'Edit this entry' }}">&#9998;</a>
+              </div>
               {% endif %}
             </td>
             {% endif %}
@@ -300,7 +504,7 @@
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
   {% endif %}
 </div>
 {% endblock %}
