@@ -1,154 +1,355 @@
 {% extends "base.html" %}
 {% block title %}Spare Parts & Maintenance Report{% endblock %}
-{% block page_title %}Spare Parts & Maintenance Expense Report{% endblock %}
+{% block page_title %}Spare Parts &amp; Maintenance Expense Report{% endblock %}
 
 {% block content %}
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
 <style>
-  .spm-shell{max-width:1200px;margin:0 auto}
-  .spm-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
-  .spm-card h3{margin:0 0 12px;font-size:0.88rem;font-weight:700;display:flex;align-items:center;gap:8px}
-  .spm-card h3 .badge{font-size:0.58rem;font-weight:600;padding:2px 8px;border-radius:20px}
-  .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
-  .form-row .fg{display:flex;flex-direction:column}
-  .form-row .fg label{font-size:0.68rem;font-weight:600;color:var(--muted);margin-bottom:3px}
-  .form-row .fg input,.form-row .fg select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;background:var(--bg)}
-  .form-actions{display:flex;gap:6px;align-items:flex-end}
-  .form-actions button{padding:7px 18px}
-  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px}
-  .smart-table{width:100%;border-collapse:collapse;font-size:0.8rem}
-  .smart-table th{background:#f4f6f9;color:var(--muted);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.3px;padding:10px 8px;text-align:right;border-bottom:1px solid var(--line)}
-  .smart-table th:first-child,.smart-table td:first-child{text-align:left}
-  .smart-table td{padding:8px;border-bottom:1px solid var(--line);text-align:right}
-  .smart-table tr:last-child td{border-bottom:none}
-  .smart-table tr.total-row td{background:#f4f6f9;font-weight:700;border-top:2px solid var(--primary)}
-  .mono{font-family:monospace}
-  .badge{font-size:0.58rem;font-weight:600;padding:2px 8px;border-radius:20px}
-  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
-  .stat-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
-  .stat-card .stat-label{font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px}
-  .stat-card .stat-value{font-size:1.25rem;font-weight:700;margin-top:4px}
-  .cat-maint{color:#1a7d1a}
-  .cat-job{color:#1565c0}
-  .cat-staff{color:#c2410c}
-  .cat-supp{color:#7b1fa2}
-  .cat-total{color:#0f172a}
-  @media(max-width:700px){.stat-grid{grid-template-columns:1fr}}
+.spm { --spm-ink:#0f2749; --spm-muted:#64748b; --spm-line:#dbe4f0; --spm-bg:#f5f8fc;
+       --spm-blue:#2563eb; --spm-green:#16a34a; --spm-amber:#d97706; --spm-red:#dc2626;
+       --spm-teal:#0d9488; --spm-violet:#7c3aed; --spm-orange:#ea580c;
+       color:var(--spm-ink); max-width:1180px; margin:0 auto; }
+.spm * { box-sizing:border-box; }
 
-  /* ─── Top Vehicles Chart ─── */
-  .chart-wrap{margin-top:10px}
-  .chart-bars{display:flex;flex-direction:column;gap:8px}
-  .chart-bar{display:flex;align-items:center;gap:10px}
-  .chart-bar-label{width:90px;font-size:0.78rem;font-weight:600;color:#475569;text-align:right}
-  .chart-bar-amt{width:70px;font-size:0.78rem;font-weight:700;color:#1e293b}
-  .chart-bar-fill-bg{width:100%;height:24px;background:#f1f5f9;border-radius:12px;overflow:hidden;position:relative}
-  .chart-bar-fill{border-radius:12px;background:linear-gradient(90deg,#1565c0,#42a5f5);transition:width 0.8s ease}
+.spm-hero { display:flex; justify-content:space-between; align-items:flex-end; gap:18px; flex-wrap:wrap;
+  background:linear-gradient(118deg,#0f2749 0%,#1d3f73 58%,#245c9e 100%); color:#fff;
+  border-radius:18px; padding:26px 28px; margin-bottom:16px; position:relative; overflow:hidden; }
+.spm-hero::after { content:""; position:absolute; right:-70px; top:-90px; width:280px; height:280px;
+  background:radial-gradient(circle,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 70%); pointer-events:none; }
+.spm-kicker { font-size:.64rem; font-weight:700; letter-spacing:2.2px; text-transform:uppercase; color:#9dc2f4; margin-bottom:8px; }
+.spm-title { font-size:1.72rem; font-weight:800; margin:0 0 6px; letter-spacing:-.4px; }
+.spm-sub { margin:0; font-size:.82rem; color:#c9dcf7; max-width:560px; line-height:1.5; }
+.spm-hero-side { display:flex; gap:10px; flex-wrap:wrap; position:relative; z-index:1; }
+.spm-hchip { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22); border-radius:12px;
+  padding:9px 14px; min-width:148px; backdrop-filter:blur(4px); }
+.spm-hchip span { display:block; font-size:.6rem; text-transform:uppercase; letter-spacing:1px; color:#a9c9f5; font-weight:700; }
+.spm-hchip strong { display:block; font-size:.9rem; font-weight:800; color:#fff; font-variant-numeric:tabular-nums; margin-top:3px; }
+.spm-hchip.is-total strong { color:#93c5fd; }
+.spm-hchip.is-green strong { color:#86efac; }
+.spm-hchip.is-amber strong { color:#fde68a; }
+.spm-hchip.is-violet strong { color:#ddd6fe; }
+
+.spm-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.spm-btn { display:inline-flex; align-items:center; gap:6px; font-size:.72rem; font-weight:700;
+  padding:8px 15px; border-radius:999px; text-decoration:none; transition:all .15s; border:1px solid transparent; cursor:pointer; }
+.spm-btn-primary { background:var(--spm-blue); color:#fff; border-color:var(--spm-blue); }
+.spm-btn-primary:hover { background:#1d4ed8; box-shadow:0 4px 12px rgba(37,99,235,.25); transform:translateY(-1px); }
+.spm-btn-green { background:#15803d; color:#fff; border-color:#15803d; }
+.spm-btn-green:hover { background:#166534; box-shadow:0 4px 12px rgba(22,101,52,.25); transform:translateY(-1px); }
+.spm-btn-ghost { background:#fff; color:#33507a; border-color:var(--spm-line); }
+.spm-btn-ghost:hover { border-color:var(--spm-blue); color:var(--spm-blue); }
+
+.spm-filter { background:#fff; border:1px solid var(--spm-line); border-radius:16px; padding:18px; margin-bottom:16px; }
+.spm-filter-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.spm-filter-head h2 { margin:0; font-size:.95rem; font-weight:800; display:flex; align-items:center; gap:9px; }
+.spm-filter-head h2::before { content:""; width:5px; height:18px; background:var(--spm-blue); border-radius:3px; }
+.spm-filter-head p { margin:3px 0 0; font-size:.68rem; color:var(--spm-muted); }
+.spm-filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; align-items:end; }
+.spm-fg { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.spm-fg label { font-size:.64rem; font-weight:700; color:var(--spm-muted); text-transform:uppercase; letter-spacing:.4px; }
+.spm-fg input, .spm-fg select { padding:8px 11px; border:1px solid var(--spm-line); border-radius:9px; font-size:.8rem;
+  background:var(--spm-bg); color:var(--spm-ink); width:100%; outline:none; transition:border .15s, box-shadow .15s; }
+.spm-fg input:focus, .spm-fg select:focus { border-color:var(--spm-blue); box-shadow:0 0 0 3px rgba(37,99,235,.12); background:#fff; }
+.spm-fg-actions { display:flex; gap:6px; flex-wrap:wrap; }
+
+.spm-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.spm-kpi { background:#fff; border:1px solid var(--spm-line); border-radius:16px; padding:16px; position:relative; overflow:hidden; }
+.spm-kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--kp,var(--spm-blue)); }
+.spm-kpi .k-label { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--spm-muted); }
+.spm-kpi .k-value { font-size:1.18rem; font-weight:800; color:var(--spm-ink); margin-top:6px; letter-spacing:-.4px;
+  font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.spm-kpi .k-sub { font-size:.66rem; color:var(--spm-muted); margin-top:5px; line-height:1.35; }
+
+.spm-sec { background:#fff; border:1px solid var(--spm-line); border-radius:16px; padding:18px; margin-bottom:16px; }
+.spm-sec-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.spm-sec-head h2 { margin:0; font-size:.95rem; font-weight:800; display:flex; align-items:center; gap:9px; }
+.spm-sec-head h2::before { content:""; width:5px; height:18px; background:var(--ac,var(--spm-blue)); border-radius:3px; }
+.spm-sec-head p { margin:3px 0 0; font-size:.68rem; color:var(--spm-muted); max-width:520px; }
+.spm-tag { font-size:.58rem; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+.spm-tag.orange { background:#ffedd5; color:#c2410c; }
+.spm-tag.blue { background:#dbeafe; color:#1d4ed8; }
+.spm-tag.green { background:#dcfce7; color:#15803d; }
+.spm-tag.violet { background:#f3e8ff; color:#6d28d9; }
+.spm-tag.teal { background:#ccfbf1; color:#0f766e; }
+
+.spm-chart-grid { display:grid; grid-template-columns:1.55fr 1fr; gap:16px; margin-bottom:16px; }
+.spm-chart-card { background:#fff; border:1px solid var(--spm-line); border-radius:16px; padding:18px; min-width:0; }
+.spm-chart-card.wide { grid-column:1/-1; }
+.spm-chart-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.spm-chart-head h3 { margin:0; font-size:.9rem; font-weight:800; display:flex; align-items:center; gap:8px; }
+.spm-chart-head p { margin:3px 0 0; font-size:.68rem; color:var(--spm-muted); }
+.spm-legend { display:flex; flex-wrap:wrap; gap:8px 12px; margin-top:10px; }
+.spm-legend span { display:inline-flex; align-items:center; gap:6px; font-size:.68rem; font-weight:700; color:#475569; }
+.spm-legend i { width:10px; height:10px; border-radius:3px; display:inline-block; }
+.spm-chart-box { position:relative; width:100%; height:360px; }
+.spm-chart-box.donut { height:260px; max-width:280px; margin:0 auto; }
+.spm-chart-box.trend { height:280px; }
+.spm-empty-chart { display:grid; place-items:center; height:220px; color:#94a3b8; font-size:.8rem; font-weight:600;
+  background:var(--spm-bg); border-radius:12px; border:1px dashed var(--spm-line); }
+
+.spm-rank { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.spm-rank-row { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:11px;
+  background:var(--spm-bg); border:1px solid #e8eef7; transition:all .15s; }
+.spm-rank-row:hover { border-color:#c4d4ea; background:#fff; box-shadow:0 4px 14px rgba(15,39,73,.08); transform:translateY(-1px); }
+.spm-rank-num { width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
+  font-size:.68rem; font-weight:800; color:#fff; background:var(--spm-blue); flex:0 0 auto; }
+.spm-rank-row:nth-child(1) .spm-rank-num { background:linear-gradient(135deg,#f59e0b,#d97706); }
+.spm-rank-row:nth-child(2) .spm-rank-num { background:linear-gradient(135deg,#94a3b8,#64748b); }
+.spm-rank-row:nth-child(3) .spm-rank-num { background:linear-gradient(135deg,#b45309,#92400e); }
+.spm-rank-meta { flex:1; min-width:0; }
+.spm-rank-meta strong { display:block; font-size:.78rem; font-weight:800; color:var(--spm-ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.spm-rank-meta span { display:block; font-size:.64rem; color:var(--spm-muted); margin-top:2px; }
+.spm-rank-amt { font-size:.78rem; font-weight:800; color:var(--spm-ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.spm-rank-bar { height:5px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin-top:6px; }
+.spm-rank-bar i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg,#2563eb,#60a5fa); }
+
+.spm-tbl-wrap { overflow-x:auto; border-radius:12px; border:1px solid #eef2f8; }
+.spm table { width:100%; border-collapse:collapse; font-size:.74rem; background:#fff; }
+.spm table th { text-align:left; font-size:.58rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px;
+  color:var(--spm-muted); padding:10px 12px; border-bottom:2px solid var(--spm-line); background:#f8fafc; white-space:nowrap; }
+.spm table td { padding:10px 12px; border-bottom:1px solid #eef2f8; color:#243b5e; vertical-align:middle; }
+.spm table tr:last-child td { border-bottom:none; }
+.spm table tr:hover td { background:#f7fafd; }
+.spm table td.num, .spm table th.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+.spm table td.mono, .spm .mono { font-family:'SF Mono',Consolas,monospace; font-size:.72rem; }
+.spm table tr.total-row td { background:#f8fafc !important; font-weight:800; color:var(--spm-ink);
+  border-top:2px solid var(--spm-blue); }
+.spm table tr.total-row:hover td { background:#f8fafc !important; }
+
+.spm-pill { display:inline-flex; align-items:center; gap:4px; font-size:.6rem; font-weight:800;
+  padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+.spm-pill.paper { background:#dbeafe; color:#1d4ed8; }
+.spm-pill.job { background:#dcfce7; color:#15803d; }
+.spm-pill.advance { background:#ffedd5; color:#c2410c; }
+.spm-pill.supplier { background:#f3e8ff; color:#6d28d9; }
+.spm-pill.month { background:#f1f5f9; color:#334155; text-transform:none; letter-spacing:0; font-weight:700; }
+.spm-pill.cat-papers { background:#dbeafe; color:#1d4ed8; }
+.spm-pill.cat-jobs { background:#dcfce7; color:#15803d; }
+.spm-pill.cat-supp { background:#f3e8ff; color:#6d28d9; }
+
+.spm-empty { background:#fffbeb; border:1px solid #fde68a; border-radius:14px; padding:18px 20px; }
+.spm-empty p { margin:0; font-size:.85rem; color:#795548; font-weight:600; }
+
+.spm-count { font-size:.66rem; color:var(--spm-muted); font-weight:700; }
+
+@media (max-width:980px){
+  .spm-kpis { grid-template-columns:repeat(2,1fr); }
+  .spm-chart-grid { grid-template-columns:1fr; }
+}
+@media (max-width:640px){
+  .spm-kpis { grid-template-columns:1fr; }
+  .spm-title { font-size:1.3rem; }
+  .spm-chart-box { height:300px; }
+}
 </style>
 
-<div class="spm-shell">
-  <div class="spm-card">
-    <h3>
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M4 2h12v16l-3-2-3 2-3-2-3 2z"/><line x1="7" y1="7" x2="13" y2="7"/><line x1="7" y1="10" x2="13" y2="10"/></svg>
-      Spare Parts &amp; Maintenance — Monthly Expense
-      <span class="badge" style="background:#e6510033;color:#e65100">Vehicle Related</span>
-    </h3>
-    <p style="margin:0 0 12px;font-size:0.82rem;color:var(--muted)">Total monthly expenditure on spare parts, maintenance jobs, field staff advances and supplier bills related to vehicles.</p>
+<div class="spm">
+  {# ═══ HERO ═══ #}
+  <div class="spm-hero">
+    <div>
+      <div class="spm-kicker">Fleet · Expenses · Report</div>
+      <h1 class="spm-title">Spare Parts &amp; Maintenance</h1>
+      <p class="spm-sub">Monthly expenditure on spare parts, maintenance jobs, field staff advances and supplier bills related to vehicles.</p>
+    </div>
+    <div class="spm-hero-side">
+      {% if totals %}
+      <div class="spm-hchip is-green">
+        <span>Maintenance Papers</span>
+        <strong>AED {{ "%.2f"|format(totals.maintenance_papers) }}</strong>
+      </div>
+      <div class="spm-hchip is-amber">
+        <span>Maintenance Jobs</span>
+        <strong>AED {{ "%.2f"|format(totals.maintenance_jobs) }}</strong>
+      </div>
+      <div class="spm-hchip is-violet">
+        <span>Supplier Bills</span>
+        <strong>AED {{ "%.2f"|format(totals.supplier_bills) }}</strong>
+      </div>
+      <div class="spm-hchip is-total">
+        <span>Grand Total</span>
+        <strong>AED {{ "%.2f"|format(totals.grand_total) }}</strong>
+      </div>
+      {% endif %}
+    </div>
+  </div>
 
-    {# ═══ FILTER ═══ #}
-    <form method="get" class="form-row">
-      <div class="fg">
+  {# ═══ FILTER ═══ #}
+  <div class="spm-filter">
+    <div class="spm-filter-head">
+      <div>
+        <h2>Filter &amp; Export</h2>
+        <p>Choose date range then apply. Excel export uses the same range.</p>
+      </div>
+      <div class="spm-actions">
+        <span class="spm-count">
+          {% if rows %}{{ rows|length }} month{{ 's' if rows|length != 1 }} · {% endif %}
+          {% if vehicle_totals %}{{ vehicle_totals|length }} vehicle{{ 's' if vehicle_totals|length != 1 }} · {% endif %}
+          {% if detail_rows %}{{ detail_rows|length }} record{{ 's' if detail_rows|length != 1 }}{% else %}0 records{% endif %}
+        </span>
+      </div>
+    </div>
+    <form method="get" class="spm-filters">
+      <div class="spm-fg">
         <label>From Date</label>
         <input type="date" name="date_from" value="{{ date_from or '' }}">
       </div>
-      <div class="fg">
+      <div class="spm-fg">
         <label>To Date</label>
         <input type="date" name="date_to" value="{{ date_to or '' }}">
       </div>
-      <div class="form-actions">
-        <button class="btn btn-primary btn-sm" type="submit">Apply</button>
-        <a href="{{ url_for('spare_parts_maintenance_excel', date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-outline" style="background:#1a7d1a;border-color:#1a7d1a;color:#fff">Download Excel</a>
-        <a href="{{ url_for('spare_parts_maintenance_report') }}" class="btn btn-sm btn-outline">Clear</a>
+      <div class="spm-fg-actions">
+        <button class="spm-btn spm-btn-primary" type="submit">Apply</button>
+        <a class="spm-btn spm-btn-green" href="{{ url_for('spare_parts_maintenance_excel', date_from=date_from, date_to=date_to) }}">Download Excel</a>
+        <a class="spm-btn spm-btn-ghost" href="{{ url_for('spare_parts_maintenance_report') }}">Clear</a>
       </div>
     </form>
   </div>
 
-  {# ═══ SUMMARY CARDS ═══ #}
+  {# ═══ KPI BAND ═══ #}
   {% if totals %}
-  <div class="stat-grid">
-    <div class="stat-card" style="border-left:4px solid #1a7d1a">
-      <span class="stat-label">Maintenance Papers</span>
-      <span class="stat-value cat-maint">AED {{ "%.2f"|format(totals.maintenance_papers) }}</span>
+  <div class="spm-kpis">
+    <div class="spm-kpi" style="--kp:var(--spm-green)">
+      <div class="k-label">Maintenance Papers</div>
+      <div class="k-value">AED {{ "%.2f"|format(totals.maintenance_papers) }}</div>
+      <div class="k-sub">Spare parts + paper work</div>
     </div>
-    <div class="stat-card" style="border-left:4px solid #1565c0">
-      <span class="stat-label">Maintenance Jobs</span>
-      <span class="stat-value cat-job">AED {{ "%.2f"|format(totals.maintenance_jobs) }}</span>
+    <div class="spm-kpi" style="--kp:var(--spm-blue)">
+      <div class="k-label">Maintenance Jobs</div>
+      <div class="k-value">AED {{ "%.2f"|format(totals.maintenance_jobs) }}</div>
+      <div class="k-sub">Field / workshop jobs</div>
     </div>
-    <div class="stat-card" style="border-left:4px solid #7b1fa2">
-      <span class="stat-label">Supplier Bills</span>
-      <span class="stat-value cat-supp">AED {{ "%.2f"|format(totals.supplier_bills) }}</span>
+    <div class="spm-kpi" style="--kp:var(--spm-violet)">
+      <div class="k-label">Supplier Bills</div>
+      <div class="k-value">AED {{ "%.2f"|format(totals.supplier_bills) }}</div>
+      <div class="k-sub">Supplier invoices + bills</div>
     </div>
-    <div class="stat-card" style="border-left:4px solid #0f172a">
-      <span class="stat-label">Grand Total</span>
-      <span class="stat-value cat-total">AED {{ "%.2f"|format(totals.grand_total) }}</span>
+    <div class="spm-kpi" style="--kp:var(--spm-ink)">
+      <div class="k-label">Grand Total</div>
+      <div class="k-value">AED {{ "%.2f"|format(totals.grand_total) }}</div>
+      <div class="k-sub">All vehicle-related spend</div>
     </div>
   </div>
   {% endif %}
 
-  {# ═══ TOP VEHICLES CHART ═══ #}
-  {% if vehicle_totals %}
-  <div class="spm-card">
-    <h3>
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M8.5 10.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/></svg>
-      Top Vehicles by Expenditure
-    </h3>
-    <div class="chart-wrap">
-      <div class="chart-bars">
+  {# ═══ CHARTS ═══ #}
+  {% if vehicle_totals or rows %}
+  <div class="spm-chart-grid">
+    {# Top vehicles — best horizontal bar + ranked list #}
+    {% if vehicle_totals %}
+    <div class="spm-chart-card">
+      <div class="spm-chart-head">
+        <div>
+          <h3><span class="spm-tag orange">Top 10</span> Vehicles by Expenditure</h3>
+          <p>Ranked by total vehicle-related spend in the selected period. Hover a bar for exact AED.</p>
+        </div>
+      </div>
+      <div class="spm-chart-box">
+        <canvas id="spmTopVehicles"></canvas>
+      </div>
+      <div class="spm-legend">
+        <span><i style="background:linear-gradient(90deg,#2563eb,#60a5fa)"></i> Expenditure (AED)</span>
+        <span><i style="background:#f59e0b"></i> Rank #1</span>
+        <span><i style="background:#94a3b8"></i> Rank #2</span>
+        <span><i style="background:#b45309"></i> Rank #3</span>
+      </div>
+      <div class="spm-rank">
         {% set max_amt = vehicle_totals[0][1] if vehicle_totals else 1 %}
-        {% for vname, vamt in vehicle_totals %}
+        {% for vname, vamt in vehicle_totals[:10] %}
         {% set pct = (vamt / max_amt * 100) if max_amt > 0 else 0 %}
-        <div class="chart-bar">
-          <div class="chart-bar-label">{{ vname }}</div>
-          <div class="chart-bar-fill-bg" style="flex:1">
-            <div class="chart-bar-fill" style="height:24px;width: {{ pct }}%;background:linear-gradient(90deg,#1565c0,#42a5f5);border-radius:12px"></div>
+        <div class="spm-rank-row">
+          <div class="spm-rank-num">{{ loop.index }}</div>
+          <div class="spm-rank-meta">
+            <strong>{{ vname }}</strong>
+            <span>{{ '%.1f'|format(pct) }}% of top · AED {{ "%.2f"|format(vamt) }}</span>
+            <div class="spm-rank-bar"><i style="width: {{ pct }}%"></i></div>
           </div>
-          <div class="chart-bar-amt">AED {{ "%.2f"|format(vamt) }}</div>
+          <div class="spm-rank-amt">AED {{ "%.2f"|format(vamt) }}</div>
         </div>
         {% endfor %}
       </div>
     </div>
+    {% endif %}
+
+    {# Category donut from totals #}
+    {% if totals %}
+    <div class="spm-chart-card">
+      <div class="spm-chart-head">
+        <div>
+          <h3><span class="spm-tag teal">Split</span> Expense Mix</h3>
+          <p>Share of papers, jobs and supplier bills in grand total.</p>
+        </div>
+      </div>
+      <div class="spm-chart-box donut">
+        <canvas id="spmMixDonut"></canvas>
+      </div>
+      <div class="spm-legend">
+        <span><i style="background:#16a34a"></i> Maintenance Papers</span>
+        <span><i style="background:#2563eb"></i> Maintenance Jobs</span>
+        <span><i style="background:#7c3aed"></i> Supplier Bills</span>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Monthly trend stacked bars #}
+    {% if rows %}
+    <div class="spm-chart-card wide">
+      <div class="spm-chart-head">
+        <div>
+          <h3><span class="spm-tag blue">Trend</span> Monthly Expense by Category</h3>
+          <p>Stacked view of papers, jobs and supplier bills across months.</p>
+        </div>
+      </div>
+      <div class="spm-chart-box trend">
+        <canvas id="spmMonthlyTrend"></canvas>
+      </div>
+      <div class="spm-legend">
+        <span><i style="background:#16a34a"></i> Maintenance Papers</span>
+        <span><i style="background:#2563eb"></i> Maintenance Jobs</span>
+        <span><i style="background:#7c3aed"></i> Supplier Bills</span>
+      </div>
+    </div>
+    {% endif %}
   </div>
   {% endif %}
 
   {# ═══ MONTHLY TABLE ═══ #}
   {% if rows %}
-  <div class="spm-card">
-    <h3>Monthly Breakdown</h3>
-    <div class="table-wrap">
-      <table class="smart-table">
+  <div class="spm-sec">
+    <div class="spm-sec-head">
+      <div>
+        <h2>Monthly Breakdown</h2>
+        <p>Category totals per month with grand total row.</p>
+      </div>
+      <span class="spm-tag violet">{{ rows|length }} month{{ 's' if rows|length != 1 }}</span>
+    </div>
+    <div class="spm-tbl-wrap">
+      <table>
         <thead>
           <tr>
             <th>Month</th>
-            <th>Maintenance Papers</th>
-            <th>Maintenance Jobs</th>
-            <th>Supplier Bills</th>
-            <th>Grand Total</th>
+            <th class="num">Maintenance Papers</th>
+            <th class="num">Maintenance Jobs</th>
+            <th class="num">Supplier Bills</th>
+            <th class="num">Grand Total</th>
           </tr>
         </thead>
         <tbody>
           {% for r in rows %}
           <tr>
-            <td class="mono">{{ r.month }}</td>
-            <td class="mono cat-maint">AED {{ "%.2f"|format(r.maintenance_papers) }}</td>
-            <td class="mono cat-job">AED {{ "%.2f"|format(r.maintenance_jobs) }}</td>
-            <td class="mono cat-supp">AED {{ "%.2f"|format(r.supplier_bills) }}</td>
-            <td class="mono cat-total">AED {{ "%.2f"|format(r.grand_total) }}</td>
+            <td class="mono"><span class="spm-pill month">{{ r.month }}</span></td>
+            <td class="num mono" style="color:#16a34a">AED {{ "%.2f"|format(r.maintenance_papers) }}</td>
+            <td class="num mono" style="color:#2563eb">AED {{ "%.2f"|format(r.maintenance_jobs) }}</td>
+            <td class="num mono" style="color:#7c3aed">AED {{ "%.2f"|format(r.supplier_bills) }}</td>
+            <td class="num mono" style="color:#0f172a">AED {{ "%.2f"|format(r.grand_total) }}</td>
           </tr>
           {% endfor %}
           <tr class="total-row">
             <td class="mono">Total</td>
-            <td class="mono cat-maint">AED {{ "%.2f"|format(totals.maintenance_papers) }}</td>
-            <td class="mono cat-job">AED {{ "%.2f"|format(totals.maintenance_jobs) }}</td>
-            <td class="mono cat-supp">AED {{ "%.2f"|format(totals.supplier_bills) }}</td>
-            <td class="mono cat-total">AED {{ "%.2f"|format(totals.grand_total) }}</td>
+            <td class="num mono" style="color:#16a34a">AED {{ "%.2f"|format(totals.maintenance_papers) }}</td>
+            <td class="num mono" style="color:#2563eb">AED {{ "%.2f"|format(totals.maintenance_jobs) }}</td>
+            <td class="num mono" style="color:#7c3aed">AED {{ "%.2f"|format(totals.supplier_bills) }}</td>
+            <td class="num mono">AED {{ "%.2f"|format(totals.grand_total) }}</td>
           </tr>
         </tbody>
       </table>
@@ -158,19 +359,24 @@
 
   {# ═══ DETAILED TRANSACTIONS ═══ #}
   {% if detail_rows %}
-  <div class="spm-card">
-    <h3>Detailed Transactions</h3>
-    <p style="margin:0 0 10px;font-size:0.8rem;color:var(--muted)">Individual records behind the monthly totals above.</p>
-    <div class="table-wrap">
-      <table class="smart-table">
+  <div class="spm-sec">
+    <div class="spm-sec-head">
+      <div>
+        <h2>Detailed Transactions</h2>
+        <p>Individual records behind the monthly totals above.</p>
+      </div>
+      <span class="spm-tag green">{{ detail_rows|length }} record{{ 's' if detail_rows|length != 1 }} · AED {{ "%.2f"|format(detail_grand_total) }}</span>
+    </div>
+    <div class="spm-tbl-wrap">
+      <table>
         <thead>
           <tr>
             <th>Date</th>
             <th>Category</th>
             <th>Reference No</th>
             <th>Description</th>
-            <th style="max-width:130px">Vehicle / Party</th>
-            <th style="text-align:right">Amount (AED)</th>
+            <th>Vehicle / Party</th>
+            <th class="num">Amount (AED)</th>
           </tr>
         </thead>
         <tbody>
@@ -178,28 +384,303 @@
           <tr>
             <td class="mono">{{ d.date }}</td>
             <td>
-              <span class="badge" style="{% if d.category == 'Maintenance Paper' %}background:#e3f2fd;color:#1565c0{% elif d.category == 'Maintenance Job' %}background:#f0fdf4;color:#16a34a{% elif d.category == 'Field Staff Advance' %}background:#fff7ed;color:#c2410c{% else %}background:#f3e5f5;color:#7b1fa2{% endif %}">
-                {{ d.category }}
-              </span>
+              {% if d.category == 'Maintenance Paper' %}
+                <span class="spm-pill paper">{{ d.category }}</span>
+              {% elif d.category == 'Maintenance Job' %}
+                <span class="spm-pill job">{{ d.category }}</span>
+              {% elif d.category == 'Field Staff Advance' %}
+                <span class="spm-pill advance">{{ d.category }}</span>
+              {% else %}
+                <span class="spm-pill supplier">{{ d.category }}</span>
+              {% endif %}
             </td>
             <td class="mono" style="font-weight:600">{{ d.ref_no }}</td>
             <td>{{ d.description }}</td>
             <td class="mono">{{ d.vehicle_no or d.party_name }}</td>
-            <td class="mono" style="text-align:right;font-weight:600">AED {{ "%.2f"|format(d.amount) }}</td>
+            <td class="num mono" style="font-weight:700">AED {{ "%.2f"|format(d.amount) }}</td>
           </tr>
           {% endfor %}
           <tr class="total-row">
             <td colspan="5" style="text-align:right">Grand Total</td>
-            <td class="mono cat-total" style="text-align:right">AED {{ "%.2f"|format(detail_grand_total) }}</td>
+            <td class="num mono">AED {{ "%.2f"|format(detail_grand_total) }}</td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
   {% else %}
-  <div class="spm-card" style="background:#fff8e1;border-color:#ffe082">
-    <p style="margin:0;font-size:0.85rem;color:#795548">No expense records found for the selected period.</p>
+  <div class="spm-empty">
+    <p>No expense records found for the selected period.</p>
   </div>
   {% endif %}
 </div>
+
+<script>
+(function () {
+  const fmt = (n) => 'AED ' + Number(n || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const ink = '#0f2749';
+  const muted = '#64748b';
+  const grid = 'rgba(15,39,73,.08)';
+
+  const topData = {{ vehicle_totals | tojson }};
+  const topLabels = topData.map(function (x) { return x[0]; });
+  const topValues = topData.map(function (x) { return Number(x[1] || 0); });
+  const monthLabels = {{ (rows | map(attribute='month') | list) | tojson }};
+  const monthPapers = {{ (rows | map(attribute='maintenance_papers') | list) | tojson }};
+  const monthJobs = {{ (rows | map(attribute='maintenance_jobs') | list) | tojson }};
+  const monthSupp = {{ (rows | map(attribute='supplier_bills') | list) | tojson }};
+
+  // ── Top vehicles: reverse so rank #1 is on top ──
+  const topCanvas = document.getElementById('spmTopVehicles');
+  if (topCanvas && window.Chart) {
+    const labels = topLabels.slice().reverse();
+    const values = topValues.slice().reverse();
+    const maxV = Math.max.apply(null, values.concat([1]));
+    const colors = labels.map((_, i) => {
+      const rank = labels.length - i; // 1 = highest (end of array)
+      if (rank === 1) return '#f59e0b';
+      if (rank === 2) return '#94a3b8';
+      if (rank === 3) return '#b45309';
+      return 'url(#spmBarGrad)';
+    });
+
+    // gradient fill for bars
+    const ctx = topCanvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, topCanvas.width || 600, 0);
+    grad.addColorStop(0, '#1d4ed8');
+    grad.addColorStop(1, '#60a5fa');
+
+    new Chart(topCanvas, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Expenditure',
+          data: values,
+          backgroundColor: labels.map((_, i) => {
+            const rank = labels.length - i;
+            if (rank === 1) return '#f59e0b';
+            if (rank === 2) return '#94a3b8';
+            if (rank === 3) return '#b45309';
+            return grad;
+          }),
+          borderColor: labels.map((_, i) => {
+            const rank = labels.length - i;
+            if (rank === 1) return '#d97706';
+            if (rank === 2) return '#64748b';
+            if (rank === 3) return '#92400e';
+            return '#1d4ed8';
+          }),
+          borderWidth: 1,
+          borderRadius: 7,
+          borderSkipped: false,
+          barPercentage: 0.72,
+          categoryPercentage: 0.8
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 900, easing: 'easeOutQuart' },
+        layout: { padding: { right: 8, left: 4, top: 4, bottom: 4 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: ink,
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: false,
+            titleFont: { size: 12, weight: '700' },
+            bodyFont: { size: 12, weight: '600' },
+            callbacks: {
+              label: (c) => fmt(c.parsed.x),
+              afterLabel: (c) => {
+                const total = topValues.reduce((a, b) => a + Number(b || 0), 0);
+                const pct = total ? ((Number(c.parsed.x) / total) * 100).toFixed(1) : '0';
+                return pct + '% of top-10 total';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            grid: { color: grid, drawBorder: false },
+            ticks: {
+              color: muted,
+              font: { size: 11, weight: '600' },
+              callback: (v) => {
+                if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+                if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
+                return v;
+              }
+            },
+            title: { display: true, text: 'AED', color: muted, font: { size: 11, weight: '700' } }
+          },
+          y: {
+            grid: { display: false, drawBorder: false },
+            ticks: {
+              color: ink,
+              font: { size: 11, weight: '700' },
+              crossAlign: 'far',
+              callback: function (v) {
+                const lab = this.getLabelForValue(v);
+                if (!lab) return '';
+                const s = String(lab);
+                return s.length > 14 ? s.slice(0, 13) + '…' : s;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Expense mix donut ──
+  const mixCanvas = document.getElementById('spmMixDonut');
+  if (mixCanvas && window.Chart) {
+    const papers = {{ (totals.maintenance_papers if totals else 0) | tojson }};
+    const jobs = {{ (totals.maintenance_jobs if totals else 0) | tojson }};
+    const supp = {{ (totals.supplier_bills if totals else 0) | tojson }};
+    const mixVals = [Number(papers), Number(jobs), Number(supp)];
+    const mixTotal = mixVals.reduce((a, b) => a + b, 0);
+
+    new Chart(mixCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Maintenance Papers', 'Maintenance Jobs', 'Supplier Bills'],
+        datasets: [{
+          data: mixVals,
+          backgroundColor: ['#16a34a', '#2563eb', '#7c3aed'],
+          hoverBackgroundColor: ['#15803d', '#1d4ed8', '#6d28d9'],
+          borderWidth: 2,
+          borderColor: '#ffffff',
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '64%',
+        animation: { animateRotate: true, duration: 900 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: ink,
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+              label: (c) => {
+                const pct = mixTotal ? ((Number(c.parsed) / mixTotal) * 100).toFixed(1) : '0';
+                return ' ' + fmt(c.parsed) + '  (' + pct + '%)';
+              }
+            }
+          }
+        }
+      },
+      plugins: [{
+        id: 'spmCenterText',
+        afterDraw: function (chart) {
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return;
+          const cx = (chartArea.left + chartArea.right) / 2;
+          const cy = (chartArea.top + chartArea.bottom) / 2;
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.fillStyle = muted;
+          ctx.font = '700 11px sans-serif';
+          ctx.fillText('GRAND TOTAL', cx, cy - 10);
+          ctx.fillStyle = ink;
+          ctx.font = '800 13px sans-serif';
+          const label = fmt(mixTotal);
+          ctx.fillText(label.length > 16 ? Number(mixTotal).toFixed(0) : label, cx, cy + 12);
+          ctx.restore();
+        }
+      }]
+    });
+  }
+
+  // ── Monthly stacked trend ──
+  const trendCanvas = document.getElementById('spmMonthlyTrend');
+  if (trendCanvas && window.Chart && monthLabels && monthLabels.length) {
+    new Chart(trendCanvas, {
+      type: 'bar',
+      data: {
+        labels: monthLabels,
+        datasets: [
+          {
+            label: 'Maintenance Papers',
+            data: monthPapers,
+            backgroundColor: '#16a34a',
+            hoverBackgroundColor: '#15803d',
+            borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 4, bottomRight: 4 },
+            borderSkipped: false
+          },
+          {
+            label: 'Maintenance Jobs',
+            data: monthJobs,
+            backgroundColor: '#2563eb',
+            hoverBackgroundColor: '#1d4ed8',
+            borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 0, bottomRight: 0 },
+            borderSkipped: false
+          },
+          {
+            label: 'Supplier Bills',
+            data: monthSupp,
+            backgroundColor: '#7c3aed',
+            hoverBackgroundColor: '#6d28d9',
+            borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 },
+            borderSkipped: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 900, easing: 'easeOutQuart' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: ink,
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+              label: (c) => ' ' + c.dataset.label + ': ' + fmt(c.parsed.y),
+              footer: (items) => {
+                const sum = items.reduce((a, i) => a + Number(i.parsed.y || 0), 0);
+                return 'Total: ' + fmt(sum);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { display: false, drawBorder: false },
+            ticks: { color: muted, font: { size: 11, weight: '600' }, maxRotation: 0, autoSkip: true }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            grid: { color: grid, drawBorder: false },
+            ticks: {
+              color: muted,
+              font: { size: 11, weight: '600' },
+              callback: (v) => {
+                if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+                if (v >= 1000) return (v / 1000).toFixed(0) + 'k';
+                return v;
+              }
+            },
+            title: { display: true, text: 'AED', color: muted, font: { size: 11, weight: '700' } }
+          }
+        }
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}
