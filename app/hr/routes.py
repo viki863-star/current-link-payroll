@@ -480,8 +480,6 @@ def employee_list():
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
                     WHERE va.driver_id = e.employee_id AND va.is_current = 1
                       AND e.status = 'Active'
-                      AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax
-                                   WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1)
                     ORDER BY va.id DESC LIMIT 1),
                    (SELECT d.vehicle_no FROM drivers d
                     WHERE d.driver_id = e.employee_id AND d.status = 'Active'
@@ -641,15 +639,17 @@ def employee_new():
                     "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
                     (date.today().isoformat(), values["employee_id"]),
                 )
-                # Ek vehicle par sirf ek current driver — baaki drivers ki rows band
-                db.execute(
-                    "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE vehicle_id = ? AND is_current = 1 AND driver_id <> ?",
-                    (date.today().isoformat(), values["vehicle_id"], values["employee_id"]),
-                )
-                db.execute(
-                    "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
-                    (values["vehicle_id"], values["employee_id"], date.today().isoformat()),
-                )
+                # Double-shift: ek vehicle par multiple current drivers allowed
+                # (morning + night). Sirf ensure karo is driver ki row na ho.
+                existing = db.execute(
+                    "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
+                    (values["vehicle_id"], values["employee_id"]),
+                ).fetchone()
+                if not existing:
+                    db.execute(
+                        "INSERT INTO vehicle_assignments (vehicle_id, driver_id, assigned_from, is_current) VALUES (?, ?, ?, 1)",
+                        (values["vehicle_id"], values["employee_id"], date.today().isoformat()),
+                    )
                 db.execute("UPDATE drivers SET vehicle_no = ? WHERE driver_id = ?", (values["vehicle_id"], values["employee_id"]))
 
             if values["employee_type"] == "Field Staff":
@@ -1241,8 +1241,6 @@ def employee_transactions(employee_id):
             "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
             "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
             "WHERE va.driver_id = ? AND va.is_current = 1 AND ? = 'Active' "
-            "AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax "
-            "            WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1) "
             "LIMIT 1",
             (eid, employee.get("status") or ""),
         ).fetchone()
@@ -2389,8 +2387,6 @@ def employee_edit(employee_id):
         "SELECT va.vehicle_id FROM vehicle_assignments va "
         "WHERE va.driver_id = ? AND va.is_current = 1 "
         "AND (SELECT e.status FROM employees e WHERE e.employee_id = va.driver_id) = 'Active' "
-        "AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax "
-        "            WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1) "
         "LIMIT 1",
         (employee_id,),
     ).fetchone()
@@ -2502,10 +2498,12 @@ def employee_edit(employee_id):
                         "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1",
                         (date.today().isoformat(), employee_id),
                     )
-                    # Ek vehicle par sirf ek current driver — baaki drivers ki rows band
+                    # Double-shift: ek vehicle par multiple current drivers allowed.
+                    # Purani vehicle chhod do (driver sirf ek vehicle par), lekin
+                    # is vehicle ke doosre drivers ko mat hatao.
                     db.execute(
-                        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE vehicle_id = ? AND is_current = 1 AND driver_id <> ?",
-                        (date.today().isoformat(), values["vehicle_id"], employee_id),
+                        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1 AND vehicle_id != ?",
+                        (date.today().isoformat(), employee_id, values["vehicle_id"]),
                     )
                     existing = db.execute(
                         "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
@@ -2692,13 +2690,11 @@ def employee_list_excel():
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.termination_date,
                e.shift,
-               COALESCE(
+                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
                     WHERE va.driver_id = e.employee_id AND va.is_current = 1
                       AND e.status = 'Active'
-                      AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax
-                                   WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1)
                     ORDER BY va.id DESC LIMIT 1),
                    (SELECT d.vehicle_no FROM drivers d
                     WHERE d.driver_id = e.employee_id AND d.status = 'Active'
@@ -2793,13 +2789,11 @@ def employee_list_pdf():
         SELECT e.employee_id, e.full_name, e.phone_number, e.email, e.employee_type,
                e.department, e.designation, e.join_date, e.basic_salary, e.status, e.termination_date,
                e.shift,
-               COALESCE(
+                COALESCE(
                    (SELECT v.plate_no FROM vehicle_assignments va
                     JOIN vehicles v ON v.plate_no = va.vehicle_id
                     WHERE va.driver_id = e.employee_id AND va.is_current = 1
                       AND e.status = 'Active'
-                      AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax
-                                   WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1)
                     ORDER BY va.id DESC LIMIT 1),
                    (SELECT d.vehicle_no FROM drivers d
                     WHERE d.driver_id = e.employee_id AND d.status = 'Active'
@@ -3322,8 +3316,6 @@ def _current_vehicle(db, employee_id):
         "SELECT va.vehicle_id FROM vehicle_assignments va "
         "WHERE va.is_current = 1 AND va.driver_id = ? "
         "AND (SELECT e.status FROM employees e WHERE e.employee_id = va.driver_id) = 'Active' "
-        "AND va.id = (SELECT MAX(vax.id) FROM vehicle_assignments vax "
-        "            WHERE vax.vehicle_id = va.vehicle_id AND vax.is_current = 1) "
         "LIMIT 1",
         (employee_id,),
     ).fetchone()

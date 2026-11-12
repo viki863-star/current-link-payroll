@@ -2594,16 +2594,13 @@ def vehicle_assign_driver(plate_no):
         flash("Please select a driver.", "error")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
 
-    # Remove driver from any OTHER vehicle (not this one) — allows day/night shift on same vehicle
+    # Remove driver from any OTHER vehicle (not this one) — driver sirf ek vehicle par
     db.execute(
         "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE driver_id = ? AND is_current = 1 AND vehicle_id != ?",
         (assigned_from, driver_id, plate_no),
     )
-    # Ek vehicle par sirf ek current driver — baaki drivers ki current rows band
-    db.execute(
-        "UPDATE vehicle_assignments SET is_current = 0, assigned_until = ? WHERE vehicle_id = ? AND is_current = 1 AND driver_id != ?",
-        (assigned_from, plate_no, driver_id),
-    )
+    # Double-shift: ek vehicle par multiple current drivers allowed (morning + night).
+    # Is vehicle ke doosre drivers ko auto-mat hatao.
     # Check if this driver is already assigned to this vehicle
     existing = db.execute(
         "SELECT id FROM vehicle_assignments WHERE vehicle_id = ? AND driver_id = ? AND is_current = 1",
