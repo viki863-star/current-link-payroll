@@ -5,178 +5,265 @@
 
 {% block content %}
 <style>
-.sp-container { max-width:1000px; margin:0 auto; }
-.sp-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
-.sp-name { margin:0; font-size:1.3rem; font-weight:700; }
-.sp-id { font-size:0.8rem; color:var(--muted); font-family:monospace; }
-.sp-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px; }
-.sp-card { border-radius:18px; padding:20px 16px; position:relative; overflow:hidden; transition:transform 0.2s; cursor:default; }
-.sp-card:active { transform:scale(0.96); }
-.sp-card-shine { position:absolute; top:0; left:0; right:0; height:50%; background:linear-gradient(180deg,rgba(255,255,255,0.2) 0%,transparent 100%); border-radius:18px 18px 0 0; }
-.sp-card-icon { width:32px; height:32px; border-radius:10px; display:grid; place-items:center; margin-bottom:8px; }
-.sp-card-label { font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; position:relative; z-index:1; }
-.sp-card-label.light { color:rgba(255,255,255,0.8); }
-.sp-card-val { font-size:1.4rem; font-weight:800; position:relative; z-index:1; }
-.sp-card-val.light { color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.2); }
-.sp-card-sub { font-size:0.65rem; position:relative; z-index:1; margin-top:2px; }
-.sp-card-sub.light { color:rgba(255,255,255,0.65); }
-.sp-section { margin-bottom:20px; }
-.sp-section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
-.sp-section-title { font-size:0.95rem; font-weight:700; margin:0; display:flex; align-items:center; gap:8px; }
-.sp-filter-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px; padding:12px 16px; background:var(--surface); border:1px solid var(--line); border-radius:12px; }
-.sp-filter-bar select, .sp-filter-bar .btn-sm { font-size:0.82rem; }
-.smart-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
-.smart-table th { text-align:left; padding:9px 12px; font-size:0.62rem; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; color:#64748b; border-bottom:2px solid #e2e8f0; background:transparent; }
-.smart-table th.r, .smart-table td.r { text-align:right; }
-.smart-table th.c, .smart-table td.c { text-align:center; }
-.smart-table td { padding:8px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
-.smart-table tbody tr { transition:background 0.12s; }
-.smart-table tbody tr:last-child td { border-bottom:none; }
-.smart-table tbody tr:hover { background:#f0f4fe; }
-@media(max-width:600px){
-  .sp-cards { grid-template-columns:1fr; gap:10px; }
-  .sp-card { padding:16px; }
-  .sp-card-val { font-size:1.2rem; }
-  .sp-filter-bar { flex-direction:column; align-items:stretch; }
-  .sp-filter-bar select { width:100%; }
-  .smart-table { font-size:0.72rem; }
-  .smart-table th, .smart-table td { padding:6px 8px; }
+.sp { --sp-ink:#0f2749; --sp-muted:#64748b; --sp-line:#dbe4f0; --sp-bg:#f5f8fc;
+      --sp-blue:#2563eb; --sp-green:#16a34a; --sp-amber:#d97706; --sp-red:#dc2626;
+      --sp-teal:#0d9488; --sp-orange:#ea580c; color:var(--sp-ink); max-width:1100px; margin:0 auto; }
+.sp * { box-sizing:border-box; }
+
+/* Hero */
+.sp-hero { display:flex; justify-content:space-between; align-items:center; gap:18px; flex-wrap:wrap;
+  background:linear-gradient(118deg,#0f2749 0%,#1d3f73 55%,#245c9e 100%); color:#fff;
+  border-radius:18px; padding:24px 28px; margin-bottom:16px; position:relative; overflow:hidden; }
+.sp-hero::after { content:""; position:absolute; right:-60px; top:-80px; width:240px; height:240px;
+  background:radial-gradient(circle,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 70%); pointer-events:none; }
+.sp-hero-main { display:flex; align-items:center; gap:16px; position:relative; z-index:1; min-width:0; }
+.sp-avatar { width:72px; height:72px; border-radius:50%; object-fit:cover; border:3px solid rgba(255,255,255,.35);
+  box-shadow:0 6px 18px rgba(0,0,0,.2); flex:none; }
+.sp-avatar-letter { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#f7931e,#ea580c);
+  color:#fff; display:grid; place-items:center; font-weight:800; font-size:1.7rem; border:3px solid rgba(255,255,255,.35);
+  box-shadow:0 6px 18px rgba(0,0,0,.2); flex:none; }
+.sp-kicker { font-size:.62rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#9dc2f4; margin-bottom:4px; }
+.sp-name { margin:0; font-size:1.45rem; font-weight:800; letter-spacing:-.3px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.sp-meta { font-size:.78rem; color:#c9dcf7; margin-top:5px; font-family:'SF Mono',Consolas,monospace; }
+.sp-status { display:inline-flex; align-items:center; gap:5px; font-size:.6rem; font-weight:800; letter-spacing:.5px;
+  text-transform:uppercase; padding:3px 10px; border-radius:999px; }
+.sp-status.active { background:#dcfce7; color:#15803d; }
+.sp-status.inactive { background:#f1f5f9; color:#475569; }
+.sp-status.resigned { background:#fee2e2; color:#b91c1c; }
+.sp-hero-actions { display:flex; gap:8px; flex-wrap:wrap; position:relative; z-index:1; }
+.sp-btn { display:inline-flex; align-items:center; gap:6px; font-size:.72rem; font-weight:700;
+  padding:7px 14px; border-radius:999px; text-decoration:none; transition:all .15s; border:1px solid transparent; cursor:pointer; }
+.sp-btn-ghost { background:rgba(255,255,255,.12); color:#fff; border-color:rgba(255,255,255,.28); }
+.sp-btn-ghost:hover { background:rgba(255,255,255,.22); transform:translateY(-1px); }
+.sp-btn-primary { background:var(--sp-blue); color:#fff; border-color:var(--sp-blue); }
+.sp-btn-primary:hover { background:#1d4ed8; box-shadow:0 4px 12px rgba(37,99,235,.28); transform:translateY(-1px); }
+.sp-btn-green { background:#15803d; color:#fff; border-color:#15803d; }
+.sp-btn-green:hover { background:#166534; }
+.sp-btn-orange { background:#c2410c; color:#fff; border-color:#c2410c; }
+.sp-btn-orange:hover { background:#9a3412; }
+.sp-btn-outline { background:#fff; color:#33507a; border-color:var(--sp-line); }
+.sp-btn-outline:hover { border-color:var(--sp-blue); color:var(--sp-blue); }
+
+/* KPI band */
+.sp-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+.sp-kpi { background:#fff; border:1px solid var(--sp-line); border-radius:16px; padding:16px 16px 14px; position:relative; overflow:hidden; }
+.sp-kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--kp,var(--sp-blue)); }
+.sp-kpi .k-label { font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px; color:var(--sp-muted); }
+.sp-kpi .k-value { font-size:1.25rem; font-weight:800; color:var(--sp-ink); margin-top:6px; letter-spacing:-.4px; font-variant-numeric:tabular-nums; }
+.sp-kpi .k-sub { font-size:.66rem; color:var(--sp-muted); margin-top:4px; }
+.sp-kpi.is-green .k-value { color:var(--sp-green); }
+.sp-kpi.is-red .k-value { color:var(--sp-red); }
+.sp-kpi.is-teal .k-value { color:var(--sp-teal); }
+
+/* Panels */
+.sp-sec { background:#fff; border:1px solid var(--sp-line); border-radius:16px; padding:18px; margin-bottom:16px; }
+.sp-sec-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+.sp-sec-head h2 { margin:0; font-size:.92rem; font-weight:800; color:var(--sp-ink); display:flex; align-items:center; gap:9px; }
+.sp-sec-head h2::before { content:""; width:5px; height:18px; background:var(--ac,var(--sp-blue)); border-radius:3px; }
+.sp-sec-head .sp-note { font-size:.7rem; color:var(--sp-muted); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.sp-actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+/* Form grid */
+.sp-form-card { background:linear-gradient(135deg,#f0fdf4,#ecfdf5); border:1px solid #bbf7d0; border-radius:14px;
+  padding:14px; margin-bottom:14px; }
+.sp-form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; align-items:end; }
+.sp-fg { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.sp-fg label { font-size:.6rem; font-weight:800; color:var(--sp-muted); text-transform:uppercase; letter-spacing:.4px; }
+.sp-fg input, .sp-fg select {
+  padding:8px 11px; border:1px solid var(--sp-line); border-radius:9px; font-size:.8rem;
+  background:#fff; color:var(--sp-ink); width:100%; outline:none; transition:border .15s, box-shadow .15s; }
+.sp-fg input:focus, .sp-fg select:focus {
+  border-color:var(--sp-green); box-shadow:0 0 0 3px rgba(22,197,94,.14); }
+
+/* Filter bar */
+.sp-filter { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px;
+  padding:12px 14px; background:var(--sp-bg); border:1px solid #e6edf7; border-radius:12px; }
+.sp-filter label { font-size:.68rem; font-weight:700; color:var(--sp-muted); }
+.sp-filter select, .sp-filter input {
+  padding:7px 10px; border:1px solid var(--sp-line); border-radius:8px; font-size:.8rem;
+  background:#fff; color:var(--sp-ink); outline:none; }
+.sp-filter-right { margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.sp-showing { font-size:.7rem; color:var(--sp-muted); }
+.sp-showing strong { color:var(--sp-ink); }
+
+/* Tables */
+.sp-tbl-wrap { overflow-x:auto; border-radius:12px; border:1px solid #eef2f8; }
+.sp table { width:100%; border-collapse:collapse; font-size:.74rem; background:#fff; }
+.sp table th { text-align:left; font-size:.58rem; font-weight:800; text-transform:uppercase; letter-spacing:.7px;
+  color:var(--sp-muted); padding:10px 12px; border-bottom:2px solid var(--sp-line); background:#f8fafc; white-space:nowrap; }
+.sp table th.r, .sp table td.r { text-align:right; }
+.sp table td { padding:10px 12px; border-bottom:1px solid #eef2f8; color:#243b5e; vertical-align:middle; }
+.sp table tr:last-child td { border-bottom:none; }
+.sp table tr:hover td { background:#f7fafd; }
+.sp table td.mono, .sp .mono { font-family:'SF Mono',Consolas,monospace; font-size:.72rem; }
+.sp table td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+.sp .empty { text-align:center; color:#94a7c4; font-size:.74rem; padding:28px 12px !important; }
+
+/* Pills */
+.sp-pill { display:inline-flex; align-items:center; gap:4px; font-size:.6rem; font-weight:800;
+  padding:3px 9px; border-radius:999px; white-space:nowrap; }
+.sp-pill.in { background:#dcfce7; color:#15803d; }
+.sp-pill.out { background:#ffedd5; color:#c2410c; }
+.sp-pill.type { background:#eff6ff; color:#1d4ed8; text-transform:uppercase; letter-spacing:.4px; }
+.sp-pill.method { background:#f1f5f9; color:#475569; }
+.sp-pill.st-active { background:#dcfce7; color:#15803d; }
+.sp-pill.st-approved { background:#dcfce7; color:#15803d; }
+.sp-pill.st-pending { background:#fef3c7; color:#92400e; }
+.sp-pill.st-other { background:#f1f5f9; color:#475569; }
+
+/* Row actions */
+.sp-row-actions { display:flex; gap:4px; justify-content:flex-end; white-space:nowrap; }
+.sp-icon-btn { display:inline-grid; place-items:center; min-width:26px; height:26px; padding:0 8px; border-radius:7px;
+  border:1px solid var(--sp-line); background:#fff; color:#33507a; font-size:.7rem; font-weight:700; text-decoration:none;
+  cursor:pointer; transition:all .12s; }
+.sp-icon-btn:hover { border-color:var(--sp-blue); color:var(--sp-blue); background:#eff6ff; }
+.sp-icon-btn.danger { color:#c2410c; }
+.sp-icon-btn.danger:hover { border-color:#fdba74; background:#fff7ed; color:#9a3412; }
+
+.sp-amt-in { color:#15803d; font-weight:800; }
+.sp-amt-out { color:#c2410c; font-weight:800; }
+.sp-empty { text-align:center; color:#94a7c4; font-size:.76rem; padding:28px 12px; }
+
+@media(max-width:760px){
+  .sp-kpis { grid-template-columns:1fr; }
+  .sp-hero { padding:18px; }
+  .sp-name { font-size:1.2rem; }
+  .sp-filter-right { margin-left:0; width:100%; }
+  .sp-form-grid { grid-template-columns:1fr 1fr; }
+}
+@media(max-width:480px){
+  .sp-form-grid { grid-template-columns:1fr; }
 }
 </style>
 
-<div class="sp-container">
-  {# ═══ HEADER ═══ #}
-  <div class="sp-header">
-    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+<div class="sp">
+  {# ═══ HERO ═══ #}
+  {% set emp_status = 'Resigned' if s.employment_status == 'Resigned' else ('Active' if s.is_active else 'Inactive') %}
+  <header class="sp-hero">
+    <div class="sp-hero-main">
       {% if s.photo_data and s.photo_content_type %}
-      <img src="data:{{ s.photo_content_type }};base64,{{ s.photo_data }}" style="width:76px;height:76px;border-radius:50%;object-fit:cover;border:2px solid var(--orange);box-shadow:0 4px 14px rgba(247,147,30,0.25)" alt="{{ s.full_name }}">
+      <img class="sp-avatar" src="data:{{ s.photo_content_type }};base64,{{ s.photo_data }}" alt="{{ s.full_name }}">
       {% else %}
-      <div style="width:76px;height:76px;border-radius:50%;background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.8rem;box-shadow:0 4px 14px rgba(247,147,30,0.25)">{{ s.full_name[:1]|upper }}</div>
+      <div class="sp-avatar-letter">{{ s.full_name[:1]|upper }}</div>
       {% endif %}
-      <div>
-        <h1 class="sp-name">{{ s.full_name }}
-          {% set emp_status = 'Resigned' if s.employment_status == 'Resigned' else ('Active' if s.is_active else 'Inactive') %}
-          <span class="status-badge {{ 'active' if emp_status == 'Active' else ('danger' if emp_status == 'Resigned' else 'inactive') }}" style="font-size:0.6rem;vertical-align:middle">{{ emp_status }}{% if emp_status == 'Resigned' and s.resign_date %} · {{ s.resign_date }}{% endif %}</span>
+      <div style="min-width:0">
+        <div class="sp-kicker">Fleet · Field Staff</div>
+        <h1 class="sp-name">
+          {{ s.full_name }}
+          <span class="sp-status {{ 'active' if emp_status == 'Active' else ('resigned' if emp_status == 'Resigned' else 'inactive') }}">
+            {% if emp_status == 'Active' %}●{% elif emp_status == 'Resigned' %}●{% else %}○{% endif %}
+            {{ emp_status }}{% if emp_status == 'Resigned' and s.resign_date %} · {{ s.resign_date }}{% endif %}
+          </span>
         </h1>
-        <span class="sp-id">{{ s.staff_id }} &middot; {{ s.phone or '—' }} &middot; {{ s.username }}</span>
+        <div class="sp-meta">{{ s.staff_id }} &middot; {{ s.phone or '—' }} &middot; {{ s.username }}</div>
       </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="btn btn-sm btn-outline">Edit Staff</a>
-      <a href="{{ url_for('fleet.fleet_staff_list') }}" class="btn btn-sm btn-outline">&larr; Back</a>
+    <div class="sp-hero-actions">
+      <a href="{{ url_for('fleet.fleet_staff_edit', staff_id=s.staff_id) }}" class="sp-btn sp-btn-ghost">✎ Edit Staff</a>
+      <a href="{{ url_for('fleet.fleet_staff_list') }}" class="sp-btn sp-btn-ghost">← Back</a>
     </div>
-  </div>
+  </header>
 
-  {# ═══ KPI CARDS — Always shows {{ month_name }} data ═══ #}
-  <div class="sp-cards">
-    <div class="sp-card" style="background:linear-gradient(145deg,#22c55e,#16a34a);box-shadow:0 8px 25px rgba(34,197,94,0.3)">
-      <div class="sp-card-shine"></div>
-      <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
-        <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-      </div>
-      <div class="sp-card-label light">Receive Cash</div>
-      <div class="sp-card-val light">AED {{ "%.0f"|format(card_received) }}</div>
-      <div class="sp-card-sub light">{{ month_name }}</div>
+  {# ═══ KPI BAND ═══ #}
+  <section class="sp-kpis">
+    <div class="sp-kpi is-green" style="--kp:var(--sp-green)">
+      <div class="k-label">Receive Cash</div>
+      <div class="k-value">AED {{ "%.0f"|format(card_received) }}</div>
+      <div class="k-sub">Cash given to staff · {{ month_name }}</div>
     </div>
-    <div class="sp-card" style="background:linear-gradient(145deg,#ef4444,#dc2626);box-shadow:0 8px 25px rgba(239,68,68,0.3)">
-      <div class="sp-card-shine"></div>
-      <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
-        <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-      </div>
-      <div class="sp-card-label light">Spent</div>
-      <div class="sp-card-val light">AED {{ "%.0f"|format(card_spent) }}</div>
-      <div class="sp-card-sub light">{{ month_name }}</div>
+    <div class="sp-kpi is-red" style="--kp:var(--sp-red)">
+      <div class="k-label">Spent</div>
+      <div class="k-value">AED {{ "%.0f"|format(card_spent) }}</div>
+      <div class="k-sub">Jobs + papers approved · {{ month_name }}</div>
     </div>
-    <div class="sp-card" style="background:linear-gradient(145deg,{{ '#22c55e' if card_balance >= 0 else '#dc2626' }},{{ '#16a34a' if card_balance >= 0 else '#b91c1c' }});box-shadow:0 8px 25px rgba({{ '34,197,94' if card_balance >= 0 else '220,38,38' }},0.3)">
-      <div class="sp-card-shine"></div>
-      <div class="sp-card-icon" style="background:rgba(255,255,255,0.12);width:32px;height:32px;border-radius:8px;display:grid;place-items:center">
-        <svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </div>
-      <div class="sp-card-label light">{{ 'Available' if card_balance >= 0 else 'Due' }}</div>
-      <div class="sp-card-val light">AED {{ "%.0f"|format(card_balance|abs) }}</div>
-      <div class="sp-card-sub light">{{ month_name }}</div>
+    <div class="sp-kpi {% if card_balance >= 0 %}is-teal{% else %}is-red{% endif %}" style="--kp:{{ 'var(--sp-teal)' if card_balance >= 0 else 'var(--sp-red)' }}">
+      <div class="k-label">{{ 'Available' if card_balance >= 0 else 'Due' }}</div>
+      <div class="k-value">AED {{ "%.0f"|format(card_balance|abs) }}</div>
+      <div class="k-sub">Received − Spent · {{ month_name }}</div>
     </div>
-  </div>
+  </section>
 
   {# ═══ CASH GIVEN SECTION ═══ #}
-  <div class="profile-card sp-section">
-    <div class="sp-section-head">
-      <h3 class="sp-section-title">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
-        Cash Given to Staff
-      </h3>
-      <div style="font-size:0.75rem;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span>{{ month_name }}: <strong style="color:#16a34a">AED {{ "%.0f"|format(card_received) }}</strong></span>
-        <span class="badge badge-dept">{{ cash_items|length }} entries</span>
+  <section class="sp-sec">
+    <div class="sp-sec-head">
+      <div>
+        <h2 style="--ac:var(--sp-green)">Cash Given to Staff</h2>
+        <div class="sp-note">
+          <span>{{ month_name }}: <strong style="color:#15803d">AED {{ "%.0f"|format(card_received) }}</strong></span>
+          <span class="sp-pill in">{{ cash_items|length }} entries</span>
+        </div>
+      </div>
+      <div class="sp-actions">
+        <a href="{{ url_for('fleet.fleet_staff_advances_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="sp-btn sp-btn-primary" target="_blank">📄 Cash PDF</a>
+        <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to, vehicle=vehicle_filter) }}" class="sp-btn sp-btn-orange" target="_blank">📄 Jobs PDF</a>
       </div>
     </div>
 
     {# ═══ GIVE CASH FORM ═══ #}
-    <div style="padding:14px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:12px;margin-bottom:14px">
-      <form method="POST" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" style="display:flex;flex-wrap:wrap;gap:10px;align-items:end">
+    <div class="sp-form-card">
+      <form method="POST" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}" class="sp-form-grid">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div style="min-width:100px;flex:1">
-          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Amount (AED)</label>
-          <input type="number" name="amount" step="0.01" min="0" required class="form-control" style="font-size:0.85rem;width:100%" placeholder="0.00">
+        <div class="sp-fg">
+          <label>Amount (AED) *</label>
+          <input type="number" name="amount" step="0.01" min="0" required placeholder="0.00">
         </div>
-        <div style="min-width:120px">
-          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Source</label>
-          <select name="funding_source" class="form-control" style="font-size:0.82rem">
+        <div class="sp-fg">
+          <label>Source</label>
+          <select name="funding_source">
             <option value="Owner Fund">Owner Fund</option>
             <option value="Office Cash">Office Cash</option>
             <option value="Direct Payment">Direct Payment</option>
           </select>
         </div>
-        <div style="min-width:110px">
-          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Given By</label>
-          <input type="text" name="given_by" class="form-control" style="font-size:0.82rem;width:100%" placeholder="Who gave">
+        <div class="sp-fg">
+          <label>Given By</label>
+          <input type="text" name="given_by" placeholder="Who gave">
         </div>
-        <div style="min-width:90px">
-          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Date</label>
-          <input type="date" name="entry_date" value="{{ today }}" class="form-control" style="font-size:0.82rem">
+        <div class="sp-fg">
+          <label>Date</label>
+          <input type="date" name="entry_date" value="{{ today }}">
         </div>
-        <div style="min-width:80px">
-          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Time</label>
-          <input type="time" name="entry_time" value="{{ now.strftime('%H:%M') }}" class="form-control" style="font-size:0.82rem">
+        <div class="sp-fg">
+          <label>Time</label>
+          <input type="time" name="entry_time" value="{{ now.strftime('%H:%M') }}">
         </div>
-        <div style="min-width:120px;flex:1">
-          <label style="display:block;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px;color:var(--muted)">Notes</label>
-          <input type="text" name="notes" class="form-control" style="font-size:0.82rem;width:100%" placeholder="Optional">
+        <div class="sp-fg">
+          <label>Notes</label>
+          <input type="text" name="notes" placeholder="Optional">
         </div>
-        <div>
-          <button type="submit" class="btn btn-primary btn-sm" style="padding:8px 16px">&#43; Give Cash</button>
+        <div class="sp-fg">
+          <label>&nbsp;</label>
+          <button type="submit" class="sp-btn sp-btn-green" style="justify-content:center">+ Give Cash</button>
         </div>
       </form>
     </div>
 
     {# ═══ FILTER BAR ═══ #}
-    <form method="GET" class="sp-filter-bar" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}">
-      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Month:</label>
-      <select id="filter_month" name="month" onchange="setMonthRange(this.value)" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:120px">
+    <form method="GET" class="sp-filter" action="{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}">
+      <label>Month</label>
+      <select id="filter_month" name="month" onchange="setMonthRange(this.value)">
         <option value="">All</option>
         {% for m in months %}
         <option value="{{ m }}" {{ 'selected' if filter_month == m }}>{{ m }}</option>
         {% endfor %}
       </select>
-      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">From:</label>
-      <input type="date" id="filter_from" name="date_from" value="{{ date_from }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">To:</label>
-      <input type="date" id="filter_to" name="date_to" value="{{ date_to }}" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem">
-      <label style="font-size:0.72rem;font-weight:600;color:var(--muted)">Vehicle:</label>
-      <select name="vehicle" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:110px">
+      <label>From</label>
+      <input type="date" id="filter_from" name="date_from" value="{{ date_from }}">
+      <label>To</label>
+      <input type="date" id="filter_to" name="date_to" value="{{ date_to }}">
+      <label>Vehicle</label>
+      <select name="vehicle">
         <option value="">All</option>
         {% for v in vehicle_opts %}
         <option value="{{ v }}" {{ 'selected' if vehicle_filter == v }}>{{ v }}</option>
         {% endfor %}
       </select>
-      <button type="submit" class="btn btn-sm btn-primary" style="padding:6px 12px">Filter</button>
+      <button type="submit" class="sp-btn sp-btn-primary">Filter</button>
       {% if filter_month or date_from or date_to or vehicle_filter %}
-      <a href="?" class="btn btn-sm btn-outline">Clear</a>
+      <a href="?" class="sp-btn sp-btn-outline">Clear</a>
       {% endif %}
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-        <span style="font-size:0.72rem;color:var(--muted)">Showing: <strong>{{ cash_items|length }}</strong> entries</span>
-        <a href="{{ url_for('fleet.fleet_staff_advances_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to) }}" class="btn btn-sm btn-primary" target="_blank">&#128196; Cash PDF</a>
-        <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to, vehicle=vehicle_filter) }}" class="btn btn-sm btn-primary" target="_blank" style="background:#e65100">&#128196; Jobs PDF</a>
+      <div class="sp-filter-right">
+        <span class="sp-showing">Showing: <strong>{{ cash_items|length }}</strong> entries</span>
       </div>
     </form>
     <script>
@@ -190,25 +277,29 @@
     }
     </script>
 
-    {# ═══ ADVANCES TABLE ═══ #}
+    {# ═══ CASH TABLE ═══ #}
     {% if cash_items %}
-    <div class="table-wrap">
-      <table class="smart-table">
-        <thead><tr><th>Date</th><th>Amount</th><th>Source</th><th>Given By</th><th>Notes</th><th></th></tr></thead>
+    <div class="sp-tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th class="r">Amount</th><th>Source</th><th>Given By</th><th>Notes</th><th class="r"></th>
+          </tr>
+        </thead>
         <tbody>
           {% for c in cash_items %}
           <tr>
             <td class="mono">{{ c._date }}</td>
-            <td class="mono" style="font-weight:700;color:#16a34a">AED {{ "%.0f"|format(c._amount) }}</td>
-            <td><span class="badge badge-type">{{ c._source }}</span></td>
-            <td class="mono" style="color:var(--muted);font-size:0.72rem">{{ c._given_by }}</td>
-            <td style="color:var(--muted);font-size:0.72rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c._notes or '—' }}</td>
-            <td>
-              <div style="display:flex;gap:4px;flex-wrap:nowrap">
-                <a href="{{ url_for('fleet.fleet_staff_advance_edit', staff_id=s.staff_id, advance_id=c.id) }}" class="btn btn-xs btn-outline">Edit</a>
+            <td class="num sp-amt-in">AED {{ "%.0f"|format(c._amount) }}</td>
+            <td><span class="sp-pill in">{{ c._source }}</span></td>
+            <td class="mono" style="color:var(--sp-muted)">{{ c._given_by }}</td>
+            <td style="color:var(--sp-muted);font-size:.74rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c._notes or '—' }}</td>
+            <td class="r">
+              <div class="sp-row-actions">
+                <a href="{{ url_for('fleet.fleet_staff_advance_edit', staff_id=s.staff_id, advance_id=c.id) }}" class="sp-icon-btn" title="Edit">✎</a>
                 <form method="POST" action="{{ url_for('fleet.fleet_staff_advance_delete', staff_id=s.staff_id, advance_id=c.id) }}" style="display:inline" onsubmit="return confirm('Delete this entry?')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-xs btn-outline" style="color:#c62828">&#10005;</button>
+                  <button class="sp-icon-btn danger" type="submit" title="Delete">✕</button>
                 </form>
               </div>
             </td>
@@ -219,40 +310,51 @@
     </div>
     {% else %}
     <div class="sp-empty">
-      <p style="color:var(--muted);margin:0;padding:30px;text-align:center">
-        {% if filter_month %}No entries for {{ filter_month }}.{% else %}No entries for {{ month_name }}.{% endif %}
-      </p>
+      {% if filter_month %}No entries for {{ filter_month }}.{% else %}No entries for {{ month_name }}.{% endif %}
     </div>
     {% endif %}
-  </div>
+  </section>
 
-  {# ═══ JOBS & PAPERS SECTION ═══ #}
+  {# ═══ JOBS & PAPERS ═══ #}
   {% if items %}
-  <div class="profile-card sp-section">
-    <div class="sp-section-head">
-      <h3 class="sp-section-title">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Jobs &amp; Papers <span class="badge badge-dept">{{ items|length }}</span>
-      </h3>
-      <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to, vehicle=vehicle_filter) }}" class="btn btn-sm btn-primary" target="_blank" style="font-size:0.72rem">&#128196; PDF Report</a>
+  <section class="sp-sec">
+    <div class="sp-sec-head">
+      <div>
+        <h2 style="--ac:var(--sp-orange)">Jobs &amp; Papers</h2>
+        <div class="sp-note"><span class="sp-pill type">{{ items|length }} items</span></div>
+      </div>
+      <div class="sp-actions">
+        <a href="{{ url_for('fleet.fleet_staff_jobs_pdf', staff_id=s.staff_id, month=filter_month, date_from=date_from, date_to=date_to, vehicle=vehicle_filter) }}" class="sp-btn sp-btn-orange" target="_blank">📄 PDF Report</a>
+      </div>
     </div>
-    <div class="table-wrap">
-      <table class="smart-table">
-        <thead><tr><th>Date</th><th>Vehicle</th><th class="r">Amount</th><th>Type</th><th>Status</th><th></th></tr></thead>
+    <div class="sp-tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th><th>Vehicle</th><th class="r">Amount</th><th>Type</th><th>Status</th><th class="r"></th>
+          </tr>
+        </thead>
         <tbody>
           {% for item in items %}
           <tr>
             <td class="mono">{{ (item.created_at or '')|string|truncate(10, True, '') }}</td>
-            <td>{% if item._type == 'job' %}<a href="/fleet/vehicles/{{ item.vehicle_id }}?tab=jobs&highlight={{ item.id }}" style="color:var(--primary);text-decoration:none;font-weight:600">{{ item.vehicle_id }}</a>{% else %}{{ item.vehicle_id or '-' }}{% endif %}</td>
-            <td class="r mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(item.amount|float) }}</td>
-            <td><span class="badge badge-type">{{ 'Job' if item._type == 'job' else 'Paper' }}</span></td>
-            <td><span class="status-badge {{ item.status|lower }}">{{ item.status }}</span></td>
             <td>
-              <div style="display:flex;gap:4px">
+              {% if item._type == 'job' %}
+              <a href="/fleet/vehicles/{{ item.vehicle_id }}?tab=jobs&highlight={{ item.id }}" style="color:var(--sp-blue);text-decoration:none;font-weight:700">{{ item.vehicle_id }}</a>
+              {% else %}{{ item.vehicle_id or '—' }}{% endif %}
+            </td>
+            <td class="num sp-amt-out">AED {{ "%.0f"|format(item.amount|float) }}</td>
+            <td><span class="sp-pill type">{{ 'Job' if item._type == 'job' else 'Paper' }}</span></td>
+            <td>
+              {% set st = (item.status or 'Other')|lower %}
+              <span class="sp-pill {{ 'st-approved' if st in ['approved','active'] else ('st-pending' if st in ['pending','review'] else 'st-other') }}">{{ item.status }}</span>
+            </td>
+            <td class="r">
+              <div class="sp-row-actions">
                 {% if item._type == 'job' %}
-                <a href="{{ url_for('fleet.fleet_job_edit', job_id=item.id) }}" class="btn btn-xs btn-outline">Edit</a>
+                <a href="{{ url_for('fleet.fleet_job_edit', job_id=item.id) }}" class="sp-icon-btn">Edit</a>
                 {% else %}
-                <span style="font-size:0.6rem;color:var(--muted)">—</span>
+                <span style="font-size:.7rem;color:var(--sp-muted)">—</span>
                 {% endif %}
               </div>
             </td>
@@ -261,11 +363,11 @@
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
   {% else %}
-  <div class="profile-card" style="text-align:center;padding:40px">
-    <p style="color:var(--muted);margin:0">No activity for this staff member yet.</p>
-  </div>
+  <section class="sp-sec">
+    <div class="sp-empty" style="padding:40px 12px">No activity for this staff member yet.</div>
+  </section>
   {% endif %}
 </div>
 {% endblock %}
