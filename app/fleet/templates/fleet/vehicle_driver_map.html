@@ -8,12 +8,21 @@
     .filter-bar-top { display:flex !important; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap }
     .filter-bar-title { display:flex; align-items:center; gap:8px; font-weight:700; color:var(--ink); font-size:0.95rem }
     .vd-cell { display:flex; align-items:flex-start; gap:7px }
+    .vd-cell + .vd-cell { margin-top:8px; padding-top:8px; border-top:1px dashed #e9ecef }
     .vd-yes { flex:0 0 18px; height:18px; margin-top:2px; border-radius:50%; background:#dcfce7; color:#166534; font-size:.7rem; font-weight:900; display:flex; align-items:center; justify-content:center; line-height:1 }
     .vd-no { display:inline-flex; align-items:center; gap:6px; background:#fee2e2; color:#991b1b; border:1px solid #fecaca; font-size:.74rem; font-weight:800; padding:4px 10px; border-radius:999px; white-space:nowrap }
     .vd-sub { font-size:.7rem; color:var(--muted); margin-top:3px; font-family:'SF Mono',Consolas,monospace }
     .vd-legacy { display:inline-block; background:#fef3c7; color:#92400e; font-size:.6rem; font-weight:800; letter-spacing:.06em; padding:1px 6px; border-radius:999px; margin-left:5px; vertical-align:middle }
+    .vd-shift { display:inline-block; font-size:.62rem; font-weight:800; letter-spacing:.04em; padding:1px 7px; border-radius:999px; margin-left:4px; vertical-align:middle; border:1px solid transparent }
+    .vd-shift.morning { background:#fef9c3; color:#854d0e; border-color:#fde047 }
+    .vd-shift.night { background:#e0e7ff; color:#3730a3; border-color:#a5b4fc }
+    .vd-shift.other { background:#f1f5f9; color:#475569; border-color:#cbd5e1 }
+    .vd-badge-double { display:inline-block; background:#dbeafe; color:#1d4ed8; border:1px solid #93c5fd; font-size:.62rem; font-weight:900; letter-spacing:.06em; padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle }
+    .vd-phones { font-size:.78rem; color:var(--muted); line-height:1.5 }
+    .vd-since { font-size:.78rem; color:var(--muted); line-height:1.5 }
     .kpi-mini.vd-kpi-yes strong { color:#16a34a }
     .kpi-mini.vd-kpi-no strong { color:#dc2626 }
+    .kpi-mini.vd-kpi-double strong { color:#1d4ed8 }
 </style>
 <div class="list-shell">
     <div class="filter-bar">
@@ -48,6 +57,7 @@
         <span class="kpi-mini">Vehicles: <strong>{{ total }}</strong></span>
         <a href="{{ url_for('fleet.vehicle_driver_map', assign='assigned', q=q, status=status_filter) }}" class="kpi-mini vd-kpi-yes {% if assign_filter == 'assigned' %}active{% endif %}">With Driver: <strong>{{ assigned }}</strong></a>
         <a href="{{ url_for('fleet.vehicle_driver_map', assign='unassigned', q=q, status=status_filter) }}" class="kpi-mini vd-kpi-no {% if assign_filter == 'unassigned' %}active{% endif %}">No Driver: <strong>{{ unassigned }}</strong></a>
+        <span class="kpi-mini vd-kpi-double">Double Shift: <strong>{{ double_shift }}</strong></span>
     </div>
 
     <div class="table-wrap">
@@ -57,7 +67,7 @@
                     <th>Vehicle</th>
                     <th>Type</th>
                     <th>Status</th>
-                    <th>Current Driver</th>
+                    <th>Current Driver{{ 's' if double_shift else '' }}</th>
                     <th>Phone</th>
                     <th>Assigned Since</th>
                     <th class="th-actions"></th>
@@ -73,21 +83,37 @@
                     <td><span class="badge badge-type">{{ v.vehicle_type or '-' }}</span></td>
                     <td><span class="status-badge {{ (v.vehicle_status or '')|lower }}">{{ v.vehicle_status or '-' }}</span></td>
                     <td>
-                        {% if v.driver_id %}
-                        <div class="vd-cell">
-                            <span class="vd-yes">&#10003;</span>
-                            <div>
-                                <strong>{{ v.driver_name or v.driver_id }}</strong>
-                                {% if v.source == 'legacy' %}<span class="vd-legacy">LEGACY</span>{% endif %}
-                                <div class="vd-sub">{{ v.driver_id }}</div>
+                        {% if v.drivers %}
+                            {% for d in v.drivers %}
+                            <div class="vd-cell">
+                                <span class="vd-yes">&#10003;</span>
+                                <div>
+                                    <strong>{{ d.driver_name or d.driver_id }}</strong>
+                                    {% if loop.first and v.is_double_shift %}<span class="vd-badge-double">DOUBLE SHIFT</span>{% endif %}
+                                    <span class="vd-shift {{ (d.driver_shift or 'morning')|lower }}">{{ d.driver_shift or 'Morning' }}</span>
+                                    {% if d.source == 'legacy' %}<span class="vd-legacy">LEGACY</span>{% endif %}
+                                    <div class="vd-sub">{{ d.driver_id }}</div>
+                                </div>
                             </div>
-                        </div>
+                            {% endfor %}
                         {% else %}
                         <span class="vd-no">No Driver Assigned</span>
                         {% endif %}
                     </td>
-                    <td class="mono" style="font-size:0.8rem">{{ v.driver_phone or '—' }}</td>
-                    <td style="font-size:0.82rem">{{ (v.assigned_from or '—')[:10] }}</td>
+                    <td class="vd-phones">
+                        {% if v.drivers %}
+                            {% for d in v.drivers %}
+                            <div class="mono" style="font-size:0.78rem">{{ d.driver_phone or '—' }}</div>
+                            {% endfor %}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="vd-since">
+                        {% if v.drivers %}
+                            {% for d in v.drivers %}
+                            <div>{{ (d.assigned_from or '—')[:10] }}</div>
+                            {% endfor %}
+                        {% else %}—{% endif %}
+                    </td>
                     <td class="action-cell">
                         <a href="{{ vehicle_url(v.plate_no) }}" class="btn btn-sm btn-primary">Profile</a>
                     </td>

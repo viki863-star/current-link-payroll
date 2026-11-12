@@ -695,27 +695,20 @@ def vehicle_driver_map():
             "WHERE linked_plate_no IS NOT NULL AND linked_plate_no != '')"
         )
 
+        # Double-shift: ek vehicle par multiple current drivers ho sakte hain
+        # (morning + night). Saare active current assignments fetch karo.
         rows = db.execute(
             f"""SELECT v.plate_no, v.vehicle_type, v.model, v.status AS vehicle_status,
                        v.vehicle_category, v.ownership_type,
                        va.driver_id, va.assigned_from,
                        e.full_name AS driver_name, e.phone_number AS driver_phone,
-                       e.status AS driver_status
+                       e.status AS driver_status, e.shift AS driver_shift
                 FROM vehicles v
-                LEFT JOIN (
-                    SELECT vehicle_id, driver_id, assigned_from FROM (
-                        SELECT vehicle_id, driver_id, assigned_from,
-                               ROW_NUMBER() OVER (
-                                   PARTITION BY vehicle_id
-                                   ORDER BY assigned_from DESC, id DESC
-                               ) AS rn
-                        FROM vehicle_assignments
-                        WHERE is_current = 1
-                    ) ranked WHERE rn = 1
-                ) va ON va.vehicle_id = v.plate_no
+                LEFT JOIN vehicle_assignments va
+                       ON va.vehicle_id = v.plate_no AND va.is_current = 1
                 LEFT JOIN employees e ON e.employee_id = va.driver_id
                 WHERE {' AND '.join(where)}
-                ORDER BY v.plate_no""",
+                ORDER BY v.plate_no, va.assigned_from DESC, va.id DESC""",
             params,
         ).fetchall()
 
@@ -725,7 +718,7 @@ def vehicle_driver_map():
         legacy = {}
         try:
             for d in db.execute(
-                """SELECT driver_id, full_name, phone_number, status, vehicle_no
+                """SELECT driver_id, full_name, phone_number, status, vehicle_no, shift
                    FROM drivers
                    WHERE status = 'Active'
                      AND vehicle_no IS NOT NULL AND vehicle_no != ''
@@ -737,46 +730,63 @@ def vehicle_driver_map():
         except Exception:
             legacy = {}
 
-        vehicles = []
+        by_plate = {}
+        order = []
         for r in rows:
-            item = {
-                "plate_no": r["plate_no"],
-                "vehicle_type": r["vehicle_type"],
-                "model": r["model"],
-                "vehicle_status": r["vehicle_status"],
-                "driver_id": r["driver_id"],
-                "driver_name": r["driver_name"],
-                "driver_phone": r["driver_phone"],
-                "driver_status": r["driver_status"],
-                "assigned_from": r["assigned_from"],
-                "source": "assignment",
-            }
-            if not item["driver_id"]:
-                d = legacy.get(r["plate_no"])
+            plate = r["plate_no"]
+            if plate not in by_plate:
+                by_plate[plate] = {
+                    "plate_no": plate,
+                    "vehicle_type": r["vehicle_type"],
+                    "model": r["model"],
+                    "vehicle_status": r["vehicle_status"],
+                    "drivers": [],
+                    "source": "assignment",
+                }
+                order.append(plate)
+            item = by_plate[plate]
+            # Sirf ACTIVE driver hi count hota hai —
+            # Terminated/Inactive driver skip.
+            if r["driver_id"] and (r["driver_status"] or "") == "Active":
+                item["drivers"].append(
+                    {
+                        "driver_id": r["driver_id"],
+                        "driver_name": r["driver_name"],
+                        "driver_phone": r["driver_phone"],
+                        "driver_status": r["driver_status"],
+                        "driver_shift": (r["driver_shift"] or "").strip() or "Morning",
+                        "assigned_from": r["assigned_from"],
+                        "source": "assignment",
+                    }
+                )
+
+        vehicles = []
+        for plate in order:
+            item = by_plate[plate]
+            if not item["drivers"]:
+                d = legacy.get(plate)
                 if d:
-                    item.update(
+                    item["drivers"].append(
                         {
                             "driver_id": d["driver_id"],
                             "driver_name": d["full_name"],
                             "driver_phone": d["phone_number"],
                             "driver_status": d["status"],
+                            "driver_shift": (d["shift"] or "").strip() or "Morning",
                             "assigned_from": None,
                             "source": "legacy",
                         }
                     )
-            # Sirf ACTIVE driver hi asigned count hota hai —
-            # Terminated/Inactive driver = "No Driver Assigned".
-            if item["driver_id"] and (item["driver_status"] or "") != "Active":
-                item.update(
-                    {
-                        "driver_id": None,
-                        "driver_name": None,
-                        "driver_phone": None,
-                        "driver_status": None,
-                        "assigned_from": None,
-                        "source": None,
-                    }
-                )
+                    item["source"] = "legacy"
+            # Backward-compatible single-driver fields (primary = pehla driver)
+            primary = item["drivers"][0] if item["drivers"] else None
+            item["driver_id"] = primary["driver_id"] if primary else None
+            item["driver_name"] = primary["driver_name"] if primary else None
+            item["driver_phone"] = primary["driver_phone"] if primary else None
+            item["driver_status"] = primary["driver_status"] if primary else None
+            item["driver_shift"] = primary["driver_shift"] if primary else None
+            item["assigned_from"] = primary["assigned_from"] if primary else None
+            item["is_double_shift"] = len(item["drivers"]) > 1
             vehicles.append(item)
 
         # Bina driver wale vehicles upar — foran nazar aayein.
@@ -785,6 +795,7 @@ def vehicle_driver_map():
         total = len(vehicles)
         assigned = sum(1 for v in vehicles if v["driver_id"])
         unassigned = total - assigned
+        double_shift = sum(1 for v in vehicles if v.get("is_double_shift"))
 
         if assign_filter == "assigned":
             vehicles = [v for v in vehicles if v["driver_id"]]
@@ -797,6 +808,7 @@ def vehicle_driver_map():
             total=total,
             assigned=assigned,
             unassigned=unassigned,
+            double_shift=double_shift,
             q=q,
             assign_filter=assign_filter,
             status_filter=status_filter,
@@ -2135,14 +2147,15 @@ def vehicle_profile(plate_no):
         (plate_no,),
     ).fetchall()
 
-    # Current drivers (latest assignment per vehicle, is_current=1)
+    # Current drivers — double-shift: ek vehicle par multiple current drivers
     current_drivers = db.execute(
-        """SELECT va.vehicle_id, va.driver_id, va.assigned_from, e.full_name AS driver_name
+        """SELECT va.vehicle_id, va.driver_id, va.assigned_from,
+                  e.full_name AS driver_name, e.shift AS driver_shift
            FROM vehicle_assignments va
            JOIN employees e ON e.employee_id = va.driver_id
            WHERE va.vehicle_id = ? AND va.is_current = 1
-           ORDER BY va.assigned_from DESC
-           LIMIT 1""",
+             AND e.status = 'Active'
+           ORDER BY va.assigned_from DESC, va.id DESC""",
         (plate_no,),
     ).fetchall()
 

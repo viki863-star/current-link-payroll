@@ -164,7 +164,7 @@
                     {% for cd in current_drivers %}
                     <div style="display:flex;align-items:center;gap:14px;{% if not loop.last %}margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #f1f3f5{% endif %}">
                         <div style="width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:1rem;font-weight:700;color:#fff;background:var(--primary);flex-shrink:0">{{ cd.driver_name[:1]|upper }}</div>
-                        <div><div style="font-weight:700">{{ cd.driver_name }}</div><div class="mono" style="font-size:0.78rem;color:#868e96">{{ cd.driver_id }} &middot; Since {{ cd.assigned_from }}</div></div>
+                        <div><div style="font-weight:700">{{ cd.driver_name }}{% if cd.driver_shift %} <span style="font-size:0.72rem;font-weight:700;color:#868e96">{{ cd.driver_shift }}</span>{% endif %}</div><div class="mono" style="font-size:0.78rem;color:#868e96">{{ cd.driver_id }} &middot; Since {{ cd.assigned_from }}</div></div>
                     </div>
                     {% endfor %}
                     {% else %}
@@ -235,7 +235,7 @@
     <div class="vp-driver-hero">
         <div class="vp-driver-avatar">{{ cd.driver_name[:1]|upper }}</div>
         <div style="flex:1">
-            <div style="font-size:1.05rem;font-weight:700">{{ cd.driver_name }}</div>
+            <div style="font-size:1.05rem;font-weight:700">{{ cd.driver_name }}{% if cd.driver_shift %} <span style="font-size:0.8rem;font-weight:700;color:#868e96">{{ cd.driver_shift }}</span>{% endif %}</div>
             <div class="mono" style="font-size:0.82rem;color:#868e96">{{ cd.driver_id }} &middot; Assigned {{ cd.assigned_from }}</div>
         </div>
         <a href="{{ url_for('hr.employee_detail', employee_id=cd.driver_id) }}" class="btn btn-primary btn-sm">View Profile</a>
