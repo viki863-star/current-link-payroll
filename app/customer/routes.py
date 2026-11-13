@@ -1345,7 +1345,7 @@ def customer_invoice_pdf(cid, iid):
         if disc:
             tot_rows.append(trow("Discount", f"AED {disc:,.2f}", "disc"))
         tot_rows.append(trow(f"VAT @ {vp:.2f}%", f"AED {vat:,.2f}", "vat"))
-        tot_rows.append(trow("TOTAL AMOUNT DUE", due_txt, "grand"))
+        tot_rows.append(trow("TOTAL DUE", due_txt, "grand"))
         n_grand = len(tot_rows) - 1
 
         tt = Table(tot_rows, colWidths=[tw*0.48, tw*0.52])
