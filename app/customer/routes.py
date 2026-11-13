@@ -1061,13 +1061,14 @@ def customer_invoice_pdf(cid, iid):
                 logo = None; LW = 0
 
         brand = Paragraph(
-            "<font size=22 color='#FFFFFF'><b>CURRENT</b></font>"
-            "<font size=22 color='#F6A202'><b> LINK</b></font><br/>"
+            "<font size=20 color='#FFFFFF'><b>CURRENT</b></font>"
+            "<font size=20 color='#F6A202'><b> LINK</b></font><br/>"
             "<font size=6 color='#A8C4E0'>TRANSPORT AND GENERAL CONTRACTING LLC SPC</font>",
-            S("brand", fontSize=22, leading=24))
+            S("brand", fontSize=20, leading=23, splitLongWords=0))
         brand_cell = brand
         if logo:
-            brand_cell = Table([[logo, Spacer(1, 3*mm), brand]], colWidths=[LW, 3*mm, 55*mm - LW])
+            _brand_w = (W2 - 58*mm) - 5*mm - LW - 3*mm
+            brand_cell = Table([[logo, Spacer(1, 3*mm), brand]], colWidths=[LW, 3*mm, _brand_w])
             brand_cell.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
@@ -1335,8 +1336,8 @@ def customer_invoice_pdf(cid, iid):
                 ]
             # grand
             return [
-                Paragraph(f"<b>{label}</b>", S("tg", fontSize=9.5, fontName="Helvetica-Bold", textColor=WH, leading=13)),
-                Paragraph(f"<b>{value}</b>", S("tgv", fontSize=13, fontName="Helvetica-Bold", textColor=GOLD, leading=15, alignment=TA_RIGHT)),
+                Paragraph(f"<b>{label}</b>", S("tg", fontSize=8.5, fontName="Helvetica-Bold", textColor=WH, leading=12, splitLongWords=0)),
+                Paragraph(f"<b>{value}</b>", S("tgv", fontSize=12, fontName="Helvetica-Bold", textColor=GOLD, leading=14, alignment=TA_RIGHT, splitLongWords=0)),
             ]
 
         disc = float(inv["discount"] or 0)
@@ -1347,7 +1348,7 @@ def customer_invoice_pdf(cid, iid):
         tot_rows.append(trow("TOTAL AMOUNT DUE", due_txt, "grand"))
         n_grand = len(tot_rows) - 1
 
-        tt = Table(tot_rows, colWidths=[tw*0.42, tw*0.58])
+        tt = Table(tot_rows, colWidths=[tw*0.48, tw*0.52])
         tt.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
