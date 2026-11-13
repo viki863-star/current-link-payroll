@@ -7,119 +7,333 @@
 <style>
 @page { size:A4; margin:0; }
 *,*::before,*::after { box-sizing:border-box; }
-body { background:#eee; }
-.invoice-page {
-  width:210mm; min-height:297mm; margin:20px auto; background:#fff;
-  padding:14mm 12mm 10mm; position:relative; overflow:hidden;
-  box-shadow:0 2px 12px rgba(0,0,0,0.08);
-}
-.inv-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10mm; position:relative; z-index:2; }
-.inv-logo-area { display:flex; gap:4mm; align-items:flex-start; }
-.inv-logo-box { width:28mm; height:28mm; border:1px solid #e6e6e6; border-radius:2mm; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#fff; flex-shrink:0; }
-.inv-logo-box img { width:100%; height:100%; object-fit:contain; }
-.inv-company-name { font-size:5.5mm; font-weight:800; line-height:1.15; }
-.inv-company-sub { font-size:2.6mm; color:#555; letter-spacing:0.3px; }
-.inv-title-area { text-align:right; min-width:30%; }
-.inv-title-text { font-size:7mm; font-weight:900; color:#001F54; letter-spacing:1.5px; position:relative; display:inline-block; }
-.inv-title-text::after {
-  content:''; display:block; width:100%; height:0.4mm;
-  background:linear-gradient(90deg,transparent,#f6a202 30%,#f6a202 70%,transparent);
-  margin-top:1mm;
-}
-.inv-meta { font-size:2.6mm; color:#777; margin-top:1.5mm; }
-.inv-meta strong { color:#001F54; }
+body { background:#e8edf3; }
 
-/* Info cards */
-.inv-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:4mm; margin-bottom:6mm; position:relative; z-index:2; }
-.inv-card { border:0.5mm solid #e6e6e6; border-radius:1.5mm; padding:0; overflow:hidden; background:#fff; }
+.invoice-page {
+  --ni-navy:#001f54; --ni-navy2:#0a2f6e; --ni-gold:#f6a202; --ni-gold2:#ffbe3d;
+  --ni-ink:#0f1c33; --ni-muted:#5b6b84; --ni-line:#dfe6f0; --ni-soft:#f4f7fb;
+  --ni-red:#c62828; --ni-green:#15803d;
+  width:210mm; min-height:297mm; margin:18px auto; background:#fff;
+  padding:0; position:relative; overflow:hidden;
+  box-shadow:0 12px 40px rgba(0,31,84,.14), 0 2px 8px rgba(0,0,0,.06);
+  border-radius:6px; color:var(--ni-ink);
+}
+
+/* ── Top accent strip ── */
+.inv-topbar {
+  height:3.2mm; width:100%;
+  background:linear-gradient(90deg, var(--ni-navy) 0%, var(--ni-navy) 62%, var(--ni-gold) 62%, var(--ni-gold2) 78%, var(--ni-navy) 78%);
+}
+.inv-inner { padding:10mm 12mm 8mm; }
+
+/* ── Header ── */
+.inv-header {
+  display:flex; justify-content:space-between; align-items:flex-start; gap:6mm;
+  position:relative; z-index:2; padding-bottom:5mm;
+  border-bottom:1.2px solid var(--ni-line);
+}
+.inv-logo-area { display:flex; gap:4mm; align-items:flex-start; min-width:0; }
+.inv-logo-box {
+  width:30mm; height:30mm; border:1px solid #e8eef6; border-radius:2.5mm; overflow:hidden;
+  display:flex; align-items:center; justify-content:center; background:#fff; flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,31,84,.08);
+}
+.inv-logo-box img { width:100%; height:100%; object-fit:contain; padding:1mm; }
+.inv-company-name { font-size:6.2mm; font-weight:900; line-height:1.1; letter-spacing:.4px; }
+.inv-company-name .c1 { color:#011a41; }
+.inv-company-name .c2 { color:#f6a202; }
+.inv-company-sub {
+  font-size:2.7mm; color:#44556e; letter-spacing:.35px; margin-top:1.2mm;
+  font-weight:600; text-transform:uppercase;
+}
+.inv-company-meta { font-size:2.4mm; color:#6b7c96; margin-top:1.5mm; line-height:1.55; }
+.inv-company-meta b { color:var(--ni-navy); font-weight:700; }
+
+.inv-title-area { text-align:right; min-width:58mm; flex-shrink:0; }
+.inv-title-chip {
+  display:inline-flex; align-items:center; gap:2mm;
+  background:linear-gradient(135deg, var(--ni-navy), var(--ni-navy2));
+  color:#fff; font-size:4.2mm; font-weight:900; letter-spacing:2.2px;
+  padding:3mm 6mm; border-radius:2mm; position:relative; overflow:hidden;
+  box-shadow:0 4px 14px rgba(0,31,84,.25);
+}
+.inv-title-chip::after {
+  content:""; position:absolute; right:-8mm; top:-8mm; width:18mm; height:18mm;
+  background:radial-gradient(circle,rgba(246,162,2,.45),transparent 70%);
+}
+.inv-title-chip .gold-dot {
+  width:2.4mm; height:2.4mm; border-radius:50%; background:var(--ni-gold);
+  box-shadow:0 0 0 1.2mm rgba(246,162,2,.2);
+}
+.inv-meta-stack { margin-top:3.5mm; display:flex; flex-direction:column; gap:1.5mm; align-items:flex-end; }
+.inv-meta-row {
+  font-size:2.7mm; color:#5b6b84; background:var(--ni-soft);
+  border:1px solid var(--ni-line); border-radius:1.5mm;
+  padding:1.4mm 3mm; min-width:48mm; display:flex; justify-content:space-between; gap:4mm;
+}
+.inv-meta-row strong { color:var(--ni-navy); font-weight:800; }
+.inv-meta-row.is-gold {
+  background:linear-gradient(90deg,#fff8e8,#fff);
+  border-color:#f6d48a;
+}
+.inv-meta-row.is-gold strong { color:#b36b00; }
+.inv-status {
+  display:inline-flex; align-items:center; gap:1.5mm; font-size:2.3mm; font-weight:800;
+  letter-spacing:.6px; text-transform:uppercase; padding:1.2mm 3mm; border-radius:99px;
+}
+.inv-status.paid { background:#dcfce7; color:#15803d; }
+.inv-status.due { background:#fef3c7; color:#b45309; }
+.inv-status.void { background:#fee2e2; color:#b91c1c; }
+.inv-status i { width:1.8mm; height:1.8mm; border-radius:50%; background:currentColor; }
+
+/* ── Info cards ── */
+.inv-info-grid {
+  display:grid; grid-template-columns:1.15fr 1fr; gap:4mm;
+  margin:5mm 0 5mm; position:relative; z-index:2;
+}
+.inv-card {
+  border:1px solid var(--ni-line); border-radius:2.5mm; overflow:hidden; background:#fff;
+  box-shadow:0 2px 10px rgba(0,31,84,.05);
+}
 .inv-card-header {
-  background:#001F54; color:#fff; padding:1.5mm 3mm; font-size:2.4mm; font-weight:700;
-  text-transform:uppercase; letter-spacing:0.6px; display:flex; align-items:center; gap:2mm;
+  background:linear-gradient(135deg, var(--ni-navy), var(--ni-navy2));
+  color:#fff; padding:2mm 3.5mm; font-size:2.5mm; font-weight:800;
+  text-transform:uppercase; letter-spacing:.8px;
+  display:flex; align-items:center; gap:2.5mm;
 }
 .inv-card-header .icon-box {
-  width:5mm; height:5mm; background:#f6a202; border-radius:0.8mm; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:5.5mm; height:5.5mm; background:var(--ni-gold); border-radius:1.2mm;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.inv-card-header .icon-box svg { width:3mm; height:3mm; fill:#fff; }
-.inv-card-body { padding:2mm 3mm; }
-.inv-card-body .row { display:flex; padding:0.6mm 0; font-size:2.6mm; }
-.inv-card-body .lbl { color:#777; min-width:18mm; flex-shrink:0; }
-.inv-card-body .val { color:#222; font-weight:600; }
+.inv-card-header .icon-box svg { width:3.2mm; height:3.2mm; fill:#fff; }
+.inv-card-body { padding:3mm 3.5mm 3.2mm; }
+.inv-card-body .row {
+  display:flex; padding:.9mm 0; font-size:2.65mm; align-items:flex-start;
+  border-bottom:1px dashed #eef2f8;
+}
+.inv-card-body .row:last-child { border-bottom:none; }
+.inv-card-body .lbl {
+  color:#7a8aa3; min-width:20mm; flex-shrink:0; font-weight:600;
+  text-transform:uppercase; font-size:2.2mm; letter-spacing:.3px; padding-top:.2mm;
+}
+.inv-card-body .val { color:#1a2740; font-weight:700; line-height:1.4; }
+.inv-card-body .val.big {
+  font-size:3.4mm; font-weight:800; color:var(--ni-navy); letter-spacing:.2px;
+}
+.inv-card-body .val.gold { color:#b36b00; }
 
-/* Table */
-.inv-table-wrap { margin-bottom:5mm; position:relative; z-index:2; border:0.5mm solid #e6e6e6; border-radius:1.5mm; overflow:hidden; }
-.inv-table { width:100%; border-collapse:collapse; font-size:2.6mm; }
-.inv-table thead { background:#001F54; }
+/* ── Items table ── */
+.inv-table-wrap {
+  margin-bottom:5mm; position:relative; z-index:2;
+  border:1px solid var(--ni-line); border-radius:2.5mm; overflow:hidden;
+  box-shadow:0 4px 16px rgba(0,31,84,.06);
+}
+.inv-table { width:100%; border-collapse:collapse; font-size:2.65mm; }
+.inv-table thead {
+  background:linear-gradient(135deg, var(--ni-navy), #0d3a7a);
+}
 .inv-table th {
-  color:#fff; font-weight:700; font-size:2.4mm; text-transform:uppercase; letter-spacing:0.5px;
-  padding:2mm 1.5mm; border-right:0.3mm solid rgba(255,255,255,0.12); text-align:center;
+  color:#fff; font-weight:800; font-size:2.35mm; text-transform:uppercase; letter-spacing:.55px;
+  padding:2.4mm 1.6mm; border-right:1px solid rgba(255,255,255,.12); text-align:center;
 }
 .inv-table th:last-child { border-right:none; }
 .inv-table th.left { text-align:left; }
+.inv-table th .th-sub { display:block; font-weight:500; font-size:1.9mm; opacity:.7; letter-spacing:.2px; text-transform:none; margin-top:.3mm; }
 .inv-table td {
-  padding:1.8mm 1.5mm; border-bottom:0.3mm solid #e6e6e6; color:#222; vertical-align:top;
+  padding:2.2mm 1.6mm; border-bottom:1px solid #e8eef6; color:#1a2740; vertical-align:top;
 }
-.inv-table tr:last-child td { border-bottom:none; }
-.inv-table .td-right { text-align:right; font-family:'Courier New',monospace; font-weight:600; }
+.inv-table tbody tr:last-child td { border-bottom:none; }
+.inv-table tbody tr:nth-child(even) { background:#f8fafc; }
+.inv-table tbody tr:hover { background:#eef5ff; }
+.inv-table .td-right { text-align:right; font-family:'Courier New',monospace; font-weight:700; font-variant-numeric:tabular-nums; }
 .inv-table .td-center { text-align:center; }
-.inv-table tbody tr:nth-child(even) { background:#fafbfc; }
-.desc-row { background:#f5f7fa !important; }
-.desc-row td { font-weight:600; color:#001F54; font-size:2.7mm; padding:2mm 1.5mm; }
-.desc-row .td-right, .desc-row .td-center { color:#94a3b8; font-weight:400; }
-.eq-sub { font-size:2.2mm; color:#666; line-height:1.4; margin-top:0.8mm; }
-.eq-sub .tag { color:#f6a202; font-weight:600; }
-
-/* Bottom section */
-.inv-bottom { display:grid; grid-template-columns:1.2fr 1fr; gap:4mm; margin-bottom:5mm; position:relative; z-index:2; }
-.inv-words-box { border:0.5mm solid #e6e6e6; border-radius:1.5mm; padding:2.5mm 3mm; background:#fafbfc; }
-.inv-words-box .lbl { font-size:2.4mm; font-weight:700; color:#001F54; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:1mm; }
-.inv-words-box .text { font-size:2.8mm; color:#222; font-weight:600; line-height:1.4; }
-.inv-totals-box { border:0.5mm solid #e6e6e6; border-radius:1.5mm; overflow:hidden; }
-.inv-totals-box .row { display:flex; justify-content:space-between; padding:1.5mm 3mm; font-size:2.8mm; }
-.inv-totals-box .row .lbl { color:#555; }
-.inv-totals-box .row .val { font-weight:700; color:#222; font-family:'Courier New',monospace; }
-.inv-totals-box .row-grand { background:#001F54; padding:2.5mm 3mm; }
-.inv-totals-box .row-grand .lbl { color:#fff; font-size:3.2mm; font-weight:700; }
-.inv-totals-box .row-grand .val { color:#f6a202; font-size:3.8mm; font-weight:900; font-family:'Courier New',monospace; }
-
-/* Signatures */
-.inv-signatures { display:grid; grid-template-columns:1fr 1fr 1fr; gap:3mm; margin-bottom:5mm; position:relative; z-index:2; }
-.inv-sig-box { text-align:center; border-top:0.5mm solid #e6e6e6; padding-top:2.5mm; }
-.inv-sig-box .line { height:0.5mm; background:#001F54; width:70%; margin:0 auto 1.5mm; }
-.inv-sig-box .label { font-size:2.4mm; color:#555; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; }
-.inv-sig-box img { width:10mm; height:10mm; object-fit:contain; margin:1mm 0; }
-
-/* Footer */
-.inv-footer { margin-top:auto; position:relative; z-index:2; }
-.inv-footer-bar { height:1.5mm; background:linear-gradient(90deg,#001F54 70%,#f6a202 70%,#f6a202 85%,#001F54 85%); border-radius:0 0 1mm 1mm; margin-bottom:2mm; }
-.inv-footer-content {
-  background:#001F54; border-radius:1mm; padding:2.5mm 4mm;
-  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:2mm;
+.inv-table .row-num {
+  display:inline-grid; place-items:center; width:5.5mm; height:5.5mm;
+  background:#e8eef8; color:var(--ni-navy); border-radius:1.5mm;
+  font-weight:800; font-size:2.5mm;
 }
-.inv-footer-item { display:flex; align-items:center; gap:1.5mm; font-size:2.2mm; color:rgba(255,255,255,0.85); }
-.inv-footer-item svg { width:2.5mm; height:2.5mm; fill:#f6a202; flex-shrink:0; }
-.inv-footer-item a { color:rgba(255,255,255,0.85); text-decoration:none; }
-.inv-footer-item a:hover { color:#f6a202; }
-.inv-footer-logos { display:flex; gap:2mm; align-items:center; }
-.inv-footer-logos img { height:5mm; width:auto; }
+.inv-table .desc-main { font-weight:700; color:#12203a; line-height:1.45; font-size:2.8mm; }
+.inv-table .desc-plant {
+  display:inline-flex; align-items:center; gap:1.2mm; margin-top:1mm;
+  background:#fff8e8; border:1px solid #f6d48a; color:#9a6200;
+  font-size:2.2mm; font-weight:700; padding:.6mm 2mm; border-radius:99px;
+}
+.inv-table .eq-sub { font-size:2.25mm; color:#667a96; line-height:1.45; margin-top:1mm; }
+.inv-table .eq-sub .tag {
+  color:#b36b00; font-weight:800; text-transform:uppercase; letter-spacing:.3px; font-size:2.05mm;
+}
+.inv-table .vat-amt { color:var(--ni-red); }
+.inv-table .total-amt { color:var(--ni-navy); font-weight:900; font-size:2.9mm; }
+.inv-table tfoot td, .inv-table .sum-row td {
+  background:#eef3fb !important; font-weight:800; color:var(--ni-navy);
+  border-top:2px solid var(--ni-gold);
+}
 
-/* Actions */
-.inv-actions { display:flex; gap:2mm; justify-content:center; margin-top:4mm; flex-wrap:wrap; }
+/* ── Bottom: words + totals ── */
+.inv-bottom {
+  display:grid; grid-template-columns:1.25fr 1fr; gap:4mm;
+  margin-bottom:5mm; position:relative; z-index:2;
+}
+.inv-words-box {
+  border:1px solid var(--ni-line); border-left:1.8px solid var(--ni-gold);
+  border-radius:2.5mm; padding:3.5mm 4mm; background:linear-gradient(160deg,#fffdf8,#fff);
+}
+.inv-words-box .lbl {
+  font-size:2.35mm; font-weight:900; color:var(--ni-navy); text-transform:uppercase;
+  letter-spacing:.7px; margin-bottom:1.5mm; display:flex; align-items:center; gap:2mm;
+}
+.inv-words-box .lbl::before {
+  content:""; width:3mm; height:3mm; background:var(--ni-gold); border-radius:50%;
+}
+.inv-words-box .text {
+  font-size:3mm; color:#1a2740; font-weight:700; line-height:1.5; font-style:italic;
+}
+.inv-totals-box {
+  border:1px solid var(--ni-line); border-radius:2.5mm; overflow:hidden;
+  box-shadow:0 4px 16px rgba(0,31,84,.07); background:#fff;
+}
+.inv-totals-box .row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:2.2mm 4mm; font-size:2.85mm; border-bottom:1px solid #eef2f8;
+}
+.inv-totals-box .row .lbl { color:#5b6b84; font-weight:600; }
+.inv-totals-box .row .val {
+  font-weight:800; color:#1a2740; font-family:'Courier New',monospace;
+  font-variant-numeric:tabular-nums;
+}
+.inv-totals-box .row .val.neg { color:var(--ni-red); }
+.inv-totals-box .row-discount .val { color:var(--ni-red); }
+.inv-totals-box .row-grand {
+  background:linear-gradient(135deg, var(--ni-navy), var(--ni-navy2));
+  padding:3.2mm 4mm; border-bottom:none; position:relative; overflow:hidden;
+}
+.inv-totals-box .row-grand::after {
+  content:""; position:absolute; right:-6mm; top:-6mm; width:20mm; height:20mm;
+  background:radial-gradient(circle,rgba(246,162,2,.4),transparent 70%);
+}
+.inv-totals-box .row-grand .lbl {
+  color:#c9dcf7; font-size:3mm; font-weight:800; text-transform:uppercase; letter-spacing:.6px;
+  position:relative; z-index:1;
+}
+.inv-totals-box .row-grand .val {
+  color:var(--ni-gold2); font-size:4.2mm; font-weight:900; font-family:'Courier New',monospace;
+  position:relative; z-index:1; text-shadow:0 1px 2px rgba(0,0,0,.2);
+}
+.inv-totals-box .row-meta {
+  background:var(--ni-soft); padding:1.6mm 4mm; font-size:2.3mm; color:#6b7c96;
+  display:flex; justify-content:space-between; border-bottom:none;
+}
+.inv-totals-box .row-meta b { color:var(--ni-navy); }
+
+/* ── Bank + Notes strip ── */
+.inv-mid-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:4mm;
+  margin-bottom:5mm; position:relative; z-index:2;
+}
+.inv-notes-box, .inv-bank-box {
+  border:1px solid var(--ni-line); border-radius:2.5mm; overflow:hidden; background:#fff;
+}
+.inv-mid-head {
+  background:var(--ni-soft); color:var(--ni-navy); padding:1.8mm 3.5mm;
+  font-size:2.35mm; font-weight:900; text-transform:uppercase; letter-spacing:.7px;
+  border-bottom:1px solid var(--ni-line); display:flex; align-items:center; gap:2mm;
+}
+.inv-mid-head .dot { width:2mm; height:2mm; border-radius:50%; background:var(--ni-gold); }
+.inv-mid-body { padding:2.5mm 3.5mm; font-size:2.5mm; color:#44556e; line-height:1.55; }
+.inv-bank-body { padding:0; }
+.inv-bank-row {
+  display:flex; gap:3mm; padding:1.6mm 3.5mm; font-size:2.5mm;
+  border-bottom:1px dashed #e8eef6;
+}
+.inv-bank-row:last-child { border-bottom:none; }
+.inv-bank-row .k { color:#7a8aa3; min-width:28mm; font-weight:600; text-transform:uppercase; font-size:2.15mm; letter-spacing:.3px; padding-top:.2mm; }
+.inv-bank-row .v { color:#12203a; font-weight:800; font-family:'Courier New',monospace; word-break:break-all; }
+.inv-bank-row .v.plain { font-family:inherit; }
+
+/* ── Signatures ── */
+.inv-signatures {
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:3mm;
+  margin:6mm 0 5mm; position:relative; z-index:2;
+}
+.inv-sig-box {
+  text-align:center; border:1px solid var(--ni-line); border-radius:2.5mm;
+  padding:3.5mm 2mm 3mm; background:linear-gradient(180deg,#fff,#f8fafc);
+  min-height:28mm; display:flex; flex-direction:column; justify-content:space-between;
+}
+.inv-sig-box .label {
+  font-size:2.3mm; color:var(--ni-navy); font-weight:800; text-transform:uppercase;
+  letter-spacing:.5px; background:var(--ni-soft); border-radius:99px;
+  padding:1mm 2mm; display:inline-block; margin:0 auto;
+}
+.inv-sig-box .line {
+  height:0; border-top:1.2px solid #94a3b8; width:78%; margin:6mm auto 2mm;
+}
+.inv-sig-box .hint { font-size:2.1mm; color:#8aa0b8; font-weight:600; }
+.inv-sig-box img {
+  max-height:14mm; max-width:32mm; object-fit:contain; margin:1mm auto 2mm; display:block;
+}
+
+/* ── Footer ── */
+.inv-footer { margin-top:4mm; position:relative; z-index:2; }
+.inv-footer-bar {
+  height:1.8mm; border-radius:1mm 1mm 0 0;
+  background:linear-gradient(90deg,
+    var(--ni-navy) 0%, var(--ni-navy) 55%,
+    var(--ni-gold) 55%, var(--ni-gold2) 72%,
+    var(--ni-navy) 72%, var(--ni-navy) 100%);
+  margin-bottom:0;
+}
+.inv-footer-content {
+  background:linear-gradient(135deg, var(--ni-navy), #062a5f);
+  border-radius:0 0 2mm 2mm; padding:3.5mm 5mm;
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:3mm;
+}
+.inv-footer-col { display:flex; flex-direction:column; gap:1.4mm; }
+.inv-footer-item {
+  display:flex; align-items:center; gap:1.8mm; font-size:2.25mm;
+  color:rgba(255,255,255,.88); line-height:1.4;
+}
+.inv-footer-item svg { width:2.8mm; height:2.8mm; fill:var(--ni-gold); flex-shrink:0; }
+.inv-footer-item a { color:rgba(255,255,255,.88); text-decoration:none; }
+.inv-footer-item a:hover { color:var(--ni-gold2); }
+.inv-footer-item b { color:#fff; font-weight:700; }
+.inv-footer-logos { display:flex; gap:3mm; align-items:center; }
+.inv-footer-logos img { height:7mm; width:auto; filter:drop-shadow(0 1px 2px rgba(0,0,0,.2)); }
+.inv-trn-pill {
+  display:inline-flex; align-items:center; gap:1.5mm; background:rgba(246,162,2,.18);
+  border:1px solid rgba(246,162,2,.45); color:#ffd68a;
+  font-size:2.2mm; font-weight:800; letter-spacing:.4px;
+  padding:1mm 2.5mm; border-radius:99px; margin-top:1mm;
+}
+
+/* ── Actions (screen only) ── */
+.inv-actions {
+  display:flex; gap:2.5mm; justify-content:center; margin:5mm auto 8mm; flex-wrap:wrap;
+}
+.inv-actions .btn { min-width:32mm; }
 
 @media print {
-  body { background:#fff; }
-  .invoice-page { margin:0; box-shadow:none; padding:10mm 8mm 8mm; }
-  .inv-actions,.btn,.btn-primary,.btn-outline { display:none !important; }
-  .inv-table tbody tr:nth-child(even) { background:#fafbfc; }
+  body, body * { background:#fff !important; }
+  .invoice-page { margin:0; box-shadow:none; border-radius:0; width:100%; min-height:auto; }
+  .inv-inner { padding:8mm 8mm 6mm; }
+  .inv-actions, .btn, .btn-primary, .btn-outline { display:none !important; }
+  .inv-table tbody tr:nth-child(even) { background:#f8fafc; }
+  .inv-table tbody tr:hover { background:transparent; }
+  .inv-card, .inv-table-wrap, .inv-totals-box { box-shadow:none; }
   @page { margin:0; size:A4; }
 }
 @media (max-width:800px) {
-  .invoice-page { width:100%; padding:6mm 4mm; }
-  .inv-header { flex-direction:column; gap:3mm; }
-  .inv-title-area { text-align:left; width:100%; }
-  .inv-info-grid { grid-template-columns:1fr; }
-  .inv-bottom { grid-template-columns:1fr; }
+  .invoice-page { width:100%; margin:8px auto; border-radius:0; }
+  .inv-inner { padding:6mm 4mm; }
+  .inv-header { flex-direction:column; gap:4mm; }
+  .inv-title-area { text-align:left; width:100%; min-width:0; }
+  .inv-meta-stack { align-items:flex-start; }
+  .inv-meta-row { min-width:0; width:100%; }
+  .inv-info-grid, .inv-bottom, .inv-mid-grid { grid-template-columns:1fr; }
   .inv-signatures { grid-template-columns:1fr; }
   .inv-footer-content { flex-direction:column; align-items:flex-start; }
+  .inv-company-name { font-size:5mm; }
+  .inv-title-chip { font-size:3.6mm; }
 }
 </style>
 
@@ -128,207 +342,286 @@ body { background:#eee; }
 {% set sub_total = sum_taxable or 0 %}
 {% set vat_total = sum_vat or 0 %}
 {% set grand_total = sum_total or 0 %}
+{% set discount_amt = (inv.discount or 0)|float %}
+{% set words_text = amount_words if amount_words else ('AED ' + "{:,.2f}".format(grand_total) + ' Only') %}
 
 <div class="invoice-page">
+  <div class="inv-topbar"></div>
+  <div class="inv-inner">
 
-  {# ═══════ HEADER ═══════ #}
-  <div class="inv-header">
-    <div class="inv-logo-area">
-      {% if company and company.logo_data %}
-      <div class="inv-logo-box">
-        <img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" alt="Logo">
+    {# ═══════ HEADER ═══════ #}
+    <div class="inv-header">
+      <div class="inv-logo-area">
+        {% if company and company.logo_data %}
+        <div class="inv-logo-box">
+          <img src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" alt="Logo">
+        </div>
+        {% endif %}
+        <div>
+          <div class="inv-company-name"><span class="c1">CURRENT</span> <span class="c2">LINK</span></div>
+          <div class="inv-company-sub">Transport and General Contracting LLC SPC</div>
+          <div class="inv-company-meta">
+            {% if company and company.address %}{{ company.address }}<br>{% endif %}
+            {% if company and company.phone_number %}Ph: <b>{{ company.phone_number }}</b>{% endif %}
+            {% if company and company.email %} &middot; {{ company.email }}{% endif %}
+            {% if company and company.trn_no %}<br>TRN: <b>{{ company.trn_no }}</b>{% endif %}
+          </div>
+          {% if company and company.trn_no %}
+          <div class="inv-trn-pill">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1.5 15L6 11.5 7.41 10l3.09 3.09L16.59 7 18 8.5 10.5 16z"/></svg>
+            VAT Registered
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="inv-title-area">
+        <div class="inv-title-chip">
+          <span class="gold-dot"></span>
+          TAX INVOICE
+        </div>
+        <div class="inv-meta-stack">
+          <div class="inv-meta-row is-gold">
+            <span>Invoice No.</span><strong>{{ inv.invoice_no }}</strong>
+          </div>
+          <div class="inv-meta-row">
+            <span>Invoice Date</span><strong>{{ inv.invoice_date }}</strong>
+          </div>
+          {% if inv.lpo_date %}
+          <div class="inv-meta-row">
+            <span>LPO Date</span><strong>{{ inv.lpo_date }}</strong>
+          </div>
+          {% endif %}
+          {% if c.payment_terms %}
+          <div class="inv-meta-row">
+            <span>Terms</span><strong>{{ c.payment_terms }}</strong>
+          </div>
+          {% endif %}
+          <div>
+            <span class="inv-status due"><i></i> Amount Due</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ═══════ INFO CARDS ═══════ #}
+    <div class="inv-info-grid">
+      <div class="inv-card">
+        <div class="inv-card-header">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </div>
+          Bill To
+        </div>
+        <div class="inv-card-body">
+          <div class="row"><span class="lbl">Customer</span><span class="val big">{{ c.customer_name }}</span></div>
+          {% if c.customer_code %}<div class="row"><span class="lbl">Code</span><span class="val">{{ c.customer_code }}</span></div>{% endif %}
+          {% if c.trn %}<div class="row"><span class="lbl">TRN</span><span class="val gold">{{ c.trn }}</span></div>{% endif %}
+          {% if c.address %}<div class="row"><span class="lbl">Address</span><span class="val">{{ c.address }}</span></div>{% endif %}
+          {% if c.contact_person %}<div class="row"><span class="lbl">Attn</span><span class="val">{{ c.contact_person }}</span></div>{% endif %}
+          {% if c.phone %}<div class="row"><span class="lbl">Phone</span><span class="val">{{ c.phone }}</span></div>{% endif %}
+          {% if c.email %}<div class="row"><span class="lbl">Email</span><span class="val">{{ c.email }}</span></div>{% endif %}
+        </div>
+      </div>
+      <div class="inv-card">
+        <div class="inv-card-header">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>
+          </div>
+          Invoice Details
+        </div>
+        <div class="inv-card-body">
+          <div class="row"><span class="lbl">Invoice #</span><span class="val big">{{ inv.invoice_no }}</span></div>
+          <div class="row"><span class="lbl">Date</span><span class="val">{{ inv.invoice_date }}</span></div>
+          {% if inv.lpo_no %}<div class="row"><span class="lbl">LPO No.</span><span class="val">{{ inv.lpo_no }}</span></div>{% endif %}
+          {% if inv.lpo_date %}<div class="row"><span class="lbl">LPO Date</span><span class="val">{{ inv.lpo_date }}</span></div>{% endif %}
+          {% if inv.so_no %}<div class="row"><span class="lbl">SO No.</span><span class="val">{{ inv.so_no }}</span></div>{% endif %}
+          {% if so_date %}<div class="row"><span class="lbl">SO Date</span><span class="val">{{ so_date }}</span></div>{% endif %}
+          {% if inv.project_no %}<div class="row"><span class="lbl">Project</span><span class="val">{{ inv.project_no }}</span></div>{% endif %}
+          {% if inv.ref_no %}<div class="row"><span class="lbl">Ref No.</span><span class="val">{{ inv.ref_no }}</span></div>{% endif %}
+          <div class="row"><span class="lbl">Currency</span><span class="val">AED — UAE Dirham</span></div>
+        </div>
+      </div>
+    </div>
+
+    {# ═══════ ITEMS TABLE ═══════ #}
+    {% set col_widths = ['5%','27%','8%','7%','11%','13%','7%','10%','12%'] %}
+    <div class="inv-table-wrap">
+      <table class="inv-table">
+        <thead>
+          <tr>
+            <th style="width:{{ col_widths[0] }}">#</th>
+            <th class="left" style="width:{{ col_widths[1] }}">Description</th>
+            <th style="width:{{ col_widths[2] }}">Qty</th>
+            <th style="width:{{ col_widths[3] }}">Unit</th>
+            <th style="width:{{ col_widths[4] }}">Unit Price</th>
+            <th style="width:{{ col_widths[5] }}">Taxable Amt</th>
+            <th style="width:{{ col_widths[6] }}">VAT %</th>
+            <th style="width:{{ col_widths[7] }}">VAT Amt</th>
+            <th style="width:{{ col_widths[8] }}">Total (Incl.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in items %}
+          {% set vp_item = it.vat_percent_item or vat_pct %}
+          {% set amt_item = it.amount or 0 %}
+          {% set va_item = it.vat_amount_item or (amt_item * vp_item / 100) %}
+          {% set ti_item = it.total_incl_vat or (amt_item + va_item) %}
+          {% set eq_p = eq_periods[loop.index0] if loop.index0 < eq_periods|length else {} %}
+          <tr>
+            <td class="td-center"><span class="row-num">{{ loop.index }}</span></td>
+            <td>
+              <div class="desc-main">{{ it.description }}</div>
+              {% if it.vehicle_no %}<div class="desc-plant">Plant No: {{ it.vehicle_no }}</div>{% endif %}
+              <div class="eq-sub">
+                {% if eq_p.get('from') or eq_p.get('to') %}
+                <span class="tag">Period:</span> {{ eq_p.get('from','—') }} to {{ eq_p.get('to','—') }}
+                {% endif %}
+                {% if it.capacity_gallon and it.capacity_gallon|float > 0 %}
+                {% if eq_p.get('from') or eq_p.get('to') %} | {% endif %}
+                <span class="tag">Hours:</span> {{ "{:,.2f}".format(it.capacity_gallon|float) }}
+                {% endif %}
+              </div>
+            </td>
+            <td class="td-right">{{ "{:,.3f}".format(it.quantity) }}</td>
+            <td class="td-center" style="color:#5b6b84;font-weight:700">{{ it.unit or 'mo' }}</td>
+            <td class="td-right">{{ "{:,.2f}".format(it.rate) }}</td>
+            <td class="td-right">{{ "{:,.2f}".format(amt_item) }}</td>
+            <td class="td-center" style="font-weight:700;color:#5b6b84">{{ "{:.2f}".format(vp_item) }}%</td>
+            <td class="td-right vat-amt">{{ "{:,.2f}".format(va_item) }}</td>
+            <td class="td-right total-amt">{{ "{:,.2f}".format(ti_item) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ═══════ BOTTOM: Words + Totals ═══════ #}
+    <div class="inv-bottom">
+      <div class="inv-words-box">
+        <div class="lbl">Amount in Words</div>
+        <div class="text">{{ words_text }}</div>
+      </div>
+      <div class="inv-totals-box">
+        <div class="row">
+          <span class="lbl">Sub Total</span>
+          <span class="val">AED {{ "{:,.2f}".format(sub_total) }}</span>
+        </div>
+        {% if discount_amt > 0 %}
+        <div class="row row-discount">
+          <span class="lbl">Discount</span>
+          <span class="val neg">− AED {{ "{:,.2f}".format(discount_amt) }}</span>
+        </div>
+        {% endif %}
+        <div class="row">
+          <span class="lbl">VAT @ {{ "{:.0f}".format(vat_pct) }}%</span>
+          <span class="val neg">AED {{ "{:,.2f}".format(vat_total) }}</span>
+        </div>
+        <div class="row-grand">
+          <span class="lbl">Total Due</span>
+          <span class="val">AED {{ "{:,.2f}".format(grand_total) }}</span>
+        </div>
+        <div class="row-meta">
+          <span>Payment Terms</span>
+          <span><b>{{ c.payment_terms or company.invoice_terms or '—' }}</b></span>
+        </div>
+      </div>
+    </div>
+
+    {# ═══════ NOTES + BANK ═══════ #}
+    <div class="inv-mid-grid">
+      <div class="inv-notes-box">
+        <div class="inv-mid-head"><span class="dot"></span> Notes / Terms</div>
+        <div class="inv-mid-body">
+          {% if display_notes %}
+            {{ display_notes }}
+          {% elif company and company.invoice_terms %}
+            {{ company.invoice_terms }}
+          {% else %}
+            Payment is due as per agreed terms. Please quote invoice number on all remittances.
+          {% endif %}
+        </div>
+      </div>
+      {% if company and (company.bank_name or company.bank_account_name or company.bank_account_number or company.iban) %}
+      <div class="inv-bank-box">
+        <div class="inv-mid-head"><span class="dot"></span> Bank Details</div>
+        <div class="inv-bank-body">
+          {% if company.bank_name %}<div class="inv-bank-row"><span class="k">Bank</span><span class="v plain">{{ company.bank_name }}</span></div>{% endif %}
+          {% if company.bank_account_name %}<div class="inv-bank-row"><span class="k">Account Name</span><span class="v plain">{{ company.bank_account_name }}</span></div>{% endif %}
+          {% if company.bank_account_number %}<div class="inv-bank-row"><span class="k">A/C No.</span><span class="v">{{ company.bank_account_number }}</span></div>{% endif %}
+          {% if company.iban %}<div class="inv-bank-row"><span class="k">IBAN</span><span class="v">{{ company.iban }}</span></div>{% endif %}
+          {% if company.swift_code %}<div class="inv-bank-row"><span class="k">SWIFT / BIC</span><span class="v">{{ company.swift_code }}</span></div>{% endif %}
+        </div>
       </div>
       {% endif %}
-      <div>
-        <div class="inv-company-name"><span style="color:#011a41">CURRENT</span> <span style="color:#f6a202">LINK</span></div>
-        <div class="inv-company-sub">TRANSPORT AND GENERAL CONTRACTING LLC SPC</div>
+    </div>
+
+    {# ═══════ SIGNATURES ═══════ #}
+    <div class="inv-signatures">
+      <div class="inv-sig-box">
+        <div class="label">Received By</div>
+        <div class="line"></div>
+        <div class="hint">Name, Designation &amp; Date</div>
+      </div>
+      <div class="inv-sig-box">
+        <div class="label">Company Stamp</div>
+        <img src="{{ url_for('static', filename='Stamp.png') }}" alt="Stamp">
+        <div class="line" style="margin-top:1mm"></div>
+        <div class="hint">For Current Link</div>
+      </div>
+      <div class="inv-sig-box">
+        <div class="label">Authorized Signatory</div>
+        <img src="{{ url_for('static', filename='Sign (1).png') }}" alt="Sign">
+        <div class="line" style="margin-top:1mm"></div>
+        <div class="hint">Sign &amp; Date</div>
       </div>
     </div>
-    <div class="inv-title-area">
-      <div class="inv-title-text">TAX INVOICE</div>
-      <div class="inv-meta">
-        <strong>#{{ inv.invoice_no }}</strong> &middot; {{ inv.invoice_date }}<br>
-        {% if inv.so_no %}SO: <strong>{{ inv.so_no }}</strong>{% endif %}
-      </div>
-    </div>
-  </div>
 
-  <div style="width:100%;height:0.8mm;background:#f6a202;margin-bottom:5mm;position:relative;z-index:2"></div>
-
-  {# ═══════ INFO CARDS ═══════ #}
-  <div class="inv-info-grid">
-    <div class="inv-card">
-      <div class="inv-card-header">
-        <div class="icon-box">
-          <svg viewBox="0 0 24 24"><path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V9H3v4zm0-6v2h18V7H3z"/></svg>
+    {# ═══════ FOOTER ═══════ #}
+    <div class="inv-footer">
+      <div class="inv-footer-bar"></div>
+      <div class="inv-footer-content">
+        <div class="inv-footer-col">
+          <div class="inv-footer-item">
+            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            <span>{% if company and company.address %}{{ company.address }}{% else %}ABU DHABI, UAE{% endif %}</span>
+          </div>
+          <div class="inv-footer-item">
+            <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+            <span>{% if company and company.phone_number %}{{ company.phone_number }}{% else %}+971 50 591 4476{% endif %}</span>
+          </div>
         </div>
-        Bill To
-      </div>
-      <div class="inv-card-body">
-        <div class="row"><span class="lbl">Customer</span><span class="val">{{ c.customer_name }}</span></div>
-        {% if c.trn %}<div class="row"><span class="lbl">TRN</span><span class="val">{{ c.trn }}</span></div>{% endif %}
-        {% if c.address %}<div class="row"><span class="lbl">Address</span><span class="val">{{ c.address }}</span></div>{% endif %}
-        {% if c.phone %}<div class="row"><span class="lbl">Phone</span><span class="val">{{ c.phone }}</span></div>{% endif %}
-        {% if c.email %}<div class="row"><span class="lbl">Email</span><span class="val">{{ c.email }}</span></div>{% endif %}
-      </div>
-    </div>
-    <div class="inv-card">
-      <div class="inv-card-header">
-        <div class="icon-box">
-          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/></svg>
+        <div class="inv-footer-col">
+          <div class="inv-footer-item">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            <span>{% if company and company.email %}{{ company.email }}{% else %}info@currentlinktgc.com{% endif %}</span>
+          </div>
+          <div class="inv-footer-item">
+            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+            <span>{% if company and company.trade_license_no %}License: <b>{{ company.trade_license_no }}</b>{% else %}Trade License on request{% endif %}</span>
+          </div>
         </div>
-        Invoice Details
-      </div>
-      <div class="inv-card-body">
-        <div class="row"><span class="lbl">Invoice #</span><span class="val">{{ inv.invoice_no }}</span></div>
-        <div class="row"><span class="lbl">Date</span><span class="val">{{ inv.invoice_date }}</span></div>
-        {% if inv.so_no %}<div class="row"><span class="lbl">SO No.</span><span class="val">{{ inv.so_no }}</span></div>{% endif %}
-        {% if so_date %}<div class="row"><span class="lbl">SO Date</span><span class="val">{{ so_date }}</span></div>{% endif %}
-        {% if inv.lpo_no %}<div class="row"><span class="lbl">LPO No.</span><span class="val">{{ inv.lpo_no }}</span></div>{% endif %}
-        {% if inv.lpo_date %}<div class="row"><span class="lbl">LPO Date</span><span class="val">{{ inv.lpo_date }}</span></div>{% endif %}
-      </div>
-    </div>
-  </div>
-
-  {# ═══════ TABLE ═══════ #}
-  {% set columns = ['#','Description','Qty','Unit','Unit Price','Taxable Amt','VAT %','VAT Amt','Total (Incl.)'] %}
-  {% set col_widths = ['4%','28%','8%','7%','11%','13%','7%','10%','12%'] %}
-  <div class="inv-table-wrap">
-    <table class="inv-table">
-      <thead>
-        <tr>
-          <th style="width:{{ col_widths[0] }}">#</th>
-          <th class="left" style="width:{{ col_widths[1] }}">Description</th>
-          <th style="width:{{ col_widths[2] }}">Qty</th>
-          <th style="width:{{ col_widths[3] }}">Unit</th>
-          <th style="width:{{ col_widths[4] }}">Unit Price</th>
-          <th style="width:{{ col_widths[5] }}">Taxable Amt</th>
-          <th style="width:{{ col_widths[6] }}">VAT %</th>
-          <th style="width:{{ col_widths[7] }}">VAT Amt</th>
-          <th style="width:{{ col_widths[8] }}">Total (Incl.)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for it in items %}
-        {% set vp_item = it.vat_percent_item or vat_pct %}
-        {% set amt_item = it.amount or 0 %}
-        {% set va_item = it.vat_amount_item or (amt_item * vp_item / 100) %}
-        {% set ti_item = it.total_incl_vat or (amt_item + va_item) %}
-        {% set eq_p = eq_periods[loop.index0] if loop.index0 < eq_periods|length else {} %}
-        <tr>
-          <td class="td-center" style="font-weight:700;color:#001F54">{{ loop.index }}</td>
-            <td>
-            <div style="font-weight:600;color:#222;line-height:1.4">
-              {{ it.description }}
-              {% if it.vehicle_no %}<br>Plant No: {{ it.vehicle_no }}{% endif %}
-            </div>
-            <div class="eq-sub">
-              {% if eq_p.get('from') or eq_p.get('to') %}
-              <span class="tag">Period:</span> {{ eq_p.get('from','—') }} to {{ eq_p.get('to','—') }}
-              {% endif %}
-              {% if it.capacity_gallon and it.capacity_gallon|float > 0 %}
-              {% if eq_p.get('from') or eq_p.get('to') %} | {% endif %}
-              <span class="tag">Hours:</span> {{ "{:,.2f}".format(it.capacity_gallon|float) }}
-              {% endif %}
-            </div>
-          </td>
-          <td class="td-right">{{ "{:,.3f}".format(it.quantity) }}</td>
-          <td class="td-center" style="color:#555">{{ it.unit or 'mo' }}</td>
-          <td class="td-right">{{ "{:,.2f}".format(it.rate) }}</td>
-          <td class="td-right">{{ "{:,.2f}".format(amt_item) }}</td>
-          <td class="td-center">{{ "{:.2f}".format(vp_item) }}%</td>
-          <td class="td-right" style="color:#c62828">{{ "{:,.2f}".format(va_item) }}</td>
-          <td class="td-right" style="font-weight:800;color:#001F54">{{ "{:,.2f}".format(ti_item) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  {# ═══════ BOTTOM: Amount in Words + Totals ═══════ #}
-  <div class="inv-bottom">
-    <div class="inv-words-box">
-      <div class="lbl">Amount in Words</div>
-      <div class="text">{{ amount_in_words(grand_total) if amount_in_words is defined else 'AED ' + "{:,.2f}".format(grand_total) + ' Only' }}</div>
-    </div>
-    <div class="inv-totals-box">
-      <div class="row">
-        <span class="lbl">Sub Total</span>
-        <span class="val">AED {{ "{:,.2f}".format(sub_total) }}</span>
-      </div>
-      <div class="row">
-        <span class="lbl">VAT @ {{ "{:.0f}".format(vat_pct) }}%</span>
-        <span class="val" style="color:#c62828">AED {{ "{:,.2f}".format(vat_total) }}</span>
-      </div>
-      <div class="row-grand">
-        <span class="lbl">Total Due</span>
-        <span class="val">AED {{ "{:,.2f}".format(grand_total) }}</span>
-      </div>
-    </div>
-  </div>
-
-  {# ═══════ NOTES ═══════ #}
-  {% if display_notes %}
-  <div style="border:0.5mm solid #e6e6e6;border-radius:1.5mm;padding:2mm 3mm;margin-bottom:4mm;background:#fafbfc;position:relative;z-index:2;font-size:2.6mm;color:#555">
-    <strong style="color:#001F54">Notes:</strong> {{ display_notes }}
-  </div>
-  {% endif %}
-
-  {# ═══════ SIGNATURES ═══════ #}
-  <div class="inv-signatures">
-    <div class="inv-sig-box">
-      <div class="line"></div>
-      <div class="label">Receiver Signature</div>
-    </div>
-    <div class="inv-sig-box">
-      <div class="line"></div>
-      <div class="label">Company Stamp</div>
-      <img src="{{ url_for('static', filename='Stamp.png') }}" alt="Stamp">
-    </div>
-    <div class="inv-sig-box">
-      <div class="line"></div>
-      <div class="label">Authorized Signature</div>
-      <img src="{{ url_for('static', filename='Sign (1).png') }}" alt="Sign">
-    </div>
-  </div>
-
-  {# ═══════ FOOTER ═══════ #}
-  <div class="inv-footer">
-    <div class="inv-footer-bar"></div>
-    <div class="inv-footer-content">
-      <div>
-        <div class="inv-footer-item">
-          <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-          <span>{% if company and company.address %}{{ company.address }}{% else %}ABU DHABI{% endif %}</span>
+        <div class="inv-footer-col" style="align-items:flex-end">
+          <div class="inv-footer-logos">
+            <img src="{{ url_for('static', filename='IOS 14001.png') }}" alt="ISO 14001">
+            <img src="{{ url_for('static', filename='ICV-Certificate logo.png') }}" alt="ICV">
+            <img src="{{ url_for('static', filename='VMS Logo.png') }}" alt="VMS">
+          </div>
+          {% if company and company.trn_no %}
+          <div class="inv-footer-item" style="margin-top:1mm">
+            <span>Supplier TRN: <b>{{ company.trn_no }}</b></span>
+          </div>
+          {% endif %}
         </div>
-        <div class="inv-footer-item">
-          <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
-          <span>{% if company and company.phone_number %}{{ company.phone_number }}{% else %}+971 50 591 4476{% endif %}</span>
-        </div>
-      </div>
-      <div>
-        <div class="inv-footer-item">
-          <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-          <span>{% if company and company.email %}{{ company.email }}{% else %}info@currentlink.ae{% endif %}</span>
-        </div>
-        <div class="inv-footer-item">
-          <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-          <span>{% if company and company.trade_license_no %}License: {{ company.trade_license_no }}{% endif %}</span>
-        </div>
-      </div>
-      <div class="inv-footer-logos">
-        <img src="{{ url_for('static', filename='IOS 14001.png') }}" alt="ISO 14001" style="height:6mm;width:auto">
-        <img src="{{ url_for('static', filename='ICV-Certificate logo.png') }}" alt="ICV" style="height:6mm;width:auto">
-        <img src="{{ url_for('static', filename='VMS Logo.png') }}" alt="VMS" style="height:6mm;width:auto">
       </div>
     </div>
   </div>
 </div>
 
-{# ═══════ ACTIONS (not printed) ═══════ #}
+{# ═══════ ACTIONS (screen only) ═══════ #}
 <div class="inv-actions">
   <a href="{{ url_for('customer.customer_invoice_edit', cid=c.id, iid=inv.id) }}" class="btn btn-outline">Edit</a>
   <a href="{{ url_for('customer.customer_invoice_pdf', cid=c.id, iid=inv.id) }}" class="btn btn-primary" target="_blank">Download PDF</a>
+  <button type="button" class="btn btn-outline" onclick="window.print()">Print</button>
   <a href="{{ url_for('customer.customer_profile', cid=c.id, tab='invoices') }}" class="btn btn-outline">&larr; Back</a>
 </div>
 </div>
