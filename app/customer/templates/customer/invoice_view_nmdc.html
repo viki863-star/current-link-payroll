@@ -339,9 +339,10 @@ body { background:#e8edf3; }
 
 {% set eq_periods = nmdc_meta.get('eq_periods', []) %}
 {% set vat_pct = inv.vat_percent or 5 %}
-{% set sub_total = sum_taxable or 0 %}
-{% set vat_total = sum_vat or 0 %}
-{% set grand_total = sum_total or 0 %}
+{# Prefer invoice header totals (authoritative); fall back to line-item sums #}
+{% set sub_total = (inv.amount if inv.amount is not none else none) or sum_taxable or 0 %}
+{% set vat_total = (inv.vat_amount if inv.vat_amount is not none else none) or sum_vat or 0 %}
+{% set grand_total = (inv.total_amount if inv.total_amount is not none else none) or sum_total or 0 %}
 {% set discount_amt = (inv.discount or 0)|float %}
 {% set words_text = amount_words if amount_words else ('AED ' + "{:,.2f}".format(grand_total) + ' Only') %}
 
