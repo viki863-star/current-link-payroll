@@ -203,7 +203,7 @@ class ValidationError(ValueError):
 def register_routes(app: Flask) -> None:
     from markupsafe import Markup
 
-    @app.template_filter("co_badge")
+    @app.template_global("co_badge")
     def _co_badge_filter(company_id, compact=False):
         try:
             cid = int(company_id) if company_id is not None else 1
