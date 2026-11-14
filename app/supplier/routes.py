@@ -1047,6 +1047,23 @@ def _resolve_or_create_supplier(db, ref):
     return {"id": rid, "supplier_name": ref}, ref
 
 
+def _find_duplicate_supplier_bill(db, supplier_id, bill_no, exclude_id=None):
+    """Block duplicate bills: same supplier_id + same bill_no (case-insensitive, trimmed)."""
+    bill_no = (bill_no or "").strip()
+    if not supplier_id or not bill_no:
+        return None
+    sql = (
+        "SELECT id, bill_no, bill_date FROM supplier_bills "
+        "WHERE supplier_id = ? AND LOWER(TRIM(bill_no)) = LOWER(TRIM(?))"
+    )
+    params = [supplier_id, bill_no]
+    if exclude_id:
+        sql += " AND id != ?"
+        params.append(exclude_id)
+    sql += " LIMIT 1"
+    return db.execute(sql, params).fetchone()
+
+
 @supplier_bp.route("/add", methods=["GET", "POST"])
 def supplier_add():
     _ensure_tables()
@@ -4520,6 +4537,15 @@ def supplier_bill_add():
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("supplier.supplier_bill_add"))
+        dup = _find_duplicate_supplier_bill(db, supplier["id"], bill_no)
+        if dup:
+            flash(
+                f"Duplicate blocked: Bill #{bill_no} already exists for supplier "
+                f"{supplier.get('supplier_name') or supplier_ref} (dated {dup['bill_date']}). "
+                f"Same bill number + supplier is not allowed.",
+                "error",
+            )
+            return redirect(url_for("supplier.supplier_bill_add"))
         if is_tax_bill:
             total_amount = round(amount_excl * 1.05, 2)
             vat_amount = round(amount_excl * 0.05, 2)
@@ -4595,6 +4621,15 @@ def supplier_bill_edit(bill_id):
         if not supplier:
             flash("Supplier not found.", "error")
             return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
+        dup = _find_duplicate_supplier_bill(db, supplier["id"], bill_no, exclude_id=bill_id)
+        if dup:
+            flash(
+                f"Duplicate blocked: Bill #{bill_no} already exists for supplier "
+                f"{supplier.get('supplier_name') or supplier_ref} (dated {dup['bill_date']}). "
+                f"Same bill number + supplier is not allowed.",
+                "error",
+            )
+            return redirect(url_for("supplier.supplier_bill_edit", bill_id=bill_id))
         if is_tax_bill:
             total_amount = round(amount_excl * 1.05, 2)
             vat_amount = round(amount_excl * 0.05, 2)
@@ -4643,6 +4678,7 @@ def supplier_bills_batch():
         return redirect(url_for("supplier.supplier_bill_add"))
     count = 0
     created_names = []
+    skipped_dups = []
     for vk in v_keys:
         idx = vk.split("_", 1)[1]
         supplier_ref = request.form.get(f"batch_supplier_{idx}", "").strip()
@@ -4663,6 +4699,12 @@ def supplier_bills_batch():
         discount = float(request.form.get(f"disc_{idx}", 0) or 0)
         is_tax = request.form.get(f"tax_{idx}") == "on"
         if not vehicle_plate or not bill_no or not bill_date or amount_excl <= 0:
+            continue
+        dup = _find_duplicate_supplier_bill(db, supplier["id"], bill_no)
+        if dup:
+            skipped_dups.append(
+                f"#{bill_no} ({supplier.get('supplier_name') or supplier_ref})"
+            )
             continue
         if is_tax:
             total_amount = round(amount_excl * 1.05, 2)
@@ -4707,7 +4749,16 @@ def supplier_bills_batch():
         db.execute("UPDATE supplier_bills SET source_expense_id = ? WHERE id = ?", (expense_id, bill_id))
         count += 1
     db.commit()
+    if skipped_dups:
+        flash(
+            "Duplicate bill(s) blocked (same bill number + supplier): "
+            + ", ".join(skipped_dups),
+            "error",
+        )
     if count == 0:
+        if skipped_dups:
+            flash("No new bills were saved — all were duplicates.", "error")
+            return redirect(url_for("supplier.supplier_bill_add"))
         flash("No bills were saved. Please check all required fields.", "error")
         return redirect(url_for("supplier.supplier_bill_add"))
     flash(f"{count} bill(s) added successfully.", "success")
