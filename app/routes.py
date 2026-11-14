@@ -242,7 +242,7 @@ def register_routes(app: Flask) -> None:
         workspace_home_endpoint = _workspace_home_endpoint(current_workspace) if current_role == "admin" else ""
         try:
             cdb = open_db()
-            cpx = cdb.execute("SELECT company_name, address, phone_number, email, logo_type, logo_data, theme_color, trn_no, vat_status, legal_name FROM company_profile LIMIT 1").fetchone()
+            cpx = cdb.execute("SELECT company_name, address, phone_number, email, logo_type, logo_data, theme_color, trn_no, vat_status, legal_name FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         except Exception:
             cpx = None
         current_staff_photo = ""
@@ -285,7 +285,7 @@ def register_routes(app: Flask) -> None:
     def company_profile():
         try:
             db = open_db()
-            cp = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+            cp = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
             db.close()
         except Exception:
             cp = None
@@ -597,7 +597,7 @@ def register_routes(app: Flask) -> None:
             "SELECT lpo_no, status, pdf_path FROM lpos WHERE quotation_no = ? LIMIT 1",
             (quotation_no,),
         ).fetchone()
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         suggested_lpo_no = _next_reference_code(db, "lpos", "lpo_no", "LPO")
 
         if request.method == "POST":
@@ -7284,7 +7284,7 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         db.close()
 
         # 5. Customer payments (payroll DB)
@@ -7455,7 +7455,7 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         db.close()
 
         entries.sort(key=lambda e: e["date"], reverse=True)
@@ -7672,7 +7672,7 @@ def register_routes(app: Flask) -> None:
             pass
 
         db = open_db()
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         db.close()
 
         entries.sort(key=lambda e: e["date"], reverse=True)
@@ -8054,7 +8054,7 @@ def register_routes(app: Flask) -> None:
         for r in rows:
             if _matches_month_year(r["entry_date"], month, year):
                 entries.append(dict(r))
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         db.close()
 
         output_dir = current_app.config.get("GENERATED_BACKUP_DIR", "/tmp")
@@ -8869,7 +8869,7 @@ def register_routes(app: Flask) -> None:
         statement = _owner_fund_statement(db, reverse=False, filters=filters)
         view_incoming, view_outgoing, view_net, view_closing = _owner_fund_view_totals(statement)
         output_dir = Path(app.config["GENERATED_DIR"]) / "owner_fund"
-        company_profile = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company_profile = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         pdf_path = generate_owner_fund_pdf(
             statement,
             {
@@ -9500,6 +9500,8 @@ def register_routes(app: Flask) -> None:
                 )
                 statement_totals = _recalculate_salary_statement(db, statement_row, salary_row, payment_rows)
                 dr2 = db.execute("SELECT vehicle_no, photo_name, photo_data, photo_content_type FROM drivers WHERE driver_id=?", (driver_id,)).fetchone()
+                from app.utils import get_company_for_employee
+                _cp = get_company_for_employee(db, driver_id)
                 pdf_path = generate_salary_slip_pdf(
                     driver,
                     salary_row,
@@ -9521,6 +9523,7 @@ def register_routes(app: Flask) -> None:
                     app.config["STATIC_ASSETS_DIR"],
                     app.config["GENERATED_DIR"],
                     payment_rows=payment_rows,
+                    company_profile=_cp,
                 )
                 _mirror_generated_file(app, pdf_path)
                 relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
@@ -10155,6 +10158,8 @@ def register_routes(app: Flask) -> None:
                                 "_photo_name": (dr["photo_name"] or "") if dr else "",
                                 "_photo_data": (dr["photo_data"] or "") if dr else "",
                             }
+                            from app.utils import get_company_for_employee
+                            _cp = get_company_for_employee(db, driver_id)
                             pdf_path = generate_salary_slip_pdf(
                                 driver,
                                 selected_salary,
@@ -10163,6 +10168,7 @@ def register_routes(app: Flask) -> None:
                                 app.config["STATIC_ASSETS_DIR"],
                                 app.config["GENERATED_DIR"],
                                 payment_rows=payment_rows,
+                                company_profile=_cp,
                             )
                             _mirror_generated_file(app, pdf_path)
                             relative_path = Path(pdf_path).relative_to(app.config["GENERATED_DIR"]).as_posix()
@@ -20813,6 +20819,8 @@ def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None 
     if not salary_rows and not transactions and not salary_slips and not salary_payments:
         return None
     output_dir = _driver_output_dir(app, driver["driver_id"], driver=driver) / "kata_pdfs"
+    from app.utils import get_company_for_employee
+    _cp = get_company_for_employee(db, driver["driver_id"])
     pdf_path = generate_kata_pdf(
         driver,
         salary_rows,
@@ -20822,6 +20830,7 @@ def _regenerate_kata_for_driver(app: Flask, db, driver, month_value: str | None 
         str(output_dir),
         app.config["STATIC_ASSETS_DIR"],
         month_value=month_value,
+        company_profile=_cp,
         transaction_deductions=transaction_deductions,
     )
     _mirror_generated_file(app, pdf_path)
@@ -20975,6 +20984,8 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         "_photo_data": (dr["photo_data"] or "") if dr else "",
     }
     output_dir = _driver_output_dir(app, slip["driver_id"], driver=driver) / "salary_slips"
+    from app.utils import get_company_for_employee
+    _cp = get_company_for_employee(db, slip["driver_id"])
     pdf_path = generate_salary_slip_pdf(
         driver,
         salary_row,
@@ -20983,6 +20994,7 @@ def _rebuild_salary_slip_pdf(app: Flask, db, slip) -> str | None:
         app.config["STATIC_ASSETS_DIR"],
         app.config["GENERATED_DIR"],
         payment_rows=payment_rows,
+        company_profile=_cp,
     )
     _mirror_generated_file(app, pdf_path)
     _archive_driver_statement_record(app, db, driver, salary_row["salary_month"], "salary_slip_pdf_generated", pdf_path=pdf_path)

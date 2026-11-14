@@ -468,7 +468,7 @@ def customer_invoice_add(cid):
     sos = db.execute("SELECT id,so_no,so_date,amount FROM customer_service_orders WHERE customer_id=? AND status!='closed' ORDER BY so_date DESC", (cid,)).fetchall()
     svc_items = db.execute("SELECT description FROM service_items ORDER BY description LIMIT 500").fetchall()
     inv_type = "vat"
-    e_invoice_start_date = db.execute("SELECT e_invoice_start_date FROM company_profile LIMIT 1").fetchone()
+    e_invoice_start_date = db.execute("SELECT e_invoice_start_date FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     e_invoice_start_date = e_invoice_start_date["e_invoice_start_date"] if e_invoice_start_date else "2027-01-01"
     auto_e_invoice = date.today().isoformat() >= e_invoice_start_date
     if request.method == "POST":
@@ -661,10 +661,10 @@ def customer_invoice_edit(cid, iid):
     is_nmdc_edit = "nmdc" in (c["customer_name"] or "").lower()
     next_cash_no = _next_cash_invoice_no(db)
     inv_type = (inv.get("invoice_type") or "vat") if inv else "vat"
-    e_invoice_start_date_edit = db.execute("SELECT e_invoice_start_date FROM company_profile LIMIT 1").fetchone()
+    e_invoice_start_date_edit = db.execute("SELECT e_invoice_start_date FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     e_invoice_start_date_edit = e_invoice_start_date_edit["e_invoice_start_date"] if e_invoice_start_date_edit else "2027-01-01"
     auto_e_invoice_edit = (inv.get("invoice_date") or "") >= e_invoice_start_date_edit
-    e_invoice_start_date = db.execute("SELECT e_invoice_start_date FROM company_profile LIMIT 1").fetchone()
+    e_invoice_start_date = db.execute("SELECT e_invoice_start_date FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     e_invoice_start_date = e_invoice_start_date["e_invoice_start_date"] if e_invoice_start_date else "2027-01-01"
     if request.method == "POST":
         try:
@@ -831,7 +831,7 @@ def customer_invoice_view(cid, iid):
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="invoices"))
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     so_date_val = None
     if inv.get("so_no"):
         so_row = db.execute("SELECT so_date FROM customer_service_orders WHERE so_no=? AND customer_id=?", (inv["so_no"], cid)).fetchone()
@@ -889,7 +889,7 @@ def customer_invoice_pdf(cid, iid):
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
     inv = db.execute("SELECT id, customer_id, invoice_no, invoice_date, amount, discount, vat_percent, vat_amount, total_amount, notes, created_at, lpo_no, lpo_date, so_no, project_no, ref_no, invoice_type, e_invoice FROM customer_invoices WHERE id=? AND customer_id=? AND deleted_at IS NULL", (iid, cid)).fetchone()
     items = db.execute("SELECT id, invoice_id, description, quantity, rate, amount, sort_order, unit, vehicle_no FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order", (iid,)).fetchall()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     pdf_so_date = None
     if inv.get("so_no"):
         so_r = db.execute("SELECT so_date FROM customer_service_orders WHERE so_no=? AND customer_id=?", (inv["so_no"], cid)).fetchone()
@@ -2180,7 +2180,7 @@ def customer_credit_note_pdf(cid, cnid):
     db = _get_db()
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn FROM customers WHERE id=?", (cid,)).fetchone()
     cn_row = db.execute("SELECT * FROM customer_credit_notes WHERE id=? AND customer_id=?", (cnid, cid)).fetchone()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     db.close()
 
     if not c or not cn_row:
@@ -2539,7 +2539,7 @@ def customer_quotation_add(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     db = _get_db()
     next_no = _next_quotation_no(db)
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     if request.method == "POST":
         q_date = request.form.get("quotation_date", date.today().isoformat())
         q_no = request.form.get("quotation_no", "").strip() or next_no
@@ -2604,7 +2604,7 @@ def customer_quotation_edit(cid, qid):
         flash("Quotation not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
     items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, rate_text, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     if request.method == "POST":
         q_date = request.form.get("quotation_date", q["quotation_date"])
         q_no = request.form.get("quotation_no", "").strip() or q["quotation_no"]
@@ -2748,7 +2748,7 @@ def customer_quotation_view(cid, qid):
         flash("Quotation not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid, tab="quotations"))
     items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, rate_text, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     db.close()
     return render_template("customer/quotation_view.html", c=c, q=q, items=items, company=company)
 
@@ -2769,7 +2769,7 @@ def customer_quotation_pdf(cid, qid):
     c = db.execute("SELECT id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, logo_data, logo_type, created_at FROM customers WHERE id=?", (cid,)).fetchone()
     q = db.execute("SELECT id, customer_id, quotation_no, quotation_date, amount, sub_total, vat_percent, vat_amount, total_amount, status, notes, terms, location, contact_details, created_at FROM customer_quotations WHERE id=? AND customer_id=?", (qid, cid)).fetchone()
     items = db.execute("SELECT id, quotation_id, description, quantity, rate, amount, unit, rate_text, sort_order FROM customer_quotation_items WHERE quotation_id=? ORDER BY sort_order", (qid,)).fetchall()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     db.close()
     if not c or not q:
         flash("Quotation not found.", "error")
@@ -3075,7 +3075,7 @@ def quotation_walkin():
     _ensure_tables()
     db = _get_db()
     next_no = _next_quotation_no(db)
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     if request.method == "POST":
         q_date = request.form.get("quotation_date", date.today().isoformat())
         q_no = request.form.get("quotation_no", "").strip() or next_no
@@ -3556,7 +3556,7 @@ def customer_soa_pdf(cid):
     from_date = request.args.get("from", "")
     to_date = request.args.get("to", "")
     db = _get_db()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     entries = []
     inv_q = """SELECT i.id, i.invoice_date as d, i.invoice_no as ref, i.invoice_type as invoice_type, i.total_amount as dr,
                       COALESCE((SELECT SUM(p2.amount) FROM customer_payments p2 WHERE p2.invoice_id = i.id),0)
@@ -3927,7 +3927,7 @@ def customer_soa_excel(cid):
     company = db = None  # not needed for excel; keep minimal
     # Re-fetch company name for title
     db2 = _get_db()
-    crow = db2.execute("SELECT company_name FROM company_profile LIMIT 1").fetchone()
+    crow = db2.execute("SELECT company_name FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     comp_name = crow["company_name"] if crow else "Company"
     db2.close()
 
@@ -4060,7 +4060,7 @@ def e_invoice_send(cid, iid):
         flash("Invoice not found.", "error")
         return redirect(url_for("customer.customer_profile", cid=cid))
     customer = db.execute("SELECT * FROM customers WHERE id=?", (cid,)).fetchone()
-    company = db.execute("SELECT * FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT * FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     items = db.execute("SELECT * FROM customer_invoice_items WHERE invoice_id=? ORDER BY sort_order, id", (iid,)).fetchall()
 
     xml = _generate_ubl_invoice_xml(db, inv, company, customer, items)
@@ -4419,7 +4419,7 @@ def customer_tax_report_pdf():
     where += " AND i.deleted_at IS NULL"
     if from_filter: where += " AND i.invoice_date >= ?"; params.append(from_filter)
     if to_filter: where += " AND i.invoice_date <= ?"; params.append(to_filter)
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     invoices = db.execute(f"""
         SELECT i.invoice_date, i.invoice_no, c.customer_name,
                i.amount AS net_sale, i.vat_amount, i.total_amount
@@ -4606,7 +4606,7 @@ def customer_tripsheet_report_pdf(cid):
     if not c: return redirect(url_for("customer.customer_dashboard"))
     month = request.args.get("month", date.today().strftime("%Y-%m"))
     db = _get_db()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     rows = db.execute("""
         SELECT id, customer_id, entry_date, time_in, time_out, total_reading, tanker_gln, trips, tanker_reg, bill_no, notes, created_at FROM tabreed_tripsheets
         WHERE customer_id=? AND substr(entry_date,1,7)=?

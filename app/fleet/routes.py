@@ -277,6 +277,7 @@ def ensure_fleet_tables():
         "ALTER TABLE vehicles ADD COLUMN battery_warranty_card_name TEXT",
         "ALTER TABLE vehicles ADD COLUMN battery_warranty_card_data TEXT",
         "ALTER TABLE vehicles ADD COLUMN battery_warranty_card_type TEXT",
+        "ALTER TABLE vehicles ADD COLUMN company_id INTEGER DEFAULT 1",
     ):
         try:
             db.execute(_col_sql)
@@ -1473,7 +1474,7 @@ def ghadeer_card_pdf(card_id):
         try:
             cp = db.execute(
                 "SELECT company_name, address, phone_number, email, trn_no, logo_data, logo_type "
-                "FROM company_profile LIMIT 1"
+                "FROM company_profile ORDER BY id ASC LIMIT 1"
             ).fetchone()
             cp = dict(cp) if cp else None
         except Exception:
@@ -1612,6 +1613,10 @@ def vehicle_add():
     drivers = _all_employees_drivers()
     vehicles_list = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
     already_linked = [r["plate_no"] for r in db.execute("SELECT linked_plate_no AS plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != ''").fetchall()]
+    try:
+        companies = db.execute("SELECT id, company_name FROM company_profile ORDER BY id ASC").fetchall()
+    except Exception:
+        companies = []
 
     if request.method == "POST":
         plate_no = request.form.get("plate_no", "").strip().upper()
@@ -1641,19 +1646,23 @@ def vehicle_add():
             tank_capacity_gal = request.form.get("tank_capacity_gal_custom", "0").strip()
         linked_plate_no = request.form.get("linked_plate_no", "").strip()
         link_type = request.form.get("link_type", "").strip()
+        try:
+            company_id = int(request.form.get("company_id", "1") or 1)
+        except Exception:
+            company_id = 1
 
         if not plate_no or not vehicle_type:
             flash("Plate number and vehicle type are required.", "error")
-            return render_template("fleet/vehicle_form.html", v=request.form, is_edit=False, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, page_title="Add Vehicle", submit_label="Add Vehicle")
+            return render_template("fleet/vehicle_form.html", v=request.form, is_edit=False, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, companies=companies, page_title="Add Vehicle", submit_label="Add Vehicle")
 
         existing = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
         if existing:
             flash(f"Vehicle {plate_no} already exists.", "error")
-            return render_template("fleet/vehicle_form.html", v=request.form, is_edit=False, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, page_title="Add Vehicle", submit_label="Add Vehicle")
+            return render_template("fleet/vehicle_form.html", v=request.form, is_edit=False, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, companies=companies, page_title="Add Vehicle", submit_label="Add Vehicle")
 
         db.execute(
-            "INSERT INTO vehicles (plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (plate_no, vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, "Active", notes, vehicle_category, vehicle_sub_type, vehicle_length, int(tank_capacity_gal) if tank_capacity_gal else 0, linked_plate_no if linked_plate_no else None, link_type if link_type else ''),
+            "INSERT INTO vehicles (plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type, company_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (plate_no, vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, "Active", notes, vehicle_category, vehicle_sub_type, vehicle_length, int(tank_capacity_gal) if tank_capacity_gal else 0, linked_plate_no if linked_plate_no else None, link_type if link_type else '', company_id),
         )
         db.commit()
 
@@ -1672,7 +1681,11 @@ def vehicle_add():
         flash(f"Vehicle {plate_no} added.", "success")
         return redirect(url_for("fleet.vehicle_profile", plate_no=plate_no))
 
-    return render_template("fleet/vehicle_form.html", v={}, is_edit=False, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, page_title="Add Vehicle", submit_label="Add Vehicle")
+    try:
+        companies = db.execute("SELECT id, company_name FROM company_profile ORDER BY id ASC").fetchall()
+    except Exception:
+        companies = []
+    return render_template("fleet/vehicle_form.html", v={}, is_edit=False, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, already_linked=already_linked, companies=companies, page_title="Add Vehicle", submit_label="Add Vehicle")
 
 
 # ── Edit Vehicle ────────────────────────────────────────────────
@@ -1684,13 +1697,17 @@ def vehicle_edit(plate_no):
     ensure_fleet_tables()
     db = open_db()
     try:
-        v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+        v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type, company_id FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
     except Exception as e:
         flash(f"Database error: {e}", "error")
         return redirect(url_for("fleet.vehicle_list"))
     if not v:
         flash("Vehicle not found.", "error")
         return redirect(url_for("fleet.vehicle_list"))
+    try:
+        companies = db.execute("SELECT id, company_name FROM company_profile ORDER BY id ASC").fetchall()
+    except Exception:
+        companies = []
     try:
         drivers = _all_employees_drivers()
     except Exception as e:
@@ -1737,19 +1754,23 @@ def vehicle_edit(plate_no):
             tank_capacity_gal = request.form.get("tank_capacity_gal_custom", "0").strip()
         linked_plate_no = request.form.get("linked_plate_no", "").strip()
         link_type = request.form.get("link_type", "").strip()
+        try:
+            company_id = int(request.form.get("company_id", "1") or 1)
+        except Exception:
+            company_id = 1
 
         if not new_plate:
             flash("Plate number is required.", "error")
-            return render_template("fleet/vehicle_form.html", v=v, is_edit=True, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, page_title="Edit Vehicle", submit_label="Save Changes")
+            return render_template("fleet/vehicle_form.html", v=v, is_edit=True, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, companies=companies, page_title="Edit Vehicle", submit_label="Save Changes")
 
         if new_plate != plate_no:
             existing = db.execute("SELECT plate_no FROM vehicles WHERE plate_no = ?", (new_plate,)).fetchone()
             if existing:
                 flash(f"Plate number {new_plate} already exists.", "error")
-                return render_template("fleet/vehicle_form.html", v=v, is_edit=True, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, page_title="Edit Vehicle", submit_label="Save Changes")
+                return render_template("fleet/vehicle_form.html", v=v, is_edit=True, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, companies=companies, page_title="Edit Vehicle", submit_label="Save Changes")
             try:
                 db.execute(
-                    "INSERT INTO vehicles (plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type) SELECT ?, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type FROM vehicles WHERE plate_no=?",
+                    "INSERT INTO vehicles (plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type, company_id) SELECT ?, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, tank_capacity_gal, linked_plate_no, link_type, company_id FROM vehicles WHERE plate_no=?",
                     (new_plate, plate_no),
                 )
                 db.execute(
@@ -1763,17 +1784,17 @@ def vehicle_edit(plate_no):
                 db.execute("DELETE FROM vehicles WHERE plate_no=?", (plate_no,))
             except Exception as e:
                 flash(f"Could not update plate number: {e}", "error")
-                return render_template("fleet/vehicle_form.html", v=v, is_edit=True, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, page_title="Edit Vehicle", submit_label="Save Changes")
+                return render_template("fleet/vehicle_form.html", v=v, is_edit=True, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, companies=companies, page_title="Edit Vehicle", submit_label="Save Changes")
         else:
             db.execute(
-                "UPDATE vehicles SET vehicle_type=?, model=?, year=?, ownership_type=?, partner_name=?, partner_percent=?, status=?, notes=?, vehicle_category=?, vehicle_sub_type=?, vehicle_length=?, tank_capacity_gal=?, linked_plate_no=?, link_type=? WHERE plate_no=?",
-                (vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, int(tank_capacity_gal) if tank_capacity_gal else 0, linked_plate_no if vehicle_category == "Trailer" else None, link_type if vehicle_category == "Trailer" else '', plate_no),
+                "UPDATE vehicles SET vehicle_type=?, model=?, year=?, ownership_type=?, partner_name=?, partner_percent=?, status=?, notes=?, vehicle_category=?, vehicle_sub_type=?, vehicle_length=?, tank_capacity_gal=?, linked_plate_no=?, link_type=?, company_id=? WHERE plate_no=?",
+                (vehicle_type, model, int(year) if year else None, ownership_type, partner_name if ownership_type == "Partnership" else None, float(partner_percent) if partner_percent and ownership_type == "Partnership" else None, status, notes, vehicle_category, vehicle_sub_type, vehicle_length, int(tank_capacity_gal) if tank_capacity_gal else 0, linked_plate_no if vehicle_category == "Trailer" else None, link_type if vehicle_category == "Trailer" else '', company_id, plate_no),
             )
         db.commit()
         flash("Vehicle updated.", "success")
         return redirect(url_for("fleet.vehicle_profile", plate_no=new_plate))
 
-    return render_template("fleet/vehicle_form.html", v=v, is_edit=True, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, page_title="Edit Vehicle", submit_label="Save Changes")
+    return render_template("fleet/vehicle_form.html", v=v, is_edit=True, drivers=drivers, vehicles_list=vehicles_list, vehicle_types=VEHICLE_TYPES, ownership_types=OWNERSHIP_TYPES, vehicle_categories=VEHICLE_CATEGORIES, vehicle_sub_types=VEHICLE_SUB_TYPES, link_types=LINK_TYPES, tank_capacities=TANK_CAPACITIES, linked_trailers=linked_trailers, existing_mulkiyas=existing_mulkiyas, already_linked=already_linked, companies=companies, page_title="Edit Vehicle", submit_label="Save Changes")
 
 
 # ── Add Trailer to Head Vehicle ────────────────────────────────
@@ -2451,7 +2472,7 @@ def _partner_labels(db, plate_no):
     """Display names for the two partnership accounts of a vehicle."""
     company_name = "Current Link"
     try:
-        row = db.execute("SELECT company_name FROM company_profile LIMIT 1").fetchone()
+        row = db.execute("SELECT company_name FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         if row and row["company_name"]:
             company_name = row["company_name"]
     except Exception:
@@ -3708,7 +3729,7 @@ def fleet_staff_advances_pdf(staff_id):
         from flask import current_app
         output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_advances"
         import os
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         base_url = request.host_url.rstrip("/")
         pdf_path = generate_field_staff_advances_pdf(s, advances, jobs_data, papers_data, total, filter_month, date_from, date_to, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
         relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
@@ -3761,7 +3782,7 @@ def fleet_staff_jobs_pdf(staff_id):
         from pathlib import Path
         from flask import current_app
         output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_jobs"
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         base_url = request.host_url.rstrip("/")
         pdf_path = generate_field_staff_jobs_pdf(s, jobs, total_amount, filter_month, date_from, date_to, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
         relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
@@ -4348,7 +4369,7 @@ def fuel_report_pdf():
         ORDER BY fe.entry_date DESC, fe.id DESC
     """, params).fetchall()
     output_dir = current_app.config.get("GENERATED_BACKUP_DIR", "/tmp")
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     cp = dict(company) if company else {}
     assets_dir = str(Path(current_app.root_path).parent / "app" / "static")
     pdf_path = generate_fuel_report_pdf(

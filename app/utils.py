@@ -80,18 +80,79 @@ def num_to_words(amount: float) -> str:
 
 # ── Company Profile Helper ──────────────────────────────────────
 
-def get_company_profile(db) -> Optional[dict]:
-    """Fetch the company profile row. Returns dict or None."""
+_COMPANY_COLS = (
+    "id, company_name, legal_name, trade_license_no, trade_license_expiry, "
+    "trn_no, vat_status, address, phone_number, email, bank_name, "
+    "bank_account_name, bank_account_number, iban, swift_code, "
+    "invoice_terms, base_currency, logo_data, logo_type, theme_color"
+)
+
+
+def get_company_profile(db, company_id=None) -> Optional[dict]:
+    """Fetch a company_profile row. Default = Current Link (lowest id)."""
     try:
-        row = db.execute(
-            "SELECT company_name, legal_name, trade_license_no, trn_no, "
-            "address, phone, email, logo_data, website, bank_name, "
-            "bank_account, iban, branch_name "
-            "FROM company_profile LIMIT 1"
-        ).fetchone()
+        if company_id:
+            row = db.execute(
+                f"SELECT {_COMPANY_COLS} FROM company_profile WHERE id = ?",
+                (int(company_id),),
+            ).fetchone()
+        else:
+            row = db.execute(
+                f"SELECT {_COMPANY_COLS} FROM company_profile ORDER BY id ASC LIMIT 1"
+            ).fetchone()
         return dict(row) if row else None
     except Exception:
         return None
+
+
+def get_company_for_vehicle(db, plate_no) -> Optional[dict]:
+    """Resolve company from a vehicle plate. Falls back to default company."""
+    try:
+        if plate_no:
+            row = db.execute(
+                f"SELECT cp.id, cp.company_name, cp.legal_name, cp.trade_license_no, "
+                f"cp.trade_license_expiry, cp.trn_no, cp.vat_status, cp.address, "
+                f"cp.phone_number, cp.email, cp.bank_name, cp.bank_account_name, "
+                f"cp.bank_account_number, cp.iban, cp.swift_code, cp.invoice_terms, "
+                f"cp.base_currency, cp.logo_data, cp.logo_type, cp.theme_color "
+                f"FROM vehicles v JOIN company_profile cp ON cp.id = v.company_id "
+                f"WHERE v.plate_no = ?",
+                (str(plate_no).strip(),),
+            ).fetchone()
+            if row:
+                return dict(row)
+    except Exception:
+        pass
+    return get_company_profile(db)
+
+
+def get_company_for_employee(db, employee_id) -> Optional[dict]:
+    """Resolve company from employee/driver current vehicle. Fallback = default."""
+    try:
+        eid = str(employee_id or "").strip()
+        if not eid:
+            return get_company_profile(db)
+        # Preferred: denormalized drivers.vehicle_no
+        row = db.execute(
+            f"SELECT v.company_id FROM drivers d JOIN vehicles v ON v.plate_no = d.vehicle_no "
+            f"WHERE d.driver_id = ?",
+            (eid,),
+        ).fetchone()
+        if not row or not row["company_id"]:
+            row = db.execute(
+                f"SELECT v.company_id FROM vehicle_assignments va "
+                f"JOIN vehicles v ON v.plate_no = va.vehicle_id "
+                f"WHERE va.driver_id = ? AND va.is_current = 1 "
+                f"ORDER BY va.id DESC LIMIT 1",
+                (eid,),
+            ).fetchone()
+        if row and row["company_id"]:
+            cp = get_company_profile(db, row["company_id"])
+            if cp:
+                return cp
+    except Exception:
+        pass
+    return get_company_profile(db)
 
 
 # ── Date Filter Builder ────────────────────────────────────────

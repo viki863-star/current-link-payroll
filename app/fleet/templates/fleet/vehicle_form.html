@@ -130,6 +130,18 @@
                     <input type="number" name="partner_percent" value="{{ v.partner_percent or '' }}" class="form-control" min="1" max="100" step="0.1">
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group" style="flex:1">
+                    <label>Company</label>
+                    <select name="company_id" class="form-control">
+                        {% for c in (companies or []) %}
+                        <option value="{{ c.id }}" {% if ((v.company_id or 1)|int) == c.id|int %}selected{% endif %}>{{ c.company_name }}</option>
+                        {% else %}
+                        <option value="1">Current Link</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
             {% if not v.plate_no %}
             <div class="form-row">
                 <div class="form-group" style="flex:1">

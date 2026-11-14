@@ -2167,6 +2167,7 @@ REQUIRED_COLUMNS = {
         "tank_capacity_gal": "INTEGER DEFAULT 0",
         "linked_plate_no": "TEXT",
         "link_type": "TEXT DEFAULT ''",
+        "company_id": "INTEGER DEFAULT 1",
     },
     "documents": {
         "doc_category": "TEXT NOT NULL DEFAULT 'Other'",

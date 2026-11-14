@@ -1703,7 +1703,8 @@ def employee_salary_slip(employee_id):
                     else:
                         remaining_advance = max(available_advance - deduction_amount, 0.0)
                         from ..pdf_service import generate_salary_slip_pdf
-                        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+                        from ..utils import get_company_for_employee
+                        company = get_company_for_employee(db, eid)
                         company_profile = dict(company) if company else None
 
                         if existing_slip is not None:
@@ -1895,12 +1896,19 @@ def employee_salary_slip(employee_id):
     slip_hero_salary = float(selected_salary["net_salary"]) if selected_salary else (
         float(salary_rows[0]["net_salary"]) if salary_rows else 0.0
     )
+    try:
+        from ..utils import get_company_for_employee
+        _cp_row = get_company_for_employee(db, eid)
+        company_profile_ctx = dict(_cp_row) if _cp_row else None
+    except Exception:
+        company_profile_ctx = None
 
     return render_template(
         "hr/employee_detail.html",
         employee=employee,
         photo_url=photo_url,
         active_tab="salary_slip",
+        company_profile=company_profile_ctx,
         slip_salary_rows=salary_rows,
         slip_selected_salary=selected_salary,
         slip_existing_slip=existing_slip,
@@ -2112,7 +2120,14 @@ def employee_salary_card(employee_id, store_id):
     total_remaining_before = sum(a["amount"] for a in advances_list) - sum(a["deducted_total"] for a in advances_list)
     prev_balance = max(total_remaining_before, 0.0)
 
-    company = db.execute("SELECT company_name, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    company = None
+    try:
+        from ..utils import get_company_for_employee
+        company = get_company_for_employee(db, eid)
+    except Exception:
+        company = None
+    if not company:
+        company = db.execute("SELECT company_name, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
     company_profile = dict(company) if company else None
 
     from ..pdf_service import generate_driver_salary_card_pdf
@@ -2165,7 +2180,8 @@ def employee_deduction_statement(employee_id, store_id):
         flash("Salary slip not found. Generate slip first.", "error")
         return redirect(url_for("hr.employee_salary_slip", employee_id=eid, salary_store_id=store_id))
     driver_display = {"driver_id": eid, "full_name": employee["full_name"], "basic_salary": employee["basic_salary"] or 0}
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    from ..utils import get_company_for_employee
+    company = get_company_for_employee(db, eid)
     company_profile = dict(company) if company else None
     # Get deducted transactions
     deducted = db.execute(
@@ -2324,7 +2340,8 @@ def employee_kata(employee_id):
         "basic_salary": employee["basic_salary"] or 0,
         "employee_type": employee.get("employee_type") or "Driver",
     }
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+    from ..utils import get_company_for_employee
+    company = get_company_for_employee(db, eid)
     company_profile = dict(company) if company else None
 
     pdf_path = generate_driver_soa_pdf(
@@ -2812,7 +2829,7 @@ def employee_list_pdf():
     ).fetchall()
 
     try:
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1").fetchone()
+        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         company_profile = dict(company) if company else None
     except Exception:
         company_profile = None
@@ -3305,7 +3322,7 @@ def _read_id_upload(file_storage):
 
 def _company_name(db):
     try:
-        row = db.execute("SELECT company_name FROM company_profile LIMIT 1").fetchone()
+        row = db.execute("SELECT company_name FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
         return (row["company_name"] if row else "") or ""
     except Exception:
         return ""
@@ -3435,11 +3452,19 @@ def employee_ids_pdf(employee_id):
 
 # ── Salary Certificate ──────────────────────────────────────────────
 
-def _company_profile_row(db):
+def _company_profile_row(db, employee_id=None):
+    if employee_id:
+        try:
+            from ..utils import get_company_for_employee
+            row = get_company_for_employee(db, employee_id)
+            if row:
+                return row
+        except Exception:
+            pass
     return db.execute(
         "SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, "
         "address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, "
-        "invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile LIMIT 1"
+        "invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1"
     ).fetchone()
 
 
@@ -3532,7 +3557,7 @@ def employee_salary_certificate(employee_id):
 
     purpose = (request.args.get("purpose") or "").strip()[:120]
     cert = _salary_certificate_context(db, employee, purpose)
-    company = _company_profile_row(db)
+    company = _company_profile_row(db, employee["employee_id"])
     company_profile = dict(company) if company else None
     photo_url = _employee_photo_url(current_app._get_current_object(), employee)
 
@@ -3560,7 +3585,7 @@ def employee_salary_certificate_pdf(employee_id):
 
     purpose = (request.args.get("purpose") or "").strip()[:120]
     cert = _salary_certificate_context(db, employee, purpose)
-    company = _company_profile_row(db)
+    company = _company_profile_row(db, employee["employee_id"])
     company_profile = dict(company) if company else None
 
     from ..pdf_service import generate_salary_certificate_pdf
