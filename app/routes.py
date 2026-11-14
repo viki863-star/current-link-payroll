@@ -206,8 +206,12 @@ def register_routes(app: Flask) -> None:
     @app.template_global("co_badge")
     def _co_badge_filter(company_id, compact=False):
         try:
+            if hasattr(company_id, "keys"):
+                company_id = company_id.get("company_id", 1) if hasattr(company_id, "get") else 1
+            elif hasattr(company_id, "__class__") and type(company_id).__name__ == "Record":
+                company_id = company_id.get("company_id", 1)
             cid = int(company_id) if company_id is not None else 1
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, AttributeError):
             cid = 1
         if cid == 2:
             if compact:

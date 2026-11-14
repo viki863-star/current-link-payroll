@@ -4340,7 +4340,9 @@ def fuel_list():
         where += " AND substr(fe.entry_date,1,7) = ?"
         params.append(month_filter)
     entries = db.execute(f"""
-        SELECT fe.* FROM fuel_entries fe
+        SELECT fe.*, v.company_id
+        FROM fuel_entries fe
+        LEFT JOIN vehicles v ON v.plate_no = fe.vehicle_plate
         WHERE 1=1{where}
         ORDER BY fe.entry_date DESC, fe.id DESC
     """, params).fetchall()
