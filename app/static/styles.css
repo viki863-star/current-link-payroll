@@ -9189,6 +9189,40 @@ textarea.form-control {
     color: #e65100;
 }
 
+/* Multi-company ownership badges (Current Link vs Eagle Mountain) */
+.co-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    vertical-align: middle;
+    white-space: nowrap;
+    line-height: 1.45;
+    border: 1px solid transparent;
+}
+
+.co-badge--em {
+    background: linear-gradient(135deg, #152238, #1e3a5f);
+    color: #f0c14b;
+    border-color: #f0c14b;
+    box-shadow: 0 1px 3px rgba(21, 34, 56, 0.28);
+}
+
+.co-badge--cl {
+    background: #e8f0fe;
+    color: #1c568b;
+    border-color: #b6d4f7;
+}
+
+.co-badge--sm {
+    padding: 1px 6px;
+    font-size: 0.58rem;
+    letter-spacing: 0.03em;
+}
+
 .status-badge {
     display: inline-block;
     padding: 3px 10px;

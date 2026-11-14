@@ -44,7 +44,10 @@
           {% for e in entries %}
           <tr>
             <td class="mono">{{ e.entry_date }}</td>
-            <td><a href="{{ url_for('fleet.vehicle_profile', plate_no=e.vehicle_plate) }}?tab=fuel" style="color:var(--primary);text-decoration:none;font-weight:600">{{ e.vehicle_plate }}</a></td>
+            <td>
+              <a href="{{ url_for('fleet.vehicle_profile', plate_no=e.vehicle_plate) }}?tab=fuel" style="color:var(--primary);text-decoration:none;font-weight:600">{{ e.vehicle_plate }}</a>
+              <div style="margin-top:3px">{{ co_badge(e.company_id, compact=true) }}</div>
+            </td>
             <td class="r mono" style="font-weight:600">{{ "%.2f"|format(e.gallons) }}</td>
             <td class="r mono">{{ "%.3f"|format(e.rate_per_gallon) }}</td>
             <td class="r mono" style="font-weight:700;color:#e65100">{{ "%.2f"|format(e.total_amount) }}</td>

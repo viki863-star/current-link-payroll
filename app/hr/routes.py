@@ -489,7 +489,23 @@ def employee_list():
                       AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
                                       WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
                     LIMIT 1)
-               ) AS plate_no
+               ) AS plate_no,
+               COALESCE(
+                   (SELECT v.company_id FROM vehicle_assignments va
+                    JOIN vehicles v ON v.plate_no = va.vehicle_id
+                    WHERE va.driver_id = e.employee_id AND va.is_current = 1
+                      AND e.status = 'Active'
+                    ORDER BY va.id DESC LIMIT 1),
+                   (SELECT v.company_id FROM drivers d
+                    JOIN vehicles v ON v.plate_no = d.vehicle_no
+                    WHERE d.driver_id = e.employee_id AND d.status = 'Active'
+                      AND d.vehicle_no IS NOT NULL AND d.vehicle_no != '' AND d.vehicle_no != '0'
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3
+                                      WHERE v3.vehicle_id = d.vehicle_no AND v3.is_current = 1)
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
+                                      WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
+                    LIMIT 1)
+               ) AS plate_company_id
         FROM employees e
         {where_sql}
         ORDER BY e.full_name ASC
@@ -538,7 +554,7 @@ def employee_new():
 
     # Get vehicles if table exists, otherwise empty list
     try:
-        vehicles = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category, vehicle_sub_type FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+        vehicles = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category, vehicle_sub_type, company_id FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
     except Exception:
         vehicles = []
 
@@ -1238,7 +1254,7 @@ def employee_transactions(employee_id):
     current_vehicle = None
     if employee.get("employee_type") in ("Driver", "Crane Operator"):
         veh_row = db.execute(
-            "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
+            "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model, v.company_id "
             "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
             "WHERE va.driver_id = ? AND va.is_current = 1 AND ? = 'Active' "
             "LIMIT 1",
@@ -1256,9 +1272,9 @@ def employee_transactions(employee_id):
                 (eid,),
             ).fetchone()
             if legacy and legacy["vehicle_no"]:
-                veh_row = db.execute("SELECT plate_no AS vehicle_id, NULL AS assigned_from, plate_no, vehicle_type, model FROM vehicles WHERE plate_no = ? LIMIT 1", (legacy["vehicle_no"],)).fetchone()
+                veh_row = db.execute("SELECT plate_no AS vehicle_id, NULL AS assigned_from, plate_no, vehicle_type, model, company_id FROM vehicles WHERE plate_no = ? LIMIT 1", (legacy["vehicle_no"],)).fetchone()
                 if not veh_row:
-                    current_vehicle = {"vehicle_id": legacy["vehicle_no"], "assigned_from": "", "plate_no": legacy["vehicle_no"], "vehicle_type": "", "model": ""}
+                    current_vehicle = {"vehicle_id": legacy["vehicle_no"], "assigned_from": "", "plate_no": legacy["vehicle_no"], "vehicle_type": "", "model": "", "company_id": 1}
         if veh_row:
             current_vehicle = dict(veh_row)
 
@@ -2397,7 +2413,7 @@ def employee_edit(employee_id):
 
     # Get vehicles if table exists, otherwise empty list
     try:
-        vehicles = db.execute("SELECT plate_no, vehicle_type, model FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
+        vehicles = db.execute("SELECT plate_no, vehicle_type, model, company_id FROM vehicles WHERE status = 'Active' ORDER BY plate_no").fetchall()
     except Exception:
         vehicles = []
     assigned = db.execute(
@@ -2721,7 +2737,23 @@ def employee_list_excel():
                       AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
                                       WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
                     LIMIT 1)
-               ) AS plate_no
+               ) AS plate_no,
+                COALESCE(
+                   (SELECT v.company_id FROM vehicle_assignments va
+                    JOIN vehicles v ON v.plate_no = va.vehicle_id
+                    WHERE va.driver_id = e.employee_id AND va.is_current = 1
+                      AND e.status = 'Active'
+                    ORDER BY va.id DESC LIMIT 1),
+                   (SELECT v.company_id FROM drivers d
+                    JOIN vehicles v ON v.plate_no = d.vehicle_no
+                    WHERE d.driver_id = e.employee_id AND d.status = 'Active'
+                      AND d.vehicle_no IS NOT NULL AND d.vehicle_no != '' AND d.vehicle_no != '0'
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3
+                                      WHERE v3.vehicle_id = d.vehicle_no AND v3.is_current = 1)
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
+                                      WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
+                    LIMIT 1)
+               ) AS plate_company_id
         FROM employees e
         {where_sql}
         ORDER BY e.full_name ASC
@@ -2743,15 +2775,24 @@ def employee_list_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle Number", "Status", "Termination Date", "Shift"]
+    heads = ["Employee ID", "Full Name", "Phone", "Email", "Type", "Department", "Designation", "Join Date", "Salary (AED)", "Vehicle Number", "Company", "Status", "Termination Date", "Shift"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
 
     for ri, emp in enumerate(employees, 2):
+        if emp.get("plate_no"):
+            _cid = emp.get("plate_company_id") or 1
+            try:
+                _cid = int(_cid)
+            except (TypeError, ValueError):
+                _cid = 1
+            _co = "Eagle Mountain" if _cid == 2 else "Current Link"
+        else:
+            _co = ""
         vals = [emp["employee_id"], emp["full_name"], emp["phone_number"] or "", emp["email"] or "",
                 emp["employee_type"], emp["department"], emp["designation"],
-                emp["join_date"], emp["basic_salary"] or 0, emp["plate_no"] or "", emp["status"] or "",
+                emp["join_date"], emp["basic_salary"] or 0, emp["plate_no"] or "", _co, emp["status"] or "",
                 emp["termination_date"] or "", (emp["shift"] or "Morning")]
         for ci, v in enumerate(vals, 1):
             c = ws.cell(row=ri, column=ci, value=v)
@@ -2770,15 +2811,18 @@ def employee_list_excel():
     ws.column_dimensions["H"].width = 14
     ws.column_dimensions["I"].width = 16
     ws.column_dimensions["J"].width = 16
-    ws.column_dimensions["K"].width = 12
-    ws.column_dimensions["L"].width = 18
-    ws.column_dimensions["M"].width = 12
+    ws.column_dimensions["K"].width = 16
+    ws.column_dimensions["L"].width = 12
+    ws.column_dimensions["M"].width = 18
+    ws.column_dimensions["N"].width = 12
 
     # Vehicle Number only applies to drivers / operators — centre it for readability
     vnum_align = Alignment(horizontal="center", vertical="center")
     for ri in range(2, len(employees) + 2):
         ws.cell(row=ri, column=10).alignment = vnum_align
+        ws.cell(row=ri, column=11).alignment = vnum_align
     ws.cell(row=1, column=10).alignment = center
+    ws.cell(row=1, column=11).alignment = center
 
     buf = BytesIO()
     wb.save(buf)
@@ -2820,7 +2864,23 @@ def employee_list_pdf():
                       AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
                                       WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
                     LIMIT 1)
-               ) AS plate_no
+               ) AS plate_no,
+                COALESCE(
+                   (SELECT v.company_id FROM vehicle_assignments va
+                    JOIN vehicles v ON v.plate_no = va.vehicle_id
+                    WHERE va.driver_id = e.employee_id AND va.is_current = 1
+                      AND e.status = 'Active'
+                    ORDER BY va.id DESC LIMIT 1),
+                   (SELECT v.company_id FROM drivers d
+                    JOIN vehicles v ON v.plate_no = d.vehicle_no
+                    WHERE d.driver_id = e.employee_id AND d.status = 'Active'
+                      AND d.vehicle_no IS NOT NULL AND d.vehicle_no != '' AND d.vehicle_no != '0'
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3
+                                      WHERE v3.vehicle_id = d.vehicle_no AND v3.is_current = 1)
+                      AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v4
+                                      WHERE v4.driver_id = e.employee_id AND v4.is_current = 1)
+                    LIMIT 1)
+               ) AS plate_company_id
         FROM employees e
         {where_sql}
         ORDER BY e.full_name ASC
@@ -2849,14 +2909,14 @@ def employee_current_vehicle(employee_id):
     try:
         d = open_db()
         row = d.execute(
-            "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
+            "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model, v.company_id "
             "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
             "WHERE va.driver_id = ? AND va.is_current = 1 LIMIT 1",
             (employee_id,),
         ).fetchone()
         if not row:
             row = d.execute(
-                "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model "
+                "SELECT va.vehicle_id, va.assigned_from, v.plate_no, v.vehicle_type, v.model, v.company_id "
                 "FROM vehicle_assignments va JOIN vehicles v ON v.plate_no = va.vehicle_id "
                 "WHERE va.driver_id = ? ORDER BY va.id DESC LIMIT 1",
                 (employee_id,),
@@ -2864,9 +2924,9 @@ def employee_current_vehicle(employee_id):
         if not row:
             legacy = d.execute("SELECT vehicle_no FROM drivers WHERE driver_id = ? LIMIT 1", (employee_id,)).fetchone()
             if legacy and legacy["vehicle_no"]:
-                row = d.execute("SELECT plate_no AS vehicle_id, NULL AS assigned_from, plate_no, vehicle_type, model FROM vehicles WHERE plate_no = ? LIMIT 1", (legacy["vehicle_no"],)).fetchone()
+                row = d.execute("SELECT plate_no AS vehicle_id, NULL AS assigned_from, plate_no, vehicle_type, model, company_id FROM vehicles WHERE plate_no = ? LIMIT 1", (legacy["vehicle_no"],)).fetchone()
                 if not row:
-                    row = {"vehicle_id": legacy["vehicle_no"], "assigned_from": "", "plate_no": legacy["vehicle_no"], "vehicle_type": "", "model": ""}
+                    row = {"vehicle_id": legacy["vehicle_no"], "assigned_from": "", "plate_no": legacy["vehicle_no"], "vehicle_type": "", "model": "", "company_id": 1}
         d.close()
         return dict(row) if row else None
     except Exception:

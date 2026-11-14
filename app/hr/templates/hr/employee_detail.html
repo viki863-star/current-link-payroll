@@ -30,7 +30,7 @@
                 <span class="dv2-profile-stat"><strong>Salary:</strong> AED {{ "%.0f"|format(employee.basic_salary or 0) }}</span>
                 <span class="dv2-profile-stat"><strong>Phone:</strong> {{ employee.phone_number or '-' }}</span>
                 {% if employee.employee_type in ('Driver', 'Crane Operator') %}
-                <span class="dv2-profile-stat"><strong>Vehicle:</strong> {% if current_vehicle %}<strong style="color:var(--primary)">{{ current_vehicle.vehicle_id }}</strong>{% else %}—{% endif %}</span>
+                <span class="dv2-profile-stat"><strong>Vehicle:</strong> {% if current_vehicle %}<strong style="color:var(--primary)">{{ current_vehicle.vehicle_id }}</strong> {{ co_badge(current_vehicle.company_id, compact=true) }}{% else %}—{% endif %}</span>
                 {% endif %}
             </div>
         </div>

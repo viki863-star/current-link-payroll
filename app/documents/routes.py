@@ -279,10 +279,16 @@ def document_hub():
         sort = "uploaded_at"
     sql += f" ORDER BY {sort} {'DESC' if order == 'desc' else 'ASC'}"
     docs = db.execute(sql, tuple(params)).fetchall()
-    db.close()
-
     for d in docs:
         d["_status"] = _expiry_status(d.get("expiry_date"))
+        d["company_id"] = 1
+        if d.get("entity_type") == "vehicle" and d.get("entity_id"):
+            try:
+                crow = db.execute("SELECT company_id FROM vehicles WHERE plate_no = ?", (d["entity_id"],)).fetchone()
+                if crow:
+                    d["company_id"] = crow["company_id"] or 1
+            except Exception:
+                d["company_id"] = 1
         ua = d.get("uploaded_at")
         if isinstance(ua, datetime):
             d["uploaded_at_formatted"] = ua.strftime("%Y-%m-%d")
@@ -302,6 +308,7 @@ def document_hub():
                 d["_days_left"] = None
         else:
             d["_days_left"] = None
+    db.close()
 
     return render_template("documents/hub.html", docs=docs, ENTITY_LABELS=ENTITY_LABELS,
         q=q, entity_type=entity_type, expiry=expiry, cat=cat, sort=sort, order=order, today=date.today())
@@ -660,7 +667,7 @@ def document_search_entity():
 
     base_queries = {
         "vehicle": (
-            "SELECT plate_no AS id, plate_no || ' - ' || COALESCE(model,'') AS label FROM vehicles WHERE plate_no LIKE ? OR model LIKE ?",
+            "SELECT plate_no AS id, plate_no || ' - ' || COALESCE(model,'') || CASE WHEN company_id = 2 THEN ' [EM]' ELSE '' END AS label FROM vehicles WHERE plate_no LIKE ? OR model LIKE ?",
             [f"%{q}%", f"%{q}%"]
         ),
         "employee": (

@@ -407,7 +407,7 @@
       <div class="fo-card-body fo-card-body--flush">
         {% for v in vehicles[:6] %}
         <a class="fo-vrow" href="{{ vehicle_url(v.plate_no) }}">
-          <span class="fo-plate">{{ v.plate_no }}</span>
+          <span class="fo-plate">{{ v.plate_no }}<div style="margin-top:2px">{{ co_badge(v.company_id, compact=true) }}</div></span>
           <span class="fo-vinfo">
             <span class="fo-vtype">{{ v.vehicle_type }}</span>
             <span class="fo-vsub">{% if v.model %}{{ v.model }}{% if v.year %} &middot; {{ v.year }}{% endif %}{% elif v.year %}{{ v.year }}{% endif %}</span>

@@ -52,7 +52,7 @@
                         <option value="">No vehicle</option>
                         {% for v in vehicles %}
                         <option value="{{ v.plate_no }}" {% if assigned_vehicle == v.plate_no %}selected{% endif %}>
-                            {{ v.plate_no }}{% if v.vehicle_sub_type %} - {{ v.vehicle_sub_type }}{% elif v.model %} - {{ v.model }}{% endif %}{% if v.vehicle_type %} ({{ v.vehicle_type }}){% endif %}
+                            {{ v.plate_no }}{% if v.company_id|int == 2 %} [EM]{% endif %}{% if v.vehicle_sub_type %} - {{ v.vehicle_sub_type }}{% elif v.model %} - {{ v.model }}{% endif %}{% if v.vehicle_type %} ({{ v.vehicle_type }}){% endif %}
                         </option>
                         {% endfor %}
                     </select>

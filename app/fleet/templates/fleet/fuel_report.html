@@ -106,7 +106,7 @@
                     <tbody>
                         {% for r in rows %}
                         <tr>
-                            <td class="fo-mono" style="font-weight:600">{{ r.vehicle_plate }}</td>
+                            <td class="fo-mono" style="font-weight:600">{{ r.vehicle_plate }}<div style="margin-top:3px">{{ co_badge(r.company_id, compact=true) }}</div></td>
                             <td class="mono">{{ r.month }}</td>
                             <td class="fo-num" style="text-align:right">{{ "%.2f" % (r.total_gallons or 0) }}</td>
                             <td class="fo-num" style="text-align:right">{{ "%.2f" % (r.total_amount or 0) }}</td>

@@ -326,6 +326,7 @@ function filterByCat(cat) {
             <div class="mk-front-body">
               <div class="mk-front-icon">&#128663;</div>
               <div class="mk-front-plate">{{ d.entity_id }}</div>
+              <div style="margin-top:6px">{{ co_badge(d.company_id, compact=true) }}</div>
               <div class="mk-front-label">Vehicle Mulkiya</div>
               <div class="mk-front-docname">{{ d.doc_name }}</div>
               <div class="mk-front-meta">
@@ -386,6 +387,7 @@ function filterByCat(cat) {
             {{ ENTITY_LABELS.get(d.entity_type, d.entity_type) }}:
             {% if d.entity_type == 'vehicle' %}
             <a href="{{ url_for('fleet.vehicle_profile', plate_no=d.entity_id) }}">{{ d.entity_id }}</a>
+            {{ co_badge(d.company_id, compact=true) }}
             {% elif d.entity_type == 'employee' %}
             <a href="{{ url_for('hr.employee_detail', employee_id=d.entity_id) }}">{{ d.entity_id }}</a>
             {% else %}

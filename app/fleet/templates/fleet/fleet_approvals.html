@@ -83,7 +83,7 @@
                         {% for j in g.jobs %}
                         <tr>
                             <td class="mono">{{ fmt_dt(j.created_at, '%Y-%m-%d') }}</td>
-                            <td>{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}<a href="{{ vehicle_url(j.plate_no) }}" class="mono" style="font-weight:600">{{ j.plate_no }}</a> <span class="badge badge-dept">{{ j.vehicle_type }}</span>{% endif %}</td>
+                            <td>{% if j.vehicle_id == 'N/A' %}<span style="color:var(--muted)">General Expense</span>{% else %}<a href="{{ vehicle_url(j.plate_no) }}" class="mono" style="font-weight:600">{{ j.plate_no }}</a> {{ co_badge(j.company_id, compact=true) }} <span class="badge badge-dept">{{ j.vehicle_type }}</span>{% endif %}</td>
                             <td class="mono" style="font-weight:600;color:#e65100">AED {{ "%.0f"|format(j.amount) }}</td>
                             <td>
                                 {% if j.tax_mode == 'Tax Invoice' %}

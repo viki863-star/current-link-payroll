@@ -114,7 +114,12 @@
                     <td><span class="badge badge-dept">{{ emp.department }}</span></td>
                     <td><span class="badge badge-type">{{ emp.employee_type }}</span></td>
                     <td><span class="shift-badge {{ emp_shift|lower }}"><span class="sb-ico">{{ shift_icons.get(emp_shift, '🕒') }}</span>{{ emp_shift }}</span></td>
-                    <td>{% if emp.plate_no %}<span class="mono" style="font-weight:600;color:var(--primary)">{{ emp.plate_no }}</span>{% else %}<span style="color:var(--muted)">—</span>{% endif %}</td>
+                    <td>
+                        {% if emp.plate_no %}
+                        <span class="mono" style="font-weight:600;color:var(--primary)">{{ emp.plate_no }}</span>
+                        <div style="margin-top:3px">{{ co_badge(emp.plate_company_id, compact=true) }}</div>
+                        {% else %}<span style="color:var(--muted)">—</span>{% endif %}
+                    </td>
                     <td class="mono">{{ emp.join_date }}</td>
                     <td class="mono emp-salary">AED {{ "%.0f"|format(emp.basic_salary or 0) }}</td>
                     <td>

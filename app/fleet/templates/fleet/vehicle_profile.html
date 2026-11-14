@@ -86,12 +86,14 @@
         <div class="profile-info">
             <div class="profile-name-row">
                 <h1 style="font-size:1.4rem">{{ v.plate_no }}</h1>
+                {{ co_badge(v.company_id) }}
                 <span class="badge badge-dept">{{ v.vehicle_type }}</span>
                 <span class="status-badge {{ v.status|lower }}">{{ v.status }}</span>
             </div>
             <p class="profile-badge">
                 {% if v.model %}{{ v.model }}{% if v.year %} ({{ v.year }}){% endif %} &middot;{% endif %}
                 {{ v.ownership_type }}{% if v.ownership_type == 'Partnership' %} &middot; {{ v.partner_name }} ({{ "%.0f"|format(v.partner_percent) }}%){% endif %}
+                {% if (v.company_id or 1)|int == 2 %} &middot; <strong style="color:#152238">Eagle Mountain General Transport</strong>{% endif %}
             </p>
             <p class="profile-id mono">
                 <strong>{{ v.job_count }}</strong> jobs &middot; AED <strong>{{ "%.0f"|format(v.total_cost) }}</strong> total

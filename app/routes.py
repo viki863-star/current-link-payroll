@@ -201,6 +201,22 @@ class ValidationError(ValueError):
 
 
 def register_routes(app: Flask) -> None:
+    from markupsafe import Markup
+
+    @app.template_filter("co_badge")
+    def _co_badge_filter(company_id, compact=False):
+        try:
+            cid = int(company_id) if company_id is not None else 1
+        except (TypeError, ValueError):
+            cid = 1
+        if cid == 2:
+            if compact:
+                return Markup('<span class="co-badge co-badge--em co-badge--sm" title="Eagle Mountain General Transport">EM</span>')
+            return Markup('<span class="co-badge co-badge--em" title="Eagle Mountain General Transport">Eagle Mountain</span>')
+        if compact:
+            return Markup('<span class="co-badge co-badge--cl co-badge--sm" title="Current Link Transport and General Contracting">CL</span>')
+        return Markup('<span class="co-badge co-badge--cl" title="Current Link Transport and General Contracting">Current Link</span>')
+
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
         # Never dump a field-staff login attempt on the admin login page;

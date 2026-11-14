@@ -3834,10 +3834,17 @@ def _generate_employee_list_pdf(employees, output_dir: str, company_profile: dic
         ParagraphStyle("Meta", fontSize=8, alignment=TA_CENTER, spaceAfter=8*mm),
     ))
 
-    data = [["#", "ID", "Name", "Phone", "Type", "Dept", "Designation", "Join Date", "Salary", "Vehicle", "Status"]]
+    data = [["#", "ID", "Name", "Phone", "Type", "Dept", "Designation", "Join Date", "Salary", "Vehicle", "Company", "Status"]]
     for i, emp in enumerate(employees, 1):
         # Vehicle Number — only filled for drivers / operators
         plate = emp["plate_no"] if hasattr(emp, "keys") and "plate_no" in emp.keys() else None
+        co = ""
+        if plate:
+            try:
+                _cid = int(emp["plate_company_id"]) if hasattr(emp, "keys") and emp.get("plate_company_id") is not None else 1
+            except (TypeError, ValueError):
+                _cid = 1
+            co = "Eagle Mountain" if _cid == 2 else "Current Link"
         data.append([
             str(i),
             emp["employee_id"],
@@ -3849,10 +3856,11 @@ def _generate_employee_list_pdf(employees, output_dir: str, company_profile: dic
             emp["join_date"],
             f'{emp["basic_salary"] or 0:,.0f}',
             plate or "-",
+            co,
             emp["status"] or "",
         ])
 
-    col_w = [7*mm, 17*mm, 27*mm, 19*mm, 18*mm, 16*mm, 17*mm, 16*mm, 16*mm, 15*mm, 12*mm]
+    col_w = [6*mm, 15*mm, 24*mm, 17*mm, 15*mm, 14*mm, 15*mm, 14*mm, 14*mm, 13*mm, 16*mm, 11*mm]
     t = Table(data, colWidths=col_w, repeatRows=1)
     t.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -3863,7 +3871,7 @@ def _generate_employee_list_pdf(employees, output_dir: str, company_profile: dic
         ("ALIGN", (0, 0), (0, -1), "CENTER"),
         ("ALIGN", (8, 0), (8, -1), "RIGHT"),
         ("ALIGN", (7, 0), (7, -1), "CENTER"),
-        ("ALIGN", (9, 0), (9, -1), "CENTER"),
+        ("ALIGN", (9, 0), (10, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("GRID", (0, 0), (-1, -1), 0.4, Color(0.85, 0.88, 0.92)),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, Color(0.96, 0.97, 0.99)]),

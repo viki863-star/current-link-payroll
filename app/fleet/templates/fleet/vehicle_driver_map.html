@@ -78,6 +78,7 @@
                 <tr class="emp-row" onclick="window.location='{{ vehicle_url(v.plate_no) }}'">
                     <td class="mono" style="font-weight:600;font-size:0.9rem">
                         {{ v.plate_no }}
+                        <div style="margin-top:3px">{{ co_badge(v.company_id, compact=true) }}</div>
                         {% if v.model %}<div style="font-weight:400;color:var(--muted);font-size:0.72rem">{{ v.model }}</div>{% endif %}
                     </td>
                     <td><span class="badge badge-type">{{ v.vehicle_type or '-' }}</span></td>

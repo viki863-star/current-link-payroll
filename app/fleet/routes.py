@@ -350,7 +350,7 @@ def _bw_add_months(d0, months):
 
 def _vehicle_full(plate_no):
     db = open_db()
-    v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, battery_warranty_start, battery_warranty_expiry, battery_warranty_card_name FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
+    v = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, battery_warranty_start, battery_warranty_expiry, battery_warranty_card_name, company_id FROM vehicles WHERE plate_no = ?", (plate_no,)).fetchone()
     if not v:
         vm = db.execute("SELECT id, vehicle_id, vehicle_no, vehicle_type, make_model, status, shift_mode, ownership_mode, source_type, source_party_code, source_asset_code, partner_party_code, partner_name, company_share_percent, partner_share_percent, notes FROM vehicle_master WHERE vehicle_no = ?", (plate_no,)).fetchone()
         if vm:
@@ -367,6 +367,7 @@ def _vehicle_full(plate_no):
                 "battery_warranty_start": None,
                 "battery_warranty_expiry": None,
                 "battery_warranty_card_name": None,
+                "company_id": 1,
             }
         else:
             return None
@@ -438,7 +439,7 @@ def fleet_dashboard():
     ensure_fleet_tables()
     db = open_db()
 
-    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes FROM vehicles WHERE plate_no NOT IN (SELECT linked_plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != '') ORDER BY plate_no").fetchall()
+    vehicles = db.execute("SELECT plate_no, vehicle_type, model, year, ownership_type, partner_name, partner_percent, status, notes, company_id FROM vehicles WHERE plate_no NOT IN (SELECT linked_plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != '') ORDER BY plate_no").fetchall()
     total = len(vehicles)
     active_v = sum(1 for v in vehicles if (v["status"] or "").lower() == "active")
     standard = sum(1 for v in vehicles if v["ownership_type"] == "Standard")
@@ -700,7 +701,7 @@ def vehicle_driver_map():
         # (morning + night). Saare active current assignments fetch karo.
         rows = db.execute(
             f"""SELECT v.plate_no, v.vehicle_type, v.model, v.status AS vehicle_status,
-                       v.vehicle_category, v.ownership_type,
+                       v.vehicle_category, v.ownership_type, v.company_id,
                        va.driver_id, va.assigned_from,
                        e.full_name AS driver_name, e.phone_number AS driver_phone,
                        e.status AS driver_status, e.shift AS driver_shift
@@ -741,6 +742,7 @@ def vehicle_driver_map():
                     "vehicle_type": r["vehicle_type"],
                     "model": r["model"],
                     "vehicle_status": r["vehicle_status"],
+                    "company_id": r["company_id"] or 1,
                     "drivers": [],
                     "source": "assignment",
                 }
@@ -1525,7 +1527,6 @@ def vehicle_list_excel():
         params.append(status_filter)
 
     where_sql = " AND ".join(where) if where else "TRUE"
-
     vehicles = db.execute(
         f"""SELECT v.*, va.driver_id, e.full_name AS driver_name,
                    lv.vehicle_type AS linked_vehicle_type, lv.model AS linked_vehicle_model
@@ -1542,6 +1543,7 @@ def vehicle_list_excel():
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from io import BytesIO
 
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Vehicles"
@@ -1552,16 +1554,23 @@ def vehicle_list_excel():
     thin = Side(style="thin", color="d8e4f5")
     border = Border(top=thin, left=thin, right=thin, bottom=thin)
 
-    heads = ["#", "Plate No", "Category", "Type", "Sub Type", "Model", "Year", "Length", "Tank Capacity (gal)", "Linked To", "Link Type", "Driver", "Ownership", "Status"]
+    heads = ["#", "Plate No", "Company", "Category", "Type", "Sub Type", "Model", "Year", "Length", "Tank Capacity (gal)", "Linked To", "Link Type", "Driver", "Ownership", "Status"]
     for ci, h in enumerate(heads, 1):
         c = ws.cell(row=1, column=ci, value=h)
         c.font = hf; c.fill = hfill; c.alignment = center; c.border = border
 
     row_idx = 2
     for v in vehicles:
+        _cid = v.get("company_id") or 1
+        try:
+            _cid = int(_cid)
+        except (TypeError, ValueError):
+            _cid = 1
+        _co = "Eagle Mountain" if _cid == 2 else "Current Link"
         vals = [
             row_idx - 1,
             v["plate_no"],
+            _co,
             v.get("vehicle_category") or "Solo",
             v["vehicle_type"],
             v.get("vehicle_sub_type") or "",
@@ -1582,18 +1591,19 @@ def vehicle_list_excel():
 
     ws.column_dimensions["A"].width = 5
     ws.column_dimensions["B"].width = 14
-    ws.column_dimensions["C"].width = 12
-    ws.column_dimensions["D"].width = 14
-    ws.column_dimensions["E"].width = 18
-    ws.column_dimensions["F"].width = 16
-    ws.column_dimensions["G"].width = 8
-    ws.column_dimensions["H"].width = 10
-    ws.column_dimensions["I"].width = 16
-    ws.column_dimensions["J"].width = 14
-    ws.column_dimensions["K"].width = 16
-    ws.column_dimensions["L"].width = 24
-    ws.column_dimensions["M"].width = 14
-    ws.column_dimensions["N"].width = 12
+    ws.column_dimensions["C"].width = 16
+    ws.column_dimensions["D"].width = 12
+    ws.column_dimensions["E"].width = 14
+    ws.column_dimensions["F"].width = 18
+    ws.column_dimensions["G"].width = 16
+    ws.column_dimensions["H"].width = 8
+    ws.column_dimensions["I"].width = 10
+    ws.column_dimensions["J"].width = 16
+    ws.column_dimensions["K"].width = 14
+    ws.column_dimensions["L"].width = 16
+    ws.column_dimensions["M"].width = 24
+    ws.column_dimensions["N"].width = 14
+    ws.column_dimensions["O"].width = 12
 
     buf = BytesIO()
     wb.save(buf)
@@ -1713,7 +1723,7 @@ def vehicle_edit(plate_no):
     except Exception as e:
         flash(f"Error loading drivers: {e}", "error")
         return redirect(url_for("fleet.vehicle_list"))
-    vehicles_list = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category FROM vehicles WHERE status = 'Active' AND plate_no != ? ORDER BY plate_no", (plate_no,)).fetchall()
+    vehicles_list = db.execute("SELECT plate_no, vehicle_type, model, vehicle_category, company_id FROM vehicles WHERE status = 'Active' AND plate_no != ? ORDER BY plate_no", (plate_no,)).fetchall()
     linked_trailers = db.execute("SELECT plate_no, vehicle_type, vehicle_sub_type, vehicle_length, tank_capacity_gal FROM vehicles WHERE linked_plate_no = ? AND vehicle_category = 'Trailer' ORDER BY plate_no", (plate_no,)).fetchall()
     # Get already linked vehicle plate_nos (to disable in dropdown)
     already_linked = [r["plate_no"] for r in db.execute("SELECT linked_plate_no AS plate_no FROM vehicles WHERE linked_plate_no IS NOT NULL AND linked_plate_no != ''").fetchall()]
@@ -3877,7 +3887,7 @@ def fleet_approvals():
     db = open_db()
 
     pending_jobs = db.execute(
-        f"""SELECT {_MJ_LIST_COLS}, v.vehicle_type, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name, s.staff_id AS staff_key
+        f"""SELECT {_MJ_LIST_COLS}, v.vehicle_type, v.company_id, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name, s.staff_id AS staff_key
            FROM maintenance_jobs mj
            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
            JOIN field_staff s ON s.staff_id = mj.staff_id
@@ -3909,7 +3919,7 @@ def fleet_approvals():
             pass
 
     recent_approved = db.execute(
-        f"""SELECT {_MJ_LIST_COLS}, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, s.full_name AS staff_name
+        f"""SELECT {_MJ_LIST_COLS}, COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.company_id, s.full_name AS staff_name
            FROM maintenance_jobs mj
            LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
            JOIN field_staff s ON s.staff_id = mj.staff_id
@@ -3967,6 +3977,7 @@ def fleet_approval_register():
         f"""
         SELECT {_MJ_LIST_COLS},
                COALESCE(v.plate_no, mj.vehicle_id) AS plate_no, v.vehicle_type,
+               v.company_id,
                s.full_name AS staff_name, s.is_active AS staff_is_active,
                COALESCE(CAST(mj.decided_at AS TEXT), CAST(mj.approved_at AS TEXT)) AS decided
         FROM maintenance_jobs mj
@@ -4596,6 +4607,7 @@ def fleet_fuel_report():
     rows = db.execute(f"""
         SELECT
             fe.vehicle_plate,
+            v.company_id,
             substr(fe.entry_date,1,7) AS month,
             SUM(fe.gallons) AS total_gallons,
             SUM(fe.total_amount) AS total_amount,
@@ -4603,8 +4615,9 @@ def fleet_fuel_report():
             MIN(fe.entry_date) AS first_entry,
             MAX(fe.entry_date) AS last_entry
         FROM fuel_entries fe
+        LEFT JOIN vehicles v ON v.plate_no = fe.vehicle_plate
         {where_sql}
-        GROUP BY fe.vehicle_plate, substr(fe.entry_date,1,7)
+        GROUP BY fe.vehicle_plate, v.company_id, substr(fe.entry_date,1,7)
         ORDER BY fe.vehicle_plate, substr(fe.entry_date,1,7) DESC
     """, params).fetchall()
 
@@ -4665,8 +4678,10 @@ def fuel_supplier_statement(supplier_id):
             where += " AND fe.entry_date <= ?"
             params.append(date_to)
     entries = db.execute(f"""
-        SELECT fe.* FROM fuel_entries fe
-        WHERE fe.supplier_id = ?{where}
+        SELECT fe.*, v.company_id
+        FROM fuel_entries fe
+        LEFT JOIN vehicles v ON v.plate_no = fe.vehicle_plate
+        WHERE 1=1{where}
         ORDER BY fe.entry_date DESC, fe.id DESC
     """, params).fetchall()
     total_gallons = sum(e["gallons"] for e in entries) if entries else 0
