@@ -130,7 +130,7 @@
                 <td style="font-weight:500;color:#0f172a">{{ it.description or '—' }}</td>
                 <td style="text-align:center;font-family:mono;font-weight:600">{{ "{:,.2f}".format(it.quantity) }}</td>
                 <td style="text-align:center;color:#475569;font-weight:600">{{ it.get('unit') or 'hr' }}</td>
-                <td style="text-align:right;font-family:mono">{{ "{:,.2f}".format(it.rate) }}</td>
+                <td style="text-align:right;font-family:mono">{{ rate_fmt(it.rate) }}</td>
                 {% if is_cash %}
                 <td style="text-align:right;font-weight:800;font-family:mono;color:#0f172a;font-size:0.9rem">{{ "{:,.2f}".format(it.amount) }}</td>
                 {% else %}
