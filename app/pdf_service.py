@@ -21,7 +21,7 @@ except Exception:
     arabic_reshaper = None
     get_display = lambda s: s
 
-from .utils import fmt_money
+from .utils import fmt_money, active_company_id
 
 
 PAGE_WIDTH, PAGE_HEIGHT = A4
@@ -39,6 +39,11 @@ SOFT = colors.HexColor("#F6F9FD")
 GREEN_SOFT = colors.HexColor("#E8F5E9")
 ORANGE_SOFT = colors.HexColor("#FFF3E0")
 HOVER = colors.HexColor("#F8FAFC")
+# Eagle Mountain (company id 2) palette — distinct from Current Link
+EM_NAVY = colors.HexColor("#152238")
+EM_NAVY2 = colors.HexColor("#1E3A5F")
+EM_GOLD = colors.HexColor("#F0C14B")
+EM_SOFT = colors.HexColor("#F4F6FA")
 
 
 # ── Standard LPO terms that appear on every issued LPO ────────────────────────
@@ -1730,9 +1735,20 @@ def generate_supplier_payment_voucher_pdf(party, voucher, payment, output_dir: s
     output_path = Path(output_dir) / f"{payment['payment_no']}_payment-voucher.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Eagle Mountain gets a navy/gold palette instead of CL blue/orange
+    try:
+        _em_pv = int((company_profile or {}).get("id") or 0) == 2
+    except Exception:
+        _em_pv = False
+    if _em_pv:
+        BLUE_DARK, BLUE_SOFT, BLUE, ORANGE, SOFT = EM_NAVY, EM_SOFT, EM_NAVY2, EM_GOLD, EM_SOFT
+    else:
+        _g = globals()
+        BLUE_DARK, BLUE_SOFT, BLUE, ORANGE, SOFT = _g["BLUE_DARK"], _g["BLUE_SOFT"], _g["BLUE"], _g["ORANGE"], _g["SOFT"]
+
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir, company_profile)
-    _draw_title(pdf, "Supplier Payment Voucher", "Month-end payable settlement summary")
+    _draw_title(pdf, "Supplier Payment Voucher", "Month-end payable settlement summary", company_profile)
 
     card_x = 16 * mm
     card_y = PAGE_HEIGHT - 118 * mm
@@ -1817,9 +1833,20 @@ def generate_cash_supplier_payment_voucher_pdf(party, payment, summary, output_d
     output_path = Path(output_dir) / f"{payment['payment_no']}_payment-voucher.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Eagle Mountain gets a navy/gold palette instead of CL blue/orange
+    try:
+        _em_pv = int((company_profile or {}).get("id") or 0) == 2
+    except Exception:
+        _em_pv = False
+    if _em_pv:
+        BLUE_DARK, BLUE_SOFT, BLUE, ORANGE, SOFT = EM_NAVY, EM_SOFT, EM_NAVY2, EM_GOLD, EM_SOFT
+    else:
+        _g = globals()
+        BLUE_DARK, BLUE_SOFT, BLUE, ORANGE, SOFT = _g["BLUE_DARK"], _g["BLUE_SOFT"], _g["BLUE"], _g["ORANGE"], _g["SOFT"]
+
     pdf = canvas.Canvas(str(output_path), pagesize=A4)
     _draw_header(pdf, assets_dir, company_profile)
-    _draw_title(pdf, "Supplier Payment Voucher", "Cash supplier payment acknowledgement and running balance summary")
+    _draw_title(pdf, "Supplier Payment Voucher", "Cash supplier payment acknowledgement and running balance summary", company_profile)
 
     card_x = 16 * mm
     card_y = PAGE_HEIGHT - 118 * mm
@@ -2754,6 +2781,11 @@ def _fit_image_reader(data: bytes, max_px: int = 640) -> ImageReader:
 
 def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict | None = None) -> None:
     company = company_profile or {}
+    # Eagle Mountain: dark navy banner header with gold rule (distinct from CL white card)
+    try:
+        _em = int(company.get("id") or 0) == 2 or (not company and active_company_id() == 2)
+    except Exception:
+        _em = False
 
     header_x = 15 * mm
     header_y = PAGE_HEIGHT - 50 * mm
@@ -2763,10 +2795,22 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
     logo_data = company.get("logo_data")
     logo_type = company.get("logo_type")
 
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=0, stroke=1)
+    if _em:
+        pdf.setFillColor(EM_NAVY)
+        pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(EM_NAVY)
+        pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=0, stroke=1)
+        name_color = EM_GOLD
+        meta_color = colors.HexColor("#C9D4E3")
+        rule_color = EM_GOLD
+    else:
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(header_x, header_y, header_w, header_h, 4 * mm, fill=0, stroke=1)
+        name_color = BLUE_DARK
+        meta_color = MUTED
+        rule_color = BLUE
 
     text_x = header_x + 5 * mm
     text_area_w = header_w - 10 * mm
@@ -2775,13 +2819,25 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
             logo_binary = base64.b64decode(logo_data)
             logo_img = _fit_image_reader(logo_binary, 512)
             target = 34 * mm
-            pdf.drawImage(
-                logo_img,
-                header_x + 3 * mm,
-                header_y + (header_h - target) / 2,
-                width=target, height=target,
-                preserveAspectRatio=True, mask="auto",
-            )
+            if _em:
+                # logo sits on a white rounded pad inside the dark banner
+                pdf.setFillColor(colors.white)
+                pdf.roundRect(header_x + 3 * mm, header_y + (header_h - target - 4 * mm) / 2, target + 4 * mm, target + 4 * mm, 2 * mm, fill=1, stroke=0)
+                pdf.drawImage(
+                    logo_img,
+                    header_x + 5 * mm,
+                    header_y + (header_h - target) / 2,
+                    width=target, height=target,
+                    preserveAspectRatio=True, mask="auto",
+                )
+            else:
+                pdf.drawImage(
+                    logo_img,
+                    header_x + 3 * mm,
+                    header_y + (header_h - target) / 2,
+                    width=target, height=target,
+                    preserveAspectRatio=True, mask="auto",
+                )
             text_x = header_x + 42 * mm
             text_area_w = header_w - 48 * mm
         except Exception:
@@ -2790,14 +2846,14 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
     cy = header_y + header_h / 2
 
     c_name = company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")
-    pdf.setFillColor(BLUE_DARK)
+    pdf.setFillColor(name_color)
     cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 13, text_area_w, min_size=9)
     pdf.setFont("Helvetica-Bold", cname_size)
     pdf.drawString(text_x, cy + 10 * mm, cname_text)
 
     addr = company.get("address") or ""
     if addr:
-        pdf.setFillColor(MUTED)
+        pdf.setFillColor(meta_color)
         addr_text, addr_size = _fit_text(pdf, addr, "Helvetica", 7.5, text_area_w, min_size=5.5)
         pdf.setFont("Helvetica", addr_size)
         pdf.drawString(text_x, cy + 1 * mm, addr_text)
@@ -2808,7 +2864,7 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
     left_parts = [f"TRN: {trn}"] if trn else []
     right_parts = [p for p in [phone, email] if p]
     if left_parts:
-        pdf.setFillColor(BLUE_DARK)
+        pdf.setFillColor(name_color if _em else BLUE_DARK)
         ltext, lsize = _fit_text(pdf, left_parts[0], "Helvetica-Bold", 7.5, text_area_w * 0.4, min_size=5.5)
         pdf.setFont("Helvetica-Bold", lsize)
         pdf.drawString(text_x, cy - 8 * mm, ltext)
@@ -2816,22 +2872,26 @@ def _draw_header(pdf: canvas.Canvas, assets_dir: str = "", company_profile: dict
     else:
         offset = 0
     if right_parts:
-        pdf.setFillColor(BLUE_DARK)
+        pdf.setFillColor(meta_color)
         contact_str = " | ".join(right_parts)
         ctext, csize = _fit_text(pdf, contact_str, "Helvetica", 7.5, text_area_w * 0.5 - offset, min_size=5.5)
         pdf.setFont("Helvetica", csize)
         pdf.drawString(text_x + offset, cy - 8 * mm, ctext)
 
-    pdf.setFillColor(BLUE)
+    pdf.setFillColor(rule_color)
     pdf.rect(header_x + 4 * mm, header_y + 4 * mm, header_w - 8 * mm, 1.5 * mm, fill=1, stroke=0)
 
 
-def _draw_title(pdf: canvas.Canvas, title: str, subtitle: str = "") -> None:
-    pdf.setFillColor(BLUE_DARK)
+def _draw_title(pdf: canvas.Canvas, title: str, subtitle: str = "", company_profile: dict | None = None) -> None:
+    try:
+        _em_t = int((company_profile or {}).get("id") or 0) == 2
+    except Exception:
+        _em_t = False
+    pdf.setFillColor(EM_NAVY if _em_t else BLUE_DARK)
     pdf.setFont("Helvetica-Bold", 16)
     pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 62 * mm, title)
     if subtitle:
-        pdf.setFillColor(MUTED)
+        pdf.setFillColor(EM_NAVY2 if _em_t else MUTED)
         pdf.setFont("Helvetica", 7.5)
         pdf.drawCentredString(PAGE_WIDTH / 2, PAGE_HEIGHT - 67 * mm, subtitle)
 
@@ -3338,26 +3398,38 @@ def _draw_kata_statement_table(pdf: canvas.Canvas, entries, top=None) -> None:
 def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str = "", show_top_rule: bool = True, company_profile: dict | None = None) -> None:
     company = company_profile or {}
     footer_w = 180 * mm
+    try:
+        _em = int(company.get("id") or 0) == 2 or (not company and active_company_id() == 2)
+    except Exception:
+        _em = False
 
     if show_top_rule:
-        pdf.setFillColor(ORANGE)
+        pdf.setFillColor(EM_GOLD if _em else ORANGE)
         pdf.rect(15 * mm, 30 * mm, footer_w, 1.2 * mm, fill=1, stroke=0)
 
-    pdf.setFillColor(colors.white)
-    pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=1, stroke=0)
-    pdf.setStrokeColor(LINE)
-    pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=0, stroke=1)
+    if _em:
+        pdf.setFillColor(EM_NAVY)
+        pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=1, stroke=0)
+        name_color = EM_GOLD
+        meta_color = colors.HexColor("#C9D4E3")
+    else:
+        pdf.setFillColor(colors.white)
+        pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=1, stroke=0)
+        pdf.setStrokeColor(LINE)
+        pdf.roundRect(15 * mm, 8 * mm, footer_w, 22 * mm, 4 * mm, fill=0, stroke=1)
+        name_color = BLUE_DARK
+        meta_color = MUTED
 
     c_name = (company.get("company_name", "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC")).upper()
     cname_text, cname_size = _fit_text(pdf, c_name, "Helvetica-Bold", 8, footer_w - 10 * mm, min_size=6)
-    pdf.setFillColor(BLUE_DARK)
+    pdf.setFillColor(name_color)
     pdf.setFont("Helvetica-Bold", cname_size)
     pdf.drawCentredString(PAGE_WIDTH / 2, 22.5 * mm, cname_text)
 
     addr = company.get("address") or ""
     if addr:
         addr_text, addr_size = _fit_text(pdf, addr, "Helvetica", 6.5, footer_w - 10 * mm, min_size=5)
-        pdf.setFillColor(MUTED)
+        pdf.setFillColor(meta_color)
         pdf.setFont("Helvetica", addr_size)
         pdf.drawCentredString(PAGE_WIDTH / 2, 16.5 * mm, addr_text)
 
@@ -3365,7 +3437,7 @@ def _draw_footer_banner(pdf: canvas.Canvas, assets_dir: str = "", show_top_rule:
     contact_str = "  |  ".join(parts) if parts else ""
     if contact_str:
         contact_text, contact_size = _fit_text(pdf, contact_str, "Helvetica", 6.5, footer_w - 10 * mm, min_size=5)
-        pdf.setFillColor(MUTED)
+        pdf.setFillColor(meta_color)
         pdf.setFont("Helvetica", contact_size)
         pdf.drawCentredString(PAGE_WIDTH / 2, 11.5 * mm, contact_text)
 

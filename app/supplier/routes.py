@@ -3305,7 +3305,9 @@ def supplier_payment_voucher(sup_id, pay_id):
     except Exception:
         company = None
     pay_dict = dict(pay) if hasattr(pay, 'keys') else pay
-    return render_template("supplier/payment_voucher.html", s=s, pay=pay_dict, inv=inv, invoices=invoices, expense_rows=expense_rows, company=company, today=date.today().isoformat())
+    from ..utils import active_company_id
+    _pv_tmpl = "supplier/payment_voucher_em.html" if active_company_id() == 2 else "supplier/payment_voucher.html"
+    return render_template(_pv_tmpl, s=s, pay=pay_dict, inv=inv, invoices=invoices, expense_rows=expense_rows, company=company, today=date.today().isoformat())
 
 
 @supplier_bp.route("/<int:sup_id>/payments/<int:pay_id>/cheque")

@@ -90,20 +90,64 @@ _COMPANY_COLS = (
 
 
 def get_company_profile(db, company_id=None) -> Optional[dict]:
-    """Fetch a company_profile row. Default = Current Link (lowest id)."""
+    """Fetch a company_profile row.
+
+    - company_id given → that company
+    - company_id None → session-selected company (admin switcher); falls back
+      to the lowest id (Current Link) when no session / row missing.
+    """
     try:
-        if company_id:
-            row = db.execute(
-                f"SELECT {_COMPANY_COLS} FROM company_profile WHERE id = ?",
-                (int(company_id),),
-            ).fetchone()
-        else:
+        cid = int(company_id) if company_id else active_company_id()
+        row = db.execute(
+            f"SELECT {_COMPANY_COLS} FROM company_profile WHERE id = ?",
+            (cid,),
+        ).fetchone()
+        if not row and not company_id:
             row = db.execute(
                 f"SELECT {_COMPANY_COLS} FROM company_profile ORDER BY id ASC LIMIT 1"
             ).fetchone()
         return dict(row) if row else None
     except Exception:
         return None
+
+
+def get_default_company(db) -> Optional[dict]:
+    """Ownership fallback = Current Link (lowest id), ignores session."""
+    try:
+        row = db.execute(
+            f"SELECT {_COMPANY_COLS} FROM company_profile ORDER BY id ASC LIMIT 1"
+        ).fetchone()
+        return dict(row) if row else None
+    except Exception:
+        return None
+
+
+def active_company_id() -> int:
+    """Session-selected company id (admin switcher). Default = Current Link (1)."""
+    try:
+        from flask import has_request_context, session
+        if has_request_context():
+            cid = int(session.get("company_id") or 1)
+            return cid if cid >= 1 else 1
+    except Exception:
+        pass
+    return 1
+
+
+def get_active_company(db) -> Optional[dict]:
+    """Company profile for the session-selected company (switcher)."""
+    return get_company_profile(db, active_company_id())
+
+
+def list_companies(db) -> list:
+    """All company_profile rows for the switcher dropdown."""
+    try:
+        rows = db.execute(
+            f"SELECT {_COMPANY_COLS} FROM company_profile ORDER BY id ASC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
 
 
 def get_company_for_vehicle(db, plate_no) -> Optional[dict]:
@@ -124,7 +168,7 @@ def get_company_for_vehicle(db, plate_no) -> Optional[dict]:
                 return dict(row)
     except Exception:
         pass
-    return get_company_profile(db)
+    return get_default_company(db)
 
 
 def get_company_for_employee(db, employee_id) -> Optional[dict]:
@@ -132,7 +176,7 @@ def get_company_for_employee(db, employee_id) -> Optional[dict]:
     try:
         eid = str(employee_id or "").strip()
         if not eid:
-            return get_company_profile(db)
+            return get_default_company(db)
         # Preferred: denormalized drivers.vehicle_no
         row = db.execute(
             f"SELECT v.company_id FROM drivers d JOIN vehicles v ON v.plate_no = d.vehicle_no "
@@ -153,7 +197,7 @@ def get_company_for_employee(db, employee_id) -> Optional[dict]:
                 return cp
     except Exception:
         pass
-    return get_company_profile(db)
+    return get_default_company(db)
 
 
 # ── Date Filter Builder ────────────────────────────────────────
@@ -210,3 +254,18 @@ def fmt_money(value, decimals: int = 2) -> str:
 def fmt_money_aed(value, decimals: int = 2) -> str:
     """Format as 'AED 1,234.56'."""
     return f"AED {fmt_money(value, decimals)}"
+
+
+def rate_fmt(value) -> str:
+    """Unit-rate display: 2 decimals by default, but keeps a 3rd/4th decimal
+    when the value actually has one (0.093 stays 0.093, not 0.09)."""
+    try:
+        v = float(value or 0)
+    except (TypeError, ValueError):
+        return str(value or "0")
+    s4 = f"{v:,.4f}"
+    if "." in s4:
+        frac = s4.split(".", 1)[1].rstrip("0")
+        if len(frac) > 2:
+            return s4.rstrip("0").rstrip(".")
+    return f"{v:,.2f}"

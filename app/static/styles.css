@@ -7849,8 +7849,38 @@ html {
 .erp-sidebar-head {
     padding: 20px 18px 14px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: 10px;
+}
+.co-switcher {
+    margin: 0;
+}
+.co-switcher-select {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.10) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 8px 28px 8px 10px;
+    cursor: pointer;
+    outline: none;
+    transition: background .15s, border-color .15s;
+}
+.co-switcher-select:hover,
+.co-switcher-select:focus {
+    background-color: rgba(255,255,255,0.16);
+    border-color: rgba(255,255,255,0.35);
+}
+.co-switcher-select option {
+    background: #0f2b52;
+    color: #fff;
+    font-weight: 600;
 }
 .erp-brand {
     display: flex;
@@ -8851,7 +8881,8 @@ html {
 .erp-sidebar.is-collapsed .erp-sidebar-user-text,
 .erp-sidebar.is-collapsed .erp-side-note,
 .erp-sidebar.is-collapsed .erp-nav-chevron,
-.erp-sidebar.is-collapsed .erp-nav-label {
+.erp-sidebar.is-collapsed .erp-nav-label,
+.erp-sidebar.is-collapsed .co-switcher {
     display: none;
 }
 .erp-sidebar.is-collapsed .erp-nav-link,
@@ -8889,7 +8920,8 @@ html {
     .erp-sidebar .erp-sidebar-user-text,
     .erp-sidebar .erp-side-note,
     .erp-sidebar .erp-nav-chevron,
-    .erp-sidebar .erp-nav-label {
+    .erp-sidebar .erp-nav-label,
+    .erp-sidebar .co-switcher {
         display: none;
     }
     .erp-sidebar .erp-nav-link,

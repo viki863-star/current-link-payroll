@@ -3,7 +3,7 @@ from datetime import date
 from flask import render_template, request, redirect, url_for, flash, current_app, send_file, jsonify
 from markupsafe import Markup
 from . import customer_bp
-from ..utils import num_to_words as n2w, get_company_profile
+from ..utils import num_to_words as n2w, get_company_profile, active_company_id, rate_fmt
 
 def _get_db():
     from ..database import open_db
@@ -852,6 +852,9 @@ def customer_invoice_view(cid, iid):
             nmdc_meta = json.loads(inv.get("notes", "{}"))
         except Exception:
             nmdc_meta = {}
+    elif active_company_id() == 2:
+        # Eagle Mountain gets its own invoice design (not a recolor of CL)
+        tmpl = "customer/invoice_view_em.html"
     else:
         tmpl = "customer/invoice_view.html"
     sum_taxable = sum(float(it.get("amount") or 0) for it in items)
@@ -907,6 +910,7 @@ def customer_invoice_pdf(cid, iid):
     is_nmdc = "nmdc" in (c["customer_name"] or "").lower()
     # Cash invoices always use the standard layout (never the VAT/NMDC one)
     is_nmdc = is_nmdc and not is_cash
+    is_em = (not is_nmdc) and active_company_id() == 2
 
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     #  NEW NMDC LAYOUT — Premium ERP-style, footer on every page
@@ -1213,7 +1217,7 @@ def customer_invoice_pdf(cid, iid):
                 Paragraph(desc_html, S("pd", fontSize=fs, leading=ldr, textColor=C4)),
                 Paragraph(f"{float(it.get('quantity') or 0):,.2f}", S("pq", fontSize=fs, leading=ldr, alignment=TA_CENTER, textColor=C4)),
                 Paragraph((it.get('unit') or 'mo'), S("pu", fontSize=fs, leading=ldr, alignment=TA_CENTER, textColor=C4)),
-                Paragraph(f"{float(it.get('rate') or 0):,.2f}", S("pr", fontSize=fs, leading=ldr, alignment=TA_RIGHT, textColor=C4)),
+                Paragraph(rate_fmt(it.get('rate')), S("pr", fontSize=fs, leading=ldr, alignment=TA_RIGHT, textColor=C4)),
                 Paragraph(f"{amt:,.2f}", S("pa", fontSize=fs, leading=ldr, alignment=TA_RIGHT, textColor=C4)),
                 Paragraph(f"{vp_item:.2f}%", S("pv", fontSize=fs, leading=ldr, alignment=TA_CENTER, textColor=C4)),
                 Paragraph(f"{va_item:,.2f}", S("pva", fontSize=fs, leading=ldr, alignment=TA_RIGHT, textColor=C6)),
@@ -1429,7 +1433,14 @@ def customer_invoice_pdf(cid, iid):
         TH = colors.HexColor(tc if company else "#0F2B52")
     DH = TH   # item-table header (Description/Qty/Unit/...) = DARK BLUE
     # System gold (logo gold / menu accent) — used ONLY on VERTICAL card lines
-    GOLD = colors.HexColor("#f5a83a")
+    EM_NAVY = colors.HexColor("#152238")
+    EM_GOLD = colors.HexColor("#f0c14b")
+    if is_em:
+        TH = EM_NAVY
+        DH = EM_NAVY
+        GOLD = EM_GOLD
+    else:
+        GOLD = colors.HexColor("#f5a83a")
 
     cn = (company["company_name"] if company else "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC") or "CURRENT LINK TRANSPORT AND GENERAL CONTRACTING LLC SPC"
     c_addr = (company["address"] or "") if company else ""
@@ -1537,39 +1548,97 @@ def customer_invoice_pdf(cid, iid):
         lh = co_p
 
     _title_txt = "CASH INVOICE" if is_cash else "TAX INVOICE"
-    # Title block — flush to the content margins (aligned with logo top + right margin)
-    title_chip = Table(
-        [[Paragraph(f"<b>{_title_txt}</b>", S("_tichip", fontSize=13.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=17))]],
-        colWidths=[W*0.31])
-    title_chip.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), TH),
-        ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-    ]))
-    title_chip.hAlign = "RIGHT"
+    if is_em:
+        # ── Eagle Mountain header: full-width dark navy banner + gold chip ──
+        em_cn = cn.upper()
+        em_meta = []
+        if c_addr: em_meta.append(c_addr)
+        _em_contact = []
+        if c_ph: _em_contact.append(f"Tel: {c_ph}")
+        if c_em: _em_contact.append(c_em)
+        if _em_contact: em_meta.append("  |  ".join(_em_contact))
+        if not is_cash: em_meta.append(f"TRN: {c_trn}")
+        left_lines = [Paragraph(f"<b>{em_cn}</b>", S("_emcn", fontSize=13, fontName="Helvetica-Bold", textColor=EM_GOLD, leading=16))]
+        for _m in em_meta:
+            left_lines.append(Paragraph(_m, S("_emmeta", fontSize=7.2, textColor=colors.HexColor("#c9d4e3"), leading=9.5)))
+        left_cell = left_lines
+        if _logo_tmp_files:
+            try:
+                from PIL import Image as PILImage
+                with PILImage.open(_logo_tmp_files[-1]) as img:
+                    ow, oh = img.size
+                em_logo = Image(_logo_tmp_files[-1], width=22*mm, height=22*mm)
+                left_cell = Table([[em_logo, left_lines]], colWidths=[24*mm, W*0.60 - 24*mm])
+                left_cell.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),4)]))
+            except Exception:
+                pass
+        chip = Table(
+            [[Paragraph(f"<b>{_title_txt}</b>", S("_emchip", fontSize=11.5, fontName="Helvetica-Bold", textColor=EM_NAVY, alignment=TA_CENTER, leading=14))]],
+            colWidths=[W*0.30])
+        chip.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), EM_GOLD),
+            ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        chip.hAlign = "RIGHT"
+        rh = Table([
+            [chip],
+            [Paragraph(f"#{inv_no}", S("_emno", fontSize=10, fontName="Helvetica-Bold", textColor=colors.white, alignment=TA_RIGHT, leading=13))],
+            [Paragraph(f"Date {inv_dt}", S("_emdt", fontSize=8, textColor=EM_GOLD, alignment=TA_RIGHT, leading=10))],
+        ], colWidths=[W*0.37])
+        rh.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, 0), 0), ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+            ("TOPPADDING", (0, 1), (-1, 1), 0), ("BOTTOMPADDING", (0, 1), (-1, 1), 1),
+            ("TOPPADDING", (0, 2), (-1, 2), 0), ("BOTTOMPADDING", (0, 2), (-1, 2), 0),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        em_banner = Table([[left_cell, rh]], colWidths=[W*0.63, W*0.37])
+        em_banner.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), EM_NAVY),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 9), ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+        ]))
+        els.append(em_banner)
+        gold_rule = Table([[""]], colWidths=[W], rowHeights=[3])
+        gold_rule.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),EM_GOLD),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+        els.append(gold_rule)
+        els.append(Spacer(1, 5*mm))
+    else:
+        # Title block — flush to the content margins (aligned with logo top + right margin)
+        title_chip = Table(
+            [[Paragraph(f"<b>{_title_txt}</b>", S("_tichip", fontSize=13.5, fontName="Helvetica-Bold", textColor=WH, alignment=TA_CENTER, leading=17))]],
+            colWidths=[W*0.31])
+        title_chip.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), TH),
+            ("TOPPADDING", (0, 0), (-1, -1), 7), ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        title_chip.hAlign = "RIGHT"
 
-    rh = Table([
-        [title_chip],
-        [Paragraph(f"#{inv_no}", S("_mn", fontSize=10, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=13))],
-        [Paragraph(f"Date {inv_dt}", S("_md", fontSize=8, textColor=C5, alignment=TA_RIGHT, leading=10))],
-    ], colWidths=[W*0.37])
-    rh.setStyle(TableStyle([
-        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, 0), 0), ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
-        ("TOPPADDING", (0, 1), (-1, 1), 0), ("BOTTOMPADDING", (0, 1), (-1, 1), 1),
-        ("TOPPADDING", (0, 2), (-1, 2), 0), ("BOTTOMPADDING", (0, 2), (-1, 2), 0),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-    ]))
+        rh = Table([
+            [title_chip],
+            [Paragraph(f"#{inv_no}", S("_mn", fontSize=10, fontName="Helvetica-Bold", textColor=C4, alignment=TA_RIGHT, leading=13))],
+            [Paragraph(f"Date {inv_dt}", S("_md", fontSize=8, textColor=C5, alignment=TA_RIGHT, leading=10))],
+        ], colWidths=[W*0.37])
+        rh.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, 0), 0), ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+            ("TOPPADDING", (0, 1), (-1, 1), 0), ("BOTTOMPADDING", (0, 1), (-1, 1), 1),
+            ("TOPPADDING", (0, 2), (-1, 2), 0), ("BOTTOMPADDING", (0, 2), (-1, 2), 0),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
 
-    ht = Table([[lh, rh]], colWidths=[W*0.63, W*0.37])
-    ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)]))
-    els.append(ht)
+        ht = Table([[lh, rh]], colWidths=[W*0.63, W*0.37])
+        ht.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"TOP"),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)]))
+        els.append(ht)
 
-    bl = Table([[""]], colWidths=[W], rowHeights=[3])
-    bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
-    els.append(bl)
-    els.append(Spacer(1, 5*mm))
+        bl = Table([[""]], colWidths=[W], rowHeights=[3])
+        bl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),TH),("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0)]))
+        els.append(bl)
+        els.append(Spacer(1, 5*mm))
 
     # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     # 2. BILL TO / INVOICE INFO — bigger cards
@@ -1758,7 +1827,7 @@ def customer_invoice_pdf(cid, iid):
             _pc(desc_html, fontSize=fs, leading=ldr*0.9),
             _num(f"{float(it.get('quantity') or 0):,.2f}", 2, align=TA_CENTER),
             _pc((it.get('unit') or 'mo'), alignment=TA_CENTER),
-            _num(f"{float(it.get('rate') or 0):,.2f}", 4),
+            _num(rate_fmt(it.get('rate')), 4),
             _num(f"{amt:,.2f}", 5),
         ]
         if not is_cash:

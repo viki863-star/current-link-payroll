@@ -17,9 +17,9 @@ def require_admin():
 def inject_globals():
     try:
         from ..database import open_db
-        from ..utils import get_company_profile
+        from ..utils import get_active_company
         db = open_db()
-        co = get_company_profile(db)
+        co = get_active_company(db)
         db.close()
     except Exception:
         co = None

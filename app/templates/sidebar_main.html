@@ -2,16 +2,32 @@
     <div class="erp-sidebar-head">
         <a class="erp-brand" href="{{ url_for('dashboard') }}">
             <span class="erp-brand-mark">
+                {% if company and company.logo_data and company.logo_type %}
+                <img class="erp-brand-image" src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" alt="{{ company.company_name or 'Company' }}" id="brandImage" loading="eager" style="opacity:1">
+                {% else %}
                 <video class="erp-brand-video" autoplay muted playsinline preload="metadata" id="brandVideo" poster="{{ url_for('static', filename='logo.png') }}?v=2">
                     <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">
                 </video>
-                <img class="erp-brand-image" src="{{ url_for('static', filename='logo.png') }}?v=2" alt="Current Link" id="brandImage" loading="eager">
+                <img class="erp-brand-image" src="{{ url_for('static', filename='logo.png') }}?v=2" alt="{{ company.company_name if company else 'Current Link' }}" id="brandImage" loading="eager">
+                {% endif %}
                 <span class="erp-brand-ring"></span>
             </span>
             <span class="erp-brand-copy">
-                <strong class="erp-brand-name"><span class="brand-current">Current</span> <span class="brand-link">Link</span></strong>
+                {% set _cn = (company.company_name or 'Current Link') if company else 'Current Link' %}
+                <strong class="erp-brand-name">{{ _cn }}</strong>
             </span>
         </a>
+        {% if companies_list and companies_list|length > 1 %}
+        <form class="co-switcher" method="post" action="{{ url_for('switch_company') }}" title="Switch company">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ request.full_path if request.full_path else url_for('dashboard') }}">
+            <select name="company_id" class="co-switcher-select" onchange="this.form.submit()">
+                {% for c in companies_list %}
+                <option value="{{ c.id }}" {% if c.id == current_company_id %}selected{% endif %}>{{ c.company_name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        {% endif %}
     </div>
     <div class="erp-sidebar-accent"></div>
 

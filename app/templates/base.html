@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>{% block title %}{{ config["COMPANY_NAME"] }}{% endblock %} — ERP Portal</title>
-    <meta name="theme-color" content="#0F2B52">
+    {% set tc = company.theme_color if company and company.theme_color else '#0f2b52' %}
+    {% set _cn = (company.company_name if company and company.company_name else config["COMPANY_NAME"]) %}
+    <title>{% block title %}{{ _cn }}{% endblock %} — ERP Portal</title>
+    <meta name="theme-color" content="{{ tc }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v='20260709a') }}">
@@ -21,7 +23,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v='20260709a') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='design-v2.css', v='20260820b') }}">
 
-    {% set tc = company.theme_color if company and company.theme_color else '#37474f' %}
     <style>:root{--primary:{{ tc }};--primary-light:{{ tc }}22;--primary-dark:{{ tc }};}</style>
     <style>
     /* ─── Premium Header ─── */
@@ -243,10 +244,10 @@
             <div class="site-footer-bar">
                 <div class="site-footer-inner">
                     <span class="site-footer-name">
-                        <strong>{{ config["COMPANY_NAME"] }}</strong>
+                        <strong>{{ _cn }}</strong>
                         &mdash; {{ config.get("COMPANY_SUBTITLE", "Transport & General Contracting") }}
                     </span>
-                    <span class="site-footer-copy">Internal ERP &copy; {{ config["COMPANY_NAME"] }} 2026</span>
+                    <span class="site-footer-copy">Internal ERP &copy; {{ _cn }} 2026</span>
                 </div>
             </div>
         </footer>
