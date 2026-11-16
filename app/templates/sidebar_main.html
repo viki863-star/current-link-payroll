@@ -13,7 +13,7 @@
                 <span class="erp-brand-ring"></span>
             </span>
             <span class="erp-brand-copy">
-                {% set _cn = (company.company_name or 'Current Link') if company else 'Current Link' %}
+                {% set _cn = co_short((company.company_name if company else None) or 'Current Link') %}
                 <strong class="erp-brand-name">{{ _cn }}</strong>
             </span>
         </a>
@@ -23,7 +23,7 @@
             <input type="hidden" name="next" value="{{ request.full_path if request.full_path else url_for('dashboard') }}">
             <select name="company_id" class="co-switcher-select" onchange="this.form.submit()">
                 {% for c in companies_list %}
-                <option value="{{ c.id }}" {% if c.id == current_company_id %}selected{% endif %}>{{ c.company_name }}</option>
+                <option value="{{ c.id }}" {% if c.id == current_company_id %}selected{% endif %} title="{{ c.company_name }}">{{ co_short(c.company_name) }}</option>
                 {% endfor %}
             </select>
         </form>

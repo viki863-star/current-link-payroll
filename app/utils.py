@@ -134,6 +134,27 @@ def active_company_id() -> int:
     return 1
 
 
+def ensure_company_scope_columns(db) -> None:
+    """Idempotently add customers/suppliers.company_id when a non-blueprint
+    caller (reports center, global search) queries them before any
+    customer/supplier page has run its own _ensure_tables() migration."""
+    pg = getattr(db, "backend", "") == "postgres"
+    for tbl in ("customers", "suppliers"):
+        ddl = (
+            f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1"
+            if pg
+            else f"ALTER TABLE {tbl} ADD COLUMN company_id INTEGER DEFAULT 1"
+        )
+        try:
+            db.execute(ddl)
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
+
 def get_active_company(db) -> Optional[dict]:
     """Company profile for the session-selected company (switcher)."""
     return get_company_profile(db, active_company_id())
@@ -148,6 +169,29 @@ def list_companies(db) -> list:
         return [dict(r) for r in rows]
     except Exception:
         return []
+
+
+def company_short_name(name: Optional[str]) -> str:
+    """Short sidebar label for a company (docs/PDFs keep the full legal name).
+
+    CURRENT LINK → "Current Link", EAGLE MOUNTAIN → "Eagle Mountain";
+    other names longer than 22 chars are cut to their first two words.
+    """
+    nm = (name or "").strip()
+    if not nm:
+        return "Current Link"
+    up = nm.upper()
+    if up.startswith("EAGLE MOUNTAIN"):
+        return "Eagle Mountain"
+    if up.startswith("CURRENT LINK"):
+        return "Current Link"
+    if len(nm) <= 22:
+        return nm
+    parts = nm.split()
+    if len(parts) >= 2:
+        short = " ".join(parts[:2])
+        return short.title() if short.isupper() else short
+    return nm
 
 
 def get_company_for_vehicle(db, plate_no) -> Optional[dict]:

@@ -39,7 +39,7 @@ from .backup_service import (
     auto_generate_supplier_statement_pdf,
 )
 from .database import open_db
-from .utils import get_company_profile, get_active_company, active_company_id, list_companies, fmt_money_aed, rate_fmt
+from .utils import get_company_profile, get_active_company, active_company_id, list_companies, fmt_money_aed, rate_fmt, company_short_name, ensure_company_scope_columns
 from .excel_import import load_driver_records, upsert_driver_records
 from .pdf_driver_import import load_driver_records_from_pdf, load_driver_records_from_pdf_bytes
 from .pdf_vehicle_import import load_vehicle_records_from_pdf_bytes
@@ -226,6 +226,15 @@ def register_routes(app: Flask) -> None:
     def _rate_fmt_global(value):
         # invoice/quotation unit rates: 0.093 must never collapse to 0.09
         return rate_fmt(value)
+
+    @app.template_global("co_short")
+    def _co_short_name(name):
+        # short sidebar label; full legal name stays on invoices/PDFs
+        if hasattr(name, "keys") and hasattr(name, "get"):
+            name = name.get("company_name")
+        elif hasattr(name, "company_name"):
+            name = name.company_name
+        return company_short_name(name)
 
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
@@ -1676,6 +1685,7 @@ def register_routes(app: Flask) -> None:
         if not q or len(q) < 2:
             return jsonify({})
         db = open_db()
+        ensure_company_scope_columns(db)
         results = {}
         like = f"%{q}%"
         try:
@@ -1683,18 +1693,18 @@ def register_routes(app: Flask) -> None:
                 rows = db.execute("SELECT driver_id, full_name, vehicle_no, status FROM drivers WHERE full_name ILIKE ? OR driver_id ILIKE ? OR vehicle_no ILIKE ? LIMIT 8", (like, like, like)).fetchall()
                 results["driver"] = [{"title": r["full_name"], "meta": f"{r['driver_id']} · {r['vehicle_no']}", "status": r["status"], "url": f"/hr/drivers/{r['driver_id']}"} for r in rows]
             if cat in ("all", "supplier"):
-                rows = db.execute("SELECT id, supplier_name, supplier_code, status FROM suppliers WHERE supplier_name ILIKE ? OR supplier_code ILIKE ? LIMIT 8", (like, like)).fetchall()
+                rows = db.execute("SELECT id, supplier_name, supplier_code, status FROM suppliers WHERE COALESCE(company_id,1)=? AND (supplier_name ILIKE ? OR supplier_code ILIKE ?) LIMIT 8", (active_company_id(), like, like)).fetchall()
                 results["supplier"] = [{"title": r["supplier_name"], "meta": r["supplier_code"], "status": r["status"], "url": f"/supplier/{r['id']}/invoices"} for r in rows]
             if cat in ("all", "invoice"):
                 rows = db.execute("""SELECT i.id, i.invoice_no, i.total_amount, s.supplier_name
                     FROM supplier_invoices i JOIN suppliers s ON s.id = i.supplier_id
-                    WHERE i.invoice_no ILIKE ? OR s.supplier_name ILIKE ? LIMIT 8""", (like, like)).fetchall()
+                    WHERE COALESCE(s.company_id,1)=? AND (i.invoice_no ILIKE ? OR s.supplier_name ILIKE ?) LIMIT 8""", (active_company_id(), like, like)).fetchall()
                 results["invoice"] = [{"title": f"Invoice #{r['invoice_no']}", "meta": f"{r['supplier_name']} · AED {r['total_amount']:,.2f}", "url": f"/supplier/{r['id']}/invoices"} for r in rows]
             if cat in ("all", "vehicle"):
                 rows = db.execute("SELECT plate_no, vehicle_type, status FROM vehicles WHERE plate_no ILIKE ? OR vehicle_type ILIKE ? LIMIT 8", (like, like)).fetchall()
                 results["vehicle"] = [{"title": r["plate_no"], "meta": r["vehicle_type"], "status": r["status"], "url": f"/fleet/vehicles/{r['plate_no']}"} for r in rows]
             if cat in ("all", "customer"):
-                rows = db.execute("SELECT id, customer_name, company FROM customers WHERE customer_name ILIKE ? OR company ILIKE ? LIMIT 8", (like, like)).fetchall()
+                rows = db.execute("SELECT id, customer_name, company, company_id FROM customers WHERE COALESCE(company_id,1)=? AND (customer_name ILIKE ? OR company ILIKE ?) LIMIT 8", (active_company_id(), like, like)).fetchall()
                 results["customer"] = [{"title": r["customer_name"], "meta": r["company"] or "", "url": f"/customer/{r['id']}/invoices"} for r in rows]
         except Exception:
             pass
@@ -18207,12 +18217,16 @@ def _reports_center_data(db):
     cur_month = f"{year}-{today.month:02d}"
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     out = {"months": months, "year": year, "today": today.isoformat(), "cur_month": cur_month}
+    ensure_company_scope_columns(db)
+    cid = active_company_id()
 
     # ── Customers / Sales (customer module) ──────────────────────────
     r = db.execute(
-        "SELECT COUNT(*) AS c, COALESCE(SUM(total_amount),0) AS inv, "
-        "COALESCE(SUM(amount),0) AS net, COALESCE(SUM(vat_amount),0) AS vat "
-        "FROM customer_invoices WHERE deleted_at IS NULL"
+        "SELECT COUNT(*) AS c, COALESCE(SUM(i.total_amount),0) AS inv, "
+        "COALESCE(SUM(i.amount),0) AS net, COALESCE(SUM(i.vat_amount),0) AS vat "
+        "FROM customer_invoices i JOIN customers c ON c.id = i.customer_id "
+        "WHERE i.deleted_at IS NULL AND COALESCE(c.company_id,1)=?",
+        (cid,),
     ).fetchone()
     out["cust_inv_count"] = int(r["c"])
     out["cust_invoiced"] = round(float(r["inv"]), 2)
@@ -18220,30 +18234,33 @@ def _reports_center_data(db):
     out["cust_vat"] = round(float(r["vat"]), 2)
 
     ry = db.execute(
-        "SELECT COUNT(*) AS c, COALESCE(SUM(total_amount),0) AS inv, "
-        "COALESCE(SUM(amount),0) AS net, COALESCE(SUM(vat_amount),0) AS vat "
-        "FROM customer_invoices WHERE deleted_at IS NULL AND invoice_date LIKE ?",
-        (ypref,),
+        "SELECT COUNT(*) AS c, COALESCE(SUM(i.total_amount),0) AS inv, "
+        "COALESCE(SUM(i.amount),0) AS net, COALESCE(SUM(i.vat_amount),0) AS vat "
+        "FROM customer_invoices i JOIN customers c ON c.id = i.customer_id "
+        "WHERE i.deleted_at IS NULL AND i.invoice_date LIKE ? AND COALESCE(c.company_id,1)=?",
+        (ypref, cid),
     ).fetchone()
     out["cust_inv_count_y"] = int(ry["c"])
     out["cust_invoiced_y"] = round(float(ry["inv"]), 2)
     out["cust_vat_y"] = round(float(ry["vat"]), 2)
 
-    out["cust_paid"] = round(float(db.execute("SELECT COALESCE(SUM(amount),0) FROM customer_payments").fetchone()[0]), 2)
-    out["cust_cn"] = round(float(db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes").fetchone()[0]), 2)
+    out["cust_paid"] = round(float(db.execute("SELECT COALESCE(SUM(p.amount),0) FROM customer_payments p JOIN customers c ON c.id=p.customer_id WHERE COALESCE(c.company_id,1)=?", (cid,)).fetchone()[0]), 2)
+    out["cust_cn"] = round(float(db.execute("SELECT COALESCE(SUM(n.total_amount),0) FROM customer_credit_notes n JOIN customers c ON c.id=n.customer_id WHERE COALESCE(c.company_id,1)=?", (cid,)).fetchone()[0]), 2)
     out["receivable"] = round(out["cust_invoiced"] - out["cust_paid"] - out["cust_cn"], 2)
-    out["customer_count"] = int(db.execute("SELECT COUNT(*) FROM customers").fetchone()[0])
+    out["customer_count"] = int(db.execute("SELECT COUNT(*) FROM customers WHERE COALESCE(company_id,1)=?", (cid,)).fetchone()[0])
 
     open_row = db.execute(
         "SELECT COUNT(*) AS c, COALESCE(SUM(bal),0) AS amt FROM ("
         "  SELECT i.id, i.total_amount - COALESCE(p.paid,0) - COALESCE(n.cn,0) AS bal "
         "  FROM customer_invoices i "
+        "  JOIN customers cc ON cc.id = i.customer_id "
         "  LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM customer_payments "
         "             WHERE invoice_id IS NOT NULL GROUP BY invoice_id) p ON p.invoice_id = i.id "
         "  LEFT JOIN (SELECT invoice_id, SUM(total_amount) AS cn FROM customer_credit_notes "
         "             WHERE invoice_id IS NOT NULL GROUP BY invoice_id) n ON n.invoice_id = i.id "
-        "  WHERE i.deleted_at IS NULL"
-        ") x WHERE bal > 0.009"
+        "  WHERE i.deleted_at IS NULL AND COALESCE(cc.company_id,1)=?"
+        ") x WHERE bal > 0.009",
+        (cid,),
     ).fetchone()
     out["cust_open_count"] = int(open_row["c"])
     out["cust_open_amt"] = round(float(open_row["amt"]), 2)
@@ -18255,8 +18272,9 @@ def _reports_center_data(db):
         "    (SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices i WHERE i.customer_id = c.id AND i.deleted_at IS NULL) "
         "    - (SELECT COALESCE(SUM(amount),0) FROM customer_payments p WHERE p.customer_id = c.id) "
         "    - (SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes n WHERE n.customer_id = c.id) AS balance "
-        "  FROM customers c"
-        ") t WHERE balance > 0.009 ORDER BY balance DESC LIMIT 5"
+        "  FROM customers c WHERE COALESCE(c.company_id,1)=?"
+        ") t WHERE balance > 0.009 ORDER BY balance DESC LIMIT 5",
+        (cid,),
     ).fetchall()
     out["recv_top_sum"] = round(sum(float(r["balance"]) for r in out["top_receivables"]), 2)
     out["recv_others"] = round(max(out["receivable"] - out["recv_top_sum"], 0.0), 2)
@@ -18264,9 +18282,10 @@ def _reports_center_data(db):
     sales_m = [0.0] * 12
     outvat_m = [0.0] * 12
     for row in db.execute(
-        "SELECT SUBSTR(invoice_date,6,2) AS m, amount, vat_amount "
-        "FROM customer_invoices WHERE deleted_at IS NULL AND invoice_date LIKE ?",
-        (ypref,),
+        "SELECT SUBSTR(i.invoice_date,6,2) AS m, i.amount, i.vat_amount "
+        "FROM customer_invoices i JOIN customers c ON c.id = i.customer_id "
+        "WHERE i.deleted_at IS NULL AND i.invoice_date LIKE ? AND COALESCE(c.company_id,1)=?",
+        (ypref, cid),
     ).fetchall():
         try:
             mi = int(row["m"]) - 1
@@ -18293,43 +18312,53 @@ def _reports_center_data(db):
         return net, vat
 
     inv_rows = db.execute(
-        "SELECT SUBSTR(invoice_date,6,2) AS m, amount AS net, vat_amount AS vat "
-        "FROM supplier_invoices WHERE invoice_date LIKE ?", (ypref,)
+        "SELECT SUBSTR(si.invoice_date,6,2) AS m, si.amount AS net, si.vat_amount AS vat "
+        "FROM supplier_invoices si JOIN suppliers s ON s.id = si.supplier_id "
+        "WHERE COALESCE(s.company_id,1)=? AND si.invoice_date LIKE ?", (cid, ypref)
     ).fetchall()
     paper_rows = db.execute(
-        "SELECT SUBSTR(paper_date,6,2) AS m, subtotal AS net, tax_amount AS vat "
-        "FROM maintenance_papers WHERE review_status = 'Approved' AND tax_mode = 'Tax Invoice' "
-        "AND paper_date LIKE ?", (ypref,)
+        "SELECT SUBSTR(mp.paper_date,6,2) AS m, mp.subtotal AS net, mp.tax_amount AS vat "
+        "FROM maintenance_papers mp "
+        "LEFT JOIN vehicles v ON v.plate_no = COALESCE(NULLIF(mp.vehicle_no,''), NULLIF(mp.vehicle_id,'')) "
+        "WHERE mp.review_status = 'Approved' AND mp.tax_mode = 'Tax Invoice' "
+        "AND COALESCE(v.company_id,1)=? AND mp.paper_date LIKE ?", (cid, ypref)
     ).fetchall()
     job_rows = db.execute(
-        "SELECT SUBSTR(COALESCE(NULLIF(paper_date, ''), CAST(created_at AS TEXT)),6,2) AS m, "
-        "(amount - tax_amount) AS net, tax_amount AS vat "
-        "FROM maintenance_jobs WHERE status = 'approved' AND tax_mode = 'Tax Invoice' "
-        "AND COALESCE(NULLIF(paper_date, ''), CAST(created_at AS TEXT)) LIKE ?", (ypref,)
+        "SELECT SUBSTR(COALESCE(NULLIF(mj.paper_date, ''), CAST(mj.created_at AS TEXT)),6,2) AS m, "
+        "(mj.amount - mj.tax_amount) AS net, mj.tax_amount AS vat "
+        "FROM maintenance_jobs mj "
+        "LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id "
+        "WHERE mj.status = 'approved' AND mj.tax_mode = 'Tax Invoice' "
+        "AND COALESCE(v.company_id,1)=? AND COALESCE(NULLIF(mj.paper_date, ''), CAST(mj.created_at AS TEXT)) LIKE ?", (cid, ypref)
     ).fetchall()
     purch_m, inpvat_m = _bucket(list(inv_rows) + list(paper_rows) + list(job_rows))
     out["purch_m"] = [round(v, 2) for v in purch_m]
     out["inpvat_m"] = [round(v, 2) for v in inpvat_m]
 
     def _purch_totals(ypref_val=None):
-        cond_i = " AND invoice_date LIKE ?" if ypref_val else ""
-        cond_p = " AND paper_date LIKE ?" if ypref_val else ""
-        cond_j = " AND COALESCE(NULLIF(paper_date, ''), CAST(created_at AS TEXT)) LIKE ?" if ypref_val else ""
-        p = (ypref_val,) if ypref_val else ()
+        cond_i = " AND si.invoice_date LIKE ?" if ypref_val else ""
+        cond_p = " AND mp.paper_date LIKE ?" if ypref_val else ""
+        cond_j = " AND COALESCE(NULLIF(mj.paper_date, ''), CAST(mj.created_at AS TEXT)) LIKE ?" if ypref_val else ""
+        p = (cid, ypref_val) if ypref_val else (cid,)
         row = db.execute(
-            "SELECT COALESCE(SUM(amount),0) AS net, COALESCE(SUM(vat_amount),0) AS vat, COALESCE(SUM(total_amount),0) AS gross "
-            "FROM supplier_invoices WHERE 1=1" + cond_i,
+            "SELECT COALESCE(SUM(si.amount),0) AS net, COALESCE(SUM(si.vat_amount),0) AS vat, COALESCE(SUM(si.total_amount),0) AS gross "
+            "FROM supplier_invoices si JOIN suppliers s ON s.id = si.supplier_id "
+            "WHERE COALESCE(s.company_id,1)=?" + cond_i,
             p,
         ).fetchone()
         net = float(row["net"]); vat = float(row["vat"]); gross = float(row["gross"])
         prow = db.execute(
-            "SELECT COALESCE(SUM(subtotal),0) AS net, COALESCE(SUM(tax_amount),0) AS vat, COALESCE(SUM(total_amount),0) AS gross "
-            "FROM maintenance_papers WHERE review_status = 'Approved' AND tax_mode = 'Tax Invoice'" + cond_p,
+            "SELECT COALESCE(SUM(mp.subtotal),0) AS net, COALESCE(SUM(mp.tax_amount),0) AS vat, COALESCE(SUM(mp.total_amount),0) AS gross "
+            "FROM maintenance_papers mp "
+            "LEFT JOIN vehicles v ON v.plate_no = COALESCE(NULLIF(mp.vehicle_no,''), NULLIF(mp.vehicle_id,'')) "
+            "WHERE mp.review_status = 'Approved' AND mp.tax_mode = 'Tax Invoice' AND COALESCE(v.company_id,1)=?" + cond_p,
             p,
         ).fetchone()
         jrow = db.execute(
-            "SELECT COALESCE(SUM(amount - tax_amount),0) AS net, COALESCE(SUM(tax_amount),0) AS vat, COALESCE(SUM(amount),0) AS gross "
-            "FROM maintenance_jobs WHERE status = 'approved' AND tax_mode = 'Tax Invoice'" + cond_j,
+            "SELECT COALESCE(SUM(mj.amount - mj.tax_amount),0) AS net, COALESCE(SUM(mj.tax_amount),0) AS vat, COALESCE(SUM(mj.amount),0) AS gross "
+            "FROM maintenance_jobs mj "
+            "LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id "
+            "WHERE mj.status = 'approved' AND mj.tax_mode = 'Tax Invoice' AND COALESCE(v.company_id,1)=?" + cond_j,
             p,
         ).fetchone()
         return {
@@ -18342,17 +18371,20 @@ def _reports_center_data(db):
     out["purch_y"] = _purch_totals(ypref)
 
     sup = db.execute(
-        "SELECT COALESCE(SUM(total_amount),0) AS inv FROM supplier_invoices"
+        "SELECT COALESCE(SUM(si.total_amount),0) AS inv FROM supplier_invoices si JOIN suppliers s ON s.id=si.supplier_id WHERE COALESCE(s.company_id,1)=?",
+        (cid,),
     ).fetchone()
     out["supp_inv_total"] = round(float(sup["inv"]), 2)
-    out["supp_exp_total"] = round(float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_expenses").fetchone()[0]), 2)
-    out["supp_paid_total"] = round(float(db.execute("SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records").fetchone()[0]), 2)
+    out["supp_exp_total"] = round(float(db.execute("SELECT COALESCE(SUM(e.amount),0) FROM supplier_expenses e JOIN suppliers s ON s.id=e.supplier_id WHERE COALESCE(s.company_id,1)=?", (cid,)).fetchone()[0]), 2)
+    out["supp_paid_total"] = round(float(db.execute("SELECT COALESCE(SUM(pr.amount),0) FROM supplier_payment_records pr JOIN suppliers s ON s.id=pr.supplier_id WHERE COALESCE(s.company_id,1)=?", (cid,)).fetchone()[0]), 2)
     out["payable"] = round(out["supp_inv_total"] + out["supp_exp_total"] - out["supp_paid_total"], 2)
-    out["supplier_count"] = int(db.execute("SELECT COUNT(*) FROM suppliers WHERE COALESCE(is_deleted,0) = 0").fetchone()[0])
+    out["supplier_count"] = int(db.execute("SELECT COUNT(*) FROM suppliers WHERE COALESCE(is_deleted,0) = 0 AND COALESCE(company_id,1)=?", (cid,)).fetchone()[0])
 
     sopen = db.execute(
-        "SELECT COUNT(*) AS c, COALESCE(SUM(total_amount),0) AS amt "
-        "FROM supplier_invoices WHERE LOWER(COALESCE(status,'')) IN ('pending','approved')"
+        "SELECT COUNT(*) AS c, COALESCE(SUM(si.total_amount),0) AS amt "
+        "FROM supplier_invoices si JOIN suppliers s ON s.id=si.supplier_id "
+        "WHERE LOWER(COALESCE(si.status,'')) IN ('pending','approved') AND COALESCE(s.company_id,1)=?",
+        (cid,),
     ).fetchone()
     out["supp_open_count"] = int(sopen["c"])
     out["supp_open_amt"] = round(float(sopen["amt"]), 2)
@@ -18364,8 +18396,9 @@ def _reports_center_data(db):
         "    (SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices i WHERE i.supplier_id = s.id) "
         "    + (SELECT COALESCE(SUM(amount),0) FROM supplier_expenses e WHERE e.supplier_id = s.id) "
         "    - (SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records p WHERE p.supplier_id = s.id) AS balance "
-        "  FROM suppliers s WHERE COALESCE(s.is_deleted,0) = 0"
-        ") t WHERE balance > 0.009 ORDER BY balance DESC LIMIT 5"
+        "  FROM suppliers s WHERE COALESCE(s.is_deleted,0) = 0 AND COALESCE(s.company_id,1)=?"
+        ") t WHERE balance > 0.009 ORDER BY balance DESC LIMIT 5",
+        (cid,),
     ).fetchall()
     out["pay_top_sum"] = round(sum(float(r["balance"]) for r in out["top_payables"]), 2)
     out["supp_pos_total"] = round(float(db.execute(
@@ -18374,8 +18407,9 @@ def _reports_center_data(db):
         "    (SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices i WHERE i.supplier_id = s.id) "
         "    + (SELECT COALESCE(SUM(amount),0) FROM supplier_expenses e WHERE e.supplier_id = s.id) "
         "    - (SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records p WHERE p.supplier_id = s.id)"
-        "  ) AS balance FROM suppliers s WHERE COALESCE(s.is_deleted,0) = 0"
-        ") t WHERE balance > 0.009"
+        "  ) AS balance FROM suppliers s WHERE COALESCE(s.is_deleted,0) = 0 AND COALESCE(s.company_id,1)=?"
+        ") t WHERE balance > 0.009",
+        (cid,),
     ).fetchone()[0]), 2)
     out["pay_others"] = round(max(out["supp_pos_total"] - out["pay_top_sum"], 0.0), 2)
 

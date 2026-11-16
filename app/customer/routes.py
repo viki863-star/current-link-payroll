@@ -65,6 +65,7 @@ def _ensure_tables():
             trn TEXT, trade_license TEXT, credit_limit {real_type} DEFAULT 0,
             payment_terms TEXT, status TEXT NOT NULL DEFAULT 'active',
             notes TEXT, logo_data TEXT, logo_type TEXT,
+            company_id INTEGER DEFAULT 1,
             created_at TEXT NOT NULL DEFAULT ({now})
         )""",
         f"""CREATE TABLE IF NOT EXISTS customer_invoices (
@@ -216,6 +217,7 @@ def _ensure_tables():
         ("customers", "logo_data", "TEXT"),
         ("customers", "logo_type", "TEXT"),
         ("customers", "peppol_id", "TEXT"),
+        ("customers", "company_id", "INTEGER DEFAULT 1"),
         ("company_profile", "logo_data", "TEXT"),
         ("company_profile", "logo_type", "TEXT"),
         ("company_profile", "logo_type", "TEXT"),
@@ -324,27 +326,31 @@ def customer_dashboard():
     _touch_admin_workspace("customers")
     _ensure_tables()
     db = _get_db()
-    total = db.execute("SELECT COUNT(*) FROM customers").fetchone()[0]
-    active = db.execute("SELECT COUNT(*) FROM customers WHERE status='active'").fetchone()[0]
-    total_receivable = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0]
-    total_cn = db.execute("SELECT COALESCE(SUM(total_amount),0) FROM customer_credit_notes").fetchone()[0]
-    inv_count = db.execute("SELECT COUNT(*) FROM customer_invoices WHERE deleted_at IS NULL").fetchone()[0]
-    paid_total = db.execute("SELECT COALESCE(SUM(amount),0) FROM customer_payments").fetchone()[0]
+    cid = active_company_id()
+    total = db.execute("SELECT COUNT(*) FROM customers WHERE COALESCE(company_id,1)=?", (cid,)).fetchone()[0]
+    active = db.execute("SELECT COUNT(*) FROM customers WHERE status='active' AND COALESCE(company_id,1)=?", (cid,)).fetchone()[0]
+    total_receivable = db.execute("SELECT COALESCE(SUM(i.total_amount),0) FROM customer_invoices i JOIN customers c ON i.customer_id=c.id WHERE i.deleted_at IS NULL AND COALESCE(c.company_id,1)=?", (cid,)).fetchone()[0]
+    total_cn = db.execute("SELECT COALESCE(SUM(n.total_amount),0) FROM customer_credit_notes n JOIN customers c ON n.customer_id=c.id WHERE COALESCE(c.company_id,1)=?", (cid,)).fetchone()[0]
+    inv_count = db.execute("SELECT COUNT(*) FROM customer_invoices i JOIN customers c ON i.customer_id=c.id WHERE i.deleted_at IS NULL AND COALESCE(c.company_id,1)=?", (cid,)).fetchone()[0]
+    paid_total = db.execute("SELECT COALESCE(SUM(p.amount),0) FROM customer_payments p JOIN customers c ON p.customer_id=c.id WHERE COALESCE(c.company_id,1)=?", (cid,)).fetchone()[0]
     recent = db.execute("""SELECT i.*, c.customer_name FROM customer_invoices i
-        JOIN customers c ON i.customer_id=c.id WHERE i.deleted_at IS NULL ORDER BY i.created_at DESC LIMIT 8""").fetchall()
+        JOIN customers c ON i.customer_id=c.id WHERE i.deleted_at IS NULL AND COALESCE(c.company_id,1)=? ORDER BY i.created_at DESC LIMIT 8""", (cid,)).fetchall()
     recent_pmts = db.execute("""SELECT p.*, c.customer_name FROM customer_payments p
-        JOIN customers c ON p.customer_id=c.id ORDER BY p.created_at DESC LIMIT 6""").fetchall()
+        JOIN customers c ON p.customer_id=c.id WHERE COALESCE(c.company_id,1)=? ORDER BY p.created_at DESC LIMIT 6""", (cid,)).fetchall()
     monthly = db.execute("""
-        SELECT substr(invoice_date,1,7) AS mon,
-               COUNT(*) AS cnt, COALESCE(SUM(total_amount),0) AS tot
-        FROM customer_invoices WHERE deleted_at IS NULL GROUP BY mon ORDER BY mon DESC LIMIT 12
-    """).fetchall()
+        SELECT substr(i.invoice_date,1,7) AS mon,
+               COUNT(*) AS cnt, COALESCE(SUM(i.total_amount),0) AS tot
+        FROM customer_invoices i JOIN customers c ON i.customer_id=c.id
+        WHERE i.deleted_at IS NULL AND COALESCE(c.company_id,1)=?
+        GROUP BY mon ORDER BY mon DESC LIMIT 12
+    """, (cid,)).fetchall()
     top_customers = db.execute("""
         SELECT c.id, c.customer_name, COUNT(i.id) AS inv_cnt,
                COALESCE(SUM(i.total_amount),0) AS total
         FROM customers c LEFT JOIN customer_invoices i ON i.customer_id=c.id AND i.deleted_at IS NULL
+        WHERE COALESCE(c.company_id,1)=?
         GROUP BY c.id, c.customer_name ORDER BY total DESC LIMIT 5
-    """).fetchall()
+    """, (cid,)).fetchall()
     db.close()
     return render_template("customer/dashboard.html",
         total=total, active=active,
@@ -368,12 +374,13 @@ def customer_add():
             db.close()
             return render_template("customer/form.html", cus={}, code=code)
         code = request.form.get("customer_code", "").strip() or _next_code(db)
-        c = db.execute("""INSERT INTO customers (customer_name,customer_code,contact_person,phone,email,address,trn,trade_license,credit_limit,payment_terms,status,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+        c = db.execute("""INSERT INTO customers (customer_name,customer_code,contact_person,phone,email,address,trn,trade_license,credit_limit,payment_terms,status,notes,company_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (name, code, request.form.get("contact_person"), request.form.get("phone"),
              request.form.get("email"), request.form.get("address"), request.form.get("trn"),
              request.form.get("trade_license"), float(request.form.get("credit_limit", 0) or 0),
-             request.form.get("payment_terms"), request.form.get("status", "active"), request.form.get("notes")))
+             request.form.get("payment_terms"), request.form.get("status", "active"), request.form.get("notes"),
+             active_company_id()))
         new_id = c.lastrowid
         db.commit()
         db.close()
@@ -3177,13 +3184,13 @@ def quotation_walkin():
         vat_amt = round(sub_total * vat_pct / 100, 2)
         total = round(sub_total + vat_amt, 2)
         # Create a temporary customer record for walk-in
-        existing = db.execute("SELECT id FROM customers WHERE customer_name=? AND phone=?", (customer_name, customer_phone or "")).fetchone()
+        existing = db.execute("SELECT id FROM customers WHERE customer_name=? AND phone=? AND COALESCE(company_id,1)=?", (customer_name, customer_phone or "", active_company_id())).fetchone()
         if existing:
             cid = existing["id"]
         else:
             code = "WALKIN"
-            cur = db.execute("INSERT INTO customers (customer_name,customer_code,phone,email,status) VALUES (?,?,?,?,?)",
-                (customer_name, code, customer_phone, customer_email, "active"))
+            cur = db.execute("INSERT INTO customers (customer_name,customer_code,phone,email,status,company_id) VALUES (?,?,?,?,?,?)",
+                (customer_name, code, customer_phone, customer_email, "active", active_company_id()))
             cid = cur.lastrowid
             db.execute("UPDATE customers SET customer_code=? WHERE id=?", (f"WCI{cid:04d}", cid))
         cur = db.execute(
@@ -4300,12 +4307,12 @@ def customer_list():
     search = request.args.get("search", "").strip()
     # has_logo flag only — full logo blobs are served by /customer/<id>/logo
     # (keeps this page's HTML small so it opens fast)
-    _cols = "id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, (CASE WHEN logo_data IS NOT NULL AND logo_data != '' THEN 1 ELSE 0 END) AS has_logo, created_at"
+    _cols = "id, customer_name, customer_code, contact_person, phone, email, address, trn, trade_license, credit_limit, payment_terms, status, notes, (CASE WHEN logo_data IS NOT NULL AND logo_data != '' THEN 1 ELSE 0 END) AS has_logo, created_at, company_id"
     if search:
-        customers = db.execute(f"SELECT {_cols} FROM customers WHERE customer_name LIKE ? OR phone LIKE ? OR email LIKE ? ORDER BY customer_name",
-            (f"%{search}%", f"%{search}%", f"%{search}%")).fetchall()
+        customers = db.execute(f"SELECT {_cols} FROM customers WHERE COALESCE(company_id,1)=? AND (customer_name LIKE ? OR phone LIKE ? OR email LIKE ?) ORDER BY customer_name",
+            (active_company_id(), f"%{search}%", f"%{search}%", f"%{search}%")).fetchall()
     else:
-        customers = db.execute(f"SELECT {_cols} FROM customers ORDER BY customer_name").fetchall()
+        customers = db.execute(f"SELECT {_cols} FROM customers WHERE COALESCE(company_id,1)=? ORDER BY customer_name", (active_company_id(),)).fetchall()
     db.close()
     return render_template("customer/list.html", customers=customers, search=search)
 

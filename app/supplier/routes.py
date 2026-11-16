@@ -19,7 +19,7 @@ from app import csrf
 
 from ..database import open_db
 from ..routes import _next_reference_code
-from ..utils import num_to_words, get_company_profile
+from ..utils import num_to_words, get_company_profile, active_company_id, get_default_company
 
 
 SUPPLIER_CATEGORIES = [
@@ -119,6 +119,7 @@ def _ensure_tables():
             iban TEXT,
             status TEXT NOT NULL DEFAULT 'Active',
             notes TEXT,
+            company_id INTEGER DEFAULT 1,
             created_at TEXT NOT NULL DEFAULT {now_val}
         );
 
@@ -590,6 +591,7 @@ def _ensure_tables():
 
     for col, dtype in [
         ("is_deleted", "INTEGER DEFAULT 0"),
+        ("company_id", "INTEGER DEFAULT 1"),
         # Emirates ID of the supplier — number + both sides, printed on payment vouchers
         ("emirates_id_no", "TEXT"),
         ("emirates_id_front", "TEXT"),
@@ -646,14 +648,19 @@ def sync_parties_to_suppliers():
                  r["notes"], r["status"], r["party_code"]),
             )
         else:
+            # legacy parties belong to the default company (Current Link)
+            try:
+                def_cid = (get_default_company(db) or {}).get("id") or 1
+            except Exception:
+                def_cid = 1
             db.execute(
                 """INSERT INTO suppliers (supplier_code, supplier_name, supplier_type,
-                   contact_person, phone, email, trn, address, notes, status, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                   contact_person, phone, email, trn, address, notes, status, created_at, company_id)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (r["party_code"], r["party_name"], supplier_type,
                  r["contact_person"], r["phone_number"], r["email"],
                  r["trn_no"], r["address"], r["notes"], r["status"],
-                 r["created_at"] or "CURRENT_TIMESTAMP"),
+                 r["created_at"] or "CURRENT_TIMESTAMP", def_cid),
             )
     db.commit()
 
@@ -883,53 +890,65 @@ def supplier_dashboard():
         _touch_admin_workspace("suppliers")
         db = _get_db()
 
-        suppliers = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted FROM suppliers ORDER BY supplier_name").fetchall()
+        cid = active_company_id()
+        suppliers = db.execute("SELECT id, supplier_code, supplier_name, supplier_type, contact_person, phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, status, notes, created_at, is_deleted, company_id FROM suppliers WHERE COALESCE(company_id,1)=? ORDER BY supplier_name", (cid,)).fetchall()
         total = len(suppliers)
         active = sum(1 for s in suppliers if s["status"] == "Active")
         with_inv = sum(1 for s in suppliers if s["supplier_type"] == "with_invoice")
         without_inv = sum(1 for s in suppliers if s["supplier_type"] == "without_invoice")
 
         total_invoiced = db.execute(
-            "SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices"
+            "SELECT COALESCE(SUM(si.total_amount),0) FROM supplier_invoices si JOIN suppliers s ON s.id=si.supplier_id WHERE COALESCE(s.company_id,1)=?",
+            (cid,),
         ).fetchone()[0] or 0
 
         total_outstanding = db.execute(
-            "SELECT COALESCE(SUM(total_amount),0) FROM supplier_invoices WHERE status IN ('pending','approved')"
+            "SELECT COALESCE(SUM(si.total_amount),0) FROM supplier_invoices si JOIN suppliers s ON s.id=si.supplier_id WHERE si.status IN ('pending','approved') AND COALESCE(s.company_id,1)=?",
+            (cid,),
         ).fetchone()[0] or 0
 
         paid_total = db.execute(
-            "SELECT COALESCE(SUM(amount),0) FROM supplier_payment_records"
+            "SELECT COALESCE(SUM(p.amount),0) FROM supplier_payment_records p JOIN suppliers s ON p.supplier_id=s.id WHERE COALESCE(s.company_id,1)=?",
+            (cid,),
         ).fetchone()[0] or 0
 
         inv_count = db.execute(
-            "SELECT COUNT(*) FROM supplier_invoices"
+            "SELECT COUNT(*) FROM supplier_invoices si JOIN suppliers s ON s.id=si.supplier_id WHERE COALESCE(s.company_id,1)=?",
+            (cid,),
         ).fetchone()[0]
 
         recent_invoices = db.execute(
             """SELECT si.*, s.supplier_name FROM supplier_invoices si
                JOIN suppliers s ON s.id = si.supplier_id
-               ORDER BY si.created_at DESC LIMIT 8"""
+               WHERE COALESCE(s.company_id,1)=?
+               ORDER BY si.created_at DESC LIMIT 8""",
+            (cid,),
         ).fetchall()
 
         recent_payments = db.execute(
             """SELECT p.*, s.supplier_name FROM supplier_payment_records p
                JOIN suppliers s ON p.supplier_id = s.id
-               ORDER BY p.created_at DESC LIMIT 6"""
+               WHERE COALESCE(s.company_id,1)=?
+               ORDER BY p.created_at DESC LIMIT 6""",
+            (cid,),
         ).fetchall()
 
         monthly_trend = db.execute("""
-            SELECT substr(invoice_date,1,7) AS mon,
-                   COUNT(*) AS cnt, COALESCE(SUM(total_amount),0) AS tot
-            FROM supplier_invoices GROUP BY mon ORDER BY mon DESC LIMIT 12
-        """).fetchall()
+            SELECT substr(si.invoice_date,1,7) AS mon,
+                   COUNT(*) AS cnt, COALESCE(SUM(si.total_amount),0) AS tot
+            FROM supplier_invoices si JOIN suppliers s ON s.id=si.supplier_id
+            WHERE COALESCE(s.company_id,1)=?
+            GROUP BY mon ORDER BY mon DESC LIMIT 12
+        """, (cid,)).fetchall()
 
         top_suppliers = db.execute("""
             SELECT s.id, s.supplier_name, COUNT(si.id) AS inv_cnt,
                    COALESCE(SUM(si.total_amount),0) AS total
             FROM suppliers s
             LEFT JOIN supplier_invoices si ON si.supplier_id = s.id
+            WHERE COALESCE(s.company_id,1)=?
             GROUP BY s.id, s.supplier_name ORDER BY total DESC LIMIT 5
-        """).fetchall()
+        """, (cid,)).fetchall()
 
         return render_template(
             "supplier/dashboard.html",
@@ -966,11 +985,13 @@ def supplier_list():
     sql = (
         "SELECT p.id, p.supplier_code, p.supplier_name, p.supplier_type, p.contact_person, p.phone, "
         "p.email, p.address, p.trn, p.payment_terms, p.category, p.bank_name, p.bank_account, p.iban, "
-        "p.status, p.notes, p.created_at, p.is_deleted, c.status AS comp_status "
+        "p.status, p.notes, p.created_at, p.is_deleted, p.company_id, c.status AS comp_status "
         "FROM suppliers p LEFT JOIN supplier_compliance c ON c.supplier_id = p.id"
     )
     params = []
     conditions = []
+    conditions.append("COALESCE(p.company_id,1) = ?")
+    params.append(active_company_id())
     if status_filter == "blocked":
         conditions.append("COALESCE(p.is_deleted,0) = 0 AND p.status = 'Inactive'")
     elif status_filter == "deleted":
@@ -1027,21 +1048,21 @@ def _resolve_or_create_supplier(db, ref):
         row = db.execute("SELECT id, supplier_name FROM suppliers WHERE id = ?", (ref,)).fetchone()
     if not row:
         row = db.execute(
-            "SELECT id, supplier_name FROM suppliers WHERE LOWER(supplier_name) = ? AND COALESCE(is_deleted,0) = 0 ORDER BY id LIMIT 1",
-            (ref.lower(),),
+            "SELECT id, supplier_name FROM suppliers WHERE LOWER(supplier_name) = ? AND COALESCE(is_deleted,0) = 0 AND COALESCE(company_id,1)=? ORDER BY id LIMIT 1",
+            (ref.lower(), active_company_id()),
         ).fetchone()
     if row:
         return row, None
     code = _next_code(db)
     if db.backend == "postgres":
         rid = db.execute(
-            "INSERT INTO suppliers (supplier_code, supplier_name, supplier_type, status) VALUES (?, ?, 'with_invoice', 'Active') RETURNING id",
-            (code, ref),
+            "INSERT INTO suppliers (supplier_code, supplier_name, supplier_type, status, company_id) VALUES (?, ?, 'with_invoice', 'Active', ?) RETURNING id",
+            (code, ref, active_company_id()),
         ).fetchone()[0]
     else:
         db.execute(
-            "INSERT INTO suppliers (supplier_code, supplier_name, supplier_type, status) VALUES (?, ?, 'with_invoice', 'Active')",
-            (code, ref),
+            "INSERT INTO suppliers (supplier_code, supplier_name, supplier_type, status, company_id) VALUES (?, ?, 'with_invoice', 'Active', ?)",
+            (code, ref, active_company_id()),
         )
         rid = db.execute("SELECT last_insert_rowid()").fetchone()[0]
     return {"id": rid, "supplier_name": ref}, ref
@@ -1090,13 +1111,14 @@ def supplier_add():
         db.execute(
             """INSERT INTO suppliers (supplier_code, supplier_name, supplier_type, contact_person,
                phone, email, address, trn, payment_terms, category, bank_name, bank_account, iban, notes,
-               emirates_id_no, emirates_id_front, emirates_id_front_type, emirates_id_back, emirates_id_back_type)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               emirates_id_no, emirates_id_front, emirates_id_front_type, emirates_id_back, emirates_id_back_type, company_id)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (code, data["supplier_name"], data["supplier_type"], data["contact_person"],
              data["phone"], data["email"], data["address"], data["trn"],
              data["payment_terms"], data["category"], data["bank_name"],
              data["bank_account"], data["iban"], data["notes"],
-             data["emirates_id_no"] or None, eid_front, eid_front_type, eid_back, eid_back_type),
+             data["emirates_id_no"] or None, eid_front, eid_front_type, eid_back, eid_back_type,
+             active_company_id()),
         )
         db.commit()
 

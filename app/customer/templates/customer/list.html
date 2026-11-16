@@ -34,6 +34,7 @@
             <div class="cus-info">
                 <div class="name">{{ c.customer_name }}</div>
                 <div class="meta">
+                    {{ co_badge(c.company_id, compact=True) }}
                     <span class="mono">{{ c.customer_code or '' }}</span>
                     <span>{{ c.phone or '' }}</span>
                     {% if c.trn %}<span>TRN: {{ c.trn }}</span>{% endif %}

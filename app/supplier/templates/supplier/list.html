@@ -73,7 +73,7 @@
           <tr>
             <td class="num">{{ loop.index }}</td>
             <td class="mono" style="font-weight:600;color:var(--primary)">{{ s.supplier_code }}</td>
-            <td><a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" style="font-weight:600;color:#0f172a;text-decoration:none">{{ s.supplier_name }}</a></td>
+            <td><a href="{{ url_for('supplier.supplier_profile', sup_id=s.id) }}" style="font-weight:600;color:#0f172a;text-decoration:none">{{ s.supplier_name }}</a> {{ co_badge(s.company_id, compact=True) }}</td>
             <td class="mono" style="font-size:0.8rem;color:#000">{{ s.phone or '—' }}</td>
             <td class="mono" style="font-size:0.8rem;color:#000">{{ s.trn or '—' }}</td>
             <td class="mono" style="text-align:center">—</td>
