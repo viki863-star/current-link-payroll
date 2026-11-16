@@ -824,6 +824,18 @@ CREATE TABLE IF NOT EXISTS auth_rate_limits (
     UNIQUE(role, identifier)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    display_name TEXT,
+    role TEXT NOT NULL DEFAULT 'admin',
+    company_id INTEGER DEFAULT 1,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    last_login_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS vehicles (
     plate_no TEXT PRIMARY KEY,
     vehicle_type TEXT NOT NULL,
@@ -1752,6 +1764,18 @@ CREATE TABLE IF NOT EXISTS auth_rate_limits (
     UNIQUE(role, identifier)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    display_name TEXT,
+    role TEXT NOT NULL DEFAULT 'admin',
+    company_id INTEGER DEFAULT 1,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS vehicles (
     plate_no TEXT PRIMARY KEY,
     vehicle_type TEXT NOT NULL,
@@ -2296,6 +2320,7 @@ def init_db(app: Flask) -> None:
         try:
             db.executescript(POSTGRES_SCHEMA)
             _ensure_columns(db)
+            _seed_default_admin(db, app)
             db.commit()
         finally:
             db.close()
@@ -2309,11 +2334,36 @@ def init_db(app: Flask) -> None:
         try:
             db.executescript(SQLITE_SCHEMA)
             _ensure_columns(db)
+            _seed_default_admin(db, app)
             db.commit()
         finally:
             db.close()
 
     app.teardown_appcontext(close_db)
+
+
+def _seed_default_admin(db, app: Flask) -> None:
+    """Create the default admin user from env credentials if users table is empty."""
+    try:
+        count_row = db.execute("SELECT COUNT(*) AS cnt FROM users").fetchone()
+        if count_row and int(count_row["cnt"] or 0) > 0:
+            return
+        password = (app.config.get("ADMIN_PASSWORD") or "").strip()
+        password_hash = (app.config.get("ADMIN_PASSWORD_HASH") or "").strip()
+        if password_hash:
+            pw_hash = password_hash
+        elif password:
+            from werkzeug.security import generate_password_hash
+            pw_hash = generate_password_hash(password)
+        else:
+            return
+        db.execute(
+            "INSERT INTO users (username, password_hash, display_name, role, company_id, is_active) "
+            "VALUES (?,?,?,?,?,1)",
+            ("admin", pw_hash, "Admin", "admin", 1),
+        )
+    except Exception:
+        pass
 
 
 def open_db():

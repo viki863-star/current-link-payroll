@@ -3672,6 +3672,7 @@ def fleet_staff_profile(staff_id):
 
 
 @fleet_bp.route("/fleet/staff/<staff_id>/advances/pdf")
+@_login_required("admin")
 def fleet_staff_advances_pdf(staff_id):
     import traceback
     try:
@@ -3752,6 +3753,7 @@ def fleet_staff_advances_pdf(staff_id):
 
 
 @fleet_bp.route("/fleet/staff/<staff_id>/jobs/pdf")
+@_login_required("admin")
 def fleet_staff_jobs_pdf(staff_id):
     import traceback
     try:

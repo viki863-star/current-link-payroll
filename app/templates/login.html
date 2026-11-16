@@ -372,8 +372,10 @@
                 <p class="vp-stage-note" id="vpNote">Choose a role above.</p>
 
                 <div class="vp-fields" data-group="admin">
+                    <label for="vpAdminUser">Username</label>
+                    <input type="text" id="vpAdminUser" name="user_id" placeholder="admin" value="admin" autocomplete="username">
                     <label for="vpAdminPass">Password</label>
-                    <input type="password" id="vpAdminPass" name="password" placeholder="Enter admin password">
+                    <input type="password" id="vpAdminPass" name="password" placeholder="Enter admin password" autocomplete="current-password">
                 </div>
                 <div class="vp-fields" data-group="driver">
                     <label for="vpDriverPhone">Phone Number</label>
@@ -420,7 +422,7 @@
     var fgroups = Array.from(document.querySelectorAll('.vp-fields'));
 
     var configs = {
-        admin: { note: 'Admin access uses the internal password only.', help: 'Forgot password? Contact system admin', href: '#' },
+        admin: { note: 'Sign in with your username and password.', help: 'Forgot password? Contact system admin', href: '#' },
         driver: { note: 'Driver access verified with phone number and PIN.', help: 'Forgot password? Ask admin to reset PIN', href: '#' },
         technician: { note: 'Field staff access uses active staff credentials.', help: 'Forgot password? Contact admin', href: '#' }
     };

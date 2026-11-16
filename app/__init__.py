@@ -243,6 +243,68 @@ def create_app(test_config: dict | None = None) -> Flask:
             app.logger.warning("Automatic daily backup skipped.", exc_info=True)
     register_routes(app)
 
+    @app.cli.command("create-user")
+    @click.argument("username")
+    @click.argument("password")
+    @click.option("--role", default="admin", show_default=True, help="admin or accounts")
+    @click.option("--company-id", default=1, show_default=True, type=int)
+    @click.option("--display-name", default="", help="Display name")
+    def create_user(username, password, role, company_id, display_name):
+        """Create a login user (e.g. flask create-user em-admin Secret123 --company-id 2)."""
+        from werkzeug.security import generate_password_hash
+        from .database import open_db
+
+        if role not in ("admin", "accounts"):
+            raise click.ClickException("role must be admin or accounts")
+        if len(password) < 6:
+            raise click.ClickException("password must be at least 6 characters")
+        db = open_db()
+        try:
+            existing = db.execute(
+                "SELECT id FROM users WHERE lower(username) = ?",
+                (username.strip().lower(),),
+            ).fetchone()
+            if existing:
+                raise click.ClickException(f"user '{username}' already exists")
+            db.execute(
+                "INSERT INTO users (username, password_hash, display_name, role, company_id, is_active) "
+                "VALUES (?,?,?,?,?,1)",
+                (
+                    username.strip(),
+                    generate_password_hash(password),
+                    display_name or username.strip(),
+                    role,
+                    int(company_id),
+                ),
+            )
+            db.commit()
+            click.echo(f"Created user '{username}' role={role} company_id={company_id}")
+        finally:
+            db.close()
+
+    @app.cli.command("list-users")
+    def list_users():
+        """List login users."""
+        from .database import open_db
+
+        db = open_db()
+        try:
+            rows = db.execute(
+                "SELECT id, username, display_name, role, company_id, is_active, last_login_at "
+                "FROM users ORDER BY id"
+            ).fetchall()
+            if not rows:
+                click.echo("No users found.")
+                return
+            for r in rows:
+                click.echo(
+                    f"  [{r['id']}] {r['username']}  role={r['role']}  "
+                    f"company_id={r['company_id']}  active={r['is_active']}  "
+                    f"last_login={r['last_login_at'] or '-'}"
+                )
+        finally:
+            db.close()
+
     @app.cli.command("migrate-customers")
     def migrate_customers():
         """Migrate customer tables from SQLite to PostgreSQL."""

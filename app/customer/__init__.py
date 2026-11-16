@@ -1,7 +1,5 @@
 from datetime import date, datetime
-from flask import Blueprint, current_app, session, redirect, url_for, flash
-import sqlite3
-import os
+from flask import Blueprint, session, redirect, url_for, flash
 
 customer_bp = Blueprint("customer", __name__, template_folder="templates", url_prefix="/customer")
 
@@ -18,11 +16,10 @@ def require_admin():
 @customer_bp.context_processor
 def inject_globals():
     try:
-        db_path = current_app.config.get("DATABASE") or os.path.join(current_app.root_path, "..", "payroll.db")
-        db = sqlite3.connect(db_path)
-        db.row_factory = sqlite3.Row
-        db.executescript("CREATE TABLE IF NOT EXISTS company_profile (id INTEGER PRIMARY KEY AUTOINCREMENT, company_name TEXT)")
-        co = db.execute("SELECT company_name FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        from ..database import open_db
+        from ..utils import get_company_profile
+        db = open_db()
+        co = get_company_profile(db)
         db.close()
     except Exception:
         co = None

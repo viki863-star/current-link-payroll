@@ -28,6 +28,7 @@
         <p class="al-sub">Supplier &amp; Customer Management</p>
         <form method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="al-field" type="text" name="user_id" placeholder="Username (optional)" autocomplete="username" style="margin-bottom:10px">
             <input class="al-field" type="password" name="password" placeholder="Enter accounts password" autocomplete="off">
             {% if error %}<p class="al-error">{{ error }}</p>{% endif %}
             <button class="al-btn" type="submit">Sign In</button>

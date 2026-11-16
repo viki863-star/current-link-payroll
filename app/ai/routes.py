@@ -3,9 +3,22 @@ import re
 import os
 from datetime import date
 from flask import request, jsonify, current_app, session
+from functools import wraps
 from . import ai_bp
 from ..database import open_db
 from app import csrf
+
+
+def _ai_login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        role = session.get("role", "")
+        if not role:
+            return jsonify({"error": "Please sign in first."}), 401
+        if role not in ("admin", "accounts"):
+            return jsonify({"error": "You do not have access."}), 403
+        return view(*args, **kwargs)
+    return wrapped
 
 from google import genai
 
@@ -130,6 +143,7 @@ def _call_llm(messages, max_tokens=1024):
 
 
 @ai_bp.route("/tripsheet_save", methods=["POST"])
+@_ai_login_required
 def tripsheet_save():
     try:
         data = request.get_json()
@@ -200,6 +214,7 @@ _cached_schema = None
 _schema_fetched = False
 
 @ai_bp.route("/chat", methods=["POST"])
+@_ai_login_required
 def chat():
     try:
         data = request.get_json()

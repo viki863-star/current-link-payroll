@@ -279,6 +279,9 @@ def register_routes(app: Flask) -> None:
             "current_role": current_role,
             "current_driver_id": session.get("driver_id") if request_active else "",
             "current_user_name": session.get("display_name", "") if request_active else "",
+            "current_username": session.get("username", "") if request_active else "",
+            "current_company_id": session.get("company_id", 1) if request_active else 1,
+            "current_user_id": session.get("user_id") if request_active else None,
             "is_admin": current_role == "admin",
             "is_driver": current_role == "driver",
 
@@ -349,18 +352,49 @@ def register_routes(app: Flask) -> None:
             if role == "admin":
                 if not password:
                     flash("Admin password is required.", "error")
-                elif _verify_env_secret(app.config["ADMIN_PASSWORD"], app.config.get("ADMIN_PASSWORD_HASH", ""), password):
-                    _clear_failed_login(db, "admin", identifier)
-                    _audit_log(db, "login_success", entity_type="auth", entity_id="admin", details="Admin login")
-                    db.commit()
-                    _set_session("admin", display_name="Admin")
-                    flash("Admin login successful.", "success")
-                    return redirect(url_for("dashboard"))
                 else:
-                    _record_failed_login(db, "admin", identifier)
-                    _audit_log(db, "login_failed", entity_type="auth", entity_id="admin", status="failed", details="Admin password mismatch")
-                    db.commit()
-                    flash(_latest_login_error(db, "admin", identifier, "Admin password is not correct."), "error")
+                    admin_user = _find_active_user(db, user_id or "admin", password, roles=("admin", "accounts"))
+                    if admin_user is None and not user_id:
+                        admin_user = _find_active_user(db, "", password, roles=("admin", "accounts"))
+                    env_ok = (not admin_user) and _verify_env_secret(
+                        app.config["ADMIN_PASSWORD"], app.config.get("ADMIN_PASSWORD_HASH", ""), password
+                    )
+                    if admin_user is not None:
+                        _clear_failed_login(db, "admin", identifier)
+                        _audit_log(
+                            db, "login_success", entity_type="auth",
+                            entity_id=admin_user["username"],
+                            details=f"Admin login ({admin_user['username']})",
+                        )
+                        db.execute(
+                            "UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            (admin_user["id"],),
+                        )
+                        db.commit()
+                        _set_session(
+                            admin_user["role"] if admin_user["role"] in ("admin", "accounts") else "admin",
+                            display_name=admin_user.get("display_name") or admin_user["username"],
+                            user_id=admin_user["id"],
+                            company_id=admin_user.get("company_id") or 1,
+                            username=admin_user["username"],
+                        )
+                        if admin_user["role"] == "accounts":
+                            flash("Accounts login successful.", "success")
+                            return redirect(url_for("accounts_home"))
+                        flash("Admin login successful.", "success")
+                        return redirect(url_for("dashboard"))
+                    elif env_ok:
+                        _clear_failed_login(db, "admin", identifier)
+                        _audit_log(db, "login_success", entity_type="auth", entity_id="admin", details="Admin login (env)")
+                        db.commit()
+                        _set_session("admin", display_name="Admin", company_id=1, username="admin")
+                        flash("Admin login successful.", "success")
+                        return redirect(url_for("dashboard"))
+                    else:
+                        _record_failed_login(db, "admin", identifier)
+                        _audit_log(db, "login_failed", entity_type="auth", entity_id="admin", status="failed", details="Admin password mismatch")
+                        db.commit()
+                        flash(_latest_login_error(db, "admin", identifier, "Admin password is not correct."), "error")
 
             elif role == "driver":
                 normalized_phone = _normalize_phone(phone_number)
@@ -428,13 +462,28 @@ def register_routes(app: Flask) -> None:
         error = ""
         if request.method == "POST":
             pwd = request.form.get("password", "").strip()
-            expected = os.environ.get("ACCOUNTS_PASSWORD")
-            if not expected:
-                return render_template("accounts-login.html", error="Accounts password not configured. Set ACCOUNTS_PASSWORD in .env")
-            if pwd == expected:
-                _set_session("accounts", display_name="Accounts")
+            uname = (request.form.get("user_id") or "").strip()
+            db = open_db()
+            user = _find_active_user(db, uname, pwd, roles=("accounts",))
+            if user is None and not uname:
+                user = _find_active_user(db, "", pwd, roles=("accounts",))
+            env_expected = os.environ.get("ACCOUNTS_PASSWORD")
+            if user is not None:
+                _set_session(
+                    "accounts",
+                    display_name=user.get("display_name") or user["username"],
+                    user_id=user["id"],
+                    company_id=user.get("company_id") or 1,
+                    username=user["username"],
+                )
                 session["admin_workspace"] = "accounts"
                 return redirect(url_for("accounts_home"))
+            if env_expected and pwd == env_expected:
+                _set_session("accounts", display_name="Accounts", company_id=1, username="accounts")
+                session["admin_workspace"] = "accounts"
+                return redirect(url_for("accounts_home"))
+            if not env_expected and user is None:
+                return render_template("accounts-login.html", error="Accounts password not configured. Create a user with: flask create-user <name> <pass> --role accounts")
             error = "Invalid password."
         return render_template("accounts-login.html", error=error)
 
@@ -10716,7 +10765,15 @@ def _audit_log(db, action: str, *, entity_type: str = "", entity_id: str = "", s
     )
 
 
-def _set_session(role: str, driver_id: str | None = None, supplier_party_code: str | None = None, display_name: str = "") -> None:
+def _set_session(
+    role: str,
+    driver_id: str | None = None,
+    supplier_party_code: str | None = None,
+    display_name: str = "",
+    user_id=None,
+    company_id=None,
+    username: str = "",
+) -> None:
     session.clear()
     session.permanent = True
     session["role"] = role
@@ -10727,6 +10784,39 @@ def _set_session(role: str, driver_id: str | None = None, supplier_party_code: s
         session["driver_id"] = driver_id
     if supplier_party_code:
         session["supplier_party_code"] = supplier_party_code
+    if user_id is not None:
+        session["user_id"] = int(user_id)
+    if company_id is not None:
+        session["company_id"] = int(company_id)
+    if username:
+        session["username"] = username
+
+
+def _find_active_user(db, username: str, password: str, roles=("admin", "accounts")):
+    """Look up an active user by username (or any active user if username empty) and verify password."""
+    try:
+        uname = (username or "").strip().lower()
+        placeholders = ",".join("?" for _ in roles)
+        if uname:
+            row = db.execute(
+                f"SELECT id, username, password_hash, display_name, role, company_id "
+                f"FROM users WHERE lower(username) = ? AND is_active = 1 AND role IN ({placeholders})",
+                (uname, *roles),
+            ).fetchone()
+            if row and row["password_hash"] and check_password_hash(row["password_hash"], password):
+                return dict(row)
+            return None
+        rows = db.execute(
+            f"SELECT id, username, password_hash, display_name, role, company_id "
+            f"FROM users WHERE is_active = 1 AND role IN ({placeholders}) ORDER BY id ASC",
+            roles,
+        ).fetchall()
+        for row in rows:
+            if row["password_hash"] and check_password_hash(row["password_hash"], password):
+                return dict(row)
+        return None
+    except Exception:
+        return None
 
 
 def _current_role() -> str:
