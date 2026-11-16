@@ -4,6 +4,7 @@ from pathlib import Path
 from flask import render_template, request, redirect, url_for, flash, current_app, send_file
 from . import core_bp
 from ..database import open_db
+from ..utils import get_company_profile
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 def settings():
     try:
         db = open_db()
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        company = get_company_profile(db)
         if request.method == "POST":
             action = request.form.get("action", "")
             if action == "save_company":
@@ -88,7 +89,7 @@ def settings():
                 flash("Theme updated.", "success")
             db.close()
             return redirect(url_for("core.settings"))
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        company = get_company_profile(db)
         db.close()
         backup_summary = {}
         try:
@@ -106,7 +107,7 @@ def settings():
 @core_bp.route("/settings/download-db-backup")
 def download_db_backup():
     db = open_db()
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+    company = get_company_profile(db)
     db.close()
     backup_dir = Path(current_app.config.get("GENERATED_DIR", "generated")) / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)

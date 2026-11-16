@@ -84,7 +84,8 @@ _COMPANY_COLS = (
     "id, company_name, legal_name, trade_license_no, trade_license_expiry, "
     "trn_no, vat_status, address, phone_number, email, bank_name, "
     "bank_account_name, bank_account_number, iban, swift_code, "
-    "invoice_terms, base_currency, logo_data, logo_type, theme_color"
+    "invoice_terms, base_currency, logo_data, logo_type, theme_color, "
+    "e_invoice_start_date, financial_year_label, financial_year_start, financial_year_end"
 )
 
 
@@ -194,3 +195,18 @@ def build_date_filter(
 def sanitize_filename(name: str) -> str:
     """Remove unsafe characters from a filename."""
     return re.sub(r'[<>:"/\\|?*]', '_', name).strip().strip('.')
+
+
+# ── Money Formatting ───────────────────────────────────────────
+
+def fmt_money(value, decimals: int = 2) -> str:
+    """Format an amount with thousands separators; invalid → 0.00."""
+    try:
+        return f"{float(value or 0):,.{decimals}f}"
+    except (TypeError, ValueError):
+        return f"0.{'0' * decimals}"
+
+
+def fmt_money_aed(value, decimals: int = 2) -> str:
+    """Format as 'AED 1,234.56'."""
+    return f"AED {fmt_money(value, decimals)}"

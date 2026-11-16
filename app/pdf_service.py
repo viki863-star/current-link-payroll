@@ -21,6 +21,8 @@ except Exception:
     arabic_reshaper = None
     get_display = lambda s: s
 
+from .utils import fmt_money
+
 
 PAGE_WIDTH, PAGE_HEIGHT = A4
 BLUE = colors.HexColor("#1C568B")
@@ -1077,11 +1079,7 @@ def generate_driver_soa_pdf(driver, soa: dict, company_profile: dict | None, out
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT
     import tempfile
 
-    def money(v):
-        try:
-            return f"{float(v or 0):,.2f}"
-        except Exception:
-            return "0.00"
+    money = fmt_money
 
     output_path = Path(output_dir) / f"{driver.get('driver_id', 'driver')}_soa.pdf"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3543,7 +3541,7 @@ def _fit_text(pdf: canvas.Canvas, text: str, font_name: str, font_size: float, m
 
 
 def format_currency(value: float) -> str:
-    return f"{value:,.2f}"
+    return fmt_money(value)
 
 
 def format_month_label(value: str) -> str:
@@ -5942,11 +5940,7 @@ def generate_salary_certificate_pdf(
     )
     W = A4[0] - LM - RM
 
-    def money(v):
-        try:
-            return f"{float(v or 0):,.2f}"
-        except Exception:
-            return "0.00"
+    money = fmt_money
 
     def F(name, **kw):
         kw.setdefault("fontSize", 9.3)

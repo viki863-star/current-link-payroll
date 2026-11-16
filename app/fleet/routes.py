@@ -12,6 +12,7 @@ from flask import (
 from werkzeug.security import generate_password_hash
 
 from ..database import open_db
+from ..utils import get_company_profile
 from ..routes import (
     _bulk_row_count,
     _bulk_row_values,
@@ -1474,11 +1475,7 @@ def ghadeer_card_pdf(card_id):
         total_consumed = -sum(float(t["amount"] or 0) for t in rows if float(t["amount"] or 0) < 0)
 
         try:
-            cp = db.execute(
-                "SELECT company_name, address, phone_number, email, trn_no, logo_data, logo_type "
-                "FROM company_profile ORDER BY id ASC LIMIT 1"
-            ).fetchone()
-            cp = dict(cp) if cp else None
+            cp = get_company_profile(db)
         except Exception:
             cp = None
 
@@ -2482,7 +2479,7 @@ def _partner_labels(db, plate_no):
     """Display names for the two partnership accounts of a vehicle."""
     company_name = "Current Link"
     try:
-        row = db.execute("SELECT company_name FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        row = get_company_profile(db)
         if row and row["company_name"]:
             company_name = row["company_name"]
     except Exception:
@@ -3740,7 +3737,7 @@ def fleet_staff_advances_pdf(staff_id):
         from flask import current_app
         output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_advances"
         import os
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        company = get_company_profile(db)
         base_url = request.host_url.rstrip("/")
         pdf_path = generate_field_staff_advances_pdf(s, advances, jobs_data, papers_data, total, filter_month, date_from, date_to, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
         relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
@@ -3794,7 +3791,7 @@ def fleet_staff_jobs_pdf(staff_id):
         from pathlib import Path
         from flask import current_app
         output_dir = Path(current_app.config["GENERATED_DIR"]) / "staff_jobs"
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        company = get_company_profile(db)
         base_url = request.host_url.rstrip("/")
         pdf_path = generate_field_staff_jobs_pdf(s, jobs, total_amount, filter_month, date_from, date_to, str(output_dir), current_app.config["STATIC_ASSETS_DIR"], company_profile=company, base_url=base_url)
         relative_path = Path(pdf_path).relative_to(current_app.config["GENERATED_DIR"]).as_posix()
@@ -4384,7 +4381,7 @@ def fuel_report_pdf():
         ORDER BY fe.entry_date DESC, fe.id DESC
     """, params).fetchall()
     output_dir = current_app.config.get("GENERATED_BACKUP_DIR", "/tmp")
-    company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+    company = get_company_profile(db)
     cp = dict(company) if company else {}
     assets_dir = str(Path(current_app.root_path).parent / "app" / "static")
     pdf_path = generate_fuel_report_pdf(

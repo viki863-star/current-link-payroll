@@ -11,6 +11,7 @@ from flask import (
 from werkzeug.security import generate_password_hash
 
 from ..database import open_db
+from ..utils import get_company_profile
 from ..routes import (
     _login_required, _audit_log, _touch_admin_workspace, _current_month_value,
     ValidationError, _parse_decimal, _normalize_month,
@@ -1719,7 +1720,7 @@ def employee_salary_slip(employee_id):
                     else:
                         remaining_advance = max(available_advance - deduction_amount, 0.0)
                         from ..pdf_service import generate_salary_slip_pdf
-                        from ..utils import get_company_for_employee
+                        from ..utils import get_company_for_employee, get_company_profile
                         company = get_company_for_employee(db, eid)
                         company_profile = dict(company) if company else None
 
@@ -2143,7 +2144,7 @@ def employee_salary_card(employee_id, store_id):
     except Exception:
         company = None
     if not company:
-        company = db.execute("SELECT company_name, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        company = get_company_profile(db)
     company_profile = dict(company) if company else None
 
     from ..pdf_service import generate_driver_salary_card_pdf
@@ -2889,7 +2890,7 @@ def employee_list_pdf():
     ).fetchall()
 
     try:
-        company = db.execute("SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        company = get_company_profile(db)
         company_profile = dict(company) if company else None
     except Exception:
         company_profile = None
@@ -3382,7 +3383,7 @@ def _read_id_upload(file_storage):
 
 def _company_name(db):
     try:
-        row = db.execute("SELECT company_name FROM company_profile ORDER BY id ASC LIMIT 1").fetchone()
+        row = get_company_profile(db)
         return (row["company_name"] if row else "") or ""
     except Exception:
         return ""
@@ -3521,11 +3522,7 @@ def _company_profile_row(db, employee_id=None):
                 return row
         except Exception:
             pass
-    return db.execute(
-        "SELECT company_name, legal_name, trade_license_no, trade_license_expiry, trn_no, vat_status, "
-        "address, phone_number, email, bank_name, bank_account_name, bank_account_number, iban, swift_code, "
-        "invoice_terms, base_currency, logo_data, logo_type, theme_color FROM company_profile ORDER BY id ASC LIMIT 1"
-    ).fetchone()
+    return get_company_profile(db)
 
 
 def _dlabel(value):
