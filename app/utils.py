@@ -128,11 +128,21 @@ def active_company_id() -> int:
     return 1
 
 
+_scope_cols_checked = False
+
+
 def ensure_company_scope_columns(db) -> None:
     """Idempotently add customers/suppliers.company_id when a non-blueprint
     caller (reports center, global search) queries them before any
-    customer/supplier page has run its own _ensure_tables() migration."""
+    customer/supplier page has run its own _ensure_tables() migration.
+
+    Runs at most once per process: /api/search fires this on every keystroke
+    and the ALTERs are pure overhead after the first success."""
+    global _scope_cols_checked
+    if _scope_cols_checked:
+        return
     pg = getattr(db, "backend", "") == "postgres"
+    ok = True
     for tbl in ("customers", "suppliers"):
         ddl = (
             f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS company_id INTEGER DEFAULT 1"
@@ -142,11 +152,18 @@ def ensure_company_scope_columns(db) -> None:
         try:
             db.execute(ddl)
             db.commit()
-        except Exception:
+        except Exception as e:
+            msg = str(e).lower()
+            if "already exists" in msg or "duplicate column" in msg:
+                pass  # column present — nothing to do
+            else:
+                ok = False  # table missing / transient — retry next call
             try:
                 db.rollback()
             except Exception:
                 pass
+    if ok:
+        _scope_cols_checked = True
 
 
 def get_active_company(db) -> Optional[dict]:

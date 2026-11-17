@@ -3,7 +3,7 @@
         <a class="erp-brand" href="{{ url_for('dashboard') }}">
             <span class="erp-brand-mark">
                 {% if company and company.logo_data and company.logo_type %}
-                <img class="erp-brand-image" src="data:{{ company.logo_type }};base64,{{ company.logo_data }}" alt="{{ company.company_name or 'Company' }}" id="brandImage" loading="eager" style="opacity:1">
+                <img class="erp-brand-image" src="{{ url_for('company_logo') }}" alt="{{ company.company_name or 'Company' }}" id="brandImage" loading="eager" style="opacity:1">
                 {% else %}
                 <video class="erp-brand-video" autoplay muted playsinline preload="metadata" id="brandVideo" poster="{{ url_for('static', filename='logo.png') }}?v=2">
                     <source src="{{ url_for('static', filename='logo.mp4') }}?v=2" type="video/mp4">

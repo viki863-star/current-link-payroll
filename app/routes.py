@@ -1651,6 +1651,33 @@ def register_routes(app: Flask) -> None:
         selected_workspace = _set_admin_workspace(workspace_key)
         return redirect(url_for(_workspace_home_endpoint(selected_workspace)))
 
+    @app.get("/company/logo")
+    def company_logo():
+        """Active company logo as a cacheable file.
+
+        The sidebar used to inline company.logo_data as a data-URI, which put
+        an ~800KB base64 blob into EVERY page (900KB+ HTML per view). This
+        endpoint serves the same bytes as a normal response with a long
+        Cache-Control so the browser fetches it once.
+        """
+        try:
+            db = open_db()
+            row = db.execute(
+                "SELECT logo_data, logo_type FROM company_profile WHERE id = ?",
+                (active_company_id(),),
+            ).fetchone()
+            db.close()
+            if row and row.get("logo_data"):
+                data = base64.b64decode(row["logo_data"])
+                return send_file(
+                    BytesIO(data),
+                    mimetype=row.get("logo_type") or "image/png",
+                    max_age=86400,
+                )
+        except Exception as e:
+            current_app.logger.warning(f"company logo serve failed: {e}")
+        return redirect(url_for("static", filename="logo.png") + "?v=2")
+
     @app.route("/api/search")
     @_login_required("admin")
     def api_search():
