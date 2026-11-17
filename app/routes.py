@@ -39,7 +39,7 @@ from .backup_service import (
     auto_generate_supplier_statement_pdf,
 )
 from .database import open_db
-from .utils import get_company_profile, get_active_company, active_company_id, list_companies, fmt_money_aed, rate_fmt, company_short_name, ensure_company_scope_columns
+from .utils import get_company_profile, get_active_company, active_company_id, fmt_money_aed, rate_fmt, company_short_name, ensure_company_scope_columns
 from .excel_import import load_driver_records, upsert_driver_records
 from .pdf_driver_import import load_driver_records_from_pdf, load_driver_records_from_pdf_bytes
 from .pdf_vehicle_import import load_vehicle_records_from_pdf_bytes
@@ -278,15 +278,8 @@ def register_routes(app: Flask) -> None:
         try:
             cdb = open_db()
             cpx = get_active_company(cdb)
-            cpx_id = active_company_id()
-            try:
-                companies_list = list_companies(cdb)
-            except Exception:
-                companies_list = []
         except Exception:
             cpx = None
-            cpx_id = 1
-            companies_list = []
         current_staff_photo = ""
         if request_active:
             session_staff_id = session.get("technician_code") or ""
@@ -302,8 +295,6 @@ def register_routes(app: Flask) -> None:
             "current_driver_id": session.get("driver_id") if request_active else "",
             "current_user_name": session.get("display_name", "") if request_active else "",
             "current_username": session.get("username", "") if request_active else "",
-            "current_company_id": cpx_id if request_active else 1,
-            "companies_list": companies_list if request_active else [],
             "current_user_id": session.get("user_id") if request_active else None,
             "is_admin": current_role == "admin",
             "is_driver": current_role == "driver",
@@ -1657,24 +1648,6 @@ def register_routes(app: Flask) -> None:
     def switch_workspace(workspace_key: str):
         selected_workspace = _set_admin_workspace(workspace_key)
         return redirect(url_for(_workspace_home_endpoint(selected_workspace)))
-
-    @app.route("/switch-company", methods=["GET", "POST"])
-    @_login_required("admin")
-    def switch_company():
-        """Admin company switcher — rebrands dashboard/PDFs to selected company."""
-        cid = request.values.get("company_id", type=int) or 1
-        try:
-            db = open_db()
-            row = db.execute("SELECT id FROM company_profile WHERE id = ?", (int(cid),)).fetchone()
-            db.close()
-            if row:
-                session["company_id"] = int(cid)
-        except Exception:
-            pass
-        back = request.values.get("next") or ""
-        if back.startswith("/") and not back.startswith("//"):
-            return redirect(back)
-        return redirect(url_for("dashboard"))
 
     @app.route("/api/search")
     @_login_required("admin")

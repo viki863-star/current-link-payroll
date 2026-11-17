@@ -123,14 +123,8 @@ def get_default_company(db) -> Optional[dict]:
 
 
 def active_company_id() -> int:
-    """Session-selected company id (admin switcher). Default = Current Link (1)."""
-    try:
-        from flask import has_request_context, session
-        if has_request_context():
-            cid = int(session.get("company_id") or 1)
-            return cid if cid >= 1 else 1
-    except Exception:
-        pass
+    """Always Current Link (1) — the admin company switcher was removed;
+    stale sessions carrying another company_id are ignored."""
     return 1
 
 

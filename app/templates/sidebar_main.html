@@ -17,17 +17,6 @@
                 <strong class="erp-brand-name">{{ _cn }}</strong>
             </span>
         </a>
-        {% if companies_list and companies_list|length > 1 %}
-        <form class="co-switcher" method="post" action="{{ url_for('switch_company') }}" title="Switch company">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="next" value="{{ request.full_path if request.full_path else url_for('dashboard') }}">
-            <select name="company_id" class="co-switcher-select" onchange="this.form.submit()">
-                {% for c in companies_list %}
-                <option value="{{ c.id }}" {% if c.id == current_company_id %}selected{% endif %} title="{{ c.company_name }}">{{ co_short(c.company_name) }}</option>
-                {% endfor %}
-            </select>
-        </form>
-        {% endif %}
     </div>
     <div class="erp-sidebar-accent"></div>
 
