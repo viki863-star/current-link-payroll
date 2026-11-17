@@ -212,7 +212,9 @@ def register_routes(app: Flask) -> None:
             elif hasattr(company_id, "__class__") and type(company_id).__name__ == "Record":
                 company_id = company_id.get("company_id", 1)
             cid = int(company_id) if company_id is not None else 1
-        except (TypeError, ValueError, AttributeError):
+        except Exception:
+            # UndefinedError (missing dict key) or bad value → Current Link badge,
+            # never a 500
             cid = 1
         if cid == 2:
             if compact:

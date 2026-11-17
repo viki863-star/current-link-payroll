@@ -3391,16 +3391,18 @@ def _company_name(db):
 
 def _current_vehicle(db, employee_id):
     row = db.execute(
-        "SELECT va.vehicle_id FROM vehicle_assignments va "
+        "SELECT va.vehicle_id, v.company_id FROM vehicle_assignments va "
+        "LEFT JOIN vehicles v ON v.plate_no = va.vehicle_id "
         "WHERE va.is_current = 1 AND va.driver_id = ? "
         "AND (SELECT e.status FROM employees e WHERE e.employee_id = va.driver_id) = 'Active' "
         "LIMIT 1",
         (employee_id,),
     ).fetchone()
     if row and row["vehicle_id"]:
-        return {"vehicle_id": row["vehicle_id"]}
+        return {"vehicle_id": row["vehicle_id"], "company_id": row["company_id"] or 1}
     legacy = db.execute(
-        "SELECT vehicle_no FROM drivers WHERE driver_id = ? AND status = 'Active' "
+        "SELECT vehicle_no, (SELECT company_id FROM vehicles WHERE plate_no = drivers.vehicle_no) AS company_id "
+        "FROM drivers WHERE driver_id = ? AND status = 'Active' "
         "AND vehicle_no IS NOT NULL AND vehicle_no != '' AND vehicle_no != '0' "
         "AND NOT EXISTS (SELECT 1 FROM vehicle_assignments v3 "
         "                WHERE v3.vehicle_id = drivers.vehicle_no AND v3.is_current = 1) "
@@ -3410,7 +3412,7 @@ def _current_vehicle(db, employee_id):
         (employee_id,),
     ).fetchone()
     if legacy and legacy["vehicle_no"]:
-        return {"vehicle_id": legacy["vehicle_no"]}
+        return {"vehicle_id": legacy["vehicle_no"], "company_id": legacy["company_id"] or 1}
     return None
 
 
