@@ -14,8 +14,14 @@
       <div class="dash-date">{{ current_month_label }}</div>
     </div>
     <div class="dash-badges">
-      <span class="dash-badge badge-drivers">{{ active_drivers }} Active Drivers</span>
-      <span class="dash-badge badge-payroll">{{ stored_this_month }} Payroll Entries</span>
+      <span class="dash-badge badge-drivers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        {{ active_drivers }} Active Drivers
+      </span>
+      <span class="dash-badge badge-payroll">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+        {{ stored_this_month }} Payroll Entries
+      </span>
     </div>
   </div>
 
@@ -92,12 +98,12 @@
     </div>
     <div class="kpi-card" style="--accent:#d97706">
       <div class="kpi-top">
-        <span class="kpi-label">Loans Outstanding</span>
+        <span class="kpi-label">Loans</span>
         <span class="kpi-icon" style="background:rgba(217,119,6,0.1);color:#d97706">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </span>
       </div>
-      <div class="kpi-value" style="color:{% if loan_summary and loan_summary.outstanding > 0 %}#d97706{% else %}#059669{% endif %}">AED {{ "{:,}".format((loan_summary.outstanding or 0)|int) }}</div>
+      <div class="kpi-value {% if loan_summary and loan_summary.outstanding > 0 %}val-warn{% else %}val-ok{% endif %}">AED {{ "{:,}".format((loan_summary.outstanding or 0)|int) }}</div>
       <div class="kpi-foot">Given: AED {{ "{:,}".format((loan_summary.total_given or 0)|int) }}</div>
     </div>
   </div>
@@ -117,8 +123,9 @@
   </div>
   {% endif %}
 
-  <div class="main-grid">
-    <div class="chart-card chart-wide">
+  {# ── Hero row: trend chart + owner fund side by side (fixes half-row gap) ── #}
+  <div class="main-grid hero-grid">
+    <div class="chart-card">
       <div class="card-head">
         <h3>Monthly Sales Trend</h3>
         <span class="card-badge">Revenue (AED)</span>
@@ -130,24 +137,34 @@
     <div class="chart-card">
       <div class="card-head">
         <h3>Owner Fund</h3>
-        <span class="card-badge">AED {{ "{:,}".format((owner_fund_balance or 0)|int) }}</span>
+        <span class="card-badge">Balance</span>
       </div>
-      <div class="card-body" style="padding:16px 18px">
+      <div class="card-body pad">
         {% if owner_fund_incoming is not none or owner_fund_outgoing is not none %}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-          <div style="background:#f0fdf4;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:0.65rem;color:#059669;font-weight:600;margin-bottom:4px">INCOMING</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#059669">AED {{ "{:,}".format((owner_fund_incoming or 0)|int) }}</div>
+        <div class="of-stats">
+          <div class="of-stat of-in">
+            <span class="of-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="13" height="13"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+            </span>
+            <div class="of-meta">
+              <div class="of-cap">Incoming</div>
+              <div class="of-val">AED {{ "{:,}".format((owner_fund_incoming or 0)|int) }}</div>
+            </div>
           </div>
-          <div style="background:#fef2f2;border-radius:8px;padding:12px;text-align:center">
-            <div style="font-size:0.65rem;color:#dc2626;font-weight:600;margin-bottom:4px">OUTGOING</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#dc2626">AED {{ "{:,}".format((owner_fund_outgoing or 0)|int) }}</div>
+          <div class="of-stat of-out">
+            <span class="of-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="13" height="13"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>
+            </span>
+            <div class="of-meta">
+              <div class="of-cap">Outgoing</div>
+              <div class="of-val">AED {{ "{:,}".format((owner_fund_outgoing or 0)|int) }}</div>
+            </div>
           </div>
         </div>
         {% endif %}
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 4px 0;border-top:1px solid #f1f5f9">
-          <span style="font-size:0.72rem;color:#64748b">Net Balance</span>
-          <span style="font-size:1rem;font-weight:700;color:{% if (owner_fund_balance or 0) >= 0 %}#059669{% else %}#dc2626{% endif %}">AED {{ "{:,}".format((owner_fund_balance or 0)|int) }}</span>
+        <div class="of-net">
+          <span>Net Balance</span>
+          <strong class="{% if (owner_fund_balance or 0) >= 0 %}val-ok{% else %}val-warn{% endif %}">AED {{ "{:,}".format((owner_fund_balance or 0)|int) }}</strong>
         </div>
       </div>
     </div>
@@ -159,16 +176,19 @@
         <h3>Recent Invoices</h3>
         <a href="{{ url_for('customer.customer_dashboard') }}" class="card-link">View All →</a>
       </div>
-      <div class="card-body">
+      <div class="card-body list">
         {% if recent_invoices %}
           {% for inv in recent_invoices %}
           <div class="activity-row">
             <span class="activity-dot" style="background:#d97706"></span>
             <div class="activity-text">
               <strong>{{ inv.customer_name }}</strong>
-              <p>{{ inv.invoice_no }} · AED {{ "{:,.2f}".format(inv.total_amount) }}</p>
+              <p>{{ inv.invoice_no }}</p>
             </div>
-            <span class="activity-date">{{ inv.invoice_date }}</span>
+            <div class="activity-amt">
+              <strong>AED {{ "{:,.2f}".format(inv.total_amount) }}</strong>
+              <span>{{ inv.invoice_date }}</span>
+            </div>
           </div>
           {% endfor %}
         {% else %}
@@ -180,16 +200,19 @@
       <div class="card-head">
         <h3>Recent Payments</h3>
       </div>
-      <div class="card-body">
+      <div class="card-body list">
         {% if recent_payments %}
           {% for pmt in recent_payments %}
           <div class="activity-row">
             <span class="activity-dot" style="background:#059669"></span>
             <div class="activity-text">
               <strong>{{ pmt.customer_name }}</strong>
-              <p>{{ pmt.reference_no or '—' }} · AED {{ "{:,.2f}".format(pmt.amount) }}</p>
+              <p>{{ pmt.reference_no or '—' }}</p>
             </div>
-            <span class="activity-date">{{ pmt.payment_date }}</span>
+            <div class="activity-amt">
+              <strong>AED {{ "{:,.2f}".format(pmt.amount) }}</strong>
+              <span>{{ pmt.payment_date }}</span>
+            </div>
           </div>
           {% endfor %}
         {% else %}
@@ -204,21 +227,56 @@
       <div class="card-head">
         <h3>Quick Access</h3>
       </div>
-      <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:16px">
-        <a href="{{ url_for('hr.hr_dashboard') }}" class="quick-btn" style="--qcolor:#2563eb">HR</a>
-        <a href="{{ url_for('supplier.supplier_dashboard') }}" class="quick-btn" style="--qcolor:#7c3aed">Suppliers</a>
-        <a href="{{ url_for('customer.customer_dashboard') }}" class="quick-btn" style="--qcolor:#dc2626">Customers</a>
-        <a href="{{ url_for('fleet.fleet_dashboard') }}" class="quick-btn" style="--qcolor:#0891b2">Fleet</a>
-        <a href="{{ url_for('fleet.fuel_list') }}" class="quick-btn" style="--qcolor:#d97706">Fuel</a>
-        <a href="{{ url_for('supplier.supplier_bill_list') }}" class="quick-btn" style="--qcolor:#1565C0">Bills</a>
-        <a href="{{ url_for('invoice_center') }}" class="quick-btn" style="--qcolor:#059669">Invoices</a>
+      <div class="card-body">
+        <div class="qa-grid">
+          <a href="{{ url_for('hr.hr_dashboard') }}" class="qa-tile" style="--qcolor:#2563eb">
+            <span class="qa-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <span class="qa-label">HR</span>
+            <svg class="qa-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+          <a href="{{ url_for('supplier.supplier_dashboard') }}" class="qa-tile" style="--qcolor:#7c3aed">
+            <span class="qa-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+            <span class="qa-label">Suppliers</span>
+            <svg class="qa-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+          <a href="{{ url_for('customer.customer_dashboard') }}" class="qa-tile" style="--qcolor:#dc2626">
+            <span class="qa-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+            <span class="qa-label">Customers</span>
+            <svg class="qa-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+          <a href="{{ url_for('fleet.fleet_dashboard') }}" class="qa-tile" style="--qcolor:#0891b2">
+            <span class="qa-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M10 17h4V5H2v12h3"/><path d="M14 8h4l4 4v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></span>
+            <span class="qa-label">Fleet</span>
+            <svg class="qa-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+          <a href="{{ url_for('fleet.fuel_list') }}" class="qa-tile" style="--qcolor:#d97706">
+            <span class="qa-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M12 2.7c-3.5 4.2-6 7.6-6 11a6 6 0 0 0 12 0c0-3.4-2.5-6.8-6-11z"/></svg></span>
+            <span class="qa-label">Fuel</span>
+            <svg class="qa-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+          <a href="{{ url_for('supplier.supplier_bill_list') }}" class="qa-tile" style="--qcolor:#1565C0">
+            <span class="qa-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></span>
+            <span class="qa-label">Bills</span>
+            <svg class="qa-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+          <a href="{{ url_for('invoice_center') }}" class="qa-tile" style="--qcolor:#059669">
+            <span class="qa-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span>
+            <span class="qa-label">Invoices</span>
+            <svg class="qa-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+          <a href="{{ url_for('reports_center') }}" class="qa-tile" style="--qcolor:#475569">
+            <span class="qa-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+            <span class="qa-label">Reports</span>
+            <svg class="qa-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+          </a>
+        </div>
       </div>
     </div>
     <div class="chart-card">
       <div class="card-head">
         <h3>Alerts</h3>
       </div>
-      <div class="card-body">
+      <div class="card-body list">
         {% if pending_jobs_count and pending_jobs_count > 0 %}
         <a href="/fleet/approvals" class="activity-row activity-link">
           <span class="activity-dot" style="background:#d97706"></span>
@@ -226,6 +284,7 @@
             <strong>{{ pending_jobs_count }} Maintenance Job{{ 's' if pending_jobs_count > 1 else '' }} Pending</strong>
             <p>Awaiting approval</p>
           </div>
+          <svg class="activity-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
         </a>
         {% endif %}
         <div class="activity-row">
@@ -256,19 +315,20 @@
 
 .dash-header {
   display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;
-  margin-bottom:28px; padding:0;
+  margin-bottom:24px; padding:0;
 }
 .dash-greeting { font-size:1.5rem; font-weight:700; color:#0f172a; letter-spacing:-0.02em; }
 .dash-date { font-size:0.82rem; color:#64748b; margin-top:2px; }
-.dash-badges { display:flex; gap:8px; }
+.dash-badges { display:flex; gap:8px; flex-wrap:wrap; }
 .dash-badge {
-  padding:6px 18px; border-radius:20px; font-size:0.75rem; font-weight:600; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 16px; border-radius:20px; font-size:0.75rem; font-weight:600; white-space:nowrap;
 }
 .badge-drivers { background:#eff6ff; color:#2563eb; }
 .badge-payroll { background:#f0fdf4; color:#059669; }
 
 .kpi-grid {
-  display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:24px;
+  display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:20px;
 }
 @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(3,1fr); } }
 @media (max-width:600px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
@@ -282,16 +342,19 @@
 }
 .kpi-card:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.06); }
 .kpi-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.kpi-label { font-size:0.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; }
-.kpi-icon { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; font-size:0.85rem; }
-.kpi-value { font-size:1.35rem; font-weight:800; color:#0f172a; line-height:1.2; margin-bottom:2px; }
+.kpi-label { font-size:0.7rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; white-space:nowrap; }
+.kpi-icon { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; font-size:0.85rem; flex-shrink:0; }
+.kpi-value { font-size:1.35rem; font-weight:800; color:#0f172a; line-height:1.2; margin-bottom:2px; font-variant-numeric:tabular-nums; }
 .kpi-foot { font-size:0.7rem; color:#94a3b8; }
 .kpi-sparkline { display:block; width:100%; height:22px; margin-top:6px; overflow:visible; }
 .kpi-sparkline polyline { fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; opacity:0.7; }
-.kpi-spark-dot { fill:var(--accent); }
+.val-ok { color:#059669 !important; }
+.val-warn { color:#d97706 !important; }
+.dark-mode .val-ok { color:#34d399 !important; }
+.dark-mode .val-warn { color:#fbbf24 !important; }
 
 .alert-bar {
-  display:flex; flex-direction:column; gap:6px; margin-bottom:24px;
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:8px; margin-bottom:20px;
 }
 .alert-link {
   display:flex; align-items:center; gap:8px;
@@ -303,27 +366,30 @@
 .alert-warning { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
 
 .main-grid {
-  display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px;
+  display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;
 }
+.hero-grid { grid-template-columns:2fr 1fr; }
+@media (max-width:900px) { .hero-grid { grid-template-columns:1fr; } }
 @media (max-width:800px) { .main-grid { grid-template-columns:1fr; } }
 
 .chart-card {
   background:#fff; border-radius:12px; border:1px solid #f1f5f9;
   box-shadow:0 1px 3px rgba(0,0,0,0.04); overflow:hidden;
+  display:flex; flex-direction:column;
 }
-.chart-wide { grid-column:span 2; }
-@media (max-width:800px) { .chart-wide { grid-column:1; } }
 
 .card-head {
   display:flex; align-items:center; justify-content:space-between;
   padding:14px 18px; border-bottom:1px solid #f8fafc;
 }
 .card-head h3 { margin:0; font-size:0.82rem; font-weight:700; color:#0f172a; }
-.card-badge { font-size:0.6rem; font-weight:600; color:#64748b; background:#f1f5f9; padding:2px 10px; border-radius:4px; }
+.card-badge { font-size:0.6rem; font-weight:600; color:#64748b; background:#f1f5f9; padding:2px 10px; border-radius:4px; white-space:nowrap; }
 .card-link { font-size:0.72rem; font-weight:600; color:#2563eb; text-decoration:none; }
 .card-link:hover { text-decoration:underline; }
-.card-body { padding:4px 0; min-height:100px; }
-.card-body canvas { width:100% !important; height:180px !important; padding:12px 18px; }
+.card-body { padding:4px 0; min-height:100px; flex:1; }
+.card-body.pad { padding:16px 18px; }
+.card-body.list { padding:0; }
+.card-body canvas { width:100% !important; height:200px !important; padding:12px 18px; }
 
 .activity-row {
   display:flex; align-items:flex-start; gap:10px;
@@ -337,20 +403,96 @@
 .activity-text { flex:1; min-width:0; }
 .activity-text strong { display:block; font-size:0.8rem; color:#0f172a; font-weight:600; }
 .activity-text p { margin:1px 0 0; font-size:0.72rem; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.activity-date { font-size:0.68rem; color:#94a3b8; white-space:nowrap; margin-top:1px; }
+.activity-amt { text-align:right; flex-shrink:0; }
+.activity-amt strong { display:block; font-size:0.8rem; font-weight:700; color:#0f172a; font-variant-numeric:tabular-nums; }
+.activity-amt span { display:block; font-size:0.66rem; color:#94a3b8; margin-top:1px; }
+.activity-go { color:#cbd5e1; flex-shrink:0; margin-top:5px; }
+.activity-link:hover .activity-go { color:#64748b; }
 .empty-state { text-align:center; padding:32px 16px; color:#94a3b8; font-size:0.82rem; }
 
-.quick-btn {
-  display:flex; align-items:center; justify-content:center;
-  padding:10px; border-radius:8px;
-  font-size:0.78rem; font-weight:600; text-decoration:none;
-  background:color-mix(in srgb, var(--qcolor) 8%, #fff);
-  color:var(--qcolor); border:1px solid color-mix(in srgb, var(--qcolor) 15%, #fff);
+/* Owner Fund */
+.of-stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.of-stat {
+  display:flex; align-items:center; gap:10px;
+  border-radius:10px; padding:12px;
+}
+.of-in { background:#f0fdf4; border:1px solid #dcfce7; }
+.of-out { background:#fef2f2; border:1px solid #fee2e2; }
+.of-ico {
+  width:28px; height:28px; border-radius:8px; display:grid; place-items:center; flex-shrink:0;
+}
+.of-in .of-ico { background:#dcfce7; color:#059669; }
+.of-out .of-ico { background:#fee2e2; color:#dc2626; }
+.of-cap { font-size:0.62rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; }
+.of-val { font-size:0.92rem; font-weight:800; font-variant-numeric:tabular-nums; }
+.of-in .of-val { color:#059669; }
+.of-out .of-val { color:#dc2626; }
+.of-net {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 4px 0; border-top:1px solid #f1f5f9;
+}
+.of-net span { font-size:0.72rem; color:#64748b; }
+.of-net strong { font-size:1.05rem; font-weight:800; font-variant-numeric:tabular-nums; }
+
+/* Quick Access tiles */
+.qa-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:16px 18px 18px; }
+.qa-tile {
+  display:flex; align-items:center; gap:10px;
+  padding:11px 12px; border-radius:10px; text-decoration:none;
+  background:#fff;
+  border:1px solid #eef2f7;
   transition:all 0.15s;
+  min-width:0;
 }
-.quick-btn:hover {
-  background:var(--qcolor); color:#fff;
+.qa-tile:hover {
+  border-color:var(--qcolor);
+  box-shadow:0 4px 12px color-mix(in srgb, var(--qcolor) 22%, transparent);
+  transform:translateY(-1px);
 }
+.qa-ico {
+  width:30px; height:30px; border-radius:8px; display:grid; place-items:center; flex-shrink:0;
+  background:color-mix(in srgb, var(--qcolor) 10%, #fff);
+  color:var(--qcolor);
+}
+.qa-label {
+  font-size:0.74rem; font-weight:600; color:#334155;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;
+}
+.qa-go { color:#cbd5e1; flex-shrink:0; transition:transform 0.15s, color 0.15s; }
+.qa-tile:hover .qa-go { color:var(--qcolor); transform:translateX(2px); }
+
+/* Dark mode (new classes; design-v2.css already covers kpi/chart/activity/quick-btn) */
+.dark-mode .card-head h3 { color:#e2e8f0 !important; }
+.dark-mode .dash-greeting {
+  background: linear-gradient(120deg, #e2e8f0 0%, #60a5fa 55%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.dark-mode .dash-date { color:#64748b; }
+.dark-mode .dash-badge.badge-drivers { background:rgba(37,99,235,0.15); color:#60a5fa; }
+.dark-mode .dash-badge.badge-payroll { background:rgba(5,150,105,0.15); color:#34d399; }
+.dark-mode .card-badge { background:rgba(255,255,255,0.07); color:#94a3b8; }
+.dark-mode .card-link { color:#60a5fa; }
+.dark-mode .of-in { background:rgba(5,150,105,0.1); border-color:rgba(5,150,105,0.2); }
+.dark-mode .of-out { background:rgba(220,38,38,0.1); border-color:rgba(220,38,38,0.2); }
+.dark-mode .of-in .of-ico { background:rgba(5,150,105,0.2); color:#34d399; }
+.dark-mode .of-out .of-ico { background:rgba(220,38,38,0.2); color:#f87171; }
+.dark-mode .of-in .of-val { color:#34d399; }
+.dark-mode .of-out .of-val { color:#f87171; }
+.dark-mode .of-cap { color:#64748b; }
+.dark-mode .of-net { border-top-color:rgba(255,255,255,0.07); }
+.dark-mode .of-net span { color:#94a3b8; }
+.dark-mode .qa-tile { background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.08); }
+.dark-mode .qa-ico { background:color-mix(in srgb, var(--qcolor) 22%, #0f1e33); }
+.dark-mode .qa-label { color:#cbd5e1; }
+.dark-mode .qa-go { color:#475569; }
+.dark-mode .activity-amt strong { color:#f1f5f9; }
+.dark-mode .activity-go { color:#334155; }
+.dark-mode .activity-text p { color:#64748b; }
+.dark-mode .empty-state { color:#475569; }
+.dark-mode .alert-bar .alert-danger { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.2); color:#fca5a5; }
+.dark-mode .alert-bar .alert-warning { background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.2); color:#fcd34d; }
 </style>
 
 <script>
@@ -364,14 +506,30 @@ document.addEventListener("DOMContentLoaded", function() {
   Chart.defaults.font.family = "'Inter','Segoe UI',sans-serif";
   Chart.defaults.font.size = 11;
 
-  var mLabels = [{% for m in monthly_trend %}"{{ m.mon }}"{% if not loop.last %},{% endif %}{% endfor %}].reverse();
+  var isDark = document.documentElement.classList.contains("dark-mode");
+  var MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function monShort(s) {
+    var p = String(s).split("-");
+    return p.length > 1 ? MON[(parseInt(p[1], 10) - 1) % 12] : s;
+  }
+  function monFull(s) {
+    var p = String(s).split("-");
+    return p.length > 1 ? MON[(parseInt(p[1], 10) - 1) % 12] + " " + p[0] : s;
+  }
+  function axisMoney(v) {
+    if (v >= 1000000) return (v / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (v >= 1000) return Math.round(v / 1000) + "k";
+    return String(v);
+  }
+
+  var rawLabels = [{% for m in monthly_trend %}"{{ m.mon }}"{% if not loop.last %},{% endif %}{% endfor %}].reverse();
   var mData = [{% for m in monthly_trend %}{{ m.total }}{% if not loop.last %},{% endif %}{% endfor %}].reverse();
   var trendCtx = document.getElementById("trendChart");
-  if (trendCtx && mLabels.length) {
+  if (trendCtx && rawLabels.length) {
     new Chart(trendCtx, {
       type: "line",
       data: {
-        labels: mLabels,
+        labels: rawLabels.map(monShort),
         datasets: [{
           label: "Revenue",
           data: mData,
@@ -394,12 +552,26 @@ document.addEventListener("DOMContentLoaded", function() {
           legend: { display: false },
           tooltip: {
             backgroundColor: "#1e293b", padding: 10, cornerRadius: 8,
-            callbacks: { label: function(ctx) { return "AED " + Number(ctx.raw).toLocaleString(); } }
+            callbacks: {
+              title: function(items) { return monFull(rawLabels[items[0].dataIndex] || ""); },
+              label: function(ctx) { return "AED " + Number(ctx.raw).toLocaleString(); }
+            }
           }
         },
         scales: {
-          y: { beginAtZero: true, grid: { color: "rgba(0,0,0,0.04)" }, ticks: { callback: function(v) { return "AED " + v.toLocaleString(); }, font: { size: 10 } } },
-          x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+          y: {
+            beginAtZero: true,
+            grid: { color: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)" },
+            ticks: {
+              color: isDark ? "#64748b" : "#94a3b8",
+              callback: axisMoney,
+              font: { size: 10 }
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: isDark ? "#64748b" : "#94a3b8", font: { size: 10 } }
+          }
         }
       }
     });
@@ -411,25 +583,13 @@ document.addEventListener("DOMContentLoaded", function() {
   (function() {
     var rawData = [{% for m in monthly_trend %}{{ m.total|int }}{% if not loop.last %},{% endif %}{% endfor %}].reverse();
     if (!rawData.length) return;
-    // Use last 6 months for sparklines
     var data = rawData.slice(-6);
     if (data.length < 2) return;
     var colors = ['#2563eb','#059669','#7c3aed','#dc2626','#0891b2','#d97706'];
     var cards  = document.querySelectorAll('.kpi-card');
-    var mn = Math.min.apply(null, data);
-    var mx = Math.max.apply(null, data);
-    var range = mx - mn || 1;
     var W = 100, H = 20, pad = 2;
-    function pts(d) {
-      return d.map(function(v, i) {
-        var x = pad + (i / (d.length - 1)) * (W - pad * 2);
-        var y = H - pad - ((v - mn) / range) * (H - pad * 2);
-        return x.toFixed(1) + ',' + y.toFixed(1);
-      }).join(' ');
-    }
     cards.forEach(function(card, i) {
       var color = colors[i % colors.length];
-      // vary data slightly per card for visual variety
       var shifted = data.map(function(v, j) { return Math.max(0, v * (0.7 + (i * 0.07 + j * 0.03) % 0.5)); });
       var smn = Math.min.apply(null, shifted), smx = Math.max.apply(null, shifted);
       var sr = smx - smn || 1;
