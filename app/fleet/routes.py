@@ -1,6 +1,8 @@
 import sqlite3
 import json
 import base64
+import os
+import time
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
@@ -4254,6 +4256,40 @@ def fleet_job_reject(job_id):
 
 # ── Serve Attachment ────────────────────────────────────────────
 
+def _attachment_view_jpg(job_id: int, data: bytes, mime: str) -> Path | None:
+    """Disk-cache a screen-friendly JPEG for large photos (papers are 3000x4000 ~5MB).
+
+    Keyed by job id + raw byte length so a re-upload invalidates the cache.
+    Returns None on any failure so the caller can fall back to the original.
+    """
+    try:
+        if not (mime or "").startswith("image"):
+            return None
+        cache_root = Path(current_app.config["GENERATED_DIR"]) / "attachment_views"
+        cache_root.mkdir(parents=True, exist_ok=True)
+        path = cache_root / f"{job_id}_{len(data)}.jpg"
+        if path.exists() and path.stat().st_size > 0:
+            return path
+        from PIL import Image, ImageOps
+        img = Image.open(BytesIO(data))
+        img = ImageOps.exif_transpose(img)
+        img.thumbnail((1800, 1800), getattr(Image, "Resampling", Image).LANCZOS)
+        if img.mode == "P":
+            img = img.convert("RGBA")
+        if img.mode in ("RGBA", "LA"):
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            bg.paste(img, mask=img.split()[-1])
+            img = bg
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+        tmp = cache_root / f"{job_id}_{len(data)}_{os.getpid()}_{time.time_ns()}.tmp"
+        img.save(tmp, format="JPEG", quality=80, optimize=True)
+        tmp.replace(path)
+        return path
+    except Exception:
+        return None
+
+
 @fleet_bp.route("/fleet/attachment/<int:job_id>")
 @_login_required("admin")
 def fleet_attachment(job_id):
@@ -4262,12 +4298,23 @@ def fleet_attachment(job_id):
     if not job or not job["attachment_data"]:
         flash("Attachment not found.", "error")
         return redirect(url_for("fleet.fleet_approvals"))
-    import base64
-    from io import BytesIO
     data = base64.b64decode(job["attachment_data"])
+    mime = job["attachment_type"] or "application/octet-stream"
+    # Default: serve a fast ~1800px view for big photos; ?full=1 keeps the original.
+    if request.args.get("full") != "1" and len(data) > 400_000:
+        view = _attachment_view_jpg(job_id, data, mime)
+        if view is not None:
+            resp = send_file(
+                view,
+                mimetype="image/jpeg",
+                as_attachment=False,
+                download_name=job["attachment_name"] or f"attachment_{job_id}",
+            )
+            resp.headers["Cache-Control"] = "public, max-age=604800"
+            return resp
     resp = send_file(
         BytesIO(data),
-        mimetype=job["attachment_type"] or "application/octet-stream",
+        mimetype=mime,
         as_attachment=False,
         download_name=job["attachment_name"] or f"attachment_{job_id}",
     )
