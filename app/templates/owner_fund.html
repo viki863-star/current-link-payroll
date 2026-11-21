@@ -528,8 +528,11 @@
   </section>
   {% endif %}
 </div>
+{% endblock %}
 
-{# In-page delete confirm — native confirm() can be blocked by browsers/extensions #}
+{% block overlays %}
+{# In-page delete confirm — native confirm() can be blocked by browsers/extensions.
+   Lives in overlays block (outside .page-content) so position:fixed works. #}
 <div class="of-del-overlay" id="ofDelOverlay" role="dialog" aria-modal="true" aria-labelledby="ofDelTitle">
   <div class="of-del-box">
     <h3 id="ofDelTitle">Delete this entry?</h3>
@@ -543,6 +546,7 @@
 <script>
 (function(){
   var overlay = document.getElementById('ofDelOverlay');
+  if (!overlay) return;
   var pendingForm = null;
   function openModal(form){
     pendingForm = form;

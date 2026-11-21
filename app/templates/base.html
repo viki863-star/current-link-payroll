@@ -884,5 +884,8 @@ if ("serviceWorker" in navigator) {
 
 {# AI chatbot disabled for now #}{# include "ai_chat_widget.html" #}
 
+{# Page-level fixed overlays (modals) — must be outside .page-content (transform breaks position:fixed) #}
+{% block overlays %}{% endblock %}
+
 </body>
 </html>
