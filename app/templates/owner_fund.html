@@ -134,6 +134,27 @@
 .of-icon-btn:hover { border-color:var(--of-blue); color:var(--of-blue); background:#eff6ff; }
 .of-icon-btn.danger { color:#c2410c; }
 .of-icon-btn.danger:hover { border-color:#fdba74; background:#fff7ed; color:#9a3412; }
+.of-icon-btn.danger:active { transform:scale(.92); }
+
+/* Delete confirm modal (in-page; works even when native confirm() is blocked) */
+.of-del-overlay { position:fixed; inset:0; z-index:10000; background:rgba(15,23,42,.45);
+  display:none; align-items:center; justify-content:center; padding:20px; }
+.of-del-overlay.is-open { display:flex; }
+.of-del-box { background:#fff; border-radius:14px; max-width:360px; width:100%;
+  padding:22px 22px 18px; box-shadow:0 20px 50px rgba(15,23,42,.28); border:1px solid #e2e8f0; }
+.of-del-box h3 { margin:0 0 8px; font-size:1rem; color:#0f172a; }
+.of-del-box p { margin:0 0 18px; font-size:.86rem; color:#475569; line-height:1.45; }
+.of-del-box .of-del-actions { display:flex; gap:8px; justify-content:flex-end; }
+.of-del-cancel, .of-del-ok { border-radius:8px; padding:9px 16px; font-size:.84rem; font-weight:700;
+  cursor:pointer; border:1px solid #e2e8f0; }
+.of-del-cancel { background:#f8fafc; color:#334155; }
+.of-del-cancel:hover { background:#f1f5f9; }
+.of-del-ok { background:#c2410c; border-color:#c2410c; color:#fff; }
+.of-del-ok:hover { background:#9a3412; border-color:#9a3412; }
+.dark-mode .of-del-box { background:#0f172a; border-color:#1e293b; }
+.dark-mode .of-del-box h3 { color:#f1f5f9; }
+.dark-mode .of-del-box p { color:#94a3b8; }
+.dark-mode .of-del-cancel { background:#1e293b; color:#cbd5e1; border-color:#334155; }
 
 /* Balance coloring helpers */
 .of-bal-pos { color:var(--of-green); font-weight:800; }
@@ -399,9 +420,9 @@
             <td class="num">
               <div class="of-row-actions">
                 <a href="{{ url_for('owner_fund', edit=item.id) }}" class="of-icon-btn" title="Edit">&#9998;</a>
-                <form method="post" action="{{ url_for('delete_owner_fund_entry', entry_id=item.id) }}" onsubmit="return confirm('Delete this entry?');" style="display:inline">
+                <form method="post" action="{{ url_for('delete_owner_fund_entry', entry_id=item.id) }}" style="display:inline" data-of-del-form>
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="of-icon-btn danger" type="submit" title="Delete">&#10005;</button>
+                  <button class="of-icon-btn danger" type="button" title="Delete" data-of-del-btn>&#10005;</button>
                 </form>
               </div>
             </td>
@@ -507,4 +528,45 @@
   </section>
   {% endif %}
 </div>
+
+{# In-page delete confirm — native confirm() can be blocked by browsers/extensions #}
+<div class="of-del-overlay" id="ofDelOverlay" role="dialog" aria-modal="true" aria-labelledby="ofDelTitle">
+  <div class="of-del-box">
+    <h3 id="ofDelTitle">Delete this entry?</h3>
+    <p>This owner fund entry will be removed permanently. This cannot be undone.</p>
+    <div class="of-del-actions">
+      <button type="button" class="of-del-cancel" id="ofDelCancel">Cancel</button>
+      <button type="button" class="of-del-ok" id="ofDelOk">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var overlay = document.getElementById('ofDelOverlay');
+  var pendingForm = null;
+  function openModal(form){
+    pendingForm = form;
+    overlay.classList.add('is-open');
+    document.getElementById('ofDelOk').focus();
+  }
+  function closeModal(){
+    overlay.classList.remove('is-open');
+    pendingForm = null;
+  }
+  document.addEventListener('click', function(e){
+    var btn = e.target && e.target.closest ? e.target.closest('[data-of-del-btn]') : null;
+    if (!btn) return;
+    e.preventDefault();
+    var form = btn.closest('form[data-of-del-form]');
+    if (form) openModal(form);
+  });
+  document.getElementById('ofDelCancel').addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && overlay.classList.contains('is-open')) closeModal(); });
+  document.getElementById('ofDelOk').addEventListener('click', function(){
+    if (pendingForm) pendingForm.submit();
+    else closeModal();
+  });
+})();
+</script>
 {% endblock %}
