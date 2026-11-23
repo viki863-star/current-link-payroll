@@ -380,13 +380,28 @@
                                         <input type="number" name="ot_rate" value="{{ employee.ot_rate or '0' }}" class="dv2-input" step="0.5" min="0" placeholder="e.g. 18.75" readonly>
                                     </div>
                                     <div class="dv2-form-group">
-                                        <label class="dv2-form-label">Personal Expenses (AED)</label>
-                                        <input type="number" name="personal_vehicle" value="{{ salary_form.personal_vehicle or '0' }}" class="dv2-input" step="0.01" min="0" placeholder="0">
+                                        <label class="dv2-form-label">Driver Bills — Paid by Driver (AED)</label>
+                                        <input type="number" name="personal_vehicle" id="drvBillsAmount" value="{{ salary_form.personal_vehicle or '0' }}" class="dv2-input" step="0.01" min="0" placeholder="0">
                                     </div>
                                 </div>
                                 <div class="dv2-form-group">
-                                    <label class="dv2-form-label">Personal Expenses Note</label>
-                                    <input type="text" name="personal_vehicle_note" value="{{ salary_form.personal_vehicle_note or '' }}" class="dv2-input" placeholder="e.g. Mobile recharge, spare parts">
+                                    <label class="dv2-form-label">Bill Type</label>
+                                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px" id="drvBillChips">
+                                        <button type="button" class="dv2-btn dv2-btn-outline dv2-btn-sm drv-bill-chip" data-cat="Parking">🅿 Parking</button>
+                                        <button type="button" class="dv2-btn dv2-btn-outline dv2-btn-sm drv-bill-chip" data-cat="Vehicle Wash">🧼 Vehicle Wash</button>
+                                        <button type="button" class="dv2-btn dv2-btn-outline dv2-btn-sm drv-bill-chip" data-cat="Transport">🚕 Transport</button>
+                                        <button type="button" class="dv2-btn dv2-btn-outline dv2-btn-sm drv-bill-chip" data-cat="Fuel">⛽ Fuel</button>
+                                        <button type="button" class="dv2-btn dv2-btn-outline dv2-btn-sm drv-bill-chip" data-cat="Mobile Recharge">📱 Mobile</button>
+                                        <button type="button" class="dv2-btn dv2-btn-outline dv2-btn-sm drv-bill-chip" data-cat="Spare Parts">🔧 Spare Parts</button>
+                                        <button type="button" class="dv2-btn dv2-btn-outline dv2-btn-sm drv-bill-chip" data-cat="Other">📄 Other</button>
+                                    </div>
+                                </div>
+                                <div class="dv2-form-group">
+                                    <label class="dv2-form-label">Bill Details</label>
+                                    <input type="text" name="personal_vehicle_note" id="drvBillsNote" value="{{ salary_form.personal_vehicle_note or '' }}" class="dv2-input" placeholder="e.g. Parking 150 at mall + wash 50 — DXB-123">
+                                    <div style="font-size:.72rem;color:#64748b;margin-top:4px">
+                                        Jo bill driver ne apni jeb se bhara (parking / wash / transport) — salary me reimbursement par add hoga aur Owner Fund me <strong>Extra / Bills</strong> column me dikhega.
+                                    </div>
                                 </div>
                                 <div class="dv2-form-group">
                                     <label class="dv2-form-label">Remarks</label>
@@ -407,7 +422,7 @@
                                             <span class="dv2-preview-value">{{ salary_preview.ot_trips if salary_preview.ot_type == 'trips' else salary_preview.ot_hours }} {{ 'trips' if salary_preview.ot_type == 'trips' else 'hrs' }}</span>
                                         </div>
                                         <div class="dv2-preview-item"><span class="dv2-preview-label">OT Amount</span><span class="dv2-preview-value">AED {{ "%.2f"|format(salary_preview.ot_amount) }}</span></div>
-                                        <div class="dv2-preview-item"><span class="dv2-preview-label">Personal Exp.</span><span class="dv2-preview-value" style="color:var(--green)">+AED {{ "%.2f"|format(salary_preview.personal_vehicle) }}</span></div>
+                                        <div class="dv2-preview-item"><span class="dv2-preview-label">Driver Bills</span><span class="dv2-preview-value" style="color:var(--green)">+AED {{ "%.2f"|format(salary_preview.personal_vehicle) }}</span></div>
                                         <div class="dv2-preview-item is-highlight">
                                             <span class="dv2-preview-label">Net Salary</span>
                                             <span class="dv2-preview-value">AED {{ "%.2f"|format(salary_preview.net_salary) }}</span>
@@ -929,6 +944,20 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   document.querySelectorAll('.sr-table tr[data-open]').forEach(function(tr){
     tr.addEventListener('click', function(){ window.location = tr.getAttribute('data-open'); });
+  });
+  // Driver bill chips → prepend category to note
+  document.querySelectorAll('.drv-bill-chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      var cat = chip.getAttribute('data-cat') || '';
+      var note = document.getElementById('drvBillsNote');
+      if(!note || !cat) return;
+      var cur = (note.value || '').trim();
+      if(cur.indexOf(cat) === 0) return;
+      note.value = cur ? (cat + ' — ' + cur) : (cat + ' — ');
+      note.focus();
+      var amt = document.getElementById('drvBillsAmount');
+      if(amt && (!parseFloat(amt.value||'0'))) amt.value = '';
+    });
   });
 });
 </script>
