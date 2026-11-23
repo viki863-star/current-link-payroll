@@ -436,6 +436,24 @@
                                     <button type="submit" name="action" value="save" class="dv2-btn dv2-btn-primary" style="flex:1">Save Salary</button>
                                 </div>
                             </form>
+                            <script>
+                            (function(){
+                              document.querySelectorAll('.drv-bill-chip').forEach(function(chip){
+                                chip.addEventListener('click', function(e){
+                                  e.preventDefault();
+                                  var cat = chip.getAttribute('data-cat') || '';
+                                  var note = document.getElementById('drvBillsNote');
+                                  if(!note || !cat) return;
+                                  var cur = (note.value || '').trim();
+                                  if(cur.indexOf(cat) === 0) return;
+                                  note.value = cur ? (cat + ' — ' + cur) : (cat + ' — ');
+                                  note.focus();
+                                  var amt = document.getElementById('drvBillsAmount');
+                                  if(amt && (!parseFloat(amt.value||'0'))) amt.value = '';
+                                });
+                              });
+                            })();
+                            </script>
                         </div>
                     </div>
                 </div>
@@ -944,20 +962,6 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   document.querySelectorAll('.sr-table tr[data-open]').forEach(function(tr){
     tr.addEventListener('click', function(){ window.location = tr.getAttribute('data-open'); });
-  });
-  // Driver bill chips → prepend category to note
-  document.querySelectorAll('.drv-bill-chip').forEach(function(chip){
-    chip.addEventListener('click', function(){
-      var cat = chip.getAttribute('data-cat') || '';
-      var note = document.getElementById('drvBillsNote');
-      if(!note || !cat) return;
-      var cur = (note.value || '').trim();
-      if(cur.indexOf(cat) === 0) return;
-      note.value = cur ? (cat + ' — ' + cur) : (cat + ' — ');
-      note.focus();
-      var amt = document.getElementById('drvBillsAmount');
-      if(amt && (!parseFloat(amt.value||'0'))) amt.value = '';
-    });
   });
 });
 </script>
