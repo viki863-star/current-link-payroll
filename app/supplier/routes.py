@@ -4278,11 +4278,16 @@ def _supplier_purchase_rows(db, from_filter, to_filter):
     from collections import Counter
     def _valid_inv(no):
         return bool(no and str(no).strip())
+    # Duplicate = same invoice/ref + supplier + same amount (same bill re-entered).
+    # Different amounts under one ref are separate line items, not duplicates.
     combo_counter = Counter(
-        (r["invoice_no"], r["supplier_name"]) for r in rows if _valid_inv(r["invoice_no"])
+        (r["invoice_no"], r["supplier_name"], round(float(r["total_amount"] or 0), 2))
+        for r in rows if _valid_inv(r["invoice_no"])
     )
     for r in rows:
-        r["is_duplicate"] = _valid_inv(r["invoice_no"]) and combo_counter[(r["invoice_no"], r["supplier_name"])] > 1
+        r["is_duplicate"] = _valid_inv(r["invoice_no"]) and combo_counter[
+            (r["invoice_no"], r["supplier_name"], round(float(r["total_amount"] or 0), 2))
+        ] > 1
 
     total_net = sum(r["net_sale"] for r in rows)
     total_vat = sum(r["vat_amount"] for r in rows)
