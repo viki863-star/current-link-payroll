@@ -194,6 +194,43 @@
 .of-in-amt { color:#15803d; font-weight:700; }
 .of-out-amt { color:#c2410c; font-weight:700; }
 
+/* ── Statement of Account (Kata) ── */
+.of-stmt .of-stmt-wrap { border-radius:14px; border:1px solid #e4ecf7; background:#fbfcfe; }
+.of-stmt-tbl { width:100%; border-collapse:separate; border-spacing:0; font-size:.74rem; background:#fff; min-width:980px; }
+.of-stmt-tbl thead th {
+  position:sticky; top:0; z-index:2; background:#f3f7fc; color:#5a6f8d;
+  font-size:.6rem; font-weight:800; text-transform:uppercase; letter-spacing:.65px;
+  padding:9px 10px; border-bottom:1px solid #d9e4f2; white-space:nowrap; text-align:left; }
+.of-stmt-tbl thead tr.of-stmt-grp th { background:#e8f0fa; font-size:.58rem; letter-spacing:1.1px;
+  border-bottom:1px solid #d0ddf0; padding:7px 10px; text-align:center; color:#3d5a82; }
+.of-stmt-tbl thead .g-meta { border-left:none; }
+.of-stmt-tbl thead .g-salary { background:#eef6ff; color:#1d4ed8; border-left:1px solid #d5e4f8; border-right:1px solid #d5e4f8; }
+.of-stmt-tbl thead .g-money { background:#f0fdf6; color:#15803d; border-left:1px solid #d1fae5; }
+.of-stmt-tbl thead tr:not(.of-stmt-grp) th.num { text-align:right; }
+.of-stmt-tbl tbody td { padding:9px 10px; border-bottom:1px solid #eef3fa; color:#2a4060; vertical-align:middle; }
+.of-stmt-tbl tbody tr:last-child td { border-bottom:none; }
+.of-stmt-tbl tbody tr:hover td { background:#f7fafd; }
+.of-stmt-tbl tbody tr.is-in td { background:#f6fdf9; }
+.of-stmt-tbl tbody tr.is-in:hover td { background:#ecfdf5; }
+.of-stmt-tbl tbody tr.is-sal td.c-date { box-shadow:inset 3px 0 0 #3b82f6; }
+.of-stmt-tbl td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+.of-stmt-tbl td.bd { font-size:.72rem; font-weight:600; color:#334e73; background:#fafcff; }
+.of-stmt-tbl tr.is-sal td.bd { background:#f7fbff; }
+.of-stmt-tbl td.c-date { font-family:'SF Mono',Consolas,monospace; font-size:.7rem; color:#5a6f8d; white-space:nowrap; }
+.of-stmt-tbl td.c-ref { font-size:.7rem; color:#4a6288; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.of-stmt-tbl td.c-det { font-size:.73rem; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#3d5578; }
+.of-stmt-tbl td.c-bal { font-weight:800; letter-spacing:-.2px; }
+.of-stmt-tbl .dim { color:#c5d0e0; font-weight:500; }
+.of-stmt-tbl .of-pill { font-size:.55rem; padding:2px 7px; letter-spacing:.5px; }
+.of-stmt-tbl tfoot td { padding:11px 10px; background:#f3f7fc; border-top:2px solid #d9e4f2;
+  font-size:.76rem; color:#0f2749; }
+.of-stmt-tbl tfoot td.num { text-align:right; }
+/* scroll hint shadow */
+.of-stmt-wrap { position:relative; }
+.of-stmt-wrap::after { content:""; position:absolute; top:0; right:0; bottom:0; width:36px; pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.9)); opacity:0; transition:opacity .2s; }
+.of-stmt-wrap.is-scroll::after { opacity:1; }
+
 /* Responsive */
 @media (max-width:980px){
   .of-duo { grid-template-columns:1fr; }
@@ -514,7 +551,7 @@
 
   {# ═══ FULL STATEMENT ═══ #}
   {% if statement %}
-  <section class="of-sec">
+  <section class="of-sec of-stmt">
     <div class="of-sec-head">
       <div>
         <h2 style="--ac:var(--of-amber)">Statement of Account (Kata)</h2>
@@ -524,30 +561,35 @@
         <a href="{{ pdf_url }}" class="of-btn of-btn-ghost">PDF Statement</a>
       </div>
     </div>
-    <div class="of-tbl-wrap">
-      <table>
+    <div class="of-tbl-wrap of-stmt-wrap">
+      <table class="of-stmt-tbl">
         <thead>
+          <tr class="of-stmt-grp">
+            <th colspan="4" class="g-meta">Entry</th>
+            <th colspan="4" class="g-salary num">Salary Breakdown (AED)</th>
+            <th colspan="3" class="g-money num">Movement (AED)</th>
+            {% if can_edit %}<th rowspan="2"></th>{% endif %}
+          </tr>
           <tr>
             <th>Date</th><th>Type</th><th>Reference</th><th>Details</th>
             <th class="num">Salary</th><th class="num">OT</th><th class="num">Extra/Bills</th><th class="num">Adv.Ded</th>
-            <th class="num">Incoming</th><th class="num">Outgoing</th><th class="num">Balance</th>
-            {% if can_edit %}<th class="num"></th>{% endif %}
+            <th class="num">In</th><th class="num">Out</th><th class="num">Balance</th>
           </tr>
         </thead>
         <tbody>
           {% for item in statement %}
-          <tr>
-            <td class="mono">{{ item.entry_date }}</td>
-            <td>{{ item.movement }}</td>
-            <td class="mono">{{ item.reference }}</td>
-            <td style="font-size:.76rem">{{ item.details }}</td>
-            <td class="num">{% set v = item.get('bd_salary') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% endif %}</td>
-            <td class="num">{% set v = item.get('bd_ot') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% endif %}</td>
-            <td class="num">{% set v = item.get('bd_extra') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% endif %}</td>
-            <td class="num">{% set v = item.get('bd_deduction') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% endif %}</td>
-            <td class="num of-in-amt">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
-            <td class="num of-out-amt">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
-            <td class="num {% if item.balance >= 0 %}of-bal-pos{% else %}of-bal-neg{% endif %}">AED {{ "%.2f"|format(item.balance) }}</td>
+          <tr class="{% if item.movement == 'Incoming' %}is-in{% elif item.get('bd_salary') is not none %}is-sal{% endif %}">
+            <td class="mono c-date">{{ item.entry_date }}</td>
+            <td><span class="of-pill {{ 'in' if item.movement == 'Incoming' else 'out' }}">{{ 'IN' if item.movement == 'Incoming' else 'OUT' }}</span></td>
+            <td class="c-ref" title="{{ item.reference }}">{{ item.reference }}</td>
+            <td class="c-det" title="{{ item.details }}">{{ item.details }}</td>
+            <td class="num bd">{% set v = item.get('bd_salary') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% else %}<span class="dim">—</span>{% endif %}</td>
+            <td class="num bd">{% set v = item.get('bd_ot') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% else %}<span class="dim">—</span>{% endif %}</td>
+            <td class="num bd">{% set v = item.get('bd_extra') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% else %}<span class="dim">—</span>{% endif %}</td>
+            <td class="num bd">{% set v = item.get('bd_deduction') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% else %}<span class="dim">—</span>{% endif %}</td>
+            <td class="num of-in-amt">{% if item.incoming %}{{ "%.2f"|format(item.incoming) }}{% else %}<span class="dim">—</span>{% endif %}</td>
+            <td class="num of-out-amt">{% if item.outgoing %}{{ "%.2f"|format(item.outgoing) }}{% else %}<span class="dim">—</span>{% endif %}</td>
+            <td class="num {% if item.balance >= 0 %}of-bal-pos{% else %}of-bal-neg{% endif %} c-bal">{{ "%.2f"|format(item.balance) }}</td>
             {% if can_edit %}
             <td class="num">
               {% if item.id or item.source_url %}
@@ -560,6 +602,15 @@
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="8" class="strong">Filtered totals</td>
+            <td class="num strong of-in-amt">{{ "%.2f"|format(view_incoming) }}</td>
+            <td class="num strong of-out-amt">{{ "%.2f"|format(view_outgoing) }}</td>
+            <td class="num strong {% if (view_closing if statement else balance) >= 0 %}of-bal-pos{% else %}of-bal-neg{% endif %} c-bal">{{ "%.2f"|format(view_closing if statement else balance) }}</td>
+            {% if can_edit %}<td></td>{% endif %}
+          </tr>
+        </tfoot>
       </table>
     </div>
   </section>
