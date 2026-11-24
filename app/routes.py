@@ -9037,6 +9037,7 @@ def register_routes(app: Flask) -> None:
 
         heads = [
             "Date", "Month", "Reference", "Type", "Details",
+            "Salary (AED)", "OT (AED)", "Extra/Bills (AED)", "Adv.Ded (AED)",
             "In (AED)", "Out (AED)", "Balance (AED)",
         ]
         for ci, h in enumerate(heads, 1):
@@ -9069,6 +9070,10 @@ def register_routes(app: Flask) -> None:
                 str(row.get("reference", "") or "-"),
                 str(row.get("movement") or "-"),
                 str(row.get("details", "") or "-"),
+                row.get("bd_salary"),
+                row.get("bd_ot"),
+                row.get("bd_extra"),
+                row.get("bd_deduction"),
                 float(row.get("incoming", 0) or 0),
                 float(row.get("outgoing", 0) or 0),
                 float(row.get("balance", 0) or 0),
@@ -9077,7 +9082,7 @@ def register_routes(app: Flask) -> None:
                 c = ws.cell(row=row_idx, column=ci, value=v)
                 c.border = border
                 c.alignment = left if ci in (1, 3, 4, 5) else right
-                if ci in (6, 7, 8):
+                if ci in (6, 7, 8, 9, 10, 11, 12):
                     c.number_format = '#,##0.00'
             # Color the type cell
             tc = ws.cell(row=row_idx, column=4)
@@ -9099,20 +9104,20 @@ def register_routes(app: Flask) -> None:
         tr = ws.cell(row=row_idx, column=5, value="TOTALS")
         tr.font = Font(bold=True)
         tr.fill = PatternFill("solid", fgColor="f4f6f9")
-        for ci in (6, 7, 8):
+        for ci in (6, 7, 8, 9, 10, 11, 12):
             tc = ws.cell(row=row_idx, column=ci)
             tc.font = Font(bold=True)
             tc.fill = PatternFill("solid", fgColor="f4f6f9")
             tc.border = border
             tc.number_format = '#,##0.00'
-        tc6 = ws.cell(row=row_idx, column=6, value=view_incoming)
-        tc7 = ws.cell(row=row_idx, column=7, value=view_outgoing)
-        tc8 = ws.cell(row=row_idx, column=8, value=view_closing)
-        for ci in (6, 7, 8):
+        tc6 = ws.cell(row=row_idx, column=10, value=view_incoming)
+        tc7 = ws.cell(row=row_idx, column=11, value=view_outgoing)
+        tc8 = ws.cell(row=row_idx, column=12, value=view_closing)
+        for ci in (10, 11, 12):
             c = ws.cell(row=row_idx, column=ci)
             c.border = border
 
-        widths = [14, 10, 30, 12, 52, 14, 14, 16]
+        widths = [14, 10, 30, 12, 52, 13, 11, 14, 12, 12, 13, 15]
         for ci, w in enumerate(widths, 1):
             ws.column_dimensions[chr(64 + ci)].width = w
 
@@ -19271,6 +19276,66 @@ def _owner_fund_view_totals(rows):
     return incoming, outgoing, net, closing_balance
 
 
+def _salary_breakdown_from_store(db, salary_store_id, deduction=0.0):
+    """Salary/OT/Extra split for Owner Fund statement columns."""
+    if not salary_store_id:
+        return None
+    try:
+        st = db.execute(
+            """
+            SELECT basic_salary, ot_amount, personal_vehicle, net_salary
+            FROM salary_store WHERE id = ?
+            """,
+            (salary_store_id,),
+        ).fetchone()
+        if not st:
+            return None
+        return {
+            "bd_salary": float(st["basic_salary"] or 0),
+            "bd_ot": float(st["ot_amount"] or 0),
+            "bd_extra": float(st["personal_vehicle"] or 0),
+            "bd_deduction": float(deduction or 0),
+        }
+    except Exception:
+        return None
+
+
+def _salary_breakdown_for_source(db, source_table, source_id):
+    """Resolve salary breakdown from owner_fund_entries.source_table/source_id."""
+    if not source_table or source_id is None:
+        return None
+    try:
+        if source_table == "salary_slips":
+            slip = db.execute(
+                "SELECT salary_store_id, total_deductions FROM salary_slips WHERE id = ?",
+                (source_id,),
+            ).fetchone()
+            if not slip:
+                return None
+            return _salary_breakdown_from_store(db, slip["salary_store_id"], slip["total_deductions"])
+        if source_table == "salary_payments":
+            pay = db.execute(
+                "SELECT salary_store_id, driver_id, salary_month FROM salary_payments WHERE id = ?",
+                (source_id,),
+            ).fetchone()
+            if not pay:
+                return None
+            slip = db.execute(
+                """
+                SELECT total_deductions FROM salary_slips
+                WHERE salary_store_id = ? AND driver_id = ? AND salary_month = ?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (pay["salary_store_id"], pay["driver_id"], pay["salary_month"]),
+            ).fetchone()
+            return _salary_breakdown_from_store(
+                db, pay["salary_store_id"], slip["total_deductions"] if slip else 0
+            )
+    except Exception:
+        return None
+    return None
+
+
 def _owner_fund_statement(db, reverse: bool = True, filters=None):
     filters = filters or {"month": "", "movement": OWNER_FUND_MOVEMENT_OPTIONS[0], "entry_type": ENTRY_TYPE_OPTIONS[0], "search": ""}
     rows = []
@@ -19336,6 +19401,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 out_entry_type = "Salary to Driver"
             else:
                 out_entry_type = "Owner Expense / Money Out (Form)"
+            bd = _salary_breakdown_for_source(db, st, sid) if st in ("salary_payments", "salary_slips") else None
             rows.append(
                 {
                     "id": entry["id"],
@@ -19349,6 +19415,10 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                     "outgoing": float(entry["amount"]),
                     "movement": "Outgoing",
                     "entry_type": out_entry_type,
+                    "bd_salary": bd["bd_salary"] if bd else None,
+                    "bd_ot": bd["bd_ot"] if bd else None,
+                    "bd_extra": bd["bd_extra"] if bd else None,
+                    "bd_deduction": bd["bd_deduction"] if bd else None,
                 }
             )
     for entry in db.execute(
@@ -19406,6 +19476,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
         vt = f" ({entry['vehicle_type']})" if entry.get("vehicle_type") else ""
         shift = f" | Shift {entry['shift']}" if entry.get("shift") else ""
+        bd = _salary_breakdown_for_source(db, "salary_payments", entry["id"])
         rows.append(
             {
                 "source_table": "salary_payments",
@@ -19419,12 +19490,16 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "movement": "Outgoing",
                 "entry_type": "Salary to Driver",
                 "driver_status": driver_status_map.get(entry["driver_id"], ""),
+                "bd_salary": bd["bd_salary"] if bd else None,
+                "bd_ot": bd["bd_ot"] if bd else None,
+                "bd_extra": bd["bd_extra"] if bd else None,
+                "bd_deduction": bd["bd_deduction"] if bd else None,
             }
         )
     for entry in db.execute(
         """
         SELECT salary_slips.id, salary_slips.salary_store_id, DATE(salary_slips.generated_at) AS payment_date, salary_slips.driver_id, salary_slips.paid_by,
-               salary_slips.net_payable AS amount, salary_slips.salary_month, drivers.full_name,
+               salary_slips.net_payable AS amount, salary_slips.salary_month, salary_slips.total_deductions, drivers.full_name,
                drivers.vehicle_no, drivers.vehicle_type, drivers.shift
         FROM salary_slips
         LEFT JOIN drivers ON drivers.driver_id = salary_slips.driver_id
@@ -19446,6 +19521,7 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
         veh = f" | Vehicle {entry['vehicle_no']}" if entry.get("vehicle_no") else ""
         vt = f" ({entry['vehicle_type']})" if entry.get("vehicle_type") else ""
         shift = f" | Shift {entry['shift']}" if entry.get("shift") else ""
+        bd = _salary_breakdown_from_store(db, entry.get("salary_store_id"), entry.get("total_deductions") or 0)
         rows.append(
             {
                 "source_table": "salary_slips",
@@ -19459,6 +19535,10 @@ def _owner_fund_statement(db, reverse: bool = True, filters=None):
                 "movement": "Outgoing",
                 "entry_type": "Salary to Driver",
                 "driver_status": driver_status_map.get(entry["driver_id"], ""),
+                "bd_salary": bd["bd_salary"] if bd else None,
+                "bd_ot": bd["bd_ot"] if bd else None,
+                "bd_extra": bd["bd_extra"] if bd else None,
+                "bd_deduction": bd["bd_deduction"] if bd else None,
             }
         )
     for entry in db.execute(
