@@ -509,10 +509,10 @@
             <td>{{ item.movement }}</td>
             <td class="mono">{{ item.reference }}</td>
             <td style="font-size:.76rem">{{ item.details }}</td>
-            <td class="num">{% if item.bd_salary is not none %}{{ "%.2f"|format(item.bd_salary) }}{% endif %}</td>
-            <td class="num">{% if item.bd_ot is not none %}{{ "%.2f"|format(item.bd_ot) }}{% endif %}</td>
-            <td class="num">{% if item.bd_extra is not none %}{{ "%.2f"|format(item.bd_extra) }}{% endif %}</td>
-            <td class="num">{% if item.bd_deduction is not none %}{{ "%.2f"|format(item.bd_deduction) }}{% endif %}</td>
+            <td class="num">{% set v = item.get('bd_salary') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% endif %}</td>
+            <td class="num">{% set v = item.get('bd_ot') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% endif %}</td>
+            <td class="num">{% set v = item.get('bd_extra') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% endif %}</td>
+            <td class="num">{% set v = item.get('bd_deduction') %}{% if v is not none %}{{ "%.2f"|format(v) }}{% endif %}</td>
             <td class="num of-in-amt">{% if item.incoming %}AED {{ "%.2f"|format(item.incoming) }}{% endif %}</td>
             <td class="num of-out-amt">{% if item.outgoing %}AED {{ "%.2f"|format(item.outgoing) }}{% endif %}</td>
             <td class="num {% if item.balance >= 0 %}of-bal-pos{% else %}of-bal-neg{% endif %}">AED {{ "%.2f"|format(item.balance) }}</td>
