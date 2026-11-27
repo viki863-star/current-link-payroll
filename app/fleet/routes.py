@@ -3526,61 +3526,67 @@ def fleet_staff_profile(staff_id):
             ORDER BY plate
         """, (staff_id, staff_id)).fetchall()
 
+        # Build date-filter WHERE clauses (same as used for items list)
+        adv_where = ""
+        adv_params = []
+        date_where = ""
+        date_params = []
+        paper_where = ""
+        paper_params = []
+
+        if filter_month:
+            adv_where += " AND substr(entry_date,1,7) = ?"
+            adv_params.append(filter_month)
+            date_where += " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
+            date_params.append(filter_month)
+            paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,7) = ?"
+            paper_params.append(filter_month)
+        else:
+            if date_from:
+                adv_where += " AND substr(entry_date,1,10) >= ?"
+                adv_params.append(date_from)
+                date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) >= ?"
+                date_params.append(date_from)
+                paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) >= ?"
+                paper_params.append(date_from)
+            if date_to:
+                adv_where += " AND substr(entry_date,1,10) <= ?"
+                adv_params.append(date_to)
+                date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
+                date_params.append(date_to)
+                paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) <= ?"
+                paper_params.append(date_to)
+
+        if vehicle_filter:
+            date_where += " AND mj.vehicle_id = ?"
+            date_params.append(vehicle_filter)
+            paper_where += " AND vm.vehicle_no = ?"
+            paper_params.append(vehicle_filter)
+
+        # KPI queries with date filter
         card_received = db.execute(
-            "SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?",
-            (staff_id,),
+            f"SELECT COALESCE(SUM(amount),0) AS t FROM maintenance_staff_advances WHERE staff_code = ?{adv_where}",
+            (staff_id, *adv_params),
         ).fetchone()["t"] or 0
 
         card_jobs = db.execute(
-            "SELECT COALESCE(SUM(COALESCE(staff_amount, amount - tax_amount)),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'",
-            (staff_id,),
+            f"SELECT COALESCE(SUM(COALESCE(staff_amount, amount - tax_amount)),0) AS t FROM maintenance_jobs WHERE staff_id = ? AND status = 'approved'{date_where}",
+            (staff_id, *date_params),
         ).fetchone()["t"] or 0
 
         card_papers = db.execute(
-            "SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp WHERE mp.technician_code = ? AND mp.review_status = 'Approved'",
-            (staff_id,),
+            f"SELECT COALESCE(SUM(mp.total_amount),0) AS t FROM maintenance_papers mp LEFT JOIN vehicle_master vm ON vm.vehicle_id = mp.vehicle_id WHERE mp.technician_code = ? AND mp.review_status = 'Approved'{paper_where}",
+            (staff_id, *paper_params),
         ).fetchone()["t"] or 0
 
         card_spent = float(card_jobs) + float(card_papers)
         card_balance = card_received - card_spent
-
-        # Build date-filter WHERE clause
-        date_where = ""
-        date_params = []
-        if filter_month:
-            date_where += " AND substr(CAST(mj.created_at AS TEXT),1,7) = ?"
-            date_params.append(filter_month)
-        else:
-            if date_from:
-                date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) >= ?"
-                date_params.append(date_from)
-            if date_to:
-                date_where += " AND substr(CAST(mj.created_at AS TEXT),1,10) <= ?"
-                date_params.append(date_to)
-        if vehicle_filter:
-            date_where += " AND mj.vehicle_id = ?"
-            date_params.append(vehicle_filter)
         jobs = db.execute(f"""
             SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
             WHERE mj.staff_id = ?{date_where} ORDER BY mj.created_at DESC
         """, (staff_id, *date_params)).fetchall()
 
-        paper_where = ""
-        paper_params = []
-        if filter_month:
-            paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,7) = ?"
-            paper_params.append(filter_month)
-        else:
-            if date_from:
-                paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) >= ?"
-                paper_params.append(date_from)
-            if date_to:
-                paper_where += " AND substr(CAST(mp.created_at AS TEXT),1,10) <= ?"
-                paper_params.append(date_to)
-        if vehicle_filter:
-            paper_where += " AND vm.vehicle_no = ?"
-            paper_params.append(vehicle_filter)
         raw_papers = db.execute(f"""
             SELECT mp.id, mp.paper_no, vm.vehicle_no AS vehicle_id, mp.technician_code AS staff_id,
                    mp.total_amount AS amount, mp.work_summary AS description,
@@ -3607,18 +3613,6 @@ def fleet_staff_profile(staff_id):
             items.append(d)
         items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
-        adv_where = ""
-        adv_params = []
-        if filter_month:
-            adv_where += " AND substr(entry_date,1,7) = ?"
-            adv_params.append(filter_month)
-        else:
-            if date_from:
-                adv_where += " AND substr(entry_date,1,10) >= ?"
-                adv_params.append(date_from)
-            if date_to:
-                adv_where += " AND substr(entry_date,1,10) <= ?"
-                adv_params.append(date_to)
         advances = db.execute(f"""
             SELECT id, amount, funding_source, reference, notes, entry_date, created_at, staff_code FROM maintenance_staff_advances WHERE staff_code = ?{adv_where} ORDER BY entry_date DESC
         """, (staff_id, *adv_params)).fetchall()
