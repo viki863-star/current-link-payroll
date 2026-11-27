@@ -167,6 +167,11 @@
   {# ═══ KPI BAND ═══ #}
   <section class="sp-kpis">
     <div class="sp-kpi is-green" style="--kp:var(--sp-green)">
+      <div class="k-label">Opening Balance</div>
+      <div class="k-value">AED {{ "%.0f"|format(opening_balance) }}</div>
+      <div class="k-sub">Manual starting balance</div>
+    </div>
+    <div class="sp-kpi is-green" style="--kp:var(--sp-green)">
       <div class="k-label">Receive Cash</div>
       <div class="k-value">AED {{ "%.0f"|format(card_received) }}</div>
       <div class="k-sub">Cash given to staff · {{ month_name }}</div>
@@ -179,7 +184,7 @@
     <div class="sp-kpi {% if card_balance >= 0 %}is-teal{% else %}is-red{% endif %}" style="--kp:{{ 'var(--sp-teal)' if card_balance >= 0 else 'var(--sp-red)' }}">
       <div class="k-label">{{ 'Available' if card_balance >= 0 else 'Due' }}</div>
       <div class="k-value">AED {{ "%.0f"|format(card_balance|abs) }}</div>
-      <div class="k-sub">Received − Spent · {{ month_name }}</div>
+      <div class="k-sub">Opening + Received − Spent · {{ month_name }}</div>
     </div>
   </section>
 
@@ -191,6 +196,7 @@
         <div class="sp-note">
           <span>{{ month_name }}: <strong style="color:#15803d">AED {{ "%.0f"|format(card_received) }}</strong></span>
           <span class="sp-pill in">{{ cash_items|length }} entries</span>
+          <span class="sp-pill out">Opening: AED {{ "%.0f"|format(opening_balance) }}</span>
         </div>
       </div>
       <div class="sp-actions">

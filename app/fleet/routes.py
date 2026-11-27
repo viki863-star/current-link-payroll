@@ -3474,7 +3474,7 @@ def fleet_staff_profile(staff_id):
         _touch_admin_workspace("fleet")
         ensure_fleet_tables()
         db = open_db()
-        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active, employment_status, resign_date, photo_data, photo_content_type FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
+        s = db.execute("SELECT staff_id, full_name, phone, username, password_hash, is_active, employment_status, resign_date, photo_data, photo_content_type, opening_balance FROM field_staff WHERE staff_id = ?", (staff_id,)).fetchone()
         if not s:
             flash("Staff not found.", "error")
             return redirect(url_for("fleet.fleet_staff_list"))
@@ -3580,7 +3580,8 @@ def fleet_staff_profile(staff_id):
         ).fetchone()["t"] or 0
 
         card_spent = float(card_jobs) + float(card_papers)
-        card_balance = card_received - card_spent
+        opening_balance = float(s.get("opening_balance") or 0)
+        card_balance = opening_balance + card_received - card_spent
         jobs = db.execute(f"""
             SELECT {_MJ_LIST_COLS}, v.vehicle_type FROM maintenance_jobs mj
             LEFT JOIN vehicles v ON v.plate_no = mj.vehicle_id
@@ -3643,6 +3644,7 @@ def fleet_staff_profile(staff_id):
             card_received=card_received,
             card_spent=card_spent,
             card_balance=card_balance,
+            opening_balance=opening_balance,
             month_name=month_name,
             is_filtered=bool(filter_month),
             items=items,
