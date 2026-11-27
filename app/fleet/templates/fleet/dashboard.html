@@ -382,7 +382,8 @@
           <thead><tr><th>Staff</th><th>Phone</th><th style="text-align:right">Received</th><th style="text-align:right">Spent</th><th style="text-align:right">Balance</th><th></th></tr></thead>
           <tbody>
             {% for s in staff_balances %}
-            {% set bal = s.total_received|float - s.total_spent|float %}
+            {% set opening = s.opening_balance|float if s.opening_balance is not none else 0 %}
+            {% set bal = opening + s.total_received|float - s.total_spent|float %}
             <tr class="clickable" onclick="window.location='{{ url_for('fleet.fleet_staff_profile', staff_id=s.staff_id) }}'">
               <td><strong>{{ s.full_name }}</strong><br><span class="fo-sub-id">{{ s.staff_id }}</span></td>
               <td style="font-size:.73rem">{{ s.phone or '—' }}</td>

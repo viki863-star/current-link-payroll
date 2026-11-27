@@ -485,7 +485,7 @@ def fleet_dashboard():
 
     # Staff balances
     staff_balances = db.execute("""
-        SELECT fs.staff_id, fs.full_name, fs.phone,
+        SELECT fs.staff_id, fs.full_name, fs.phone, fs.opening_balance,
             COALESCE(adv.total_adv, 0) AS total_received,
             COALESCE(mj.total_jobs, 0) + COALESCE(mp.total_papers, 0) AS total_spent
         FROM field_staff fs
