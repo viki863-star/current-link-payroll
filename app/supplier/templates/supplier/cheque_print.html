@@ -120,8 +120,17 @@ html, body {
 
   {# ── AMOUNT IN WORDS ── #}
   {% set amt = net_amt|default(pay.amount)|float %}
+  {% set words = amount_words|default('') %}
+  {% set words_no_dirhams = words.replace(' Dirhams', '').replace('Dirhams', '') %}
+  {% set words_parts = words_no_dirhams.split(' ') %}
+  {% set mid = words_parts|length // 2 %}
+  {% set line1 = words_parts[:mid]|join(' ') %}
+  {% set line2 = words_parts[mid:]|join(' ') %}
   <div class="words-line1">
-    AED {{ amount_words }} Only
+    AED {{ line1 }}
+  </div>
+  <div class="words-line2">
+    {{ line2 }} Only
   </div>
 
   {# ── AMOUNT FIGURES ── #}
