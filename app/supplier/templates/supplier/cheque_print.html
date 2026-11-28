@@ -122,21 +122,22 @@ html, body {
   {% set amt = net_amt|default(pay.amount)|float %}
   {% set words = amount_words|default('') %}
   {% set words_no_dirhams = words.replace(' Dirhams', '').replace('Dirhams', '') %}
-  {% set words_parts = words_no_dirhams.split(' ') %}
-  {% set mid = words_parts|length // 2 %}
-  {% set line1 = words_parts[:mid]|join(' ') %}
-  {% set line2 = words_parts[mid:]|join(' ') %}
-  {# Ensure "and" starts line2 if it's at the boundary #}
-  {% if line1.endswith(' and') %}
-    {% set line1 = line1[:-4] %}
-    {% set line2 = 'and ' ~ line2 %}
+  {% set words_len = words_no_dirhams|length %}
+  {% if words_no_dirhams|length > 70 %}
+    {% set words_parts = words_no_dirhams.split(' ') %}
+    {% set mid = words_parts|length // 2 %}
+    {% set line1 = words_parts[:mid]|join(' ') %}
+    {% set line2 = words_parts[mid:]|join(' ') %}
+    {# Ensure "and" starts line2 if it's at the boundary #}
+    {% if line1.endswith(' and') %}
+      {% set line1 = line1[:-4] %}
+      {% set line2 = 'and ' ~ line2 %}
+    {% endif %}
+    <div class="words-line1">{{ line1 }}</div>
+    <div class="words-line2">{{ line2 }} Only</div>
+  {% else %}
+    <div class="words-line1" style="top: 50mm;">{{ words_no_dirhams }} Only</div>
   {% endif %}
-  <div class="words-line1">
-    AED {{ line1 }}
-  </div>
-  <div class="words-line2">
-    {{ line2 }} Only
-  </div>
 
   {# ── AMOUNT FIGURES ── #}
   <div class="figure-box">
