@@ -129,7 +129,6 @@ html, body {
     {% for i in range(words_parts|length - 1, -1, -1) %}
       {% if words_parts[i] == 'and' %}
         {% set and_index = i %}
-        {% break %}
       {% endif %}
     {% endfor %}
     {% if and_index >= 0 %}
