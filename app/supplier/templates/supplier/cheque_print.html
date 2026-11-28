@@ -122,27 +122,16 @@ html, body {
   {% set amt = net_amt|default(pay.amount)|float %}
   {% set words = amount_words|default('') %}
   {% set words_no_dirhams = words.replace(' Dirhams', '').replace('Dirhams', '') %}
-  {% set words_len = words_no_dirhams|length %}
-  {% if words_no_dirhams|length > 70 %}
-    {% set words_parts = words_no_dirhams.split(' ') %}
-    {% set and_index = -1 %}
-    {% for i in range(words_parts|length - 1, -1, -1) %}
-      {% if words_parts[i] == 'and' %}
-        {% set and_index = i %}
-      {% endif %}
+  {% set words_parts = words_no_dirhams.split(' ') %}
+  {% set and_index = -1 %}
+  {% for i in range(words_parts|length - 1, -1, -1) %}
+    {% if words_parts[i] == 'and' %}
+      {% set and_index = i %}
+      {% break %}
     {% endfor %}
-    {% if and_index >= 0 %}
-      {% set line1 = words_parts[:and_index]|join(' ') %}
-      {% set line2 = 'and ' ~ words_parts[and_index+1:]|join(' ') %}
-    {% else %}
-      {% set mid = words_parts|length // 2 %}
-      {% set line1 = words_parts[:mid]|join(' ') %}
-      {% set line2 = words_parts[mid:]|join(' ') %}
-      {% if line1.endswith(' and') %}
-        {% set line1 = line1[:-4] %}
-        {% set line2 = 'and ' ~ line2 %}
-      {% endif %}
-    {% endif %}
+  {% if and_index >= 0 %}
+    {% set line1 = words_parts[:and_index]|join(' ') %}
+    {% set line2 = 'and ' ~ words_parts[and_index+1:]|join(' ') %}
     <div class="words-line1">{{ line1 }}</div>
     <div class="words-line2">{{ line2 }} Only</div>
   {% else %}
